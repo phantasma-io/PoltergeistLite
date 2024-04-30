@@ -210,15 +210,6 @@ namespace Poltergeist
                             case PlatformKind.Phantasma:
                                 Application.OpenURL(accountManager.GetPhantasmaTransactionURL(hash.ToString()));
                                 break;
-                            case PlatformKind.Neo:
-                                Application.OpenURL(accountManager.GetNeoscanTransactionURL(hash.ToString()));
-                                break;
-                            case PlatformKind.Ethereum:
-                                Application.OpenURL(accountManager.GetEtherscanTransactionURL(hash.ToString()));
-                                break;
-                            case PlatformKind.BSC:
-                                Application.OpenURL(accountManager.GetBscTransactionURL(hash.ToString()));
-                                break;
                         }
                     }
                 });
