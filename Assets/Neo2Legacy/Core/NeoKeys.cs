@@ -1,21 +1,12 @@
 using Poltergeist.PhantasmaLegacy.Cryptography;
 using Poltergeist.PhantasmaLegacy.Neo2;
 using System;
-using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Text;
-using NBitcoin.DataEncoders;
 using Org.BouncyCastle.Crypto.Generators;
-using Org.BouncyCastle.Math;
-using Org.BouncyCastle.Math.EC;
 using Phantasma.Core.Cryptography.ECDsa;
 using Phantasma.Core.Cryptography;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Utils;
 using Poltergeist.Neo2.Utils;
-using UnityEngine;
-using ECCurve = System.Security.Cryptography.ECCurve;
-using ECPoint = System.Security.Cryptography.ECPoint;
 
 namespace Poltergeist.Neo2.Core
 {
