@@ -1744,7 +1744,7 @@ namespace Poltergeist
 
             if (refresh != null)
             {
-                DoButton(true, new Rect(windowRect.width - (VerticalLayout ? btnWidth + Border + 8 : btnWidth + Border * 2), curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Refresh", () =>
+                DoButton(true, new Rect(windowRect.width - (VerticalLayout ? windowRect.width / 2 + btnWidth / 2 : btnWidth + Border * 2), curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Refresh", () =>
                 {
                     refresh();
                 });
@@ -2139,14 +2139,7 @@ namespace Poltergeist
 
             if (state != null && state.flags.HasFlag(AccountFlags.Master) && soulMasterLogo != null)
             {
-                if (VerticalLayout)
-                {
-                    GUI.DrawTexture(new Rect(windowRect.width / 2 - 8, Units(4) + 4, Units(6), Units(6)), soulMasterLogo);
-                }
-                else
-                {
-                    GUI.DrawTexture(new Rect(Units(1), Units(2) + 8, Units(8), Units(8)), soulMasterLogo);
-                }
+                GUI.DrawTexture(new Rect(Units(1), Units(2) + 8, Units(8), Units(8)), soulMasterLogo);
             }
 
             var startY = DrawPlatformTopMenu(() =>
