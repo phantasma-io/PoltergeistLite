@@ -1665,13 +1665,11 @@ namespace Poltergeist
 
             lock (_refreshStatus)
             {
-                foreach (var platform in platformsList)
-                {
                     RefreshStatus refreshStatus;
                     var now = DateTime.UtcNow;
-                    if (_refreshStatus.ContainsKey(platform))
+                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
                     {
-                        refreshStatus = _refreshStatus[platform];
+                        refreshStatus = _refreshStatus[PlatformKind.Phantasma];
 
                         var diff = now - refreshStatus.LastHistoryRefresh;
 
@@ -1683,11 +1681,11 @@ namespace Poltergeist
                         refreshStatus.HistoryRefreshing = true;
                         refreshStatus.LastHistoryRefresh = now;
 
-                        _refreshStatus[platform] = refreshStatus;
+                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
                     }
                     else
                     {
-                        _refreshStatus.Add(platform,
+                        _refreshStatus.Add(PlatformKind.Phantasma,
                             new RefreshStatus
                             {
                                 BalanceRefreshing = false,
@@ -1697,17 +1695,10 @@ namespace Poltergeist
                                 LastHistoryRefresh = now
                             });
                     }
-                }
             }
 
             var wif = this.CurrentWif;
 
-            foreach (var platform in platformsList)
-            {
-                switch (platform)
-                {
-                    case PlatformKind.Phantasma:
-                        {
                             var keys = PhantasmaKeys.FromWIF(wif);
                             StartCoroutine(phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
                             {
@@ -1723,7 +1714,7 @@ namespace Poltergeist
                                     });
                                 }
 
-                                ReportWalletHistory(platform, history);
+                                ReportWalletHistory(PlatformKind.Phantasma, history);
                             },
                             (error, msg) =>
                             {
@@ -1731,16 +1722,8 @@ namespace Poltergeist
                                 {
                                     ChangeFaultyRPCURL(PlatformKind.Phantasma);
                                 }
-                                ReportWalletHistory(platform, null);
+                                ReportWalletHistory(PlatformKind.Phantasma, null);
                             }));
-                        }
-                        break;
-
-                    default:
-                        ReportWalletHistory(platform, null);
-                        break;
-                }
-            }
         }
 
         public string GetPhantasmaTransactionURL(string hash)
