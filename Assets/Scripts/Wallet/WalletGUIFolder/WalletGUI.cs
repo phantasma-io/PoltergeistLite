@@ -251,10 +251,6 @@ namespace Poltergeist
                         camTexture = null;
                     }
                     break;
-
-                case GUIState.Account:
-                    _accountSubMenu = 0;
-                    break;
             }
 
             if (state == GUIState.Exit)
@@ -3147,9 +3143,6 @@ namespace Poltergeist
             });
         }
 
-
-        private int _accountSubMenu;
-
         private void DoAccountScreen()
         {
             var accountManager = AccountManager.Instance;
@@ -3188,35 +3181,9 @@ namespace Poltergeist
                 btnOffset += Units(6);
             }
 
-            switch (_accountSubMenu)
-            {
-                case 0: DoAccountSubMenu(btnOffset); break;
-                case 1: DoAccountManagementMenu(btnOffset); break;
-            }
+            DoAccountManagementMenu(btnOffset);
 
             DoBottomMenu();
-        }
-
-        private void DoAccountSubMenu(int btnOffset)
-        {
-            var accountManager = AccountManager.Instance;
-            int posY;
-
-            DoButtonGrid<int>(false, accountMenu.Length, 0, -btnOffset, out posY, (index) =>
-            {
-                return new MenuEntry(index, accountMenu[index], true);
-            },
-            (selected) =>
-            {
-                switch (selected)
-                {
-                    case 0:
-                        {
-                            _accountSubMenu = 1;
-                            break;
-                        }
-                }
-            });
         }
 
         private void DoAccountManagementMenu(int btnOffset)
@@ -3418,9 +3385,6 @@ namespace Poltergeist
                             }
                             break;
                         }
-                    case 3:
-                        _accountSubMenu = 0;
-                        break;
                 }
             });
         }
@@ -3466,8 +3430,7 @@ namespace Poltergeist
             });
         }
 
-        private string[] accountMenu = new string[] { "Manage Account"};
-        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name", "Back" };
+        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name" };
 
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
 
