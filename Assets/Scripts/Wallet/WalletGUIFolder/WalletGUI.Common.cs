@@ -37,7 +37,6 @@ namespace Poltergeist
         Settings,
         ScanQR,
         Backup,
-        Dapps,
         Storage,
         Upload,
         Download,

@@ -275,10 +275,6 @@ namespace Poltergeist
                     currentTitle = "Fatal Error";
                     break;
 
-                case GUIState.Dapps:
-                    currentTitle = "dApps";
-                    break;
-
                 case GUIState.Wallets:
                     currentTitle = "Wallet List";
 
@@ -532,7 +528,7 @@ namespace Poltergeist
                         hintComboBox.ListScroll.y += touch.deltaPosition.y;
                     else if((guiState == GUIState.Wallets || guiState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
                         accountScroll.y += touch.deltaPosition.y;
-                    else if ((guiState == GUIState.Balances || guiState == GUIState.History || guiState == GUIState.Dapps) && !(modalState != ModalState.None && !modalRedirected))
+                    else if ((guiState == GUIState.Balances || guiState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
                         balanceScroll.y += touch.deltaPosition.y;
                     else if (guiState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
                         nftScroll.y += touch.deltaPosition.y;
@@ -916,10 +912,6 @@ namespace Poltergeist
 
                 case GUIState.Backup:
                     DoBackupScreen();
-                    break;
-
-                case GUIState.Dapps:
-                    DoDappScreen();
                     break;
 
                 case GUIState.Fatal:
@@ -2013,68 +2005,6 @@ namespace Poltergeist
             }
 
             DoBackButton();
-        }
-
-        public struct DappEntry
-        {
-            public string Title;
-            public string Category;
-            public string url;
-
-            public DappEntry(string title, string category, string uRL)
-            {
-                Title = title;
-                Category = category;
-                url = uRL;
-            }
-        }
-
-        private DappEntry[] availableDapps = new DappEntry[]
-        {
-            new DappEntry("GhostMarket", "marketplace", "https://ghostmarket.io/"),
-            new DappEntry("Moonjar", "game", "https://moonjar.io/")
-            /*new DappEntry("Katacomb", "game", "http://katacomb.io/"),*/
-            /*new DappEntry("Nachomen", "game", "https://nacho.men/"),*/
-        };
-
-        private void DoDappScreen()
-        {
-            var accountManager = AccountManager.Instance;
-
-            int curY = Units(5);
-
-            int startY = curY;
-            int endY = (int)(windowRect.yMax - Units(4));
-
-            DoScrollArea<DappEntry>(ref balanceScroll, startY, endY, VerticalLayout ? Units(4) + 12 : Units(3), availableDapps, DoDappEntry);
-
-            DoBackButton();
-        }
-
-        private void DoDappEntry(DappEntry entry, int index, int curY, Rect rect)
-        {
-            var accountManager = AccountManager.Instance;
-
-            GUI.Label(new Rect(Units(2), curY + 4, Units(20), Units(2) + 4), entry.Title);
-
-            Rect btnRect;
-
-            if (VerticalLayout)
-            {
-                curY += Units(2);
-                GUI.Label(new Rect(Units(2), curY, Units(20), Units(2) + 4), entry.Category);
-                btnRect = new Rect(rect.x + rect.width - Units(6), curY, Units(4), Units(1));
-            }
-            else
-            {
-                GUI.Label(new Rect(Units(26), curY + 4, Units(20), Units(2) + 4), entry.Category);
-                btnRect = new Rect(rect.x + rect.width - Units(6), curY + Units(1), Units(4), Units(1));
-            }
-
-            DoButton(!string.IsNullOrEmpty(entry.url), btnRect, "View", () =>
-            {
-                Application.OpenURL(entry.url);
-            });
         }
 
         private static int GetNextInt32(System.Security.Cryptography.RNGCryptoServiceProvider rnd)
@@ -3285,11 +3215,6 @@ namespace Poltergeist
                             _accountSubMenu = 1;
                             break;
                         }
-                    case 1:
-                        {
-                            PushState(GUIState.Dapps);
-                            break;
-                        }
                 }
             });
         }
@@ -3541,7 +3466,7 @@ namespace Poltergeist
             });
         }
 
-        private string[] accountMenu = new string[] { "Manage Account", "dApps"};
+        private string[] accountMenu = new string[] { "Manage Account"};
         private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name", "Back" };
 
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
