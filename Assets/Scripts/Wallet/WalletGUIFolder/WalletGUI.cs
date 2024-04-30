@@ -2371,45 +2371,6 @@ namespace Poltergeist
             bool tertiaryEnabled = false;
             Action tertiaryCallback = null;
 
-            if (balance.Pending > 0)
-            {
-                secondaryAction = "Claim";
-                secondaryEnabled = true;
-                secondaryCallback = () =>
-                {
-                    PromptBox($"You have {balance.Pending} {balance.Symbol} pending in your account.\nDo you want to claim it?", ModalYesNo, (result) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            Action claim = () =>
-                            {
-                                BeginWaitingModal("Preparing swap transaction...");
-                                accountManager.SettleSwap(balance.PendingPlatform, accountManager.CurrentPlatform.ToString().ToLower(), balance.Symbol, balance.PendingHash, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, (settleHash, error) =>
-                                {
-                                    EndWaitingModal();
-                                    if (settleHash != Hash.Null)
-                                    {
-                                        ShowConfirmationScreen(settleHash, true, (hash, error) =>
-                                        {
-                                            TxResultMessage(hash, error, $"Your {balance.Symbol} arrived in your {accountManager.CurrentPlatform} account.");
-                                        });
-                                    }
-                                    else
-                                    {
-                                        if ((accountManager.CurrentPlatform == PlatformKind.Ethereum || accountManager.CurrentPlatform == PlatformKind.BSC) && error.Contains("destination hash is not yet available"))
-                                            MessageBox(MessageKind.Default, $"Claim was processed but it will take some time for Ethereum transaction to be mined.\nPlease press claim again later to finalize claim procedure.");
-                                        else
-                                            MessageBox(MessageKind.Error, $"An error has occurred while claiming your {balance.Symbol}...\n{error}");
-                                    }
-                                });
-                            };
-
-                            claim();
-                        }
-                    });
-                };
-            }
-            else
                 switch (balance.Symbol)
                 {
                     case "SOUL":
