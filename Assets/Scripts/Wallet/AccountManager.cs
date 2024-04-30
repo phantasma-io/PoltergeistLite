@@ -1247,7 +1247,6 @@ namespace Poltergeist
                                             {
                                                 Symbol = entry.symbol,
                                                 Available = AmountFromString(entry.amount, token.decimals),
-                                                Pending = 0,
                                                 Staked = 0,
                                                 Claimable = 0,
                                                 Chain = entry.chain,
@@ -1261,7 +1260,6 @@ namespace Poltergeist
                                             {
                                                 Symbol = entry.symbol,
                                                 Available = AmountFromString(entry.amount, 8),
-                                                Pending = 0,
                                                 Staked = 0,
                                                 Claimable = 0,
                                                 Chain = entry.chain,
@@ -1299,7 +1297,6 @@ namespace Poltergeist
                                                 Available = 0,
                                                 Staked = stakedAmount,
                                                 Claimable = 0,
-                                                Pending = 0,
                                                 Decimals = token.decimals,
                                                 Burnable = token.IsBurnable(),
                                                 Fungible = token.IsFungible()
@@ -1326,7 +1323,6 @@ namespace Poltergeist
                                                 Available = 0,
                                                 Staked = 0,
                                                 Claimable = claimableAmount,
-                                                Pending = 0,
                                                 Decimals = token.decimals,
                                                 Burnable = token.IsBurnable(),
                                                 Fungible = token.IsFungible()

@@ -5,7 +5,6 @@ namespace Poltergeist
         public string Symbol;
         public decimal Available;
         public decimal Staked;
-        public decimal Pending;
         public decimal Claimable;
         public string Chain;
         public int Decimals;
@@ -15,6 +14,6 @@ namespace Poltergeist
         public string PendingHash;
         public string[] Ids;
 
-        public decimal Total => Available + Staked + Pending + Claimable;
+        public decimal Total => Available + Staked + Claimable;
     }
 }

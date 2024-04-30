@@ -2359,7 +2359,6 @@ namespace Poltergeist
 
             var subRect = new Rect(posX, posY + Units(1) + 4, Units(20), Units(2));
             DrawBalanceLine(ref subRect, balance.Symbol, balance.Staked, "staked");
-            DrawBalanceLine(ref subRect, balance.Symbol, balance.Pending, "pending");
             DrawBalanceLine(ref subRect, balance.Symbol, balance.Claimable, "claimable");
 
             string secondaryAction = null;
