@@ -2043,55 +2043,6 @@ namespace Poltergeist
             }
         }
 
-        private void MergeSwaps(PlatformKind platform, Dictionary<string, Balance> balanceMap, Swap[] swaps)
-        {
-            var platformName = platform.ToString().ToLower();
-
-            foreach (var swap in swaps)
-            {
-                if (swap.destinationPlatform != platformName)
-                {
-                    continue;
-                }
-
-                if (swap.destinationHash != "pending")
-                {
-                    continue;
-                }
-
-                var token = Tokens.GetToken(swap.symbol, platform);
-                var amount = AmountFromString(swap.value, token.decimals);
-
-                Log.Write($"Found pending {platformName} swap: {amount} {swap.symbol}");
-
-                if (balanceMap.ContainsKey(swap.symbol))
-                {
-                    var entry = balanceMap[swap.symbol];
-                    entry.Pending += amount;
-                    entry.PendingHash = swap.sourceHash;
-                    entry.PendingPlatform = swap.sourcePlatform;
-                }
-                else
-                {
-                    var entry = new Balance()
-                    {
-                        Symbol = swap.symbol,
-                        Chain = "main",
-                        Available = 0,
-                        Staked = 0,
-                        Claimable = 0,
-                        Pending = amount,
-                        Decimals = token.decimals,
-                        Burnable = token.IsBurnable(),
-                        Fungible = token.IsFungible(),
-                        PendingHash = swap.sourceHash,
-                        PendingPlatform = swap.sourcePlatform,
-                    };
-                    balanceMap[swap.symbol] = entry;
-                }
-            }
-        }
-
         internal void InitDemoAccounts(NexusKind nexusKind)
         {
             var accounts = new List<Account>();
@@ -2632,23 +2583,6 @@ namespace Poltergeist
             return $"{url}{symbol.ToLower()}/{tokenId}";
         }
 
-        private void RequestPendings(string address, PlatformKind platform, Action<Swap[], string> callback)
-        {
-            callback(Array.Empty<Swap>(), null);
-            
-            /*StartCoroutine(phantasmaApi.GetSwapsForAddress(address, platform.ToString().ToLower(), (swaps) =>
-            {
-                callback(swaps, null);
-            }, (error, msg) =>
-            {
-                if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                {
-                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                }
-                callback(null, msg);
-            }));*/
-        }
-
         public string GetEtherscanTransactionURL(string hash)
         {
             if (!hash.StartsWith("0x"))
@@ -2787,11 +2721,6 @@ namespace Poltergeist
             }
 
             return $"{url}api/main_net/v1/{request}";
-        }
-
-        internal bool SwapSupported(string symbol)
-        {
-            return symbol == "SOUL" || symbol == "NEO" || symbol == "GAS";
         }
 
         public int AddWallet(string name, string wif, string password, bool legacySeed)
