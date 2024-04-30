@@ -11,8 +11,8 @@ using UnityEngine.Networking;
 public class UpdateChecker : MonoBehaviour
 {
     public string githubOwner = "phantasma-io"; // Your GitHub username
-    public string githubRepo = "Poltergeist"; // Your repository name
-    public string currentVersion = "2.8.3"; // Current version of your game
+    public string githubRepo = "PoltergeistLite"; // Your repository name
+    public string currentVersion = "1.0.0"; // Current version of your game
 
     private const string GITHUB_RELEASES_URL = "https://github.com/";
     private static string URL = "";
@@ -62,7 +62,7 @@ public class UpdateChecker : MonoBehaviour
                     if (latestVer > currentVer)
                     {
                         WalletGUI.Instance.ShowUpdateModal("Update Available",
-                            "A new version of the wallet is available. Please update the wallet.\n\n\n"+
+                            $"A new version {latestVersionNoPrefix} of the wallet is available (you have {currentVersion}). Please update the wallet.\n\n\n" +
                             $"{URL}", () =>
                             {
                                 Debug.Log("Close");
@@ -71,7 +71,7 @@ public class UpdateChecker : MonoBehaviour
                 }
                 else
                 {
-                    Debug.LogError("Could not find version information.");
+                    // Debug.LogError("Could not find version information.");
                 }
             }
         }
