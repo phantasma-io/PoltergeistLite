@@ -196,14 +196,8 @@ namespace Poltergeist
         public const string WalletLegacyTag = "wallet.list.legacy";
 
         private int rpcNumberPhantasma; // Total number of Phantasma RPCs, received from getpeers.json.
-        private int rpcNumberNeo; // Total number of Neo RPCs.
-        private int rpcNumberBsc; // Total number of Bsc RPCs.
         private int rpcBenchmarkedPhantasma; // Number of Phantasma RPCs which speed already measured.
-        private int rpcBenchmarkedNeo; // Number of Neo RPCs which speed already measured.
-        private int rpcBenchmarkedBsc; // Number of Bsc RPCs which speed already measured.
         public int rpcAvailablePhantasma = 0;
-        public int rpcAvailableNeo = 0;
-        public int rpcAvailableBsc = 0;
         private class RpcBenchmarkData
         {
             public string Url;
@@ -218,8 +212,6 @@ namespace Poltergeist
             }
         }
         private List<RpcBenchmarkData> rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
-        private List<RpcBenchmarkData> rpcResponseTimesNeo = new List<RpcBenchmarkData>();
-        private List<RpcBenchmarkData> rpcResponseTimesBsc = new List<RpcBenchmarkData>();
 
         private string GetFastestWorkingRPCURL(PlatformKind platformKind, out TimeSpan responseTime)
         {
@@ -228,10 +220,6 @@ namespace Poltergeist
             List<RpcBenchmarkData> platformRpcs = null;
             if (platformKind == PlatformKind.Phantasma)
                 platformRpcs = rpcResponseTimesPhantasma;
-            else if (platformKind == PlatformKind.Neo)
-                platformRpcs = rpcResponseTimesNeo;
-            else if (platformKind == PlatformKind.BSC)
-                platformRpcs = rpcResponseTimesBsc;
 
             responseTime = TimeSpan.Zero;
 
@@ -258,8 +246,6 @@ namespace Poltergeist
             if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net)
             {
                 rpcAvailablePhantasma = 1;
-                rpcAvailableNeo = 1;
-                rpcAvailableBsc = 1;
                 return; // No need to change RPC, it is set by custom settings.
             }
 
@@ -396,7 +382,7 @@ namespace Poltergeist
 
                 // Switching to working RPC.
                 TimeSpan bestTime;
-                string bestRpcUrl = GetFastestWorkingRPCURL(platformKind, out bestTime);
+                string bestRpcUrl = GetFastestWorkingRPCURL(PlatformKind.Phantasma, out bestTime);
 
                 if (String.IsNullOrEmpty(bestRpcUrl))
                 {
