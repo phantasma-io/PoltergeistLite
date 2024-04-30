@@ -25,7 +25,7 @@ namespace Poltergeist
         public static readonly int MaxPasswordLength = 32;
         public static readonly int MinAccountNameLength = 3;
         public static readonly int MaxAccountNameLength = 16;
-        public string WalletIdentifier => "PGT" + UnityEngine.Application.version;
+        public string WalletIdentifier => "PGL" + UnityEngine.Application.version;
 
         public Settings Settings { get; private set; }
 

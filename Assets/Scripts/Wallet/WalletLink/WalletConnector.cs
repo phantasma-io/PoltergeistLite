@@ -20,7 +20,7 @@ namespace Poltergeist
     public class WalletConnector : WalletLink
     {
         public override string Nexus => AccountManager.Instance.Settings.nexusName;
-        public override string Name => "Poltergeist";
+        public override string Name => "Poltergeist Lite";
 
         protected override WalletStatus Status => AccountManager.Instance.CurrentState != null ? WalletStatus.Ready : WalletStatus.Closed;
 
