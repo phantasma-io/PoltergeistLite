@@ -86,8 +86,6 @@ namespace Poltergeist
         public const string GasPriceTag = "settings.fee.price";
         public const string GasLimitTag = "settings.fee.limit";
 
-        public const string SFXTag = "settings.sfx";
-
         public const string LogLevelTag = "log.level";
         public const string LogOverwriteModeTag = "log.overwrite.mode";
 
@@ -113,7 +111,6 @@ namespace Poltergeist
         public BigInteger feePrice;
         public BigInteger feeLimit;
         public NexusKind nexusKind;
-        public bool sfx;
         public Log.Level logLevel;
         public bool logOverwriteMode;
         public string uiThemeName;
@@ -136,7 +133,6 @@ namespace Poltergeist
                 "Fee limit: " + this.feeLimit + "\n" +
                 "Nexus name: " + this.nexusName + "\n" +
                 "Currency: " + this.currency + "\n" +
-                "Sfx: " + this.sfx + "\n" +
                 "UI theme: " + this.uiThemeName + "\n" +
                 "UI framerate: " + this.uiFramerate + "\n" +
                 "Log level: " + this.logLevel + "\n" +
@@ -187,7 +183,6 @@ namespace Poltergeist
             }
 
             this.currency = PlayerPrefs.GetString(CurrencyTag, "USD");
-            this.sfx = PlayerPrefs.GetInt(SFXTag, 0)!=0;
 
             var defaultGasPrice = 100000;
             if (!BigInteger.TryParse(PlayerPrefs.GetString(GasPriceTag, defaultGasPrice.ToString()), out feePrice))
@@ -372,7 +367,6 @@ namespace Poltergeist
 
             PlayerPrefs.SetString(NexusNameTag, this.nexusName);
             PlayerPrefs.SetString(CurrencyTag, this.currency);
-            PlayerPrefs.SetInt(SFXTag, this.sfx ?1:0);
             PlayerPrefs.SetString(UiThemeNameTag, this.uiThemeName);
             PlayerPrefs.SetInt(UiFramerateTag, this.uiFramerate);
             PlayerPrefs.SetString(LogLevelTag, this.logLevel.ToString());

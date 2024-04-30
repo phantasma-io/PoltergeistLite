@@ -77,7 +77,6 @@ namespace Poltergeist
                 }
                 else
                 {
-                    AudioManager.Instance.PlaySFX("auth");
                     ShowModal("Account Authorization", $"Account: {accountManager.CurrentAccount.name} ({platforms})\nAction: {description}\n\nInsert password to proceed...", ModalState.Password, AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, ModalConfirmCancel, 1, (result, input) =>
                     {
                         var auth = result;

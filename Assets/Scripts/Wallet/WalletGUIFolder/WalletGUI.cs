@@ -602,8 +602,6 @@ namespace Poltergeist
             {
                 Animate(AnimationDirection.Up, true, () =>
                 {
-                    AudioManager.Instance.PlaySFX("load");
-
                     stateStack.Clear();
                     PushState(GUIState.Wallets);
 
@@ -1464,8 +1462,6 @@ namespace Poltergeist
                                     ShowModal("Wallets Export", $"Copy wallets export data to the clipboard?",
                                         ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result, input) =>
                                         {
-                                            AudioManager.Instance.PlaySFX("click");
-
                                             if (result == PromptResult.Success)
                                             {
                                                 GUIUtility.systemCopyBuffer = serializedExportData;
@@ -1529,8 +1525,6 @@ namespace Poltergeist
                                                 (someWillBeImported ? (messageWillBeImported + "\n\n") : "") + (someWillBeSkipped ? messageWillBeSkipped : ""),
                                                 ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result2, input) =>
                                                 {
-                                                    AudioManager.Instance.PlaySFX("click");
-
                                                     if (result2 == PromptResult.Success)
                                                     {
                                                         var count = 0;
@@ -1590,8 +1584,6 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    AudioManager.Instance.PlaySFX("click");
-
                                     var counter = 0;
                                     foreach(var accountToDelete in accountManagementSelectedList)
                                     {
@@ -1810,14 +1802,12 @@ namespace Poltergeist
             {
                 DoButton(true, new Rect(windowRect.width / 2 - btnWidth - Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Copy Address", () =>
                   {
-                      AudioManager.Instance.PlaySFX("click");
                       GUIUtility.systemCopyBuffer = address;
                       MessageBox(MessageKind.Default, "Address copied to clipboard.");
                   });
 
                 DoButton(true, new Rect(windowRect.width / 2 + Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Explorer", () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     switch(accountManager.CurrentPlatform)
                     {
                         case PlatformKind.Phantasma:
@@ -2013,7 +2003,6 @@ namespace Poltergeist
                             var tag = platform.ToString().ToLower()+"://";
                             if (result.Text.StartsWith(tag))
                             {
-                                AudioManager.Instance.PlaySFX("positive");
                                 modalInput = result.Text.Substring(tag.Length);
                                 PopState();
                             }
@@ -2084,7 +2073,6 @@ namespace Poltergeist
 
             DoButton(!string.IsNullOrEmpty(entry.url), btnRect, "View", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 Application.OpenURL(entry.url);
             });
         }
@@ -2198,15 +2186,12 @@ namespace Poltergeist
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6: 7));
             DoButton(true, new Rect(windowRect.width / 3 - btnWidth / 2, curY, btnWidth, Units(2)), "Copy to clipboard", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
                 MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
             });
 
             DoButton(true, new Rect((windowRect.width / 2) - btnWidth / 2, curY, btnWidth, Units(2)), "Continue", () =>
             {
-                AudioManager.Instance.PlaySFX("confirm");
-
                 int[] wordsOrder;
                 if(AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
                     wordsOrder = Enumerable.Range(1, 12).ToArray();
@@ -2231,7 +2216,6 @@ namespace Poltergeist
             
             DoButton(true, new Rect((windowRect.width / 3) * 2 - btnWidth / 2, curY, btnWidth, Units(2)), "Cancel", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PopState();
             });
         }
@@ -2247,7 +2231,6 @@ namespace Poltergeist
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
             DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)), "Copy to Clipboard", () =>
             {
-                AudioManager.Instance.PlaySFX("confirm");
                 GUIUtility.systemCopyBuffer = fatalError;
                 MessageBox(MessageKind.Default, "Error log copied to clipboard.");
             });
@@ -2531,8 +2514,6 @@ namespace Poltergeist
                                     secondaryEnabled = balance.Available > 0;
                                     secondaryCallback = () =>
                                     {
-                                        AudioManager.Instance.PlaySFX("click");
-
                                         transferSymbol = balance.Symbol;
 
                                         // We should do this initialization here and not in PushState,
@@ -2561,7 +2542,6 @@ namespace Poltergeist
             {
                 DoButton(tertiaryEnabled, new Rect(rect.x + rect.width - (Units(18) + 8), curY + btnY, Units(4) + 8, Units(2)), tertiaryAction, () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     tertiaryCallback?.Invoke();
                 });
             }
@@ -2570,7 +2550,6 @@ namespace Poltergeist
             {
                 DoButton(secondaryEnabled, new Rect(rect.x + rect.width - (Units(12) + 8), curY + btnY, Units(4) + 8, Units(2)), secondaryAction, () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     secondaryCallback?.Invoke();
                 });
             }
@@ -2599,8 +2578,6 @@ namespace Poltergeist
 
             DoButton(mainActionEnabled, new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
             {
-                AudioManager.Instance.PlaySFX("click");
-
                 if (mainAction == "Send")
                 {
                     transferSymbol = balance.Symbol;
@@ -3136,7 +3113,6 @@ namespace Poltergeist
 
             DoButton(!DrawNftToolsAreActive(), btnRect, "View", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 if (transferSymbol == "TTRS")
                     Application.OpenURL("https://www.22series.com/part_info?id=" + entryId);
                 else
@@ -3237,7 +3213,6 @@ namespace Poltergeist
 
             DoButton(!string.IsNullOrEmpty(entry.url), btnRect, "View", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 Application.OpenURL(entry.url);
             });
         }
@@ -3361,7 +3336,6 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            AudioManager.Instance.PlaySFX("click");
                             ShowModal("Private key export", $"Copy private key in Wallet Import Format (WIF) or in HEX format to the clipboard" +
                                 "\n\nWIF can be used to import wallet in all Phantasma wallets, including Poltergeist, Phantom and Ecto." +
                                 "\nWIF format example (52 symbols):" +
@@ -3371,8 +3345,6 @@ namespace Poltergeist
                                 "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3",
                                 ModalState.Message, 0, 0, ModalHexWif, 0, (result, input) =>
                                 {
-                                    AudioManager.Instance.PlaySFX("click");
-
                                     if (result == PromptResult.Success)
                                     {
                                         var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
@@ -3421,7 +3393,6 @@ namespace Poltergeist
                                                     if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                     {
                                                         accountManager.ReplaceAccountWIF(accountManager.CurrentIndex, wif, accountManager.CurrentPasswordHash, out var deletedDuplicateWallet);
-                                                        AudioManager.Instance.PlaySFX("click");
                                                         CloseCurrentStack();
 
                                                         ShowModal("Message",
@@ -3459,7 +3430,6 @@ namespace Poltergeist
                                         if (delete == PromptResult.Success)
                                         {
                                             accountManager.DeleteAccount(accountManager.CurrentIndex);
-                                            AudioManager.Instance.PlaySFX("click");
                                             CloseCurrentStack();
                                             MessageBox(MessageKind.Default, "The account was deleted.");
                                         }
@@ -3714,7 +3684,6 @@ namespace Poltergeist
                                     VerticalLayout ? (int)rect.y + border + (Units(2) + 4) * 2 : (int)rect.y + border,
                                     VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Close", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PushState(GUIState.Balances);
 
                 // Saving sorting.
@@ -3730,7 +3699,6 @@ namespace Poltergeist
                                                  VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                  pageButtonWidth, Units(2)), "<<", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber = 0;
             });
 
@@ -3739,7 +3707,6 @@ namespace Poltergeist
                                                  VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                  pageButtonWidth, Units(2)), "<", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber--;
             });
 
@@ -3761,7 +3728,6 @@ namespace Poltergeist
                                                                 VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                                 pageButtonWidth, Units(2)), ">", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber++;
             });
 
@@ -3770,7 +3736,6 @@ namespace Poltergeist
                                                                 VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                                 pageButtonWidth, Units(2)), ">>", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber = nftPageCount - 1;
             });
 
@@ -3808,7 +3773,6 @@ namespace Poltergeist
                                             VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border,
                                             VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Online inventory", () =>
                                             {
-                                                AudioManager.Instance.PlaySFX("click");
                                                 Application.OpenURL("https://www.22series.com/inventory?#" + accountManager.GetAddress(AccountManager.Instance.CurrentIndex, AccountManager.Instance.CurrentPlatform));
                                             });
                 }
@@ -3819,7 +3783,6 @@ namespace Poltergeist
                         VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border,
                         VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Contract information", () =>
                         {
-                            AudioManager.Instance.PlaySFX("click");
                             Application.OpenURL(accountManager.GetPhantasmaContractURL(transferSymbol));
                         });
                 }
@@ -3845,14 +3808,12 @@ namespace Poltergeist
             // Back
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Back", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PushState(GUIState.Nft);
             });
 
             // Burn
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth - btnWidth / 2, VerticalLayout ? (int)rect.y + border : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Burn", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PromptBox("Are you sure you want to burn (destroy) selected NFTs?", ModalConfirmCancel, (result) =>
                 {
                     if (result == PromptResult.Success)
@@ -3894,8 +3855,6 @@ namespace Poltergeist
             // Send
             DoButton(nftTransferList.Count > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border - (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Send", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
-
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";

@@ -111,13 +111,11 @@ namespace Poltergeist
             switch (kind)
             {
                 case MessageKind.Success:
-                    AudioManager.Instance.PlaySFX("positive");
                     title = "Success";
                     options = ModalOk;
                     break;
 
                 case MessageKind.Error:
-                    AudioManager.Instance.PlaySFX("negative");
                     title = "Error";
                     options = ModalOkCopy;
                     Log.Write($"Error MessageBox: {caption}");
@@ -201,8 +199,6 @@ namespace Poltergeist
                 message,
                 ModalState.Message, 0, 0, ModalOkView, 0, (viewTxChoice, input) =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
-
                     if (viewTxChoice == PromptResult.Failure)
                     {
                         switch (accountManager.CurrentPlatform)

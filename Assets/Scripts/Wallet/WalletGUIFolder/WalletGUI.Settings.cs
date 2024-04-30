@@ -118,10 +118,6 @@ namespace Poltergeist
             settings.currency = currencyOptions[currencyIndex];
             curY += dropHeight + Units(1);
 
-            settings.sfx = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.sfx, "");
-            GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Sound Effects");
-            curY += Units(3);
-
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Nexus");
             var nexusList = availableNexus.Select(x => x.ToString().Replace('_', ' ')).ToArray();
             var prevNexus = nexusIndex;
@@ -399,7 +395,6 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        AudioManager.Instance.PlaySFX("click");
                         Cache.Clear();
                         MessageBox(MessageKind.Default, "Cache cleared.");
                     }
@@ -413,8 +408,6 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        AudioManager.Instance.PlaySFX("click");
-
                         // Saving wallets before settings reset.
                         var walletsVersion = PlayerPrefs.GetInt(AccountManager.WalletVersionTag);
                         var wallets = PlayerPrefs.GetString(AccountManager.WalletTag, "");
@@ -453,7 +446,6 @@ namespace Poltergeist
                     {
                         if (result == PromptResult.Success)
                         {
-                            AudioManager.Instance.PlaySFX("click");
                             accountManager.DeleteAll();
                             PlayerPrefs.DeleteAll();
                             accountManager.Settings.Load();
@@ -512,7 +504,6 @@ namespace Poltergeist
                                 {
                                     if (result == PromptResult.Failure)
                                     {
-                                        AudioManager.Instance.PlaySFX("click");
                                         GUIUtility.systemCopyBuffer = currentSettings;
                                     }
                                 });
@@ -521,7 +512,6 @@ namespace Poltergeist
                         }
                     case 1:
                         {
-                            AudioManager.Instance.PlaySFX("click");
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
                             string path = System.IO.Path.GetDirectoryName(Log.FilePath).TrimEnd(new[] { '\\', '/' }); // Mac doesn't like trailing slash
                             System.Diagnostics.Process.Start(path);
@@ -542,8 +532,6 @@ namespace Poltergeist
 
                     case 2:
                         {
-                            AudioManager.Instance.PlaySFX("cancel");
-
                             // Resetting changes by restoring current settings.
                             settings.Load();
 
@@ -559,7 +547,6 @@ namespace Poltergeist
                         {
                             if (ValidateSettings())
                             {
-                                AudioManager.Instance.PlaySFX("confirm");
                                 ResourceManager.Instance.UnloadTokens();
                                 CloseCurrentStack();
                             }
