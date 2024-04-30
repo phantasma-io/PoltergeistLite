@@ -21,11 +21,6 @@ using Phantasma.Core.Domain;
 using Phantasma.Business.VM.Utils;
 using Phantasma.Business.Blockchain;
 using Phantasma.Core.Types;
-#if CT_FB && (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX || UNITY_STANDALONE_LINUX || UNITY_EDITOR_LINUX)
-using Crosstales.FB;
-#elif UNITY_ANDROID
-using static NativeFilePicker;
-#endif
 using NBitcoin;
 
 namespace Poltergeist
@@ -286,13 +281,6 @@ namespace Poltergeist
 
                 case GUIState.Dapps:
                     currentTitle = "dApps";
-                    break;
-
-                case GUIState.Storage:
-                    if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
-                        accountManager.CurrentPlatform = PlatformKind.Phantasma;
-
-                    currentTitle = $"Storage space: {BytesToString(accountManager.CurrentState.usedStorage)} used / {BytesToString(accountManager.CurrentState.totalStorage)} total";
                     break;
 
                 case GUIState.Wallets:
@@ -570,7 +558,7 @@ namespace Poltergeist
                         hintComboBox.ListScroll.y += touch.deltaPosition.y;
                     else if((guiState == GUIState.Wallets || guiState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
                         accountScroll.y += touch.deltaPosition.y;
-                    else if ((guiState == GUIState.Balances || guiState == GUIState.History || guiState == GUIState.Storage || guiState == GUIState.Dapps) && !(modalState != ModalState.None && !modalRedirected))
+                    else if ((guiState == GUIState.Balances || guiState == GUIState.History || guiState == GUIState.Dapps) && !(modalState != ModalState.None && !modalRedirected))
                         balanceScroll.y += touch.deltaPosition.y;
                     else if (guiState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
                         nftScroll.y += touch.deltaPosition.y;
@@ -962,18 +950,6 @@ namespace Poltergeist
 
                 case GUIState.Dapps:
                     DoDappScreen();
-                    break;
-
-                case GUIState.Storage:
-                    DoStorageScreen();
-                    break;
-
-                case GUIState.Upload:
-                    DrawCenteredText($"Uploading chunk {_currentUploadChunk + 1} out of {_totalUploadChunks}...");
-                    break;
-
-                case GUIState.Download:
-                    DrawCenteredText($"Downloading chunk {_currentDownloadChunk + 1} out of {_totalDownloadChunks}...");
                     break;
 
                 case GUIState.Fatal:
@@ -3711,25 +3687,11 @@ namespace Poltergeist
                             _accountSubMenu = 2;
                             break;
                         }
-#if UNITY_IOS
                     case 2:
                         {
                             PushState(GUIState.Dapps);
                             break;
                         }
-#else
-                    case 2:
-                        {
-                            PushState(GUIState.Storage);
-                            break;
-                        }
-
-                    case 3:
-                        {
-                            PushState(GUIState.Dapps);
-                            break;
-                        }
-#endif
                 }
             });
         }
@@ -3805,14 +3767,6 @@ namespace Poltergeist
                                     return; // user cancelled
                                 }
 
-                                if (accountManager.CurrentState.archives.Where(x => x.encryption != null).Any())
-                                {
-                                    MessageBox(MessageKind.Default, "Before migration, please download and remove all encrypted files from the storage.", () =>
-                                    {
-                                        return;
-                                    });
-                                }
-                                else
                                 {
                                     var oldWif = accountManager.CurrentWif;
 
@@ -4027,7 +3981,7 @@ namespace Poltergeist
 #if CT_FB && (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX || UNITY_STANDALONE_LINUX || UNITY_EDITOR_LINUX)
                             var extensions = new[] { "Image Files", "png", "jpg", "jpeg" };
 
-                            UploadSelectedAvatar(FileBrowser.Instance.OpenSingleFile("Open File", accountManager.Settings.GetLastVisitedFolder(), null, extensions));
+//                            UploadSelectedAvatar(FileBrowser.Instance.OpenSingleFile("Open File", accountManager.Settings.GetLastVisitedFolder(), null, extensions));
 #elif UNITY_ANDROID
                             var extensionFilter = new string[] {"image/*"};
 //#else
@@ -4087,16 +4041,10 @@ namespace Poltergeist
             });
         }
 
-#if UNITY_IOS
         private string[] accountMenu = new string[] { "Manage Account", "Customize Account", "dApps"};
-#else
-        private string[] accountMenu = new string[] { "Manage Account", "Customize Account", "Storage", "dApps" };
-#endif
         private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Delete Account", "Back" };
         private string[] customizationMenu = new string[] { "Setup Name", "Setup Avatar", "Multi-signature", "Back" };
 
-        private string[] storageMenu = new string[] { "Upload File", "Back" };
-        
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
 
         private int DoBottomMenu()

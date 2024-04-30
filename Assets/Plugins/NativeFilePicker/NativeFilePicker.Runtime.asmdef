@@ -1,4 +1,0 @@
-﻿{
-	"name": "NativeFilePicker.Runtime",
-	"excludePlatforms": ["iOS"]
-}
