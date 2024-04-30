@@ -1738,38 +1738,7 @@ namespace Poltergeist
 
             int curY = VerticalLayout ? Units(6) : Units(1);
 
-            // We do not show platform switchers for NFTs screens to avoid errors.
-            if (accountManager.CurrentAccount.platforms.Split().Count > 1 && (guiState != GUIState.Nft && guiState != GUIState.NftView && guiState != GUIState.NftTransferList))
-            {
-                DoButton(true, new Rect(Units(1) + 8 + (VerticalLayout ? 0 : 8), curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("SOUL_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.Phantasma, () => { accountManager.CurrentPlatform = PlatformKind.Phantasma; });
-                DoButton(true, new Rect(Units(4) + (VerticalLayout ? 4 : 8), curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("ETH_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.Ethereum, () => { accountManager.CurrentPlatform = PlatformKind.Ethereum; });
-                DoButton(true, new Rect(Units(6) + 16, curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("NEO_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.Neo, () => { accountManager.CurrentPlatform = PlatformKind.Neo; });
-                DoButton(true, new Rect(Units(9) + (VerticalLayout ? 12 : 8), curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("BSC_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.BSC, () => { accountManager.CurrentPlatform = PlatformKind.BSC; });
-
-                var style = GUI.skin.label;
-                if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                    GUI.contentColor = Color.black;
-                GUI.Label(new Rect(Units(12) + (VerticalLayout ? 4 : 0), curY - (VerticalLayout ? 8 : 12), Units(7), Units(2)), VerticalLayout ? accountManager.CurrentPlatform.ToString().ToUpper().Substring(0, 3) : accountManager.CurrentPlatform.ToString().ToUpper());
-                if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                    GUI.contentColor = Color.white;
-            }
-
-            string address = "";
-            switch(accountManager.CurrentPlatform)
-            {
-                case PlatformKind.Phantasma:
-                    address = accountManager.CurrentAccount.phaAddress;
-                    break;
-                case PlatformKind.Neo:
-                    address = accountManager.CurrentAccount.neoAddress;
-                    break;
-                case PlatformKind.Ethereum:
-                    address = accountManager.CurrentAccount.ethAddress;
-                    break;
-                case PlatformKind.BSC:
-                    address = accountManager.CurrentAccount.ethAddress;
-                    break;
-            }
+            string address = accountManager.CurrentAccount.phaAddress;
 
             var btnWidth = Units(8);
 
