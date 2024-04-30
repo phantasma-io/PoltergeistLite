@@ -192,8 +192,6 @@ namespace Poltergeist
 
         public const string WalletVersionTag = "wallet.list.version";
         public const string WalletTag = "wallet.list";
-        // TODO: Remove before release.
-        public const string WalletLegacyTag = "wallet.list.legacy";
 
         private int rpcNumberPhantasma; // Total number of Phantasma RPCs, received from getpeers.json.
         private int rpcBenchmarkedPhantasma; // Number of Phantasma RPCs which speed already measured.
@@ -466,77 +464,12 @@ namespace Poltergeist
 
             // Version 1 - original account version used in PG up to version 1.9.
             // Version 2 - new account version.
-            var walletVersion = PlayerPrefs.GetInt(WalletVersionTag, 1);
+            // var walletVersion = PlayerPrefs.GetInt(WalletVersionTag, 1);
 
             var wallets = PlayerPrefs.GetString(WalletTag, "");
             Accounts = new List<Account>();
 
-            if (walletVersion == 1 && !string.IsNullOrEmpty(wallets))
-            {
-                // TODO: Remove before release.
-                // Saving old accounts for now.
-                PlayerPrefs.SetString(WalletLegacyTag, wallets);
-
-                // Legacy format, should be converted.
-                var bytes = Base16.Decode(wallets);
-                var accountsLegacy = Serialization.Unserialize<AccountLegacyV1[]>(bytes);
-
-                foreach (var account in accountsLegacy)
-                {
-                    Accounts.Add(new Account
-                    {
-                        name = account.name,
-                        platforms = account.platforms,
-                        WIF = account.WIF,
-                        password = account.password,
-                        misc = account.misc
-                    });
-                }
-
-                // Upgrading accounts.
-                for (var i = 0; i < Accounts.Count(); i++)
-                {
-                    Log.Write($"Account {Accounts[i].name} version: {walletVersion}, will be upgraded");
-
-                    var account = Accounts[i];
-
-                    // Initializing public addresses.
-                    var phaKeys = PhantasmaKeys.FromWIF(account.WIF);
-                    account.phaAddress = phaKeys.Address.ToString();
-
-                    var neoKeys = NeoKeys.FromWIF(account.WIF);
-                    account.neoAddress = neoKeys.Address.ToString();
-
-                    var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
-                    account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(EthereumKey.FromWIF(account.WIF).Address);
-
-                    if (!String.IsNullOrEmpty(Accounts[i].password))
-                    {
-                        account.passwordProtected = true;
-                        account.passwordIterations = PasswordIterations;
-
-                        // Encrypting WIF.
-                        GetPasswordHash(account.password, account.passwordIterations, out string salt, out string passwordHash);
-                        account.password = "";
-                        account.salt = salt;
-
-                        account.WIF = EncryptString(account.WIF, passwordHash, out string iv);
-                        account.iv = iv;
-
-                        // Decrypting to ensure there are no exceptions.
-                        DecryptString(account.WIF, passwordHash, account.iv);
-                    }
-                    else
-                    {
-                        account.passwordProtected = false;
-                    }
-
-                    Accounts[i] = account;
-                }
-
-                SaveAccounts();
-            }
-            else if (!string.IsNullOrEmpty(wallets))
+            if (!string.IsNullOrEmpty(wallets))
             {
                 var bytes = Base16.Decode(wallets);
                 try
@@ -557,19 +490,6 @@ namespace Poltergeist
                 {
                     Log.WriteError("Error deserializing accounts: " + e);
                 }
-            }
-
-            if (walletVersion == 2)
-            {
-                // Legacy seeds, we should mark accounts.
-                for (var i = 0; i < Accounts.Count; i++)
-                {
-                    var account = Accounts[i];
-                    account.misc = "legacy-seed";
-                    Accounts[i] = account;
-                }
-
-                SaveAccounts();
             }
 
             AccountsAreReadyToBeUsed = true;

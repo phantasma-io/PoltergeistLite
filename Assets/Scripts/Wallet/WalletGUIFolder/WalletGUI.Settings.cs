@@ -418,16 +418,12 @@ namespace Poltergeist
                         // Saving wallets before settings reset.
                         var walletsVersion = PlayerPrefs.GetInt(AccountManager.WalletVersionTag);
                         var wallets = PlayerPrefs.GetString(AccountManager.WalletTag, "");
-                        // TODO: Remove before release.
-                        var walletsLegacy = PlayerPrefs.GetString(AccountManager.WalletLegacyTag, "");
 
                         PlayerPrefs.DeleteAll();
 
                         // Restoring wallets before settings reset.
                         PlayerPrefs.SetInt(AccountManager.WalletVersionTag, walletsVersion);
                         PlayerPrefs.SetString(AccountManager.WalletTag, wallets);
-                        // TODO: Remove before release.
-                        PlayerPrefs.SetString(AccountManager.WalletLegacyTag, walletsLegacy);
 
                         // Loading default settings.
                         accountManager.Settings.Load();
