@@ -253,10 +253,9 @@ namespace Poltergeist
             return fastestRpcUrl;
         }
 
-        public void UpdateRPCURL(PlatformKind platformKind)
+        public void UpdateRPCURL()
         {
-            if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net ||
-                (platformKind == PlatformKind.Neo && Settings.nexusKind != NexusKind.Main_Net))
+            if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net)
             {
                 rpcAvailablePhantasma = 1;
                 rpcAvailableNeo = 1;
@@ -264,8 +263,6 @@ namespace Poltergeist
                 return; // No need to change RPC, it is set by custom settings.
             }
 
-            if (platformKind == PlatformKind.Phantasma)
-            {
                 string url;
                 if(Settings.nexusKind == NexusKind.Main_Net)
                 {
@@ -374,7 +371,6 @@ namespace Poltergeist
                         }
                     })
                 );
-            }
         }
 
         public void ChangeFaultyRPCURL(PlatformKind platformKind)
@@ -482,9 +478,7 @@ namespace Poltergeist
         {
             Settings.Load();
 
-            UpdateRPCURL(PlatformKind.Phantasma);
-            UpdateRPCURL(PlatformKind.Neo);
-            UpdateRPCURL(PlatformKind.BSC);
+            UpdateRPCURL();
 
             LoadNexus();
 

@@ -433,9 +433,7 @@ namespace Poltergeist
                         accountManager.Settings.Load();
 
                         // Finding fastest Phantasma and Neo RPCs.
-                        accountManager.UpdateRPCURL(PlatformKind.Phantasma);
-                        accountManager.UpdateRPCURL(PlatformKind.Neo);
-                        accountManager.UpdateRPCURL(PlatformKind.BSC);
+                        accountManager.UpdateRPCURL();
 
                         // Restoring combos' selected items.
                         // If they are not restored, following calls of DoSettingsScreen() will change them again.
@@ -621,7 +619,7 @@ namespace Poltergeist
                 accountManager.InitDemoAccounts(settings.nexusKind);
             }
 
-            accountManager.UpdateRPCURL(PlatformKind.Phantasma);
+            accountManager.UpdateRPCURL();
 
             accountManager.UpdateAPIs(true);
             accountManager.RefreshTokenPrices();
