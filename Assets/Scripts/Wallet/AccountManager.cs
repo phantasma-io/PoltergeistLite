@@ -1837,13 +1837,11 @@ namespace Poltergeist
 
             lock (_refreshStatus)
             {
-                foreach (var platform in platformsList)
-                {
                     RefreshStatus refreshStatus;
                     var now = DateTime.UtcNow;
-                    if (_refreshStatus.ContainsKey(platform))
+                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
                     {
-                        refreshStatus = _refreshStatus[platform];
+                        refreshStatus = _refreshStatus[PlatformKind.Phantasma];
 
                         var diff = now - refreshStatus.LastBalanceRefresh;
 
@@ -1851,7 +1849,7 @@ namespace Poltergeist
                         {
                             var temp = refreshStatus.BalanceRefreshCallback;
                             refreshStatus.BalanceRefreshCallback = null;
-                            _refreshStatus[platform] = refreshStatus;
+                            _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
                             temp?.Invoke();
                             return;
                         }
@@ -1860,11 +1858,11 @@ namespace Poltergeist
                         refreshStatus.LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now;
                         refreshStatus.BalanceRefreshCallback = callback;
 
-                        _refreshStatus[platform] = refreshStatus;
+                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
                     }
                     else
                     {
-                        _refreshStatus.Add(platform,
+                        _refreshStatus.Add(PlatformKind.Phantasma,
                             new RefreshStatus
                             {
                                 BalanceRefreshing = true,
@@ -1874,7 +1872,6 @@ namespace Poltergeist
                                 LastHistoryRefresh = DateTime.MinValue
                             });
                     }
-                }
             }
 
             var wif = CurrentWif;
