@@ -3262,7 +3262,6 @@ namespace Poltergeist
             {
                 case 0: DoAccountSubMenu(btnOffset); break;
                 case 1: DoAccountManagementMenu(btnOffset); break;
-                case 2: DoAccountCustomizationMenu(btnOffset); break;
             }
 
             DoBottomMenu();
@@ -3286,13 +3285,7 @@ namespace Poltergeist
                             _accountSubMenu = 1;
                             break;
                         }
-
                     case 1:
-                        {
-                            _accountSubMenu = 2;
-                            break;
-                        }
-                    case 2:
                         {
                             PushState(GUIState.Dapps);
                             break;
@@ -3421,80 +3414,6 @@ namespace Poltergeist
 
                     case 2:
                         {
-                            PromptBox("Are you sure you want to delete this account?\nYou can only restore it if you made a backup of the private keys.", ModalConfirmCancel, (result) =>
-                            {
-                                if (result == PromptResult.Success)
-                                {
-                                    RequestPassword("Account Deletion", accountManager.CurrentAccount.platforms, false, false, (delete) =>
-                                    {
-                                        if (delete == PromptResult.Success)
-                                        {
-                                            accountManager.DeleteAccount(accountManager.CurrentIndex);
-                                            CloseCurrentStack();
-                                            MessageBox(MessageKind.Default, "The account was deleted.");
-                                        }
-                                        else
-                                        if (delete == PromptResult.Failure)
-                                        {
-                                            MessageBox(MessageKind.Error, "Auth failed.");
-                                        }
-                                    });
-                                }
-                            }, 10);
-                        }
-                        break;
-
-                    case 3:
-                        _accountSubMenu = 0;
-                        break;
-                }
-            });
-        }
-
-        private void DoAccountCustomizationMenu(int btnOffset)
-        {
-            var accountManager = AccountManager.Instance;
-            int posY;
-
-            DoButtonGrid<int>(false, customizationMenu.Length, 0, -btnOffset, out posY, (index) =>
-            {
-                var enabled = true;
-
-                if (accountManager.CurrentState != null)
-                {
-                    switch (index)
-                    {
-                        case 0:
-                            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
-                            {
-                                enabled = false;
-                            }
-                            break;
-                        case 1:
-                            if (accountManager.CurrentPlatform != PlatformKind.Phantasma || accountManager.CurrentState.name != "anonymous")
-                            {
-                                enabled = false;
-                            }
-                            break;
-
-                        case 2:
-                            enabled = false;
-                            break;
-                    }
-                }
-                else
-                {
-                    enabled = false;
-                }
-
-                return new MenuEntry(index, customizationMenu[index], enabled);
-            },
-            (selected) =>
-            {
-                switch (selected)
-                {
-                    case 0:
-                        {
                             var state = accountManager.CurrentState;
                             decimal stake = state != null ? state.balances.Where(x => x.Symbol == DomainSettings.StakingTokenSymbol).Select(x => x.Staked).FirstOrDefault() : 0;
 
@@ -3574,25 +3493,6 @@ namespace Poltergeist
                             }
                             break;
                         }
-
-                    case 1:
-                        {
-                            // Open file with filter
-#if CT_FB && (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX || UNITY_STANDALONE_LINUX || UNITY_EDITOR_LINUX)
-                            var extensions = new[] { "Image Files", "png", "jpg", "jpeg" };
-
-//                            UploadSelectedAvatar(FileBrowser.Instance.OpenSingleFile("Open File", accountManager.Settings.GetLastVisitedFolder(), null, extensions));
-#elif UNITY_ANDROID
-                            var extensionFilter = new string[] {"image/*"};
-//#else
-//                            var extensionFilter = new string[] {"public.image"};
-//#endif // iOS
-                            NativeFilePicker.PickFile((path) => { UploadSelectedAvatar(path); }, extensionFilter);
-#endif
-
-                            break;
-                        }
-
                     case 3:
                         _accountSubMenu = 0;
                         break;
@@ -3641,9 +3541,8 @@ namespace Poltergeist
             });
         }
 
-        private string[] accountMenu = new string[] { "Manage Account", "Customize Account", "dApps"};
-        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Delete Account", "Back" };
-        private string[] customizationMenu = new string[] { "Setup Name", "Setup Avatar", "Multi-signature", "Back" };
+        private string[] accountMenu = new string[] { "Manage Account", "dApps"};
+        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name", "Back" };
 
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
 
