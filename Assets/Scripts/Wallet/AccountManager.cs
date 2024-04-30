@@ -213,17 +213,13 @@ namespace Poltergeist
         }
         private List<RpcBenchmarkData> rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
 
-        private string GetFastestWorkingRPCURL(PlatformKind platformKind, out TimeSpan responseTime)
+        private string GetFastestWorkingRPCURL(out TimeSpan responseTime)
         {
             string fastestRpcUrl = null;
 
-            List<RpcBenchmarkData> platformRpcs = null;
-            if (platformKind == PlatformKind.Phantasma)
-                platformRpcs = rpcResponseTimesPhantasma;
-
             responseTime = TimeSpan.Zero;
 
-            foreach (var rpcResponseTime in platformRpcs)
+            foreach (var rpcResponseTime in rpcResponseTimesPhantasma)
             {
                 if (!rpcResponseTime.ConnectionError && String.IsNullOrEmpty(fastestRpcUrl))
                 {
@@ -306,7 +302,7 @@ namespace Poltergeist
                                         {
                                             // We finished benchmarking, time to select best RPC server.
                                             TimeSpan bestTime;
-                                            string bestRpcUrl = GetFastestWorkingRPCURL(PlatformKind.Phantasma, out bestTime);
+                                            string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
 
                                             if (String.IsNullOrEmpty(bestRpcUrl))
                                             {
@@ -337,7 +333,7 @@ namespace Poltergeist
                                         {
                                             // We finished benchmarking, time to select best RPC server.
                                             TimeSpan bestTime;
-                                            string bestRpcUrl = GetFastestWorkingRPCURL(PlatformKind.Phantasma, out bestTime);
+                                            string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
 
                                             if (String.IsNullOrEmpty(bestRpcUrl))
                                             {
@@ -382,7 +378,7 @@ namespace Poltergeist
 
                 // Switching to working RPC.
                 TimeSpan bestTime;
-                string bestRpcUrl = GetFastestWorkingRPCURL(PlatformKind.Phantasma, out bestTime);
+                string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
 
                 if (String.IsNullOrEmpty(bestRpcUrl))
                 {
