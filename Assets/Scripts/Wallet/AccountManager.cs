@@ -8,17 +8,14 @@ using System.Linq;
 using Phantasma.SDK;
 using Poltergeist.Neo2.Core;
 using LunarLabs.Parser;
-using Archive = Phantasma.SDK.Archive;
 using System.Numerics;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using Phantasma.Core.Domain;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Numerics;
 using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Cryptography.ECDsa;
 using Phantasma.Core.Types;
 using Phantasma.Core.Utils;
-using Phantasma.Core;
 
 namespace Poltergeist
 {
@@ -90,10 +87,6 @@ namespace Poltergeist
 
         private DateTime _lastPriceUpdate = DateTime.MinValue;
 
-        private bool _accountInitialized;
-
-        private string etherscanAPIToken;
-
         private void Awake()
         {
             Instance = this;
@@ -108,20 +101,6 @@ namespace Poltergeist
             _currencyMap["RUB"] = "\u20BD";
             _currencyMap["USD"] = "$";
             _currencyMap["JPY"] = "¥";
-
-            var ethereumAPIKeys = Resources.Load<TextAsset>("ethereum_api");
-            if (ethereumAPIKeys != null)
-            {
-                var lines = ethereumAPIKeys.text.Split('\n');
-                if (lines.Length > 0)
-                {
-                    etherscanAPIToken = lines[0].Trim();
-                }
-            }
-            if (string.IsNullOrEmpty(etherscanAPIToken))
-            {
-                Log.WriteWarning("No Etherscan API key found, Ethereum balances wont work!");
-            }
 
             var platforms = new List<PlatformKind>();
             platforms.Add(PlatformKind.Phantasma);
@@ -864,8 +843,6 @@ namespace Poltergeist
             _selectedAccountIndex = index;
             CurrentPasswordHash = "";
 
-            _accountInitialized = false;
-
             var platforms = CurrentAccount.platforms.Split();
 
             // We should add Ethereum platform to old accounts.
@@ -941,8 +918,6 @@ namespace Poltergeist
         {
             _selectedAccountIndex = -1;
 
-            _accountInitialized = false;
-
             // revoke all dapps connected to this account via Phantasma Link
             if (_states.ContainsKey(PlatformKind.Phantasma))
             {
@@ -979,14 +954,7 @@ namespace Poltergeist
                 {
                     Log.Write("Received new state for " + platform);
                     _states[platform] = state;
-
-                    //if (!_accountInitialized && GetWorthOfPlatform(platform) > GetWorthOfPlatform(CurrentPlatform))
-                    //{
-                    //    CurrentPlatform = platform;
-                    //}
                 }
-
-                _accountInitialized = true;
             
                 var temp = refreshStatus.BalanceRefreshCallback;
                 lock (_refreshStatus)
@@ -997,22 +965,6 @@ namespace Poltergeist
                 temp?.Invoke();
             }
             catch (Exception) { } // This fixes crash when user leaves account fast without waiting for balances to load
-        }
-
-        private decimal GetWorthOfPlatform(PlatformKind platform)
-        {
-            if (!_states.ContainsKey(platform))
-            {
-                return 0;
-            }
-
-            decimal total = 0;
-            var state = _states[platform];
-            foreach (var balance in state.balances)
-            {
-                total += balance.Total;
-            }
-            return total;
         }
 
         private void ReportWalletNft(PlatformKind platform, string symbol)
@@ -1315,21 +1267,6 @@ namespace Poltergeist
         internal void InitDemoAccounts(NexusKind nexusKind)
         {
             var accounts = new List<Account>();
-
-            /*
-            if (nexusKind != NexusKind.Main_Net)
-            {
-                accounts.Add(new Account() { name = "genesis", platforms = PlatformKind.Phantasma | PlatformKind.Neo, WIF = "L2LGgkZAdupN2ee8Rs6hpkc65zaGcLbxhbSDGq8oh6umUxxzeW25", password = "lol", misc = "" });
-                accounts.Add(new Account() { name = "bill", platforms = PlatformKind.Neo, WIF = "KxDgvEKzgSBPPfuVfw67oPQBSjidEiqTHURKSDL1R7yGaGYAeYnr", password = "mankini", misc = "" });
-            }
-            //new Account() { name = "zion", platforms = PlatformKind.Neo, key = "KwVG94yjfVg1YKFyRxAGtug93wdRbmLnqqrFV6Yd2CiA9KZDAp4H", password = "", misc = "" },
-
-            if (nexusKind == NexusKind.Local_Net)
-            {
-                accounts.Add(new Account() { name = "other", platforms = PlatformKind.Phantasma | PlatformKind.Neo, WIF = "Kweyrx8ypkoPfzMsxV4NtgH8vXCWC1s1Dn3c2KJ4WAzC5nkyNt3e", password = "", misc = "" });
-                accounts.Add(new Account() { name = "monk", platforms = PlatformKind.Phantasma | PlatformKind.Neo, WIF = "Kx4GzZxzGZsQNt8URu36SnvR5KGSzg8s8ZxH8cunzZGh2JLmxHsW", password = "", misc = "" });
-            }
-            */
 
             this.Accounts = accounts;
             SaveAccounts();
@@ -1964,22 +1901,11 @@ namespace Poltergeist
             currentNftsSortDirection = (SortDirection)Settings.nftSortDirection;
         }
 
-        public decimal CalculateRequireStakeForStorage(int totalSize)
-        {
-            var kilobytesPerStake = 39; // TODO this should be governance value obtained from chain
-            var stakeAmount = (totalSize * UnitConversion.GetUnitValue(DomainSettings.StakingTokenDecimals))  / (kilobytesPerStake * 1024);
-            return UnitConversion.ToDecimal(stakeAmount, DomainSettings.StakingTokenDecimals);
-        }
-
         public TokenData GetNft(string id)
         {
             return _nfts[CurrentPlatform].Where(x => x.ID == id).FirstOrDefault();
         }
 
-        public void GetPhantasmaAddressInfo(Action<string, string> callback)
-        {
-            GetPhantasmaAddressInfo(_states[PlatformKind.Phantasma].address, callback);
-        }
         public void GetPhantasmaAddressInfo(string addressString, Action<string, string> callback)
         {
             byte[] scriptUnclaimed;

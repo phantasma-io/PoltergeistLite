@@ -12,7 +12,6 @@ using ZXing.QrCode;
 using System.Globalization;
 using System.Collections;
 using System.Threading;
-using Poltergeist.Neo2.Core;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using BigInteger = System.Numerics.BigInteger;
 using Phantasma.Core.Cryptography;
@@ -29,7 +28,6 @@ namespace Poltergeist
     {
         public RawImage background;
         private Texture2D soulMasterLogo;
-        private Texture2D lockTexture;
 
         private Dictionary<PlatformKind, Texture2D> QRCodeTextures = new Dictionary<PlatformKind, Texture2D>();
 
@@ -737,8 +735,6 @@ namespace Poltergeist
             else
                 background.texture = Resources.Load<Texture2D>($"Skins/{uiThemeName}/background");
             soulMasterLogo = Resources.Load<Texture2D>($"Skins/{AccountManager.Instance.Settings.uiThemeName}/soul_master");
-
-            lockTexture = Resources.Load<Texture2D>("lock");
 
             GUI.enabled = true;
 
