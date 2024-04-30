@@ -33,7 +33,7 @@ namespace Poltergeist
 
         private Dictionary<PlatformKind, Texture2D> QRCodeTextures = new Dictionary<PlatformKind, Texture2D>();
 
-        public const string WalletTitle = "Poltergeist Wallet";
+        public const string WalletTitle = "Poltergeist Lite";
 
         public int Border => Units(1);
         public int HalfBorder => Border / 2;
