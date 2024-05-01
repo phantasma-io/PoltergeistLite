@@ -11,7 +11,7 @@
 </p>
 
 # Poltergeist Lite
-- Mainet-only wallet
+- Mainnet-only wallet
 - Features an intuitive, fun, retro, arcade User Experience. 
 - Simple but so very powerful and damn fast!  
 
