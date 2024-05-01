@@ -12,7 +12,6 @@ using ZXing.QrCode;
 using System.Globalization;
 using System.Collections;
 using System.Threading;
-using Poltergeist.Neo2.Core;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using BigInteger = System.Numerics.BigInteger;
 using Phantasma.Core.Cryptography;
@@ -21,11 +20,6 @@ using Phantasma.Core.Domain;
 using Phantasma.Business.VM.Utils;
 using Phantasma.Business.Blockchain;
 using Phantasma.Core.Types;
-#if CT_FB && (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX || UNITY_STANDALONE_LINUX || UNITY_EDITOR_LINUX)
-using Crosstales.FB;
-#elif UNITY_ANDROID
-using static NativeFilePicker;
-#endif
 using NBitcoin;
 
 namespace Poltergeist
@@ -34,18 +28,15 @@ namespace Poltergeist
     {
         public RawImage background;
         private Texture2D soulMasterLogo;
-        private Texture2D lockTexture;
 
         private Dictionary<PlatformKind, Texture2D> QRCodeTextures = new Dictionary<PlatformKind, Texture2D>();
 
-        public const string WalletTitle = "Poltergeist Wallet";
+        public const string WalletTitle = "Poltergeist Lite";
 
         public int Border => Units(1);
         public int HalfBorder => Border / 2;
         public const bool fullScreen = true;
         public bool VerticalLayout => virtualWidth < virtualHeight; //virtualWidth < 420;
-
-        public GUISkin guiSkin;
 
         private Rect windowRect = new Rect(0, 0, 600, 400);
         private Rect defaultRect;
@@ -115,8 +106,6 @@ namespace Poltergeist
             mnemonicPhraseLengthComboBox.ResetState();
             mnemonicPhraseVerificationModeComboBox.ResetState();
             passwordModeComboBox.ResetState();
-            ethereumNetworkComboBox.ResetState();
-            binanceSmartChainNetworkComboBox.ResetState();
             logLevelComboBox.ResetState();
             uiThemeComboBox.ResetState();
             nftSortModeComboBox.ResetState();
@@ -260,10 +249,6 @@ namespace Poltergeist
                         camTexture = null;
                     }
                     break;
-
-                case GUIState.Account:
-                    _accountSubMenu = 0;
-                    break;
             }
 
             if (state == GUIState.Exit)
@@ -282,17 +267,6 @@ namespace Poltergeist
             {
                 case GUIState.Fatal:
                     currentTitle = "Fatal Error";
-                    break;
-
-                case GUIState.Dapps:
-                    currentTitle = "dApps";
-                    break;
-
-                case GUIState.Storage:
-                    if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
-                        accountManager.CurrentPlatform = PlatformKind.Phantasma;
-
-                    currentTitle = $"Storage space: {BytesToString(accountManager.CurrentState.usedStorage)} used / {BytesToString(accountManager.CurrentState.totalStorage)} total";
                     break;
 
                 case GUIState.Wallets:
@@ -421,28 +395,6 @@ namespace Poltergeist
                         }
                         passwordModeComboBox.SelectedItemIndex = passwordModeIndex;
 
-                        ethereumNetworkIndex = 0;
-                        for (int i = 0; i < availableEthereumNetworks.Length; i++)
-                        {
-                            if (availableEthereumNetworks[i] == accountManager.Settings.ethereumNetwork)
-                            {
-                                ethereumNetworkIndex = i;
-                                break;
-                            }
-                        }
-                        ethereumNetworkComboBox.SelectedItemIndex = ethereumNetworkIndex;
-
-                        binanceSmartChainNetworkIndex = 0;
-                        for (int i = 0; i < availableBinanceSmartChainNetworks.Length; i++)
-                        {
-                            if (availableBinanceSmartChainNetworks[i] == accountManager.Settings.binanceSmartChainNetwork)
-                            {
-                                binanceSmartChainNetworkIndex = i;
-                                break;
-                            }
-                        }
-                        binanceSmartChainNetworkComboBox.SelectedItemIndex = binanceSmartChainNetworkIndex;
-
                         logLevelIndex = 0;
                         for (int i = 0; i < availableLogLevels.Length; i++)
                         {
@@ -570,7 +522,7 @@ namespace Poltergeist
                         hintComboBox.ListScroll.y += touch.deltaPosition.y;
                     else if((guiState == GUIState.Wallets || guiState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
                         accountScroll.y += touch.deltaPosition.y;
-                    else if ((guiState == GUIState.Balances || guiState == GUIState.History || guiState == GUIState.Storage || guiState == GUIState.Dapps) && !(modalState != ModalState.None && !modalRedirected))
+                    else if ((guiState == GUIState.Balances || guiState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
                         balanceScroll.y += touch.deltaPosition.y;
                     else if (guiState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
                         nftScroll.y += touch.deltaPosition.y;
@@ -640,8 +592,6 @@ namespace Poltergeist
             {
                 Animate(AnimationDirection.Up, true, () =>
                 {
-                    AudioManager.Instance.PlaySFX("load");
-
                     stateStack.Clear();
                     PushState(GUIState.Wallets);
 
@@ -759,22 +709,13 @@ namespace Poltergeist
             }
             
             var uiThemeName = AccountManager.Instance.Settings.uiThemeName;
-            if (uiThemeName == UiThemes.Classic.ToString())
-            {
-                GUI.skin = guiSkin;
-            }
-            else
-            {
-                GUI.skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
-            }
+            GUI.skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
 
             if (VerticalLayout)
                 background.texture = Resources.Load<Texture2D>($"Skins/{uiThemeName}/mobile_background");
             else
                 background.texture = Resources.Load<Texture2D>($"Skins/{uiThemeName}/background");
             soulMasterLogo = Resources.Load<Texture2D>($"Skins/{AccountManager.Instance.Settings.uiThemeName}/soul_master");
-
-            lockTexture = Resources.Load<Texture2D>("lock");
 
             GUI.enabled = true;
 
@@ -795,7 +736,6 @@ namespace Poltergeist
             }
 
             var k = Mathf.Lerp(1, 0.4f, delta);
-            GUI.color = new Color(1, 1, 1, k);
 
             if (guiState == GUIState.Loading)
             {
@@ -853,7 +793,7 @@ namespace Poltergeist
 
             var style = GUI.skin.label;
             style.fontSize -= 6;
-            GUI.Label(new Rect(windowRect.width / 2 + ((AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString()) ? Units(7) - 4 : Units(5)), 12, Units(4), Units(2)), Application.version);
+            GUI.Label(new Rect(windowRect.width / 2 + Units(5), 12, Units(4), Units(2)), Application.version);
             style.fontSize += 6;
 
             var accountManager = AccountManager.Instance;
@@ -903,7 +843,7 @@ namespace Poltergeist
                     style.fontSize -= 6;
                     var temp = style.alignment;
                     style.alignment = TextAnchor.MiddleCenter;
-                    GUI.Label(new Rect(0, (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString()) ? curY + Units(1) - 4 : curY + Units(1), windowRect.width, Units(2)), $"Version was built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC");
+                    GUI.Label(new Rect(0, curY + Units(1), windowRect.width, Units(2)), $"Version was built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC");
                     style.alignment = temp;
                     style.fontSize += 6;
                 }
@@ -958,22 +898,6 @@ namespace Poltergeist
 
                 case GUIState.Backup:
                     DoBackupScreen();
-                    break;
-
-                case GUIState.Dapps:
-                    DoDappScreen();
-                    break;
-
-                case GUIState.Storage:
-                    DoStorageScreen();
-                    break;
-
-                case GUIState.Upload:
-                    DrawCenteredText($"Uploading chunk {_currentUploadChunk + 1} out of {_totalUploadChunks}...");
-                    break;
-
-                case GUIState.Download:
-                    DrawCenteredText($"Downloading chunk {_currentDownloadChunk + 1} out of {_totalDownloadChunks}...");
                     break;
 
                 case GUIState.Fatal:
@@ -1350,7 +1274,7 @@ namespace Poltergeist
 
                     case 1:
                         {
-                            ShowModal("Wallet Import", "Supported inputs:\n12/24 word seed phrase\nPrivate key (HEX format)\nPrivate key (WIF format)\nEncrypted private key (NEP2)", ModalState.Input, 32, 1024, ModalConfirmCancel, 4, (result, key) =>
+                            ShowModal("Wallet Import", "Supported inputs:\n12/24 word seed phrase\nPrivate key (HEX format)\nPrivate key (WIF format)", ModalState.Input, 32, 1024, ModalConfirmCancel, 4, (result, key) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -1372,54 +1296,14 @@ namespace Poltergeist
                                         });
                                     }
                                     else
-                                    if (key.Length == 58 && key.StartsWith("6"))
-                                    {
-                                        ShowModal("NEP2 Encrypted Key", "Insert your wallet passphrase", ModalState.Password, 1, 64, ModalConfirmCancel, 1, (auth, passphrase) =>
-                                        {
-                                            if (auth == PromptResult.Success)
-                                            {
-                                                try
-                                                {
-                                                    var decryptedKeys = Poltergeist.Neo2.Core.NeoKeys.FromNEP2(key, passphrase);
-                                                    ImportWallet(decryptedKeys.WIF, -1, 1, passphrase, true, null);
-                                                }
-                                                catch (Exception e)
-                                                {
-                                                    MessageBox(MessageKind.Error, "Could not import wallet.\n" + e.Message);
-                                                }
-                                            }
-                                        });
-                                    }
-                                    else
                                     if (key.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length == 12)
                                     {
-                                        PromptBox("Please select seed phrase version.\n\nUse 'Current' for seed phrases generated in Poltergeist 2.4 and newer or MetaMask, use 'Legacy' for seed phrases generated in Poltergeist 2.3 and earlier.", ModalCurrentLegacy, (legacy) =>
-                                        {
-                                            if (legacy == PromptResult.Failure)
-                                            {
-                                                // Legacy seed
-                                                ShowModal("Legacy seed import",
-                                                    "For wallets created with Poltergeist v1.0-v1.2: Enter seed password.\nIf you put a wrong password, the wrong public address will be generated.\n\nNOTE: For wallets created with v1.3 or later (without a seed password), you must leave this field blank.\nThis is NOT your wallet password used to log into the wallet.\n",
-                                                    ModalState.Input, 0, 64, ModalConfirmCancel, 1, (seedResult, password) =>
-                                                {
-                                                    if (seedResult != PromptResult.Success)
-                                                    {
-                                                        return; // user canceled
-                                                    }
-
-                                                    ImportSeedPhrase(key, password, true);
-                                                });
-                                            }
-                                            else
-                                            {
-                                                ImportSeedPhrase(key, null, false);
-                                            }
-                                        });
+                                        ImportSeedPhrase(key);
                                     }
                                     else
                                     if (key.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length == 24)
                                     {
-                                        ImportSeedPhrase(key, null, false);
+                                        ImportSeedPhrase(key);
                                     }
                                     else
                                     {
@@ -1556,8 +1440,6 @@ namespace Poltergeist
                                     ShowModal("Wallets Export", $"Copy wallets export data to the clipboard?",
                                         ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result, input) =>
                                         {
-                                            AudioManager.Instance.PlaySFX("click");
-
                                             if (result == PromptResult.Success)
                                             {
                                                 GUIUtility.systemCopyBuffer = serializedExportData;
@@ -1621,8 +1503,6 @@ namespace Poltergeist
                                                 (someWillBeImported ? (messageWillBeImported + "\n\n") : "") + (someWillBeSkipped ? messageWillBeSkipped : ""),
                                                 ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result2, input) =>
                                                 {
-                                                    AudioManager.Instance.PlaySFX("click");
-
                                                     if (result2 == PromptResult.Success)
                                                     {
                                                         var count = 0;
@@ -1682,8 +1562,6 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    AudioManager.Instance.PlaySFX("click");
-
                                     var counter = 0;
                                     foreach(var accountToDelete in accountManagementSelectedList)
                                     {
@@ -1818,22 +1696,12 @@ namespace Poltergeist
                 });
         }
 
-        private void ImportSeedPhrase(string mnemonicPhrase, string password, bool legacySeed)
+        private void ImportSeedPhrase(string mnemonicPhrase)
         {
             try
             {
-                if (legacySeed)
-                {
-                    var privKey = BIP39Legacy.MnemonicToPK(mnemonicPhrase, password);
-                    var decryptedKeys = new PhantasmaKeys(privKey);
-                    ImportWallet(decryptedKeys.ToWIF(), -1, 1, null, legacySeed, null);
-                }
-                else
-                {
-                    DeriveAccountsFromSeed(mnemonicPhrase);
-                }
 
-                
+                DeriveAccountsFromSeed(mnemonicPhrase);
             }
             catch (Exception e)
             {
@@ -1860,44 +1728,13 @@ namespace Poltergeist
 
             int curY = VerticalLayout ? Units(6) : Units(1);
 
-            // We do not show platform switchers for NFTs screens to avoid errors.
-            if (accountManager.CurrentAccount.platforms.Split().Count > 1 && (guiState != GUIState.Nft && guiState != GUIState.NftView && guiState != GUIState.NftTransferList))
-            {
-                DoButton(true, new Rect(Units(1) + 8 + (VerticalLayout ? 0 : 8), curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("SOUL_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.Phantasma, () => { accountManager.CurrentPlatform = PlatformKind.Phantasma; });
-                DoButton(true, new Rect(Units(4) + (VerticalLayout ? 4 : 8), curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("ETH_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.Ethereum, () => { accountManager.CurrentPlatform = PlatformKind.Ethereum; });
-                DoButton(true, new Rect(Units(6) + 16, curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("NEO_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.Neo, () => { accountManager.CurrentPlatform = PlatformKind.Neo; });
-                DoButton(true, new Rect(Units(9) + (VerticalLayout ? 12 : 8), curY - (VerticalLayout ? 0 : 4), Units(2), Units(1) + 8), ResourceManager.Instance.GetToken("BSC_h120", accountManager.CurrentPlatform), accountManager.CurrentPlatform == PlatformKind.BSC, () => { accountManager.CurrentPlatform = PlatformKind.BSC; });
-
-                var style = GUI.skin.label;
-                if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                    GUI.contentColor = Color.black;
-                GUI.Label(new Rect(Units(12) + (VerticalLayout ? 4 : 0), curY - (VerticalLayout ? 8 : 12), Units(7), Units(2)), VerticalLayout ? accountManager.CurrentPlatform.ToString().ToUpper().Substring(0, 3) : accountManager.CurrentPlatform.ToString().ToUpper());
-                if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                    GUI.contentColor = Color.white;
-            }
-
-            string address = "";
-            switch(accountManager.CurrentPlatform)
-            {
-                case PlatformKind.Phantasma:
-                    address = accountManager.CurrentAccount.phaAddress;
-                    break;
-                case PlatformKind.Neo:
-                    address = accountManager.CurrentAccount.neoAddress;
-                    break;
-                case PlatformKind.Ethereum:
-                    address = accountManager.CurrentAccount.ethAddress;
-                    break;
-                case PlatformKind.BSC:
-                    address = accountManager.CurrentAccount.ethAddress;
-                    break;
-            }
+            string address = accountManager.CurrentAccount.phaAddress;
 
             var btnWidth = Units(8);
 
             if (refresh != null)
             {
-                DoButton(true, new Rect(windowRect.width - (VerticalLayout ? btnWidth + Border + 8 : btnWidth + Border * 2), curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Refresh", () =>
+                DoButton(true, new Rect(windowRect.width - (VerticalLayout ? windowRect.width / 2 + btnWidth / 2 : btnWidth + Border * 2), curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Refresh", () =>
                 {
                     refresh();
                 });
@@ -1912,27 +1749,16 @@ namespace Poltergeist
             {
                 DoButton(true, new Rect(windowRect.width / 2 - btnWidth - Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Copy Address", () =>
                   {
-                      AudioManager.Instance.PlaySFX("click");
                       GUIUtility.systemCopyBuffer = address;
                       MessageBox(MessageKind.Default, "Address copied to clipboard.");
                   });
 
                 DoButton(true, new Rect(windowRect.width / 2 + Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Explorer", () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     switch(accountManager.CurrentPlatform)
                     {
                         case PlatformKind.Phantasma:
                             Application.OpenURL(accountManager.GetPhantasmaAddressURL(address));
-                            break;
-                        case PlatformKind.Ethereum:
-                            Application.OpenURL(accountManager.GetEtherscanAddressURL(address));
-                            break;
-                        case PlatformKind.Neo:
-                            Application.OpenURL(accountManager.GetNeoscanAddressURL(address));
-                            break;
-                        case PlatformKind.BSC:
-                            Application.OpenURL(accountManager.GetBscAddressURL(address));
                             break;
                     }
                 });
@@ -2044,14 +1870,11 @@ namespace Poltergeist
             if (amount > 0.0001m)
             {
                 var style = GUI.skin.label;
-                var tempColor = style.normal.textColor;
-                style.normal.textColor = new Color(1, 1, 1, 0.75f);
                 style.fontSize -= VerticalLayout ? 4: 2;
 
                 var value = AccountManager.Instance.GetTokenWorth(symbol, amount);
                 GUI.Label(subRect, $"{MoneyFormat(amount)} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
                 style.fontSize += VerticalLayout ? 4 : 2;
-                style.normal.textColor = tempColor;
 
                 // For vertical layout making a height correction proportional to font size difference.
                 subRect.y += VerticalLayout ? (int)(Units(1) * (double)16 / 18) + 4 : Units(1) + 4;
@@ -2124,7 +1947,6 @@ namespace Poltergeist
                             var tag = platform.ToString().ToLower()+"://";
                             if (result.Text.StartsWith(tag))
                             {
-                                AudioManager.Instance.PlaySFX("positive");
                                 modalInput = result.Text.Substring(tag.Length);
                                 PopState();
                             }
@@ -2135,69 +1957,6 @@ namespace Poltergeist
             }
 
             DoBackButton();
-        }
-
-        public struct DappEntry
-        {
-            public string Title;
-            public string Category;
-            public string url;
-
-            public DappEntry(string title, string category, string uRL)
-            {
-                Title = title;
-                Category = category;
-                url = uRL;
-            }
-        }
-
-        private DappEntry[] availableDapps = new DappEntry[]
-        {
-            new DappEntry("GhostMarket", "marketplace", "https://ghostmarket.io/"),
-            new DappEntry("Moonjar", "game", "https://moonjar.io/")
-            /*new DappEntry("Katacomb", "game", "http://katacomb.io/"),*/
-            /*new DappEntry("Nachomen", "game", "https://nacho.men/"),*/
-        };
-
-        private void DoDappScreen()
-        {
-            var accountManager = AccountManager.Instance;
-
-            int curY = Units(5);
-
-            int startY = curY;
-            int endY = (int)(windowRect.yMax - Units(4));
-
-            DoScrollArea<DappEntry>(ref balanceScroll, startY, endY, VerticalLayout ? Units(4) + 12 : Units(3), availableDapps, DoDappEntry);
-
-            DoBackButton();
-        }
-
-        private void DoDappEntry(DappEntry entry, int index, int curY, Rect rect)
-        {
-            var accountManager = AccountManager.Instance;
-
-            GUI.Label(new Rect(Units(2), curY + 4, Units(20), Units(2) + 4), entry.Title);
-
-            Rect btnRect;
-
-            if (VerticalLayout)
-            {
-                curY += Units(2);
-                GUI.Label(new Rect(Units(2), curY, Units(20), Units(2) + 4), entry.Category);
-                btnRect = new Rect(rect.x + rect.width - Units(6), curY, Units(4), Units(1));
-            }
-            else
-            {
-                GUI.Label(new Rect(Units(26), curY + 4, Units(20), Units(2) + 4), entry.Category);
-                btnRect = new Rect(rect.x + rect.width - Units(6), curY + Units(1), Units(4), Units(1));
-            }
-
-            DoButton(!string.IsNullOrEmpty(entry.url), btnRect, "View", () =>
-            {
-                AudioManager.Instance.PlaySFX("click");
-                Application.OpenURL(entry.url);
-            });
         }
 
         private static int GetNextInt32(System.Security.Cryptography.RNGCryptoServiceProvider rnd)
@@ -2309,15 +2068,12 @@ namespace Poltergeist
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6: 7));
             DoButton(true, new Rect(windowRect.width / 3 - btnWidth / 2, curY, btnWidth, Units(2)), "Copy to clipboard", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
                 MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
             });
 
             DoButton(true, new Rect((windowRect.width / 2) - btnWidth / 2, curY, btnWidth, Units(2)), "Continue", () =>
             {
-                AudioManager.Instance.PlaySFX("confirm");
-
                 int[] wordsOrder;
                 if(AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
                     wordsOrder = Enumerable.Range(1, 12).ToArray();
@@ -2342,7 +2098,6 @@ namespace Poltergeist
             
             DoButton(true, new Rect((windowRect.width / 3) * 2 - btnWidth / 2, curY, btnWidth, Units(2)), "Cancel", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PopState();
             });
         }
@@ -2358,7 +2113,6 @@ namespace Poltergeist
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
             DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)), "Copy to Clipboard", () =>
             {
-                AudioManager.Instance.PlaySFX("confirm");
                 GUIUtility.systemCopyBuffer = fatalError;
                 MessageBox(MessageKind.Default, "Error log copied to clipboard.");
             });
@@ -2372,14 +2126,7 @@ namespace Poltergeist
 
             if (state != null && state.flags.HasFlag(AccountFlags.Master) && soulMasterLogo != null)
             {
-                if (VerticalLayout)
-                {
-                    GUI.DrawTexture(new Rect(windowRect.width / 2 - 8, Units(4) + 4, Units(6), Units(6)), soulMasterLogo);
-                }
-                else
-                {
-                    GUI.DrawTexture(new Rect(Units(1), Units(2) + 8, Units(8), Units(8)), soulMasterLogo);
-                }
+                GUI.DrawTexture(new Rect(Units(1), Units(2) + 8, Units(8), Units(8)), soulMasterLogo);
             }
 
             var startY = DrawPlatformTopMenu(() =>
@@ -2398,10 +2145,9 @@ namespace Poltergeist
             if (state == null)
             {
                 var message = "Temporary error, cannot display balances...";
-                if(accountManager.rpcAvailablePhantasma == 0 || accountManager.rpcAvailableNeo == 0)
+                if(accountManager.rpcAvailablePhantasma == 0)
                 {
-                    var rpcMessagePart = (accountManager.rpcAvailablePhantasma == 0 && accountManager.rpcAvailableNeo == 0) ? "Phantasma and Neo" : (accountManager.rpcAvailablePhantasma == 0 ? "Phantasma" : "Neo");
-                    message = $"Please check your internet connection. All {rpcMessagePart} RPC servers are unavailable.";
+                    message = $"Please check your internet connection. All Phantasma RPC servers are unavailable.";
                 }
                 DrawCenteredText(message);
                 return;
@@ -2467,7 +2213,6 @@ namespace Poltergeist
 
             var subRect = new Rect(posX, posY + Units(1) + 4, Units(20), Units(2));
             DrawBalanceLine(ref subRect, balance.Symbol, balance.Staked, "staked");
-            DrawBalanceLine(ref subRect, balance.Symbol, balance.Pending, "pending");
             DrawBalanceLine(ref subRect, balance.Symbol, balance.Claimable, "claimable");
 
             string secondaryAction = null;
@@ -2478,45 +2223,6 @@ namespace Poltergeist
             bool tertiaryEnabled = false;
             Action tertiaryCallback = null;
 
-            if (balance.Pending > 0)
-            {
-                secondaryAction = "Claim";
-                secondaryEnabled = true;
-                secondaryCallback = () =>
-                {
-                    PromptBox($"You have {balance.Pending} {balance.Symbol} pending in your account.\nDo you want to claim it?", ModalYesNo, (result) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            Action claim = () =>
-                            {
-                                BeginWaitingModal("Preparing swap transaction...");
-                                accountManager.SettleSwap(balance.PendingPlatform, accountManager.CurrentPlatform.ToString().ToLower(), balance.Symbol, balance.PendingHash, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, (settleHash, error) =>
-                                {
-                                    EndWaitingModal();
-                                    if (settleHash != Hash.Null)
-                                    {
-                                        ShowConfirmationScreen(settleHash, true, (hash, error) =>
-                                        {
-                                            TxResultMessage(hash, error, $"Your {balance.Symbol} arrived in your {accountManager.CurrentPlatform} account.");
-                                        });
-                                    }
-                                    else
-                                    {
-                                        if ((accountManager.CurrentPlatform == PlatformKind.Ethereum || accountManager.CurrentPlatform == PlatformKind.BSC) && error.Contains("destination hash is not yet available"))
-                                            MessageBox(MessageKind.Default, $"Claim was processed but it will take some time for Ethereum transaction to be mined.\nPlease press claim again later to finalize claim procedure.");
-                                        else
-                                            MessageBox(MessageKind.Error, $"An error has occurred while claiming your {balance.Symbol}...\n{error}");
-                                    }
-                                });
-                            };
-
-                            claim();
-                        }
-                    });
-                };
-            }
-            else
                 switch (balance.Symbol)
                 {
                     case "SOUL":
@@ -2671,186 +2377,6 @@ namespace Poltergeist
                         }
                         break;
 
-                    case "GAS":
-                        {
-                            if (accountManager.CurrentPlatform == PlatformKind.Neo)
-                            {
-                                secondaryAction = "Claim";
-                                secondaryEnabled = balance.Claimable > 0;
-                                secondaryCallback = () =>
-                                {
-                                    PromptBox($"Do you want to claim GAS?\nThere is {balance.Claimable} GAS available.", ModalYesNo, (result) =>
-                                    {
-                                        if (result == PromptResult.Success)
-                                        {
-                                            var claimGas = new Action<NeoKeys, List<UnspentEntry>, decimal, bool>((neoKeys, claimableTransactions, claimableGasAmount, fullyClaimable) =>
-                                            {
-                                                // We get fresh unspents for claim transaction.
-                                                StartCoroutine(accountManager.neoApi.GetUnspent(neoKeys.Address,
-                                                (unspent) =>
-                                                {
-                                                    // Claiming GAS finally.
-                                                    StartCoroutine(accountManager.neoApi.ClaimGas(unspent, neoKeys, claimableTransactions, claimableGasAmount,
-                                                    (tx, error) =>
-                                                    {
-                                                        PopState();
-                                                        MessageBox(MessageKind.Success, $"You claimed {claimableGasAmount} GAS{(fullyClaimable ? "" : ". Not all GAS was claimed, please try later")}!\nTransaction hash: {tx.Hash}");
-                                                    },
-                                                    (error, msg) =>
-                                                    {
-                                                        if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                        {
-                                                            accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                        }
-                                                        MessageBox(MessageKind.Error, msg);
-                                                        return;
-                                                    }));
-                                                },
-                                                (error, msg) =>
-                                                {
-                                                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                    {
-                                                        accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                    }
-                                                    MessageBox(MessageKind.Error, msg);
-                                                    return;
-                                                }));
-                                            });
-
-                                            var keys = NeoKeys.FromWIF(accountManager.CurrentWif);
-
-                                            PushState(GUIState.Sending);
-
-                                            // Getting currenly available claimable transactions and count them.
-                                            StartCoroutine(accountManager.neoApi.GetClaimable(keys.Address,
-                                            (claimableOriginal, amountOriginal) =>
-                                            {
-                                                // Getting unspents, needed for sending NEO to yourself.
-                                                StartCoroutine(accountManager.neoApi.GetUnspent(keys.Address,
-                                                (unspent) =>
-                                                {
-                                                    // Sending NEO to yourself - needed for claimable transactions update,
-                                                    // to claim all generated GAS.
-                                                    StartCoroutine(accountManager.neoApi.SendAsset((tx, error) =>
-                                                    {
-                                                        // Waiting for 2 seconds before checking if new claimable appeared in this list.
-                                                        Thread.Sleep(2000);
-                                                        StartCoroutine(accountManager.neoApi.GetClaimable(keys.Address,
-                                                        (claimable, amount) =>
-                                                        {
-                                                            // Checking if our new transaction appeared in claimables.
-                                                            if (claimable.Count() > claimableOriginal.Count())
-                                                            {
-                                                                claimGas(keys, claimable, amount, true);
-                                                            }
-                                                            else
-                                                            {
-                                                                // We should wait more.
-                                                                Log.Write("GAS claim: Claimable list not updated yet (1)...");
-                                                                Thread.Sleep(4000);
-                                                                StartCoroutine(accountManager.neoApi.GetClaimable(keys.Address,
-                                                                (claimable2, amount2) =>
-                                                                {
-                                                                    // Checking if our new transaction appeared in claimables.
-                                                                    if (claimable2.Count() > claimableOriginal.Count())
-                                                                    {
-                                                                        claimGas(keys, claimable2, amount2, true);
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        // We should wait more.
-                                                                        Log.Write("GAS claim: Claimable list not updated yet (2)...");
-                                                                        Thread.Sleep(10000);
-                                                                        StartCoroutine(accountManager.neoApi.GetClaimable(keys.Address,
-                                                                        (claimable3, amount3) =>
-                                                                        {
-                                                                            // Checking if our new transaction appeared in claimables.
-                                                                            if (claimable3.Count() > claimableOriginal.Count())
-                                                                            {
-                                                                                claimGas(keys, claimable3, amount3, true);
-                                                                            }
-                                                                            else
-                                                                            {
-                                                                                // Claiming what we can (not all).
-                                                                                if (claimable3.Count() > 0)
-                                                                                {
-                                                                                    claimGas(keys, claimable3, amount3, false);
-                                                                                }
-                                                                                else
-                                                                                {
-                                                                                    PopState();
-                                                                                    MessageBox(MessageKind.Success, $"Cannot claim GAS, please try later.");
-                                                                                }
-                                                                            }
-                                                                        },
-                                                                        (error, msg) =>
-                                                                        {
-                                                                            if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                                            {
-                                                                                accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                                            }
-                                                                            MessageBox(MessageKind.Error, msg);
-                                                                            return;
-                                                                        }));
-                                                                    }
-                                                                },
-                                                                (error, msg) =>
-                                                                {
-                                                                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                                    {
-                                                                        accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                                    }
-                                                                    MessageBox(MessageKind.Error, msg);
-                                                                    return;
-                                                                }));
-                                                            }
-                                                        },
-                                                        (error, msg) =>
-                                                        {
-                                                            if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                            {
-                                                                accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                            }
-                                                            MessageBox(MessageKind.Error, msg);
-                                                            return;
-                                                        }));
-                                                    },
-                                                    (error, msg) =>
-                                                    {
-                                                        if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                        {
-                                                            accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                        }
-                                                        MessageBox(MessageKind.Error, msg);
-                                                        return;
-                                                    }, unspent, keys, keys.Address, "NEO", state.GetAvailableAmount("NEO"), null, 0, true));
-                                                },
-                                                (error, msg) =>
-                                                {
-                                                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                    {
-                                                        accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                    }
-                                                    MessageBox(MessageKind.Error, msg);
-                                                    return;
-                                                }));
-                                            },
-                                            (error, msg) =>
-                                            {
-                                                if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                                {
-                                                    accountManager.ChangeFaultyRPCURL(PlatformKind.Neo);
-                                                }
-                                                MessageBox(MessageKind.Error, msg);
-                                                return;
-                                            }));
-                                        }
-                                    });
-                                };
-                            }
-                            break;
-                        }
-
                     default:
                     {
                             if (Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token)) 
@@ -2863,8 +2389,6 @@ namespace Poltergeist
                                     secondaryEnabled = balance.Available > 0;
                                     secondaryCallback = () =>
                                     {
-                                        AudioManager.Instance.PlaySFX("click");
-
                                         transferSymbol = balance.Symbol;
 
                                         // We should do this initialization here and not in PushState,
@@ -2893,7 +2417,6 @@ namespace Poltergeist
             {
                 DoButton(tertiaryEnabled, new Rect(rect.x + rect.width - (Units(18) + 8), curY + btnY, Units(4) + 8, Units(2)), tertiaryAction, () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     tertiaryCallback?.Invoke();
                 });
             }
@@ -2902,7 +2425,6 @@ namespace Poltergeist
             {
                 DoButton(secondaryEnabled, new Rect(rect.x + rect.width - (Units(12) + 8), curY + btnY, Units(4) + 8, Units(2)), secondaryAction, () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     secondaryCallback?.Invoke();
                 });
             }
@@ -2931,8 +2453,6 @@ namespace Poltergeist
 
             DoButton(mainActionEnabled, new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
             {
-                AudioManager.Instance.PlaySFX("click");
-
                 if (mainAction == "Send")
                 {
                     transferSymbol = balance.Symbol;
@@ -2981,68 +2501,7 @@ namespace Poltergeist
 
                         if (Address.IsValidAddress(destAddress) && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
                         {
-                            if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
-                            {
-                                ContinuePhantasmaTransfer(transferName, transferSymbol, destAddress);
-                            }
-                            else
-                            {
-                                ContinueSwap(PlatformKind.Phantasma, transferName, transferSymbol, destAddress);
-                            }
-                        }
-                        else
-                        if (Poltergeist.PhantasmaLegacy.Neo2.NeoUtils.IsValidAddress(destAddress) && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Neo))
-                        {
-                            if (accountManager.CurrentPlatform == PlatformKind.Neo)
-                            {
-                                ContinueNeoTransfer(transferName, transferSymbol, destAddress);
-                            }
-                            else
-                            if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
-                            {
-                                ContinueSwap(PlatformKind.Neo, transferName, transferSymbol, destAddress);
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to this type of address not supported.");
-                            }
-                        }
-                        else
-                        if (ethereumAddressUtil.IsValidEthereumAddressHexFormat(destAddress) && ethereumAddressUtil.IsChecksumAddress(destAddress) && (accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Ethereum) || accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.BSC)))
-                        {
-                            if (accountManager.CurrentPlatform == PlatformKind.Ethereum)
-                            {
-                                ContinueEthTransfer(transferName, transferSymbol, destAddress);
-                            }
-                            else if (accountManager.CurrentPlatform == PlatformKind.BSC)
-                            {
-                                ContinueBscTransfer(transferName, transferSymbol, destAddress);
-                            }
-                            else
-                            if (accountManager.CurrentPlatform == PlatformKind.Phantasma && !string.IsNullOrEmpty(modalInputKey))
-                            {
-                                if (modalInputKey.ToUpper() == "SWAP TO ETH")
-                                {
-                                    Log.Write("SWAP TO ETH selected");
-                                    ContinueSwap(PlatformKind.Ethereum, transferName, transferSymbol, destAddress);
-                                }
-                                else if (modalInputKey.ToUpper() == "SWAP TO BSC")
-                                {
-                                    Log.Write("SWAP TO BSC selected");
-                                    ContinueSwap(PlatformKind.BSC, transferName, transferSymbol, destAddress);
-                                }
-                            }
-                            else
-                            if (accountManager.CurrentPlatform == PlatformKind.Phantasma && string.IsNullOrEmpty(modalInputKey))
-                            {
-                                // If modalInputKey is empty, it means that address was copy-pasted,
-                                // but we need user to use "Swap to ..." menu.
-                                MessageBox(MessageKind.Error, $"To swap to Eth/BSC please use corresponding 'Swap to' menu.");
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to this type of address not supported.");
-                            }
+                            ContinuePhantasmaTransfer(transferName, transferSymbol, destAddress);
                         }
                         else
                         if (ValidationUtils.IsValidIdentifier(destAddress) && destAddress != state.name && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
@@ -3529,7 +2988,6 @@ namespace Poltergeist
 
             DoButton(!DrawNftToolsAreActive(), btnRect, "View", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 if (transferSymbol == "TTRS")
                     Application.OpenURL("https://www.22series.com/part_info?id=" + entryId);
                 else
@@ -3587,10 +3045,9 @@ namespace Poltergeist
             if (history == null)
             {
                 var message = "Temporary error, cannot display history...";
-                if (accountManager.rpcAvailablePhantasma == 0 || accountManager.rpcAvailableNeo == 0)
+                if (accountManager.rpcAvailablePhantasma == 0)
                 {
-                    var rpcMessagePart = (accountManager.rpcAvailablePhantasma == 0 && accountManager.rpcAvailableNeo == 0) ? "Phantasma and Neo" : (accountManager.rpcAvailablePhantasma == 0 ? "Phantasma" : "Neo");
-                    message = $"Please check your internet connection. All {rpcMessagePart} RPC servers are unavailable.";
+                    message = $"Please check your internet connection. All Phantasma RPC servers are unavailable.";
                 }
                 DrawCenteredText(message);
                 return;
@@ -3631,13 +3088,9 @@ namespace Poltergeist
 
             DoButton(!string.IsNullOrEmpty(entry.url), btnRect, "View", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 Application.OpenURL(entry.url);
             });
         }
-
-
-        private int _accountSubMenu;
 
         private void DoAccountScreen()
         {
@@ -3677,61 +3130,9 @@ namespace Poltergeist
                 btnOffset += Units(6);
             }
 
-            switch (_accountSubMenu)
-            {
-                case 0: DoAccountSubMenu(btnOffset); break;
-                case 1: DoAccountManagementMenu(btnOffset); break;
-                case 2: DoAccountCustomizationMenu(btnOffset); break;
-            }
+            DoAccountManagementMenu(btnOffset);
 
             DoBottomMenu();
-        }
-
-        private void DoAccountSubMenu(int btnOffset)
-        {
-            var accountManager = AccountManager.Instance;
-            int posY;
-
-            DoButtonGrid<int>(false, accountMenu.Length, 0, -btnOffset, out posY, (index) =>
-            {
-                return new MenuEntry(index, accountMenu[index], true);
-            },
-            (selected) =>
-            {
-                switch (selected)
-                {
-                    case 0:
-                        {
-                            _accountSubMenu = 1;
-                            break;
-                        }
-
-                    case 1:
-                        {
-                            _accountSubMenu = 2;
-                            break;
-                        }
-#if UNITY_IOS
-                    case 2:
-                        {
-                            PushState(GUIState.Dapps);
-                            break;
-                        }
-#else
-                    case 2:
-                        {
-                            PushState(GUIState.Storage);
-                            break;
-                        }
-
-                    case 3:
-                        {
-                            PushState(GUIState.Dapps);
-                            break;
-                        }
-#endif
-                }
-            });
         }
 
         private void DoAccountManagementMenu(int btnOffset)
@@ -3769,7 +3170,6 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            AudioManager.Instance.PlaySFX("click");
                             ShowModal("Private key export", $"Copy private key in Wallet Import Format (WIF) or in HEX format to the clipboard" +
                                 "\n\nWIF can be used to import wallet in all Phantasma wallets, including Poltergeist, Phantom and Ecto." +
                                 "\nWIF format example (52 symbols):" +
@@ -3779,8 +3179,6 @@ namespace Poltergeist
                                 "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3",
                                 ModalState.Message, 0, 0, ModalHexWif, 0, (result, input) =>
                                 {
-                                    AudioManager.Instance.PlaySFX("click");
-
                                     if (result == PromptResult.Success)
                                     {
                                         var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
@@ -3805,14 +3203,6 @@ namespace Poltergeist
                                     return; // user cancelled
                                 }
 
-                                if (accountManager.CurrentState.archives.Where(x => x.encryption != null).Any())
-                                {
-                                    MessageBox(MessageKind.Default, "Before migration, please download and remove all encrypted files from the storage.", () =>
-                                    {
-                                        return;
-                                    });
-                                }
-                                else
                                 {
                                     var oldWif = accountManager.CurrentWif;
 
@@ -3837,7 +3227,6 @@ namespace Poltergeist
                                                     if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                     {
                                                         accountManager.ReplaceAccountWIF(accountManager.CurrentIndex, wif, accountManager.CurrentPasswordHash, out var deletedDuplicateWallet);
-                                                        AudioManager.Instance.PlaySFX("click");
                                                         CloseCurrentStack();
 
                                                         ShowModal("Message",
@@ -3865,81 +3254,6 @@ namespace Poltergeist
                         }
 
                     case 2:
-                        {
-                            PromptBox("Are you sure you want to delete this account?\nYou can only restore it if you made a backup of the private keys.", ModalConfirmCancel, (result) =>
-                            {
-                                if (result == PromptResult.Success)
-                                {
-                                    RequestPassword("Account Deletion", accountManager.CurrentAccount.platforms, false, false, (delete) =>
-                                    {
-                                        if (delete == PromptResult.Success)
-                                        {
-                                            accountManager.DeleteAccount(accountManager.CurrentIndex);
-                                            AudioManager.Instance.PlaySFX("click");
-                                            CloseCurrentStack();
-                                            MessageBox(MessageKind.Default, "The account was deleted.");
-                                        }
-                                        else
-                                        if (delete == PromptResult.Failure)
-                                        {
-                                            MessageBox(MessageKind.Error, "Auth failed.");
-                                        }
-                                    });
-                                }
-                            }, 10);
-                        }
-                        break;
-
-                    case 3:
-                        _accountSubMenu = 0;
-                        break;
-                }
-            });
-        }
-
-        private void DoAccountCustomizationMenu(int btnOffset)
-        {
-            var accountManager = AccountManager.Instance;
-            int posY;
-
-            DoButtonGrid<int>(false, customizationMenu.Length, 0, -btnOffset, out posY, (index) =>
-            {
-                var enabled = true;
-
-                if (accountManager.CurrentState != null)
-                {
-                    switch (index)
-                    {
-                        case 0:
-                            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
-                            {
-                                enabled = false;
-                            }
-                            break;
-                        case 1:
-                            if (accountManager.CurrentPlatform != PlatformKind.Phantasma || accountManager.CurrentState.name != "anonymous")
-                            {
-                                enabled = false;
-                            }
-                            break;
-
-                        case 2:
-                            enabled = false;
-                            break;
-                    }
-                }
-                else
-                {
-                    enabled = false;
-                }
-
-                return new MenuEntry(index, customizationMenu[index], enabled);
-            },
-            (selected) =>
-            {
-                switch (selected)
-                {
-                    case 0:
                         {
                             var state = accountManager.CurrentState;
                             decimal stake = state != null ? state.balances.Where(x => x.Symbol == DomainSettings.StakingTokenSymbol).Select(x => x.Staked).FirstOrDefault() : 0;
@@ -4020,28 +3334,6 @@ namespace Poltergeist
                             }
                             break;
                         }
-
-                    case 1:
-                        {
-                            // Open file with filter
-#if CT_FB && (UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX || UNITY_STANDALONE_LINUX || UNITY_EDITOR_LINUX)
-                            var extensions = new[] { "Image Files", "png", "jpg", "jpeg" };
-
-                            UploadSelectedAvatar(FileBrowser.Instance.OpenSingleFile("Open File", accountManager.Settings.GetLastVisitedFolder(), null, extensions));
-#elif UNITY_ANDROID
-                            var extensionFilter = new string[] {"image/*"};
-//#else
-//                            var extensionFilter = new string[] {"public.image"};
-//#endif // iOS
-                            NativeFilePicker.PickFile((path) => { UploadSelectedAvatar(path); }, extensionFilter);
-#endif
-
-                            break;
-                        }
-
-                    case 3:
-                        _accountSubMenu = 0;
-                        break;
                 }
             });
         }
@@ -4087,16 +3379,8 @@ namespace Poltergeist
             });
         }
 
-#if UNITY_IOS
-        private string[] accountMenu = new string[] { "Manage Account", "Customize Account", "dApps"};
-#else
-        private string[] accountMenu = new string[] { "Manage Account", "Customize Account", "Storage", "dApps" };
-#endif
-        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Delete Account", "Back" };
-        private string[] customizationMenu = new string[] { "Setup Name", "Setup Avatar", "Multi-signature", "Back" };
+        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name" };
 
-        private string[] storageMenu = new string[] { "Upload File", "Back" };
-        
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
 
         private int DoBottomMenu()
@@ -4136,7 +3420,6 @@ namespace Poltergeist
                                     VerticalLayout ? (int)rect.y + border + (Units(2) + 4) * 2 : (int)rect.y + border,
                                     VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Close", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PushState(GUIState.Balances);
 
                 // Saving sorting.
@@ -4152,7 +3435,6 @@ namespace Poltergeist
                                                  VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                  pageButtonWidth, Units(2)), "<<", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber = 0;
             });
 
@@ -4161,7 +3443,6 @@ namespace Poltergeist
                                                  VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                  pageButtonWidth, Units(2)), "<", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber--;
             });
 
@@ -4169,13 +3450,11 @@ namespace Poltergeist
             var style = GUI.skin.GetStyle("Label");
             var prevAlignment = style.alignment;
             style.alignment = TextAnchor.MiddleCenter;
-            if (accountManager.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
+
             GUI.Label(new Rect(halfWidth - pageLabelWidth / 2 - 6,
                                (int)rect.y + 12,
                                pageLabelWidth, Units(2)), (nftPageNumber + 1).ToString(), style);
-            if (accountManager.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
+
             style.alignment = prevAlignment;
 
             // >
@@ -4183,7 +3462,6 @@ namespace Poltergeist
                                                                 VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                                 pageButtonWidth, Units(2)), ">", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber++;
             });
 
@@ -4192,7 +3470,6 @@ namespace Poltergeist
                                                                 VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                                 pageButtonWidth, Units(2)), ">>", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 nftPageNumber = nftPageCount - 1;
             });
 
@@ -4230,7 +3507,6 @@ namespace Poltergeist
                                             VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border,
                                             VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Online inventory", () =>
                                             {
-                                                AudioManager.Instance.PlaySFX("click");
                                                 Application.OpenURL("https://www.22series.com/inventory?#" + accountManager.GetAddress(AccountManager.Instance.CurrentIndex, AccountManager.Instance.CurrentPlatform));
                                             });
                 }
@@ -4241,7 +3517,6 @@ namespace Poltergeist
                         VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border,
                         VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Contract information", () =>
                         {
-                            AudioManager.Instance.PlaySFX("click");
                             Application.OpenURL(accountManager.GetPhantasmaContractURL(transferSymbol));
                         });
                 }
@@ -4267,14 +3542,12 @@ namespace Poltergeist
             // Back
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Back", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PushState(GUIState.Nft);
             });
 
             // Burn
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth - btnWidth / 2, VerticalLayout ? (int)rect.y + border : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Burn", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
                 PromptBox("Are you sure you want to burn (destroy) selected NFTs?", ModalConfirmCancel, (result) =>
                 {
                     if (result == PromptResult.Success)
@@ -4316,8 +3589,6 @@ namespace Poltergeist
             // Send
             DoButton(nftTransferList.Count > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border - (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Send", () =>
             {
-                AudioManager.Instance.PlaySFX("click");
-
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";
@@ -4435,66 +3706,6 @@ namespace Poltergeist
                 var estimatedFee = usedGas * phaGasPrice;
                 var feeDecimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
                 description += $"\nEstimated fee: {UnitConversion.ToDecimal(estimatedFee, feeDecimals)} KCAL";
-            }
-            else if (accountManager.CurrentPlatform == PlatformKind.Neo)
-            {
-                description += $"\nFee: {accountManager.Settings.neoGasFee} GAS";
-            }
-            else if (accountManager.CurrentPlatform == PlatformKind.Ethereum)
-            {
-                BigInteger usedGas;
-
-                if (transferRequest == null)
-                    throw new Exception($"Transfer request is null for {accountManager.CurrentPlatform} platform");
-
-                var transfer = (TransferRequest)transferRequest;
-
-                if (transfer.platform == PlatformKind.Ethereum)
-                {
-                    if (transfer.symbol == "ETH")
-                    {
-                        // Eth transfer.
-                        usedGas = accountManager.Settings.ethereumTransferGasLimit;
-                    }
-                    else
-                    {
-                        // Token transfer.
-                        usedGas = accountManager.Settings.ethereumTokenTransferGasLimit;
-                    }
-
-                    var estimatedFee = usedGas * accountManager.Settings.ethereumGasPriceGwei;
-                    description += $"\nEstimated fee: {UnitConversion.ToDecimal(estimatedFee, 9)} ETH"; // 9 because we convert from Gwei, not Wei
-                }
-            }
-            else if (accountManager.CurrentPlatform == PlatformKind.BSC)
-            {
-                BigInteger usedGas;
-
-                if (transferRequest == null)
-                    throw new Exception($"Transfer request is null for {accountManager.CurrentPlatform} platform");
-
-                var transfer = (TransferRequest)transferRequest;
-
-                if (transfer.platform == PlatformKind.BSC)
-                {
-                    if (transfer.symbol == "BNB")
-                    {
-                        // BNB transfer.
-                        usedGas = accountManager.Settings.binanceSmartChainTransferGasLimit;
-                    }
-                    else if (transfer.symbol == "SPE")
-                    {
-                        usedGas = 600000; // Hack for SPE token
-                    }
-                    else
-                    {
-                        // Token transfer.
-                        usedGas = accountManager.Settings.binanceSmartChainTokenTransferGasLimit;
-                    }
-
-                    var estimatedFee = usedGas * accountManager.Settings.binanceSmartChainGasPriceGwei;
-                    description += $"\nEstimated fee: {UnitConversion.ToDecimal(estimatedFee, 9)} BNB"; // 9 because we convert from Gwei, not Wei
-                }
             }
 
             RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
@@ -4925,528 +4136,6 @@ namespace Poltergeist
             modalHints = new Dictionary<string, string>() { { $"Max ({MoneyFormat(max, MoneyFormatType.Short)} {symbol})", max.ToString() } };
         }
 
-        private void ContinueNeoTransfer(string transferName, string symbol, string destAddress)
-        {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-
-            if (accountManager.CurrentPlatform != PlatformKind.Neo)
-            {
-                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.Neo);
-                return;
-            }
-
-            var sourceAddress = accountManager.GetAddress(accountManager.CurrentIndex, accountManager.CurrentPlatform);
-
-            if (sourceAddress == destAddress)
-            {
-                MessageBox(MessageKind.Error, $"Source and destination address must be different!");
-                return;
-            }
-
-            var gasBalance = accountManager.CurrentState.GetAvailableAmount("GAS");
-            if (gasBalance <= 0)
-            {
-                MessageBox(MessageKind.Error, $"You will need at least a drop of GAS in this wallet to make a transaction.");
-                return;
-            }
-
-            var min = accountManager.Settings.neoGasFee;
-            RequestFee(symbol, "GAS", min, (gasResult) =>
-            {
-                if (gasResult != PromptResult.Success)
-                {
-                    MessageBox(MessageKind.Error, $"Without at least {min} GAS it is not possible to perform this transfer!");
-                    return;
-                }
-
-                var balance = state.GetAvailableAmount(symbol);
-                if (symbol == "GAS")
-                    balance -= min;
-
-                RequireAmount(transferName, destAddress, symbol, 0.001m, balance, (amount) =>
-                {
-                    var transfer = new TransferRequest()
-                    {
-                        platform = PlatformKind.Neo,
-                        amount = amount,
-                        symbol = symbol,
-                        destination = destAddress
-                    };
-
-                    SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destAddress}", null, transfer, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, transfer.platform.ToString(), ProofOfWork.None, (hash, error) =>
-                    {
-                        TxResultMessage(hash, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
-                    });
-                });
-            });
-        }
-
-        private void ContinueEthTransfer(string transferName, string symbol, string destAddress)
-        {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-
-            if (accountManager.CurrentPlatform != PlatformKind.Ethereum)
-            {
-                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.Ethereum);
-                return;
-            }
-
-            var sourceAddress = accountManager.GetAddress(accountManager.CurrentIndex, accountManager.CurrentPlatform);
-
-            if (sourceAddress == destAddress)
-            {
-                MessageBox(MessageKind.Error, $"Source and destination address must be different!");
-                return;
-            }
-
-            var ethBalance = accountManager.CurrentState.GetAvailableAmount("ETH");
-            if (ethBalance <= 0)
-            {
-                MessageBox(MessageKind.Error, $"You will need at least a drop of ETH in this wallet to make a transaction.");
-                return;
-            }
-
-            var balance = state.GetAvailableAmount(symbol);
-            EthGasStationRequest((safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight) =>
-            {
-                EditBigIntegerFee("Set transaction gas price in GWEI", accountManager.Settings.ethereumGasPriceGwei, safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight, (result, fee) =>
-                {
-                    if (result == PromptResult.Success)
-                    {
-                        accountManager.Settings.ethereumGasPriceGwei = fee;
-                        accountManager.Settings.SaveOnExit();
-
-                        BigInteger usedGas;
-                        if (symbol == "ETH")
-                        {
-                            // Eth transfer.
-                            usedGas = accountManager.Settings.ethereumTransferGasLimit;
-                        }
-                        else
-                        {
-                            // Simple token transfer.
-                            usedGas = accountManager.Settings.ethereumTokenTransferGasLimit;
-                        }
-
-                        var decimalFee = UnitConversion.ToDecimal(usedGas * accountManager.Settings.ethereumGasPriceGwei, 9); // 9 because we convert from Gwei, not Wei
-
-                        RequestFee(symbol, "ETH", decimalFee, (feeResult) =>
-                        {
-                            if (feeResult != PromptResult.Success)
-                            {
-                                MessageBox(MessageKind.Error, $"Without at least {decimalFee} ETH it is not possible to perform this transfer!");
-                                return;
-                            }
-
-                            if (symbol == "ETH")
-                            {
-                                balance -= decimalFee;
-                            }
-
-                            RequireAmount(transferName, destAddress, symbol, 0.001m, balance, (amount) =>
-                            {
-                                var transfer = new TransferRequest()
-                                {
-                                    platform = PlatformKind.Ethereum,
-                                    amount = amount,
-                                    symbol = symbol,
-                                    destination = destAddress
-                                };
-
-                                SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destAddress}", null, transfer, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, transfer.platform.ToString(), ProofOfWork.None, (hash, error) =>
-                                {
-                                    TxResultMessage(hash, error, $"You sent transaction transferring {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\nPlease use Ethereum explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).");
-                                });
-                            });
-                        });
-                    }
-                });
-            });
-        }
-
-        private void ContinueBscTransfer(string transferName, string symbol, string destAddress)
-        {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-
-            if (accountManager.CurrentPlatform != PlatformKind.BSC)
-            {
-                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.BSC);
-                return;
-            }
-
-            var sourceAddress = accountManager.GetAddress(accountManager.CurrentIndex, accountManager.CurrentPlatform);
-
-            if (sourceAddress == destAddress)
-            {
-                MessageBox(MessageKind.Error, $"Source and destination address must be different!");
-                return;
-            }
-
-            var bnbBalance = accountManager.CurrentState.GetAvailableAmount("BNB");
-            if (bnbBalance <= 0)
-            {
-                MessageBox(MessageKind.Error, $"You will need at least a drop of BNB in this wallet to make a transaction.");
-                return;
-            }
-
-            var balance = state.GetAvailableAmount(symbol);
-            BscGasStationRequest((safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight) =>
-            {
-                EditBigIntegerFee("Set transaction gas price in GWEI", accountManager.Settings.binanceSmartChainGasPriceGwei, safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight, (result, fee) =>
-                {
-                    if (result == PromptResult.Success)
-                    {
-                        accountManager.Settings.binanceSmartChainGasPriceGwei = fee;
-                        accountManager.Settings.SaveOnExit();
-
-                        BigInteger usedGas;
-                        if (symbol == "BNB")
-                        {
-                            // Eth transfer.
-                            usedGas = accountManager.Settings.binanceSmartChainTransferGasLimit;
-                        }
-                        else if (symbol == "SPE")
-                        {
-                            usedGas = 600000; // Hack for SPE token
-                        }
-                        else
-                        {
-                            // Simple token transfer.
-                            usedGas = accountManager.Settings.binanceSmartChainTokenTransferGasLimit;
-                        }
-
-                        var decimalFee = UnitConversion.ToDecimal(usedGas * accountManager.Settings.binanceSmartChainGasPriceGwei, 9); // 9 because we convert from Gwei, not Wei
-
-                        RequestFee(symbol, "BNB", decimalFee, (feeResult) =>
-                        {
-                            if (feeResult != PromptResult.Success)
-                            {
-                                MessageBox(MessageKind.Error, $"Without at least {decimalFee} BNB it is not possible to perform this transfer!");
-                                return;
-                            }
-
-                            if (symbol == "BNB")
-                            {
-                                balance -= decimalFee;
-                            }
-
-                            RequireAmount(transferName, destAddress, symbol, 0.001m, balance, (amount) =>
-                            {
-                                var transfer = new TransferRequest()
-                                {
-                                    platform = PlatformKind.BSC,
-                                    amount = amount,
-                                    symbol = symbol,
-                                    destination = destAddress
-                                };
-
-                                SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destAddress}", null, transfer, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, transfer.platform.ToString(), ProofOfWork.None, (hash, error) =>
-                                {
-                                    TxResultMessage(hash, error, $"You sent transaction transferring {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\nPlease use BSC explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).");
-                                });
-                            });
-                        });
-                    }
-                });
-            });
-        }
-
-        private void ContinueSwap(PlatformKind destPlatform, string transferName, string swappedSymbol, string destination)
-        {
-            var accountManager = AccountManager.Instance;
-            var account = accountManager.CurrentAccount;
-            var state = accountManager.CurrentState;
-
-            var sourceAddress = accountManager.GetAddress(accountManager.CurrentIndex, accountManager.CurrentPlatform);
-
-            if (sourceAddress == destination)
-            {
-                MessageBox(MessageKind.Error, $"Source and destination address must be different!");
-                return;
-            }
-
-            // We limit swap destination addresses to protect users from sending
-            // funds from mainnet to NEP5/ERC20 exchange address directly, and other possible errors.
-            switch (destPlatform)
-            {
-                case PlatformKind.Phantasma:
-                    if(destination != account.phaAddress)
-                    {
-                        MessageBox(MessageKind.Error, $"Only swaps within same account are allowed!\nYour Phantasma address is {account.phaAddress},\ntarget address is {destination}.");
-                        return;
-                    }
-                    break;
-                case PlatformKind.Neo:
-                    if (destination != account.neoAddress)
-                    {
-                        MessageBox(MessageKind.Error, $"Only swaps within same account are allowed!\nYour Neo address is {account.neoAddress},\ntarget address is {destination}.");
-                        return;
-                    }
-                    break;
-                case PlatformKind.Ethereum:
-                    if (destination != account.ethAddress)
-                    {
-                        MessageBox(MessageKind.Error, $"Only swaps within same account are allowed!\nYour Ethereum address is {account.ethAddress},\ntarget address is {destination}.");
-                        return;
-                    }
-                    break;
-                case PlatformKind.BSC:
-                    if (destination != account.ethAddress)
-                    {
-                        MessageBox(MessageKind.Error, $"Only swaps within same account are allowed!\nYour BSC address is {account.ethAddress},\ntarget address is {destination}.");
-                        return;
-                    }
-                    break;
-            }
-
-            // We set GAS as main fee symbol for both NEO -> PHA and PHA -> NEO swaps.
-            // We set ETH as main fee symbol for both ETH -> PHA and PHA -> ETH swaps.
-            // When we do swaps from PHA, KCAL also used for tx sending.
-            // When we do swaps to PHA, transfered token is partially cosmic-swapped to KCAL by bp, it's automatic.
-            var feeSymbol0 = "GAS";
-            if (accountManager.CurrentPlatform == PlatformKind.Ethereum || destPlatform == PlatformKind.Ethereum)
-                feeSymbol0 = "ETH";
-            if (accountManager.CurrentPlatform == PlatformKind.BSC || destPlatform == PlatformKind.BSC)
-                feeSymbol0 = "BNB";
-
-            var proceedWithSwap = new Action<string, string, decimal>((symbol, feeSymbol, min) =>
-            {
-                // Set proper min value depending on platform.
-                if (accountManager.CurrentPlatform == PlatformKind.Neo)
-                {
-                    min = Math.Max(0.001m, accountManager.Settings.neoGasFee);
-                }
-                else if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
-                {
-                    // Since these fees are calculated and taken by BP,
-                    // and we don't have a way of finding them out (at least for now)
-                    // we have to set them with a margin.
-                    if (destPlatform == PlatformKind.Neo)
-                        min = 0.1m; // For Neo use 0.1 GAS constant
-                    else if (destPlatform == PlatformKind.Ethereum)
-                        min *= 1.2m; // Increase estimated fees on 20% more to be on a safe side.
-                }
-
-                RequestFee(symbol, feeSymbol, min, (gasResult) =>
-                {
-                    if (gasResult != PromptResult.Success)
-                    {
-                        MessageBox(MessageKind.Error, $"Without at least {min} {feeSymbol} it is not possible to perform this swap!");
-                        return;
-                    }
-
-                    var balance = state.GetAvailableAmount(symbol);
-
-                    // If we are swapping fogeign token that is also used for swapping fees,
-                    // we subtract required swapping fee minimum from available balance to avoid errors.
-                    if (symbol == "GAS" || symbol == "ETH" || symbol == "BNB")
-                        balance -= min;
-
-                    // To fix error if swapping whole KCAL balance to another chain.
-                    // We just leave 0.01 KCAL for Phantasma-side tx fees.
-                    if (symbol == "KCAL")
-                        balance -= 0.01m;
-
-                    if(balance <= 0)
-                    {
-                        MessageBox(MessageKind.Error, $"Not enough {symbol} to swap it to another chain.");
-                        return;
-                    }
-
-                    RequireAmount(transferName, null, symbol, 0.001m, balance, (amount) =>
-                    {
-                        if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
-                        {
-                            Address destAddress;
-
-                            switch (destPlatform)
-                            {
-                                case PlatformKind.Neo:
-                                    destAddress = AccountManager.EncodeNeoAddress(destination);
-                                    break;
-                                case PlatformKind.Ethereum:
-                                    destAddress = AccountManager.EncodeEthereumAddress(destination);
-                                    break;
-                                case PlatformKind.BSC:
-                                    destAddress = AccountManager.EncodeBinanceSmartChainAddress(destination);
-                                    break;
-                                default:
-                                    MessageBox(MessageKind.Error, $"Swaps to {destPlatform} are not possible yet.");
-                                    break;
-                            }
-
-                            RequestKCAL(symbol, (feeResult) =>
-                            {
-                                if (feeResult == PromptResult.Success)
-                                {
-                                    // In case we swapped SOUL to KCAL we should check if selected amound is still available
-                                    // If not - reduce to balance
-                                    // We should update balance first
-                                    balance = AccountManager.Instance.CurrentState.GetAvailableAmount(symbol);
-                                    if (amount > balance)
-                                        amount = balance;
-
-                                    byte[] script;
-
-                                    var source = Address.FromText(sourceAddress);
-
-                                    try
-                                    {
-                                        var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-
-                                        var sb = new ScriptBuilder();
-                                        sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                        sb.TransferTokens(symbol, source, destAddress, UnitConversion.ToBigInteger(amount, decimals));
-                                        sb.SpendGas(source);
-                                        script = sb.EndScript();
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                                        return;
-                                    }
-
-                                    SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}\nEstimated swap fee: {min} {feeSymbol}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
-                                    {
-                                        TxResultMessage(hash, error, null, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
-                                    });
-                                }
-                                else
-                                if (feeResult == PromptResult.Failure)
-                                {
-                                    MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
-                                }
-                            });
-                        }
-                        else
-                        {
-                            accountManager.FindInteropAddress(accountManager.CurrentPlatform, (interopAddress) =>
-                            {
-                                if (!string.IsNullOrEmpty(interopAddress))
-                                {
-                                    Log.Write("Found interop address: " + interopAddress);
-
-                                    var transfer = new TransferRequest()
-                                    {
-                                        platform = accountManager.CurrentPlatform,
-                                        amount = amount,
-                                        symbol = symbol,
-                                        destination = interopAddress,
-                                        interop = destination,
-                                    };
-
-                                    SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", null, transfer, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, transfer.platform.ToString(), ProofOfWork.None, (hash, error) =>
-                                    {
-                                        string successMessage;
-                                        if (accountManager.CurrentPlatform == PlatformKind.Ethereum)
-                                            successMessage = $"You sent transaction transferring {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\nPlease use Ethereum explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).\nTransaction hash:\n" + hash;
-                                        else if (accountManager.CurrentPlatform == PlatformKind.BSC)
-                                            successMessage = $"You sent transaction transferring {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\nPlease use BSC explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).\nTransaction hash:\n" + hash;
-                                        else
-                                            successMessage = $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\nTransaction hash:\n" + hash;
-
-                                        TxResultMessage(hash, error, null, successMessage);
-                                    });
-                                }
-                                else
-                                {
-                                    MessageBox(MessageKind.Error, "Could not fetch interop address");
-                                }
-                            });
-                        }
-                    });
-                });
-            });
-
-            if (feeSymbol0 == "ETH" && accountManager.CurrentPlatform == PlatformKind.Ethereum)
-            {
-                // Have to ask what fees user is willing to pay.
-
-                EthGasStationRequest((safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight) =>
-                {
-                    EditBigIntegerFee("Set transaction gas price in GWEI", accountManager.Settings.ethereumGasPriceGwei, safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight, (result, gasPrice) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            accountManager.Settings.ethereumGasPriceGwei = gasPrice;
-                            accountManager.Settings.SaveOnExit();
-
-                            var decimalFee = UnitConversion.ToDecimal((swappedSymbol == "ETH" ? accountManager.Settings.ethereumTransferGasLimit : accountManager.Settings.ethereumTokenTransferGasLimit) * fast, 9); // 9 because we convert from Gwei, not Wei
-
-                            proceedWithSwap(swappedSymbol, feeSymbol0, decimalFee);
-                        }
-                    });
-                });
-            }
-            else if (feeSymbol0 == "ETH" && accountManager.CurrentPlatform == PlatformKind.Phantasma)
-            {
-                // No sense in asking user for ETH fees - they are set by BP, we have to try to do our best with predicting them.
-                StartCoroutine(EthRequestSwapFeesAsBP((fastest) =>
-                {
-                    Log.Write("ETH fastest swap fee (estimated): " + fastest);
-                    var decimalFee = UnitConversion.ToDecimal((swappedSymbol == "ETH" ? accountManager.Settings.ethereumTransferGasLimit : accountManager.Settings.ethereumTokenTransferGasLimit) * fastest, 9); // 9 because we convert from Gwei, not Wei
-
-                    proceedWithSwap(swappedSymbol, feeSymbol0, decimalFee);
-                }));
-            }
-            else if (feeSymbol0 == "BNB" && accountManager.CurrentPlatform == PlatformKind.BSC)
-            {
-                // Have to ask what fees user is willing to pay.
-
-                BscGasStationRequest((safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight) =>
-                {
-                    EditBigIntegerFee("Set transaction gas price in GWEI", accountManager.Settings.binanceSmartChainGasPriceGwei, safeLow, safeLowWait, standard, standardWait, fast, fastWeight, fastest, fastestWeight, (result, gasPrice) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            accountManager.Settings.binanceSmartChainGasPriceGwei = gasPrice;
-                            accountManager.Settings.SaveOnExit();
-
-                            BigInteger bscGasLimit = 0;
-                            if (swappedSymbol == "BNB")
-                                bscGasLimit = accountManager.Settings.binanceSmartChainTransferGasLimit;
-                            else if (swappedSymbol == "SPE")
-                                bscGasLimit = 600000; // Hack for SPE token
-                            else
-                                bscGasLimit = accountManager.Settings.binanceSmartChainTokenTransferGasLimit;
-
-                            var decimalFee = UnitConversion.ToDecimal(bscGasLimit * fast, 9); // 9 because we convert from Gwei, not Wei
-
-                            proceedWithSwap(swappedSymbol, feeSymbol0, decimalFee);
-                        }
-                    });
-                });
-            }
-            else if (feeSymbol0 == "BNB" && accountManager.CurrentPlatform == PlatformKind.Phantasma)
-            {
-                // No sense in asking user for BNB fees - they are set by BP, we have to try to do our best with predicting them.
-                StartCoroutine(BscRequestSwapFeesAsBP((fastest) =>
-                {
-                    Log.Write("BSC fastest swap fee (estimated): " + fastest);
-
-                    BigInteger bscGasLimit = 0;
-                    if (swappedSymbol == "BNB")
-                        bscGasLimit = accountManager.Settings.binanceSmartChainTransferGasLimit;
-                    else if (swappedSymbol == "SPE")
-                        bscGasLimit = 600000; // Hack for SPE token
-                    else
-                        bscGasLimit = accountManager.Settings.binanceSmartChainTokenTransferGasLimit;
-
-                    var decimalFee = UnitConversion.ToDecimal(bscGasLimit * fastest, 9); // 9 because we convert from Gwei, not Wei
-
-                    proceedWithSwap(swappedSymbol, feeSymbol0, decimalFee);
-                }));
-            }
-            else
-            {
-                // For Neo all fees are taken from constants or settings and set inside proceedWithSwap(), that's why we pass 0 here.
-                proceedWithSwap(swappedSymbol, feeSymbol0, 0);
-            }
-        }
-
         private void RequestKCAL(string swapSymbol, Action<PromptResult> callback)
         {
             RequestFee(swapSymbol, "KCAL", 0.1m, callback);
@@ -5616,167 +4305,6 @@ namespace Poltergeist
                 MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.\nHowever to use {swapSymbol} cosmic swaps, you need at least 2 {swapSymbol}.");
             }
         }
-
-        private void EditBigIntegerFee(string message, BigInteger fee, BigInteger safeLow, string safeLowWait, BigInteger standard, string standardWait, BigInteger fast, string fastWait, BigInteger fastest, string fastestWait, Action<PromptResult, BigInteger> callback)
-        {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-
-            ShowModal("Fees", $"{message}:", ModalState.Input, 1, 64, ModalConfirmCancel, 1,
-                (result, input) =>
-                {
-                    if (result == PromptResult.Success)
-                    {
-                        if (!String.IsNullOrEmpty(input) && input.All(char.IsDigit))
-                        {
-                            fee = BigInteger.Parse(input, NumberStyles.Integer);
-                            if (fee < safeLow)
-                            {
-                                PromptBox($"You set fee lower than safe low ({fee} < {safeLow}), transfer might take too long or fail.\nAre you sure you want to continue?", ModalYesNo, (wantToContinue) =>
-                                {
-                                    if (wantToContinue == PromptResult.Success)
-                                    {
-                                        callback(PromptResult.Success, fee);
-                                    }
-                                    else
-                                    {
-                                        return;
-                                    }
-                                });
-                            }
-                            else
-                            {
-                                callback(PromptResult.Success, fee);
-                            }
-                        }
-                        else
-                        {
-                            MessageBox(MessageKind.Error, "Invalid fee!");
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        callback(result, 0);
-                    }
-                });
-
-            modalInput = fee.ToString();
-            modalHintsLabel = "Gas prices";
-            modalHints = new Dictionary<string, string>() { { $"Safe low: {safeLow} ({safeLowWait} min)", safeLow.ToString() },
-                { $"Standard: {standard} ({standardWait} min)", standard.ToString() },
-                { $"Fast: {fast} ({fastWait} min)", fast.ToString() },
-                { $"Fastest: {fastest} ({fastestWait} min)", fastest.ToString() } };
-        }
-
-        private void EthGasStationRequest(Action<BigInteger, string, BigInteger, string, BigInteger, string, BigInteger, string> callback)
-        {
-            var url = "https://ethgasstation.info/api/ethgasAPI.json?api-key=25d4c0f579cd9d98ac8a124269a0f752e598882a2e7f6fcbdb0c8aa6bbb9";
-            StartCoroutine(WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
-                {
-                    Log.Write("EthGasStationRequest error: " + error);
-                    callback(0, "", 0, "", 0, "", 0, "");
-                },
-                (response) =>
-                {
-                    callback(response.GetInt32("safeLow", 0) / 10,
-                        response.GetString("safeLowWait"),
-                        response.GetInt32("average", 0) / 10,
-                        response.GetString("avgWait"),
-                        response.GetInt32("fast", 0) / 10,
-                        response.GetString("fastWait"),
-                        response.GetInt32("fastest", 0) / 10,
-                        response.GetString("fastestWait"));
-                }));
-        }
-
-        private void BscGasStationRequest(Action<BigInteger, string, BigInteger, string, BigInteger, string, BigInteger, string> callback)
-        {
-            callback(5, "Slow", 10, "Avg", 15, "Fast", 25, "Fastest");
-        }
-
-        // Taken from Spook to emulate Spook's Eth fee calculation.
-        public static decimal GetMedian(decimal[] sourceArray)
-        {
-            if (sourceArray == null || sourceArray.Length == 0)
-                throw new ArgumentException("Median of empty array not defined.");
-
-            decimal[] sortedArray = sourceArray;
-            Array.Sort(sortedArray);
-
-            //get the median
-            int size = sortedArray.Length;
-            int mid = size / 2;
-            if (size % 2 != 0)
-            {
-                return sortedArray[mid];
-            }
-
-            decimal value1 = sortedArray[mid];
-            decimal value2 = sortedArray[mid - 1];
-
-            return (sortedArray[mid] + value2) * 0.5m;
-        }
-
-        // This method request Eth fees same way as it's done by bp, to get closer estimation
-        // of BP's Eth fees.
-        private IEnumerator EthRequestSwapFeesAsBP(Action<BigInteger> callback)
-        {
-            var feeIncrease = 40;
-            var url1 = "https://gasprice.poa.network";
-            var feeKey1 = "instant";
-            var url3 = "https://api.anyblock.tools/latest-minimum-gasprice";
-            var feeKey3 = "instant";
-
-            decimal fee1 = 0;
-            decimal fee3 = 0;
-
-            var urlCoroutine1 = StartCoroutine(WebClient.RESTRequest(url1, WebClient.DefaultTimeout, (error, msg) =>
-            {
-                Log.Write("EthRequestSwapFeesAsBP(): URL1 error: " + error);
-            },
-            (response1) =>
-            {
-                fee1 = response1.GetDecimal(feeKey1, 0);
-                Log.Write("EthRequestSwapFeesAsBP(): Fee 1 retrieved: " + fee1);
-            }));
-
-            var urlCoroutine3 = StartCoroutine(WebClient.RESTRequest(url3, WebClient.DefaultTimeout, (error, msg) =>
-            {
-                Log.Write("EthRequestSwapFeesAsBP(): URL3 error: " + error);
-            },
-            (response) =>
-            {
-                fee3 = response.GetDecimal(feeKey3, 0);
-                Log.Write("EthRequestSwapFeesAsBP(): Fee 3 retrieved: " + fee3);
-            }));
-
-            yield return urlCoroutine1;
-            yield return urlCoroutine3;
-
-            // Excluding 0 values. BP is not doing it yet,
-            // but if not done, it completely ruins calculation.
-            var fees = new List<decimal>();
-            if (fee1 != 0)
-                fees.Add(fee1);
-            if (fee3 != 0)
-                fees.Add(fee3);
-
-            // TODO use average.
-            // For now it copies bp's code.
-            var median = GetMedian(fees.ToArray());
-            Log.Write("EthRequestSwapFeesAsBP(): median: " + median);
-            
-            callback(new BigInteger((long)(median + feeIncrease)));
-        }
-
-        private IEnumerator BscRequestSwapFeesAsBP(Action<BigInteger> callback)
-        {
-            var feeIncrease = 20;
-            callback(new BigInteger((long)(15 + feeIncrease)));
-            
-            yield return new WaitForSeconds(.001f);
-        }
         #endregion
 
         private Dictionary<string, string> GenerateAccountHints(PlatformKind targets)
@@ -5794,26 +4322,6 @@ namespace Poltergeist
                 if (platform == accountManager.CurrentPlatform)
                 {
                     continue;
-                }
-
-                if (targets.HasFlag(platform))
-                {
-                    var addr = accountManager.GetAddress(accountManager.CurrentIndex, platform);
-                    if (!string.IsNullOrEmpty(addr))
-                    {
-                        var shortenedPlatform = platform.ToString();
-                        switch(platform)
-                        {
-                            case PlatformKind.Phantasma:
-                                shortenedPlatform = "Pha";
-                                break;
-                            case PlatformKind.Ethereum:
-                                shortenedPlatform = "Eth";
-                                break;
-                        }
-                        var key = $"Swap to {shortenedPlatform}";
-                        hints[key] = addr;
-                    }
                 }
             }
 

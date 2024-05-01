@@ -36,19 +36,6 @@ namespace Poltergeist
 
         private PasswordMode[] availablePasswordModes = Enum.GetValues(typeof(PasswordMode)).Cast<PasswordMode>().ToArray();
 
-
-        private int ethereumNetworkIndex;
-        private ComboBox ethereumNetworkComboBox = new ComboBox();
-
-        private EthereumNetwork[] availableEthereumNetworks = Enum.GetValues(typeof(EthereumNetwork)).Cast<EthereumNetwork>().ToArray();
-
-
-        private int binanceSmartChainNetworkIndex;
-        private ComboBox binanceSmartChainNetworkComboBox = new ComboBox();
-
-        private BinanceSmartChainNetwork[] availableBinanceSmartChainNetworks = Enum.GetValues(typeof(BinanceSmartChainNetwork)).Cast<BinanceSmartChainNetwork>().ToArray();
-
-
         private int logLevelIndex;
         private ComboBox logLevelComboBox = new ComboBox();
 
@@ -130,10 +117,6 @@ namespace Poltergeist
             currencyIndex = currencyComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), currencyOptions, 0, out dropHeight);
             settings.currency = currencyOptions[currencyIndex];
             curY += dropHeight + Units(1);
-
-            settings.sfx = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.sfx, "");
-            GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Sound Effects");
-            curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Nexus");
             var nexusList = availableNexus.Select(x => x.ToString().Replace('_', ' ')).ToArray();
@@ -225,53 +208,6 @@ namespace Poltergeist
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma NFT URL");
                 settings.phantasmaNftExplorer = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaNftExplorer);
                 curY += Units(3);
-
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Neo RPC URL");
-                settings.neoRPCURL = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.neoRPCURL);
-                curY += Units(3);
-
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Neoscan API URL");
-                settings.neoscanURL = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.neoscanURL);
-                curY += Units(3);
-
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Ethereum network");
-                var ethereumNetworkList = availableEthereumNetworks.Select(x => x.ToString().Replace('_', ' ')).ToArray();
-                var prevEthereumNetworkNexus = ethereumNetworkIndex;
-                ethereumNetworkIndex = ethereumNetworkComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), ethereumNetworkList, 0, out dropHeight, null, 1);
-                settings.ethereumNetwork = availableEthereumNetworks[ethereumNetworkIndex];
-                curY += dropHeight + Units(1);
-
-                if (prevEthereumNetworkNexus != ethereumNetworkIndex)
-                {
-                    settings.RestoreEthereumEndpoint();
-                }
-
-                if (settings.ethereumNetwork == EthereumNetwork.Local_Net)
-                {
-                    GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Ethereum RPC URL");
-                    settings.ethereumRPCURL = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.ethereumRPCURL);
-                    curY += Units(3);
-                }
-
-
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "BSC network");
-                var binanceSmartChainNetworkList = availableBinanceSmartChainNetworks.Select(x => x.ToString().Replace('_', ' ')).ToArray();
-                var prevBinanceSmartChainNetworkNexus = binanceSmartChainNetworkIndex;
-                binanceSmartChainNetworkIndex = binanceSmartChainNetworkComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), binanceSmartChainNetworkList, 0, out dropHeight, null, 1);
-                settings.binanceSmartChainNetwork = availableBinanceSmartChainNetworks[binanceSmartChainNetworkIndex];
-                curY += dropHeight + Units(1);
-
-                if (prevBinanceSmartChainNetworkNexus != binanceSmartChainNetworkIndex)
-                {
-                    settings.RestoreBinanceSmartChainEndpoint();
-                }
-
-                if (settings.binanceSmartChainNetwork == BinanceSmartChainNetwork.Local_Net)
-                {
-                    GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "BSC RPC URL");
-                    settings.binanceSmartChainRPCURL = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.binanceSmartChainRPCURL);
-                    curY += Units(3);
-                }
             }
             else
             {
@@ -297,47 +233,6 @@ namespace Poltergeist
                 BigInteger.TryParse(limit, out settings.feeLimit);
                 curY += Units(3);
             }
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Neo GAS fee");
-            var neoGasFee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.neoGasFee.ToString());
-            neoGasFee = neoGasFee.EndsWith(".") || neoGasFee.EndsWith(",") ? neoGasFee + "0" : neoGasFee;
-            Decimal.TryParse(neoGasFee, out settings.neoGasFee);
-            curY += Units(3);
-
-            // Ethereum fees, should be editable in all modes.
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Eth gas price (Gwei)");
-            var ethereumGasPriceGwei = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.ethereumGasPriceGwei.ToString());
-            BigInteger.TryParse(ethereumGasPriceGwei, out settings.ethereumGasPriceGwei);
-            curY += Units(3);
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Eth transfer gas limit");
-            var ethereumTransactionGasLimit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.ethereumTransferGasLimit.ToString());
-            BigInteger.TryParse(ethereumTransactionGasLimit, out settings.ethereumTransferGasLimit);
-            curY += Units(3);
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Eth token tr. gas limit");
-            var ethereumTokenTransactionGasLimit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.ethereumTokenTransferGasLimit.ToString());
-            BigInteger.TryParse(ethereumTokenTransactionGasLimit, out settings.ethereumTokenTransferGasLimit);
-            curY += Units(3);
-
-            // BinanceSmartChain fees, should be editable in all modes.
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "BSC gas price (Gwei)");
-            var binanceSmartChainGasPriceGwei = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.binanceSmartChainGasPriceGwei.ToString());
-            BigInteger.TryParse(binanceSmartChainGasPriceGwei, out settings.binanceSmartChainGasPriceGwei);
-            curY += Units(3);
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "BSC transfer gas limit");
-            var binanceSmartChainTransactionGasLimit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.binanceSmartChainTransferGasLimit.ToString());
-            BigInteger.TryParse(binanceSmartChainTransactionGasLimit, out settings.binanceSmartChainTransferGasLimit);
-            curY += Units(3);
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "BSC token tr. gas limit");
-            var binanceSmartChainTokenTransactionGasLimit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.binanceSmartChainTokenTransferGasLimit.ToString());
-            BigInteger.TryParse(binanceSmartChainTokenTransactionGasLimit, out settings.binanceSmartChainTokenTransferGasLimit);
-            curY += Units(3);
-
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");
             logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), availableLogLevels.ToArray(), WalletGUI.Units(2) * 3, out dropHeight);
@@ -369,274 +264,6 @@ namespace Poltergeist
                 }
             }
 
-            curY += Units(3);
-
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Add token", () =>
-            {
-                PromptBox("Please select token's blockchain", ModalNeoEthereum, (blockchain) =>
-                {
-                    PlatformKind platform;
-                    if (blockchain == PromptResult.Success)
-                    {
-                        platform = PlatformKind.Neo;
-                    }
-                    else
-                    {
-                        platform = PlatformKind.Ethereum;
-                    }
-                    ShowModal("Token Symbol", "Enter symbol of a token", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result, tokenSymbol) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            AudioManager.Instance.PlaySFX("click");
-
-                            ShowModal("Token Name", "Enter name of a token", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result2, tokenName) =>
-                            {
-                                if (result2 == PromptResult.Success)
-                                {
-                                    AudioManager.Instance.PlaySFX("click");
-
-                                    ShowModal("Token Decimals", "Enter decimals of a token", ModalState.Input, 1, -1, ModalConfirmCancel, 1, (result3, tokenDecimals) =>
-                                    {
-                                        if (result3 == PromptResult.Success)
-                                        {
-                                            AudioManager.Instance.PlaySFX("click");
-
-                                            try
-                                            {
-                                                Int32.Parse(tokenDecimals);
-                                            }
-                                            catch(Exception)
-                                            {
-                                                MessageBox(MessageKind.Error, "Invalid decimals!");
-                                                return;
-                                            }
-
-                                            ShowModal("Token Hash", "Enter hash of a token (without 0x prefix)", ModalState.Input, 40, 42, ModalConfirmCancel, 1, (result4, tokenHash) =>
-                                            {
-                                                if (result4 == PromptResult.Success)
-                                                {
-                                                    AudioManager.Instance.PlaySFX("click");
-
-                                                    if (tokenHash.StartsWith("0x"))
-                                                        tokenHash = tokenHash.Substring(2);
-
-                                                    ShowModal("Token CoinGecko identifier", "Enter id of a token (you can leave it blank, token price won't be available)", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result5, coinGeckoId) =>
-                                                    {
-                                                        if (result5 == PromptResult.Success)
-                                                        {
-                                                            AudioManager.Instance.PlaySFX("click");
-                                                            Tokens.UserTokenAdd(platform, tokenSymbol, tokenName, Int32.Parse(tokenDecimals), tokenHash, coinGeckoId);
-
-                                                            MessageBox(MessageKind.Default, "Token successfully added!");
-                                                        }
-                                                    });
-                                                }
-                                            });
-                                        }
-                                    });
-                                }
-                            });
-                        }
-                    });
-                });
-            });
-            curY += Units(3);
-
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Edit token", () =>
-            {
-                PromptBox("Please select token's blockchain", ModalNeoEthereum, (blockchain) =>
-                {
-                    PlatformKind platform;
-                    if (blockchain == PromptResult.Success)
-                    {
-                        platform = PlatformKind.Neo;
-                    }
-                    else
-                    {
-                        platform = PlatformKind.Ethereum;
-                    }
-                    ShowModal("Token Symbol", "Enter symbol of a token", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result, tokenSymbol) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            AudioManager.Instance.PlaySFX("click");
-
-                            ShowModal("Token Name", "Enter name of a token", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result2, tokenName) =>
-                            {
-                                if (result2 == PromptResult.Success)
-                                {
-                                    AudioManager.Instance.PlaySFX("click");
-
-                                    ShowModal("Token Decimals", "Enter decimals of a token", ModalState.Input, 1, -1, ModalConfirmCancel, 1, (result3, tokenDecimals) =>
-                                    {
-                                        if (result3 == PromptResult.Success)
-                                        {
-                                            AudioManager.Instance.PlaySFX("click");
-
-                                            try
-                                            {
-                                                Int32.Parse(tokenDecimals);
-                                            }
-                                            catch (Exception)
-                                            {
-                                                MessageBox(MessageKind.Error, "Invalid decimals!");
-                                                return;
-                                            }
-
-                                            ShowModal("Token Hash", "Enter hash of a token (without 0x prefix)", ModalState.Input, 40, 42, ModalConfirmCancel, 1, (result4, tokenHash) =>
-                                            {
-                                                if (result4 == PromptResult.Success)
-                                                {
-                                                    AudioManager.Instance.PlaySFX("click");
-
-                                                    if (tokenHash.StartsWith("0x"))
-                                                        tokenHash = tokenHash.Substring(2);
-
-                                                    ShowModal("Token CoinGecko identifier", "Enter id of a token (you can leave it blank, token price won't be available)", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result5, coinGeckoId) =>
-                                                    {
-                                                        if (result5 == PromptResult.Success)
-                                                        {
-                                                            AudioManager.Instance.PlaySFX("click");
-                                                            if (Tokens.UserTokenEdit(platform, tokenSymbol, tokenName, Int32.Parse(tokenDecimals), tokenHash, coinGeckoId))
-                                                            {
-                                                                MessageBox(MessageKind.Default, "Token successfully edited!");
-                                                            }
-                                                            else
-                                                            {
-                                                                MessageBox(MessageKind.Default, "Token editing failed!");
-                                                            }
-                                                        }
-                                                    });
-                                                }
-                                            });
-                                        }
-                                    });
-                                }
-                            });
-                        }
-                    });
-                });
-            });
-            curY += Units(3);
-
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Delete token", () =>
-            {
-                PromptBox("Please select token's blockchain", ModalNeoEthereum, (blockchain) =>
-                {
-                    PlatformKind platform;
-                    if (blockchain == PromptResult.Success)
-                    {
-                        platform = PlatformKind.Neo;
-                    }
-                    else
-                    {
-                        platform = PlatformKind.Ethereum;
-                    }
-                    ShowModal("Token Symbol", "Enter symbol of a token", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result, tokenSymbol) =>
-                    {
-                        if (result == PromptResult.Success)
-                        {
-                            AudioManager.Instance.PlaySFX("click");
-
-                            PromptBox($"Are you sure you want to delete token {tokenSymbol.ToUpper()} [{platform}]?", ModalConfirmCancel, (deleteResult) =>
-                            {
-                                if (deleteResult == PromptResult.Success)
-                                {
-                                    AudioManager.Instance.PlaySFX("click");
-
-                                    if (Tokens.UserTokenDelete(platform, tokenSymbol))
-                                    {
-                                        MessageBox(MessageKind.Default, "Token successfully deleted!");
-                                    }
-                                    else
-                                    {
-                                        MessageBox(MessageKind.Default, "Token deletion failed!");
-                                    }
-                                }
-                            });
-                        }
-                    });
-                });
-            });
-            curY += Units(3);
-
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Delete all tokens", () =>
-            {
-                PromptBox($"Are you sure you want to delete all user tokens for Ethereum and Neo?", ModalConfirmCancel, (deleteResult) =>
-                {
-                    if (deleteResult == PromptResult.Success)
-                    {
-                        AudioManager.Instance.PlaySFX("click");
-
-                        Tokens.UserTokensDeleteAll();
-                        MessageBox(MessageKind.Default, "Tokens successfully deleted!");
-                    }
-                });
-            });
-            curY += Units(3);
-
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Export tokens", () =>
-            {
-                PromptBox("Please select tokens' blockchain", ModalNeoEthereum, (blockchain) =>
-                {
-                    PlatformKind platform;
-                    if (blockchain == PromptResult.Success)
-                    {
-                        platform = PlatformKind.Neo;
-                    }
-                    else
-                    {
-                        platform = PlatformKind.Ethereum;
-                    }
-
-                    ShowModal("Tokens Export", $"Copy tokens export data to the clipboard?",
-                        ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result, input) =>
-                    {
-                        AudioManager.Instance.PlaySFX("click");
-
-                        if (result == PromptResult.Success)
-                        {
-                            GUIUtility.systemCopyBuffer = Tokens.UserTokensGet(platform);
-                            MessageBox(MessageKind.Default, "Tokens export data copied to the clipboard.");
-                        }
-                    });
-                });
-            });
-            curY += Units(3);
-
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Import tokens", () =>
-            {
-                PromptBox("Please select tokens' blockchain", ModalNeoEthereum, (blockchain) =>
-                {
-                    PlatformKind platform;
-                    if (blockchain == PromptResult.Success)
-                    {
-                        platform = PlatformKind.Neo;
-                    }
-                    else
-                    {
-                        platform = PlatformKind.Ethereum;
-                    }
-
-                    ShowModal("Tokens Import", "Please enter tokens data that you received from Tokens Export dialog:", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result, tokensData) =>
-                    {
-                        AudioManager.Instance.PlaySFX("click");
-
-                        if (result == PromptResult.Success)
-                        {
-                            if (Tokens.UserTokensSet(platform, tokensData))
-                            {
-                                MessageBox(MessageKind.Default, "Tokens successfully imported.");
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Default, "Tokens cannot be imported.");
-                            }
-                        }
-                    });
-                });
-            });
             curY += Units(3);
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Phantasma staking info", () =>
@@ -768,7 +395,6 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        AudioManager.Instance.PlaySFX("click");
                         Cache.Clear();
                         MessageBox(MessageKind.Default, "Cache cleared.");
                     }
@@ -782,29 +408,21 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        AudioManager.Instance.PlaySFX("click");
-
                         // Saving wallets before settings reset.
                         var walletsVersion = PlayerPrefs.GetInt(AccountManager.WalletVersionTag);
                         var wallets = PlayerPrefs.GetString(AccountManager.WalletTag, "");
-                        // TODO: Remove before release.
-                        var walletsLegacy = PlayerPrefs.GetString(AccountManager.WalletLegacyTag, "");
 
                         PlayerPrefs.DeleteAll();
 
                         // Restoring wallets before settings reset.
                         PlayerPrefs.SetInt(AccountManager.WalletVersionTag, walletsVersion);
                         PlayerPrefs.SetString(AccountManager.WalletTag, wallets);
-                        // TODO: Remove before release.
-                        PlayerPrefs.SetString(AccountManager.WalletLegacyTag, walletsLegacy);
 
                         // Loading default settings.
                         accountManager.Settings.Load();
 
                         // Finding fastest Phantasma and Neo RPCs.
-                        accountManager.UpdateRPCURL(PlatformKind.Phantasma);
-                        accountManager.UpdateRPCURL(PlatformKind.Neo);
-                        accountManager.UpdateRPCURL(PlatformKind.BSC);
+                        accountManager.UpdateRPCURL();
 
                         // Restoring combos' selected items.
                         // If they are not restored, following calls of DoSettingsScreen() will change them again.
@@ -828,7 +446,6 @@ namespace Poltergeist
                     {
                         if (result == PromptResult.Success)
                         {
-                            AudioManager.Instance.PlaySFX("click");
                             accountManager.DeleteAll();
                             PlayerPrefs.DeleteAll();
                             accountManager.Settings.Load();
@@ -887,7 +504,6 @@ namespace Poltergeist
                                 {
                                     if (result == PromptResult.Failure)
                                     {
-                                        AudioManager.Instance.PlaySFX("click");
                                         GUIUtility.systemCopyBuffer = currentSettings;
                                     }
                                 });
@@ -896,7 +512,6 @@ namespace Poltergeist
                         }
                     case 1:
                         {
-                            AudioManager.Instance.PlaySFX("click");
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
                             string path = System.IO.Path.GetDirectoryName(Log.FilePath).TrimEnd(new[] { '\\', '/' }); // Mac doesn't like trailing slash
                             System.Diagnostics.Process.Start(path);
@@ -917,8 +532,6 @@ namespace Poltergeist
 
                     case 2:
                         {
-                            AudioManager.Instance.PlaySFX("cancel");
-
                             // Resetting changes by restoring current settings.
                             settings.Load();
 
@@ -934,7 +547,6 @@ namespace Poltergeist
                         {
                             if (ValidateSettings())
                             {
-                                AudioManager.Instance.PlaySFX("confirm");
                                 ResourceManager.Instance.UnloadTokens();
                                 CloseCurrentStack();
                             }
@@ -973,18 +585,6 @@ namespace Poltergeist
                 return false;
             }
 
-            if (!settings.neoRPCURL.IsValidURL())
-            {
-                MessageBox(MessageKind.Error, "Invalid URL for NEO RPC URL.\n" + settings.neoRPCURL);
-                return false;
-            }
-
-            if (!settings.neoscanURL.IsValidURL())
-            {
-                MessageBox(MessageKind.Error, "Invalid URL for Neoscan API URL.\n" + settings.neoscanURL);
-                return false;
-            }
-
             if (settings.feePrice < 1)
             {
                 MessageBox(MessageKind.Error, "Invalid value for fee price.\n" + settings.feePrice);
@@ -1002,9 +602,7 @@ namespace Poltergeist
                 accountManager.InitDemoAccounts(settings.nexusKind);
             }
 
-            accountManager.UpdateRPCURL(PlatformKind.Phantasma);
-            accountManager.UpdateRPCURL(PlatformKind.Neo);
-            accountManager.UpdateRPCURL(PlatformKind.BSC);
+            accountManager.UpdateRPCURL();
 
             accountManager.UpdateAPIs(true);
             accountManager.RefreshTokenPrices();

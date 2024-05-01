@@ -384,9 +384,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20d4aa1ca1bcd47ccb9527b384dbb25c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  githubOwner: phantasma-io
-  githubRepo: Poltergeist
-  currentVersion: 2.8.6
 --- !u!1 &1470060600
 GameObject:
   m_ObjectHideFlags: 0

@@ -180,7 +180,7 @@ namespace Poltergeist
                 GUI.FocusControl("PoltergeistModalPasswordField");
             }
 
-            int btnWidth = VerticalLayout ? ( (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString()) ? Units(9) : Units(7) + 8) : Units(11);
+            int btnWidth = VerticalLayout ? (Units(7) + 8) : Units(11);
 
             curY = (int)(rect.height - Units(2));
 
@@ -194,7 +194,6 @@ namespace Poltergeist
                 {
                     if (modalOptions == ModalOkCopy)
                     {
-                        AudioManager.Instance.PlaySFX("click");
                         var wifText = modalCaption;
                         if (modalCaption.Contains("The account was migrated."))
                         {
@@ -206,12 +205,10 @@ namespace Poltergeist
                     else if(modalOptions == ModalHexWif ||
                         modalOptions == ModalOkView)
                     {
-                        AudioManager.Instance.PlaySFX("confirm");
                         modalResult = PromptResult.Failure;
                     }
                     else
                     {
-                        AudioManager.Instance.PlaySFX("cancel");
                         modalResult = PromptResult.Failure;
                     }
                 });
@@ -220,7 +217,6 @@ namespace Poltergeist
                     enterPressed && (modalOptions == ModalOkCopy || modalOptions == ModalOkView || modalOptions == ModalConfirmCancel || modalOptions == ModalSendCancel || modalOptions == ModalYesNo),
                     new Rect(halfWidth + (halfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), (modalConfirmDelay > 0 && (Time.time - modalTime < modalConfirmDelay)) ? modalOptions[0] + " (" + (modalConfirmDelay - Math.Floor(Time.time - modalTime)) + ")" : modalOptions[0], () =>
                 {
-                    AudioManager.Instance.PlaySFX("confirm");
                     modalResult = PromptResult.Success;
                 });
             }
@@ -231,7 +227,6 @@ namespace Poltergeist
                     (escapePressed || enterPressed) && modalOptions == ModalOk,
                     new Rect((modalRect.width - btnWidth) / 2, curY, btnWidth, Units(2)), modalOptions[0], () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     modalResult = PromptResult.Success;
                 });
             }
@@ -360,7 +355,6 @@ namespace Poltergeist
 
                 DoButton(entry.enabled, btnRect, entry.label, () =>
                 {
-                    AudioManager.Instance.PlaySFX("click");
                     hasSelection = true;
                     selected = (T)entry.value;
                 });
@@ -383,11 +377,7 @@ namespace Poltergeist
         {
             var style = GUI.skin.label;
             style.fontSize -= 6;
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
             GUI.Label(new Rect(posX, posY - 10, toolLabelWidth, toolLabelHeight), label);
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
             style.fontSize += 6;
         }
 
@@ -424,11 +414,7 @@ namespace Poltergeist
             var temp = style.alignment;
             style.alignment = TextAnchor.MiddleCenter;
 
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
             GUI.Label(new Rect(0, 0, windowRect.width, windowRect.height), caption);
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
 
             style.alignment = temp;
         }
@@ -441,11 +427,7 @@ namespace Poltergeist
             style.fontSize -= VerticalLayout ? 2: 4;
             style.alignment = TextAnchor.MiddleCenter;
 
-            if(AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
             GUI.Label(new Rect(0, curY, windowRect.width, height), caption);
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
 
             style.fontSize += VerticalLayout ? 2 : 4;
             style.alignment = tempAlign;
