@@ -180,7 +180,7 @@ namespace Poltergeist
                 GUI.FocusControl("PoltergeistModalPasswordField");
             }
 
-            int btnWidth = VerticalLayout ? ( (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString()) ? Units(9) : Units(7) + 8) : Units(11);
+            int btnWidth = VerticalLayout ? (Units(7) + 8) : Units(11);
 
             curY = (int)(rect.height - Units(2));
 
@@ -377,11 +377,7 @@ namespace Poltergeist
         {
             var style = GUI.skin.label;
             style.fontSize -= 6;
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
             GUI.Label(new Rect(posX, posY - 10, toolLabelWidth, toolLabelHeight), label);
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
             style.fontSize += 6;
         }
 
@@ -418,11 +414,7 @@ namespace Poltergeist
             var temp = style.alignment;
             style.alignment = TextAnchor.MiddleCenter;
 
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
             GUI.Label(new Rect(0, 0, windowRect.width, windowRect.height), caption);
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
 
             style.alignment = temp;
         }
@@ -435,11 +427,7 @@ namespace Poltergeist
             style.fontSize -= VerticalLayout ? 2: 4;
             style.alignment = TextAnchor.MiddleCenter;
 
-            if(AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
             GUI.Label(new Rect(0, curY, windowRect.width, height), caption);
-            if (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
 
             style.fontSize += VerticalLayout ? 2 : 4;
             style.alignment = tempAlign;

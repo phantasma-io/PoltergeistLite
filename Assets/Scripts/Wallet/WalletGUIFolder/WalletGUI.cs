@@ -38,8 +38,6 @@ namespace Poltergeist
         public const bool fullScreen = true;
         public bool VerticalLayout => virtualWidth < virtualHeight; //virtualWidth < 420;
 
-        public GUISkin guiSkin;
-
         private Rect windowRect = new Rect(0, 0, 600, 400);
         private Rect defaultRect;
 
@@ -711,14 +709,7 @@ namespace Poltergeist
             }
             
             var uiThemeName = AccountManager.Instance.Settings.uiThemeName;
-            if (uiThemeName == UiThemes.Classic.ToString())
-            {
-                GUI.skin = guiSkin;
-            }
-            else
-            {
-                GUI.skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
-            }
+            GUI.skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
 
             if (VerticalLayout)
                 background.texture = Resources.Load<Texture2D>($"Skins/{uiThemeName}/mobile_background");
@@ -745,7 +736,6 @@ namespace Poltergeist
             }
 
             var k = Mathf.Lerp(1, 0.4f, delta);
-            GUI.color = new Color(1, 1, 1, k);
 
             if (guiState == GUIState.Loading)
             {
@@ -803,7 +793,7 @@ namespace Poltergeist
 
             var style = GUI.skin.label;
             style.fontSize -= 6;
-            GUI.Label(new Rect(windowRect.width / 2 + ((AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString()) ? Units(7) - 4 : Units(5)), 12, Units(4), Units(2)), Application.version);
+            GUI.Label(new Rect(windowRect.width / 2 + Units(5), 12, Units(4), Units(2)), Application.version);
             style.fontSize += 6;
 
             var accountManager = AccountManager.Instance;
@@ -853,7 +843,7 @@ namespace Poltergeist
                     style.fontSize -= 6;
                     var temp = style.alignment;
                     style.alignment = TextAnchor.MiddleCenter;
-                    GUI.Label(new Rect(0, (AccountManager.Instance.Settings.uiThemeName == UiThemes.Classic.ToString()) ? curY + Units(1) - 4 : curY + Units(1), windowRect.width, Units(2)), $"Version was built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC");
+                    GUI.Label(new Rect(0, curY + Units(1), windowRect.width, Units(2)), $"Version was built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC");
                     style.alignment = temp;
                     style.fontSize += 6;
                 }
@@ -1880,14 +1870,11 @@ namespace Poltergeist
             if (amount > 0.0001m)
             {
                 var style = GUI.skin.label;
-                var tempColor = style.normal.textColor;
-                style.normal.textColor = new Color(1, 1, 1, 0.75f);
                 style.fontSize -= VerticalLayout ? 4: 2;
 
                 var value = AccountManager.Instance.GetTokenWorth(symbol, amount);
                 GUI.Label(subRect, $"{MoneyFormat(amount)} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
                 style.fontSize += VerticalLayout ? 4 : 2;
-                style.normal.textColor = tempColor;
 
                 // For vertical layout making a height correction proportional to font size difference.
                 subRect.y += VerticalLayout ? (int)(Units(1) * (double)16 / 18) + 4 : Units(1) + 4;
@@ -3463,13 +3450,11 @@ namespace Poltergeist
             var style = GUI.skin.GetStyle("Label");
             var prevAlignment = style.alignment;
             style.alignment = TextAnchor.MiddleCenter;
-            if (accountManager.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.black;
+
             GUI.Label(new Rect(halfWidth - pageLabelWidth / 2 - 6,
                                (int)rect.y + 12,
                                pageLabelWidth, Units(2)), (nftPageNumber + 1).ToString(), style);
-            if (accountManager.Settings.uiThemeName == UiThemes.Classic.ToString())
-                GUI.contentColor = Color.white;
+
             style.alignment = prevAlignment;
 
             // >

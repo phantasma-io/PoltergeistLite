@@ -33,7 +33,6 @@ namespace Poltergeist
 
     public enum UiThemes
     {
-        Classic,
         Phantasia
     }
 
