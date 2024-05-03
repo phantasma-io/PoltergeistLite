@@ -524,7 +524,6 @@ namespace Poltergeist
 
         private void TokensReinit()
         {
-
             StartCoroutine(GetTokens((tokens) =>
             {
                 Tokens.Init(tokens);
@@ -532,22 +531,6 @@ namespace Poltergeist
                 CurrentTokenCurrency = "";
 
                 Status = "ok";
-
-                StartCoroutine(phantasmaApi.GetPlatforms((platforms) =>
-                {
-                    foreach (var entry in platforms)
-                    {
-                        string interopAddress = entry.interop[0].external;
-                        Log.Write($"{entry.platform} interop address: {interopAddress}");
-                    }
-                }, (error, msg) =>
-                {
-                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                    {
-                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                    }
-                    Log.Write("Cannot get platforms for interop addresses logging");
-                }));
             }));
         }
 
