@@ -28,87 +28,6 @@ public static class Tokens
         SupportedTokens.Add(token);
     }
     
-    public static void LoadFromText(string tokensJson, PlatformKind platform)
-    {
-        if (string.IsNullOrEmpty(tokensJson))
-        {
-            Log.WriteWarning($"Tokens.LoadFromText(): Cannot load {platform} symbols, tokensJson is empty.");
-            return;
-        }
-
-        var externalTokens = LunarLabs.Parser.JSON.JSONReader.ReadFromString(tokensJson);
-
-        if (externalTokens == null || externalTokens.Children == null)
-        {
-            Log.WriteWarning($"Tokens.LoadFromText(): Cannot load {platform} symbols - file is corrupted.");
-            return;
-        }
-
-        foreach (var externalToken in externalTokens.Children)
-        {
-            var symbol = externalToken.GetString("symbol");
-            var name = externalToken.GetString("name");
-            var decimals = externalToken.GetInt32("decimals");
-            var hash = externalToken.GetString("hash");
-            var coinGeckoId = externalToken.GetString("coinGeckoId");
-
-            var token = Tokens.GetToken(symbol, platform);
-            if (token != null)
-            {
-                if (token.symbol == symbol && token.decimals == decimals)
-                {
-                    var tokenList = token.external.ToList();
-                    if (tokenList.Any(x => x.platform == platform.ToString().ToLower()))
-                    {
-                        Log.WriteWarning($"Tokens.LoadFromText(): {platform} symbols: Token '{symbol}' already exists for platform.");
-                    }
-                    else
-                    {
-                        tokenList.Add(new TokenPlatform { platform = platform.ToString().ToLower(), hash = hash });
-                        token.external = tokenList.ToArray();
-                    }
-                }
-                else
-                {
-                    Log.WriteWarning($"Tokens.LoadFromText(): {platform} symbols: Token '{symbol}' already exists and is not compatible.");
-                }
-            }
-            else
-            {
-                token = new Token();
-                token.mainnetToken = false;
-                token.symbol = symbol;
-                token.name = name;
-                token.decimals = decimals;
-                token.flags = TokenFlags.Transferable.ToString() + "," + TokenFlags.Fungible.ToString();
-                if (decimals > 0)
-                    token.flags += "," + TokenFlags.Divisible.ToString();
-                token.external = new TokenPlatform[] { new TokenPlatform { platform = platform.ToString().ToLower(), hash = hash } };
-
-                if(!string.IsNullOrEmpty(coinGeckoId))
-                {
-                    token.apiSymbol = coinGeckoId;
-                }
-
-                SupportedTokens.Add(token);
-            }
-        }
-    }
-    public static void Load(PlatformKind platform)
-    {
-        // Currently will only work after restart.
-        string testnet = "";
-        
-        var resource = Resources.Load<TextAsset>($"Tokens.{platform.ToString().ToUpper()}{testnet}");
-
-        if (resource == null || string.IsNullOrEmpty(resource.text))
-        {
-            Log.WriteWarning($"Tokens.Load(): Cannot load {platform} symbols.");
-            return;
-        }
-
-        Tokens.LoadFromText(resource.text, platform);
-    }
     public static void LoadCoinGeckoSymbols()
     {
         // First we init all fungible token API IDs with default values.
@@ -216,10 +135,6 @@ public static class Tokens
             {
                 Log.Write($"GAS token hash registration exception: {e}");
             }
-
-            Tokens.Load(PlatformKind.Ethereum);
-            Tokens.Load(PlatformKind.Neo);
-            Tokens.Load(PlatformKind.BSC);
 
             var accountManager = AccountManager.Instance;
 
