@@ -2225,7 +2225,7 @@ namespace Poltergeist
                             secondaryEnabled = true;
                             secondaryCallback = () =>
                             {
-                                accountManager.GetPhantasmaAddressInfo(state.address, (result, error) =>
+                                accountManager.GetPhantasmaAddressInfo(state.address, accountManager.CurrentAccount,(result, error) =>
                                 {
                                     if (!string.IsNullOrEmpty(error))
                                     {

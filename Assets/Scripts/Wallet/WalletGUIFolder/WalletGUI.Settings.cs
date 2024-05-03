@@ -366,7 +366,7 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        accountManager.GetPhantasmaAddressInfo(input, (result2, error) =>
+                        accountManager.GetPhantasmaAddressInfo(input, null, (result2, error) =>
                         {
                             if (!string.IsNullOrEmpty(error))
                             {

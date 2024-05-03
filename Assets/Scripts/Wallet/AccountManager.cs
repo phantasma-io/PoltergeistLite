@@ -1844,7 +1844,7 @@ namespace Poltergeist
             return _nfts[CurrentPlatform].Where(x => x.ID == id).FirstOrDefault();
         }
 
-        public void GetPhantasmaAddressInfo(string addressString, Action<string, string> callback)
+        public void GetPhantasmaAddressInfo(string addressString, Account? account, Action<string, string> callback)
         {
             byte[] scriptUnclaimed;
             byte[] scriptStake;
@@ -1995,7 +1995,8 @@ namespace Poltergeist
                                                                             $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
                                                                             $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
                                                                             $"Storage stake: {storageStake} SOUL\n" +
-                                                                            $"Voting power: {votingPower}", null);
+                                                                            $"Voting power: {votingPower}" +
+                                                                            (account != null ? $"\n\nNeo legacy address: {((Account)account).neoAddress}\nN3 address: {((Account)account).neoAddressN3}\nEth/BSC address: {((Account)account).ethAddress}" : ""), null);
                                                                         }
                                                                     });
                                                                 }
