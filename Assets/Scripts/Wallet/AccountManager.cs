@@ -494,7 +494,7 @@ namespace Poltergeist
 
         private IEnumerator GetTokens(Action<Token[]> callback)
         {
-            while (Status != "ok")
+            while (!Ready)
             {
                 var coroutine = StartCoroutine(phantasmaApi.GetTokens((tokens) =>
                 {
@@ -509,6 +509,7 @@ namespace Poltergeist
                     {
                         CurrentTokenCurrency = "";
 
+                        AccountManager.Instance.Settings.nexusKind = NexusKind.Unknown;
                         Status = "ok"; // We are launching with uninitialized tokens,
                                        // to allow user to edit settings.
                         
