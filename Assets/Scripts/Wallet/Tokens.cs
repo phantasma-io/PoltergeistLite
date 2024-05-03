@@ -76,67 +76,6 @@ public static class Tokens
             Tokens.Reset();
 
             Tokens.AddTokens(mainnetTokens);
-            var flags = TokenFlags.Fungible | TokenFlags.Transferable | TokenFlags.Finite | TokenFlags.Swappable | TokenFlags.Burnable;
-            var token = new Token
-            {
-                address = "149Eb82884e8F42f5C2EDDc8dfD302BbbaB395eF",
-                symbol = "SOUL",
-                name = "Phantasma Stake",
-                decimals = 8,
-                apiSymbol = "SOUL",
-                flags =  flags.ToString(),
-                external = new TokenPlatform[]
-                {
-                    new TokenPlatform
-                    {
-                        hash = "149Eb82884e8F42f5C2EDDc8dfD302BbbaB395eF",
-                        platform = "ethereum"
-                    }
-                }
-            };
-                            
-            var token2 = new Token
-            {
-                address = "0x0000000",
-                symbol = "ETH",
-                name = "Ethereum",
-                decimals = 18,
-                apiSymbol = "ETH",
-                flags = flags.ToString(),
-                external = new TokenPlatform[]
-                {
-                    new TokenPlatform
-                    {
-                        hash = "",
-                        platform = "ethereum"
-                    }
-                }
-            };
-            Tokens.AddToken(token);
-            Tokens.AddToken(token2);
-
-            // TODO remove after mainnet fix.
-            // Fix for incorrect hash returned by BP.
-            var neoToken = Tokens.GetToken("NEO", PlatformKind.Neo);
-            try
-            {
-                neoToken.external.Where(x => x.platform.ToUpper() == "NEO").Single().hash = "c56f33fc6ecfcd0c225c4ab356fee59390af8560be0e930faebe74a6daff7c9b";
-            }
-            catch(Exception e)
-            {
-                Log.Write($"NEO token hash registration exception: {e}");
-            }
-            var gasToken = Tokens.GetToken("GAS", PlatformKind.Neo);
-            try
-            {
-                gasToken.external.Where(x => x.platform.ToUpper() == "NEO").Single().hash = "602c79718b16e442de58778e148d0b1084e3b2dffd5de6b7b16cee7969282de7";
-            }
-            catch (Exception e)
-            {
-                Log.Write($"GAS token hash registration exception: {e}");
-            }
-
-            var accountManager = AccountManager.Instance;
 
             Tokens.LoadCoinGeckoSymbols();
 
