@@ -3168,15 +3168,15 @@ namespace Poltergeist
                                 "\n\nHEX can be used to import wallet in MEW Ethereum wallet and Neon Neo wallet." +
                                 "\nHEX format example (64 symbols):" +
                                 "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3",
-                                ModalState.Message, 0, 0, ModalHexWif, 0, (result, input) =>
+                                ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
                                 {
-                                    if (result == PromptResult.Success)
+                                    if (result == PromptResult.Custom_1)
                                     {
                                         var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
                                         GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
                                         MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
                                     }
-                                    else
+                                    else if(result == PromptResult.Custom_2)
                                     {
                                         GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
                                         MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");

@@ -45,7 +45,10 @@ namespace Poltergeist
     {
         Waiting,
         Failure,
-        Success
+        Success,
+        Custom_1,
+        Custom_2,
+        Custom_3
     }
 
     public enum AnimationDirection
