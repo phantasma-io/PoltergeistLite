@@ -222,114 +222,114 @@ namespace Poltergeist
                 return; // No need to change RPC, it is set by custom settings.
             }
 
-                string url;
-                if(Settings.nexusKind == NexusKind.Main_Net)
-                {
-                    url = $"https://peers.phantasma.info/mainnet-getpeers.json";
-                }
-                else
-                {
-                    url = $"https://peers.phantasma.info/testnet-getpeers.json";
-                }
+            string url;
+            if(Settings.nexusKind == NexusKind.Main_Net)
+            {
+                url = $"https://peers.phantasma.info/mainnet-getpeers.json";
+            }
+            else
+            {
+                url = $"https://peers.phantasma.info/testnet-getpeers.json";
+            }
 
-                rpcBenchmarkedPhantasma = 0;
-                rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
+            rpcBenchmarkedPhantasma = 0;
+            rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
 
-                StartCoroutine(
-                    WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
+            StartCoroutine(
+                WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
+                {
+                    Log.Write("auto error => " + error);
+                },
+                (response) =>
+                {
+                    if (response != null)
                     {
-                        Log.Write("auto error => " + error);
-                    },
-                    (response) =>
-                    {
-                        if (response != null)
+                        rpcNumberPhantasma = response.ChildCount;
+
+                        if (String.IsNullOrEmpty(Settings.phantasmaRPCURL))
                         {
-                            rpcNumberPhantasma = response.ChildCount;
-
-                            if (String.IsNullOrEmpty(Settings.phantasmaRPCURL))
-                            {
-                                // If we have no previously used RPC, we select random one at first.
-                                var index = ((int)(Time.realtimeSinceStartup * 1000)) % rpcNumberPhantasma;
-                                var node = response.GetNodeByIndex(index);
-                                var result = node.GetString("url") + "/rpc";
-                                Settings.phantasmaRPCURL = result;
-                                Log.Write($"Changed Phantasma RPC url {index} => {result}");
-                            }
-
-                            UpdateAPIs();
-
-                            // Benchmarking RPCs.
-                            foreach (var node in response.Children)
-                            {
-                                var rpcUrl = node.GetString("url") + "/rpc";
-
-                                StartCoroutine(
-                                    WebClient.Ping(rpcUrl, (error, msg) =>
-                                    {
-                                        Log.Write("Ping error: " + error);
-
-                                        rpcBenchmarkedPhantasma++;
-
-                                        lock (rpcResponseTimesPhantasma)
-                                        {
-                                            rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, true, new TimeSpan()));
-                                        }
-
-                                        if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
-                                        {
-                                            // We finished benchmarking, time to select best RPC server.
-                                            TimeSpan bestTime;
-                                            string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
-
-                                            if (String.IsNullOrEmpty(bestRpcUrl))
-                                            {
-                                                Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
-                                            }
-                                            else
-                                            {
-                                                Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
-
-                                                Settings.phantasmaRPCURL = bestRpcUrl;
-                                                UpdateAPIs();
-                                                Settings.SaveOnExit();
-                                            }
-                                        }
-                                    },
-                                    (responseTime) =>
-                                    {
-                                        rpcBenchmarkedPhantasma++;
-
-                                        rpcAvailablePhantasma++;
-
-                                        lock (rpcResponseTimesPhantasma)
-                                        {
-                                            rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, false, responseTime));
-                                        }
-
-                                        if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
-                                        {
-                                            // We finished benchmarking, time to select best RPC server.
-                                            TimeSpan bestTime;
-                                            string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
-
-                                            if (String.IsNullOrEmpty(bestRpcUrl))
-                                            {
-                                                Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
-                                            }
-                                            else
-                                            {
-                                                Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
-                                                Settings.phantasmaRPCURL = bestRpcUrl;
-                                                UpdateAPIs();
-                                                Settings.SaveOnExit();
-                                            }
-                                        }
-                                    })
-                                );
-                            }
+                            // If we have no previously used RPC, we select random one at first.
+                            var index = ((int)(Time.realtimeSinceStartup * 1000)) % rpcNumberPhantasma;
+                            var node = response.GetNodeByIndex(index);
+                            var result = node.GetString("url") + "/rpc";
+                            Settings.phantasmaRPCURL = result;
+                            Log.Write($"Changed Phantasma RPC url {index} => {result}");
                         }
-                    })
-                );
+
+                        UpdateAPIs();
+
+                        // Benchmarking RPCs.
+                        foreach (var node in response.Children)
+                        {
+                            var rpcUrl = node.GetString("url") + "/rpc";
+
+                            StartCoroutine(
+                                WebClient.Ping(rpcUrl, (error, msg) =>
+                                {
+                                    Log.Write("Ping error: " + error);
+
+                                    rpcBenchmarkedPhantasma++;
+
+                                    lock (rpcResponseTimesPhantasma)
+                                    {
+                                        rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, true, new TimeSpan()));
+                                    }
+
+                                    if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
+                                    {
+                                        // We finished benchmarking, time to select best RPC server.
+                                        TimeSpan bestTime;
+                                        string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
+
+                                        if (String.IsNullOrEmpty(bestRpcUrl))
+                                        {
+                                            Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
+                                        }
+                                        else
+                                        {
+                                            Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
+
+                                            Settings.phantasmaRPCURL = bestRpcUrl;
+                                            UpdateAPIs();
+                                            Settings.SaveOnExit();
+                                        }
+                                    }
+                                },
+                                (responseTime) =>
+                                {
+                                    rpcBenchmarkedPhantasma++;
+
+                                    rpcAvailablePhantasma++;
+
+                                    lock (rpcResponseTimesPhantasma)
+                                    {
+                                        rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, false, responseTime));
+                                    }
+
+                                    if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
+                                    {
+                                        // We finished benchmarking, time to select best RPC server.
+                                        TimeSpan bestTime;
+                                        string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
+
+                                        if (String.IsNullOrEmpty(bestRpcUrl))
+                                        {
+                                            Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
+                                        }
+                                        else
+                                        {
+                                            Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
+                                            Settings.phantasmaRPCURL = bestRpcUrl;
+                                            UpdateAPIs();
+                                            Settings.SaveOnExit();
+                                        }
+                                    }
+                                })
+                            );
+                        }
+                    }
+                })
+            );
         }
 
         public void ChangeFaultyRPCURL(PlatformKind platformKind)
@@ -1000,188 +1000,188 @@ namespace Poltergeist
 
             lock (_refreshStatus)
             {
-                    RefreshStatus refreshStatus;
-                    var now = DateTime.UtcNow;
-                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                RefreshStatus refreshStatus;
+                var now = DateTime.UtcNow;
+                if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                {
+                    refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+
+                    var diff = now - refreshStatus.LastBalanceRefresh;
+
+                    if (!force && diff.TotalSeconds < 30)
                     {
-                        refreshStatus = _refreshStatus[PlatformKind.Phantasma];
-
-                        var diff = now - refreshStatus.LastBalanceRefresh;
-
-                        if (!force && diff.TotalSeconds < 30)
-                        {
-                            var temp = refreshStatus.BalanceRefreshCallback;
-                            refreshStatus.BalanceRefreshCallback = null;
-                            _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
-                            temp?.Invoke();
-                            return;
-                        }
-
-                        refreshStatus.BalanceRefreshing = true;
-                        refreshStatus.LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now;
-                        refreshStatus.BalanceRefreshCallback = callback;
-
+                        var temp = refreshStatus.BalanceRefreshCallback;
+                        refreshStatus.BalanceRefreshCallback = null;
                         _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                        temp?.Invoke();
+                        return;
                     }
-                    else
-                    {
-                        _refreshStatus.Add(PlatformKind.Phantasma,
-                            new RefreshStatus
-                            {
-                                BalanceRefreshing = true,
-                                LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now,
-                                BalanceRefreshCallback = callback,
-                                HistoryRefreshing = false,
-                                LastHistoryRefresh = DateTime.MinValue
-                            });
-                    }
+
+                    refreshStatus.BalanceRefreshing = true;
+                    refreshStatus.LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now;
+                    refreshStatus.BalanceRefreshCallback = callback;
+
+                    _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                }
+                else
+                {
+                    _refreshStatus.Add(PlatformKind.Phantasma,
+                        new RefreshStatus
+                        {
+                            BalanceRefreshing = true,
+                            LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now,
+                            BalanceRefreshCallback = callback,
+                            HistoryRefreshing = false,
+                            LastHistoryRefresh = DateTime.MinValue
+                        });
+                }
             }
 
             var wif = CurrentWif;
 
-                lock (Tokens.__lockObj)
+            lock (Tokens.__lockObj)
+            {
+                var keys = PhantasmaKeys.FromWIF(wif);
+                var ethKeys = EthereumKey.FromWIF(wif);
+                UpdateOpenAccount();
+                StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
                 {
-                            var keys = PhantasmaKeys.FromWIF(wif);
-                            var ethKeys = EthereumKey.FromWIF(wif);
-                            UpdateOpenAccount();
-                            StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
-                                {
-                                    var balanceMap = new Dictionary<string, Balance>();
+                    var balanceMap = new Dictionary<string, Balance>();
 
-                                    foreach (var entry in acc.balances)
-                                    {
+                    foreach (var entry in acc.balances)
+                    {
 
-                                        var token = Tokens.GetToken(entry.symbol, PlatformKind.Phantasma);
-                                        if (token != null)
-                                            balanceMap[entry.symbol] = new Balance()
-                                            {
-                                                Symbol = entry.symbol,
-                                                Available = AmountFromString(entry.amount, token.decimals),
-                                                Staked = 0,
-                                                Claimable = 0,
-                                                Chain = entry.chain,
-                                                Decimals = token.decimals,
-                                                Burnable = token.IsBurnable(),
-                                                Fungible = token.IsFungible(),
-                                                Ids = entry.ids
-                                            };
-                                        else
-                                            balanceMap[entry.symbol] = new Balance()
-                                            {
-                                                Symbol = entry.symbol,
-                                                Available = AmountFromString(entry.amount, 8),
-                                                Staked = 0,
-                                                Claimable = 0,
-                                                Chain = entry.chain,
-                                                Decimals = 8,
-                                                Burnable = true,
-                                                Fungible = true,
-                                                Ids = entry.ids
-                                            };
+                        var token = Tokens.GetToken(entry.symbol, PlatformKind.Phantasma);
+                        if (token != null)
+                            balanceMap[entry.symbol] = new Balance()
+                            {
+                                Symbol = entry.symbol,
+                                Available = AmountFromString(entry.amount, token.decimals),
+                                Staked = 0,
+                                Claimable = 0,
+                                Chain = entry.chain,
+                                Decimals = token.decimals,
+                                Burnable = token.IsBurnable(),
+                                Fungible = token.IsFungible(),
+                                Ids = entry.ids
+                            };
+                        else
+                            balanceMap[entry.symbol] = new Balance()
+                            {
+                                Symbol = entry.symbol,
+                                Available = AmountFromString(entry.amount, 8),
+                                Staked = 0,
+                                Claimable = 0,
+                                Chain = entry.chain,
+                                Decimals = 8,
+                                Burnable = true,
+                                Fungible = true,
+                                Ids = entry.ids
+                            };
 
 
-                                    }
+                    }
 
-                                    var stakedAmount = AmountFromString(acc.stake.amount,
-                                        Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
-                                    var claimableAmount = AmountFromString(acc.stake.unclaimed,
-                                        Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma));
+                    var stakedAmount = AmountFromString(acc.stake.amount,
+                        Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
+                    var claimableAmount = AmountFromString(acc.stake.unclaimed,
+                        Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma));
 
-                                    var stakeTimestamp = new Timestamp(acc.stake.time);
+                    var stakeTimestamp = new Timestamp(acc.stake.time);
 
-                                    if (stakedAmount > 0)
-                                    {
-                                        var symbol = "SOUL";
-                                        if (balanceMap.ContainsKey(symbol))
-                                        {
-                                            var entry = balanceMap[symbol];
-                                            entry.Staked = stakedAmount;
-                                        }
-                                        else
-                                        {
-                                            var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
-                                            var entry = new Balance()
-                                            {
-                                                Symbol = symbol,
-                                                Chain = "main",
-                                                Available = 0,
-                                                Staked = stakedAmount,
-                                                Claimable = 0,
-                                                Decimals = token.decimals,
-                                                Burnable = token.IsBurnable(),
-                                                Fungible = token.IsFungible()
-                                            };
-                                            balanceMap[symbol] = entry;
-                                        }
-                                    }
+                    if (stakedAmount > 0)
+                    {
+                        var symbol = "SOUL";
+                        if (balanceMap.ContainsKey(symbol))
+                        {
+                            var entry = balanceMap[symbol];
+                            entry.Staked = stakedAmount;
+                        }
+                        else
+                        {
+                            var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
+                            var entry = new Balance()
+                            {
+                                Symbol = symbol,
+                                Chain = "main",
+                                Available = 0,
+                                Staked = stakedAmount,
+                                Claimable = 0,
+                                Decimals = token.decimals,
+                                Burnable = token.IsBurnable(),
+                                Fungible = token.IsFungible()
+                            };
+                            balanceMap[symbol] = entry;
+                        }
+                    }
 
-                                    if (claimableAmount > 0)
-                                    {
-                                        var symbol = "KCAL";
-                                        if (balanceMap.ContainsKey(symbol))
-                                        {
-                                            var entry = balanceMap[symbol];
-                                            entry.Claimable = claimableAmount;
-                                        }
-                                        else
-                                        {
-                                            var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
-                                            var entry = new Balance()
-                                            {
-                                                Symbol = symbol,
-                                                Chain = "main",
-                                                Available = 0,
-                                                Staked = 0,
-                                                Claimable = claimableAmount,
-                                                Decimals = token.decimals,
-                                                Burnable = token.IsBurnable(),
-                                                Fungible = token.IsFungible()
-                                            };
-                                            balanceMap[symbol] = entry;
-                                        }
-                                    }
+                    if (claimableAmount > 0)
+                    {
+                        var symbol = "KCAL";
+                        if (balanceMap.ContainsKey(symbol))
+                        {
+                            var entry = balanceMap[symbol];
+                            entry.Claimable = claimableAmount;
+                        }
+                        else
+                        {
+                            var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
+                            var entry = new Balance()
+                            {
+                                Symbol = symbol,
+                                Chain = "main",
+                                Available = 0,
+                                Staked = 0,
+                                Claimable = claimableAmount,
+                                Decimals = token.decimals,
+                                Burnable = token.IsBurnable(),
+                                Fungible = token.IsFungible()
+                            };
+                            balanceMap[symbol] = entry;
+                        }
+                    }
 
-                                    // State without swaps
-                                    var state = new AccountState()
-                                    {
-                                        platform = PlatformKind.Phantasma,
-                                        address = acc.address,
-                                        name = acc.name,
-                                        balances = balanceMap.Values.ToArray(),
-                                        flags = AccountFlags.None
-                                    };
+                    // State without swaps
+                    var state = new AccountState()
+                    {
+                        platform = PlatformKind.Phantasma,
+                        address = acc.address,
+                        name = acc.name,
+                        balances = balanceMap.Values.ToArray(),
+                        flags = AccountFlags.None
+                    };
 
-                                    if (stakedAmount >= SoulMasterStakeAmount)
-                                    {
-                                        state.flags |= AccountFlags.Master;
-                                    }
+                    if (stakedAmount >= SoulMasterStakeAmount)
+                    {
+                        state.flags |= AccountFlags.Master;
+                    }
 
-                                    if (acc.validator.Equals("Primary") || acc.validator.Equals("Secondary"))
-                                    {
-                                        state.flags |= AccountFlags.Validator;
-                                    }
+                    if (acc.validator.Equals("Primary") || acc.validator.Equals("Secondary"))
+                    {
+                        state.flags |= AccountFlags.Validator;
+                    }
 
-                                    state.stakeTime = stakeTimestamp;
+                    state.stakeTime = stakeTimestamp;
 
-                                    state.usedStorage = acc.storage.used;
-                                    state.availableStorage = acc.storage.available;
-                                    state.archives = acc.storage.archives;
-                                    state.avatarData = acc.storage.avatar;
+                    state.usedStorage = acc.storage.used;
+                    state.availableStorage = acc.storage.available;
+                    state.archives = acc.storage.archives;
+                    state.avatarData = acc.storage.avatar;
 
-                                    ReportWalletBalance(PlatformKind.Phantasma, state);
-                                },
-                                (error, msg) =>
-                                {
-                                    Log.WriteWarning($"RefreshBalances[PHA] {error}: {msg}");
+                    ReportWalletBalance(PlatformKind.Phantasma, state);
+                },
+                (error, msg) =>
+                {
+                    Log.WriteWarning($"RefreshBalances[PHA] {error}: {msg}");
 
-                                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                    {
-                                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                                    }
+                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                    {
+                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                    }
 
-                                    ReportWalletBalance(PlatformKind.Phantasma, null);
-                                }));
-                }
+                    ReportWalletBalance(PlatformKind.Phantasma, null);
+                }));
+            }
         }
 
         public void BlankState()
@@ -1428,65 +1428,65 @@ namespace Poltergeist
 
             lock (_refreshStatus)
             {
-                    RefreshStatus refreshStatus;
-                    var now = DateTime.UtcNow;
-                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                RefreshStatus refreshStatus;
+                var now = DateTime.UtcNow;
+                if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                {
+                    refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+
+                    var diff = now - refreshStatus.LastHistoryRefresh;
+
+                    if (!force && diff.TotalSeconds < 30)
                     {
-                        refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+                        return;
+                    }
 
-                        var diff = now - refreshStatus.LastHistoryRefresh;
+                    refreshStatus.HistoryRefreshing = true;
+                    refreshStatus.LastHistoryRefresh = now;
 
-                        if (!force && diff.TotalSeconds < 30)
+                    _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                }
+                else
+                {
+                    _refreshStatus.Add(PlatformKind.Phantasma,
+                        new RefreshStatus
                         {
-                            return;
-                        }
-
-                        refreshStatus.HistoryRefreshing = true;
-                        refreshStatus.LastHistoryRefresh = now;
-
-                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
-                    }
-                    else
-                    {
-                        _refreshStatus.Add(PlatformKind.Phantasma,
-                            new RefreshStatus
-                            {
-                                BalanceRefreshing = false,
-                                LastBalanceRefresh = DateTime.MinValue,
-                                BalanceRefreshCallback = null,
-                                HistoryRefreshing = true,
-                                LastHistoryRefresh = now
-                            });
-                    }
+                            BalanceRefreshing = false,
+                            LastBalanceRefresh = DateTime.MinValue,
+                            BalanceRefreshCallback = null,
+                            HistoryRefreshing = true,
+                            LastHistoryRefresh = now
+                        });
+                }
             }
 
             var wif = this.CurrentWif;
 
-                            var keys = PhantasmaKeys.FromWIF(wif);
-                            StartCoroutine(phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
-                            {
-                                var history = new List<HistoryEntry>();
+            var keys = PhantasmaKeys.FromWIF(wif);
+            StartCoroutine(phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
+            {
+                var history = new List<HistoryEntry>();
 
-                                foreach (var tx in x.txs)
-                                {
-                                    history.Add(new HistoryEntry()
-                                    {
-                                        hash = tx.hash,
-                                        date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime(),
-                                        url = GetPhantasmaTransactionURL(tx.hash)
-                                    });
-                                }
+                foreach (var tx in x.txs)
+                {
+                    history.Add(new HistoryEntry()
+                    {
+                        hash = tx.hash,
+                        date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime(),
+                        url = GetPhantasmaTransactionURL(tx.hash)
+                    });
+                }
 
-                                ReportWalletHistory(PlatformKind.Phantasma, history);
-                            },
-                            (error, msg) =>
-                            {
-                                if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                {
-                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                                }
-                                ReportWalletHistory(PlatformKind.Phantasma, null);
-                            }));
+                ReportWalletHistory(PlatformKind.Phantasma, history);
+            },
+            (error, msg) =>
+            {
+                if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                {
+                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                }
+                ReportWalletHistory(PlatformKind.Phantasma, null);
+            }));
         }
 
         public string GetPhantasmaTransactionURL(string hash)
@@ -1977,25 +1977,25 @@ namespace Poltergeist
                                                                     }
                                                                     else
                                                                     {
-                                                                            var unclaimed = UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10);
-                                                                            var stake = UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8);
-                                                                            var storageStake = UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8);
-                                                                            var votingPower = VMObject.FromBytes(votingPowerResult).AsNumber();
-                                                                            var stakeTimestamp = VMObject.FromBytes(stakeTimestampResult).AsTimestamp();
-                                                                            var stakeTimestampLocal = ((DateTime)stakeTimestamp).ToLocalTime();
-                                                                            var timeBeforeUnstake = VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber();
-                                                                            var masterDate = VMObject.FromBytes(masterDateResult).AsTimestamp();
-                                                                            var isMaster = VMObject.FromBytes(isMasterResult).AsBool();
+                                                                        var unclaimed = UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10);
+                                                                        var stake = UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8);
+                                                                        var storageStake = UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8);
+                                                                        var votingPower = VMObject.FromBytes(votingPowerResult).AsNumber();
+                                                                        var stakeTimestamp = VMObject.FromBytes(stakeTimestampResult).AsTimestamp();
+                                                                        var stakeTimestampLocal = ((DateTime)stakeTimestamp).ToLocalTime();
+                                                                        var timeBeforeUnstake = VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber();
+                                                                        var masterDate = VMObject.FromBytes(masterDateResult).AsTimestamp();
+                                                                        var isMaster = VMObject.FromBytes(isMasterResult).AsBool();
 
-                                                                            callback($"{addressString} account information:\n\n" +
-                                                                                $"Unclaimed: {unclaimed} KCAL\n" +
-                                                                                $"Stake: {stake} SOUL\n" +
-                                                                                $"Is SM: {isMaster}\n" +
-                                                                                $"SM since: {masterDate}\n" +
-                                                                                $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
-                                                                                $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
-                                                                                $"Storage stake: {storageStake} SOUL\n" +
-                                                                                $"Voting power: {votingPower}", null);
+                                                                        callback($"{addressString} account information:\n\n" +
+                                                                            $"Unclaimed: {unclaimed} KCAL\n" +
+                                                                            $"Stake: {stake} SOUL\n" +
+                                                                            $"Is SM: {isMaster}\n" +
+                                                                            $"SM since: {masterDate}\n" +
+                                                                            $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
+                                                                            $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
+                                                                            $"Storage stake: {storageStake} SOUL\n" +
+                                                                            $"Voting power: {votingPower}", null);
                                                                         }
                                                                     });
                                                                 }
