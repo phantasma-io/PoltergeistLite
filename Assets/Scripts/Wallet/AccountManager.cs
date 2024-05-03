@@ -1977,65 +1977,25 @@ namespace Poltergeist
                                                                     }
                                                                     else
                                                                     {
-                                                                            StartCoroutine(phantasmaApi.GetAllAddressTransactions(addressString, (x) =>
-                                                                            {
-                                                                                var stakingHistory = new List<string>();
-                                                                                var calculatedStakedAmount = 0m;
-                                                                                foreach (var tx in x.txs.Reverse().Where(t => t.events.Any(e => (e.address == addressString && (e.kind.ToUpper() == "TOKENSTAKE" || e.kind.ToUpper() == "TOKENCLAIM") && e.contract.ToUpper() == "STAKE") && !t.events.Any(e2 => e2.kind.ToUpper() == "TOKENMINT" && e2.address == "S3dP2jjf1jUG9nethZBWbnu9a6dFqB7KveTWU7znis6jpDy")) || t.events.Any(e => e.kind.ToUpper() == "ADDRESSMIGRATION")))
-                                                                                {
-                                                                                    var stakeEvent = tx.events.Where(e => (e.address == addressString && (e.kind.ToUpper() == "TOKENSTAKE" || e.kind.ToUpper() == "TOKENCLAIM") && e.contract.ToUpper() == "STAKE") || e.kind.ToUpper() == "ADDRESSMIGRATION").First();
+                                                                            var unclaimed = UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10);
+                                                                            var stake = UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8);
+                                                                            var storageStake = UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8);
+                                                                            var votingPower = VMObject.FromBytes(votingPowerResult).AsNumber();
+                                                                            var stakeTimestamp = VMObject.FromBytes(stakeTimestampResult).AsTimestamp();
+                                                                            var stakeTimestampLocal = ((DateTime)stakeTimestamp).ToLocalTime();
+                                                                            var timeBeforeUnstake = VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber();
+                                                                            var masterDate = VMObject.FromBytes(masterDateResult).AsTimestamp();
+                                                                            var isMaster = VMObject.FromBytes(isMasterResult).AsBool();
 
-                                                                                    var kind = (EventKind)Enum.Parse(typeof(EventKind), stakeEvent.kind);
-                                                                                    if (kind == EventKind.AddressMigration)
-                                                                                    {
-                                                                                        Log.Write(new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime() +
-                                                                                            ": " + stakeEvent.kind + ": " + " address: " + stakeEvent.address + " data: " + stakeEvent.data + " tx: " + tx.hash);
-
-                                                                                        stakingHistory.Add(new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime() +
-                                                                                            ": Account migration to address: " + stakeEvent.address);
-                                                                                    }
-                                                                                    else
-                                                                                    {
-                                                                                        var evnt = new Phantasma.Core.Domain.Event(kind, Address.FromText(stakeEvent.address), stakeEvent.contract, Base16.Decode(stakeEvent.data));
-
-                                                                                        var tokenEventData = evnt.GetContent<TokenEventData>();
-                                                                                        Log.Write(new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime() +
-                                                                                            ": " + stakeEvent.kind + ": " + UnitConversion.ToDecimal(tokenEventData.Value, 8) + " " + tokenEventData.Symbol + " address: " + stakeEvent.address + " data: " + stakeEvent.data + " tx: " + tx.hash);
-
-                                                                                        var soulAmount = UnitConversion.ToDecimal(tokenEventData.Value, 8);
-                                                                                        if (kind == EventKind.TokenStake)
-                                                                                            calculatedStakedAmount += soulAmount;
-                                                                                        else
-                                                                                            calculatedStakedAmount -= soulAmount;
-
-                                                                                        stakingHistory.Add(new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime() +
-                                                                                            ": " + (kind == EventKind.TokenStake ? "Stake" : "Claim") + ": " + soulAmount + " " + tokenEventData.Symbol + $" [Staked: {calculatedStakedAmount} SOUL]");
-                                                                                    }
-                                                                                }
-
-                                                                                var unclaimed = UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10);
-                                                                                var stake = UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8);
-                                                                                var storageStake = UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8);
-                                                                                var votingPower = VMObject.FromBytes(votingPowerResult).AsNumber();
-                                                                                var stakeTimestamp = VMObject.FromBytes(stakeTimestampResult).AsTimestamp();
-                                                                                var stakeTimestampLocal = ((DateTime)stakeTimestamp).ToLocalTime();
-                                                                                var timeBeforeUnstake = VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber();
-                                                                                var masterDate = VMObject.FromBytes(masterDateResult).AsTimestamp();
-                                                                                var isMaster = VMObject.FromBytes(isMasterResult).AsBool();
-
-                                                                                stakingHistory.Reverse();
-
-                                                                                callback($"{addressString} account information:\n\n" +
-                                                                                    $"Unclaimed: {unclaimed} KCAL\n" +
-                                                                                    $"Stake: {stake} SOUL\n" +
-                                                                                    $"Is SM: {isMaster}\n" +
-                                                                                    $"SM since: {masterDate}\n" +
-                                                                                    $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
-                                                                                    $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
-                                                                                    $"Storage stake: {storageStake} SOUL\n" +
-                                                                                    $"Voting power: {votingPower}\n\n" +
-                                                                                    $"Staking history (calculated current stake: {calculatedStakedAmount} SOUL):\n{string.Join("\n", stakingHistory)}", null);
-                                                                            }));
+                                                                            callback($"{addressString} account information:\n\n" +
+                                                                                $"Unclaimed: {unclaimed} KCAL\n" +
+                                                                                $"Stake: {stake} SOUL\n" +
+                                                                                $"Is SM: {isMaster}\n" +
+                                                                                $"SM since: {masterDate}\n" +
+                                                                                $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
+                                                                                $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
+                                                                                $"Storage stake: {storageStake} SOUL\n" +
+                                                                                $"Voting power: {votingPower}", null);
                                                                         }
                                                                     });
                                                                 }
