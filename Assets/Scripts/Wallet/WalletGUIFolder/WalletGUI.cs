@@ -431,14 +431,6 @@ namespace Poltergeist
                     cameraError = false;
                     scanTime = Time.time;
                     break;
-
-                case GUIState.Upload:
-                    currentTitle = "Archive upload";
-                    break;
-
-                case GUIState.Download:
-                    currentTitle = "Archive download";
-                    break;
             }
         }
 

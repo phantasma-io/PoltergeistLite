@@ -37,9 +37,6 @@ namespace Poltergeist
         Settings,
         ScanQR,
         Backup,
-        Storage,
-        Upload,
-        Download,
         Exit,
         Fatal
     }
