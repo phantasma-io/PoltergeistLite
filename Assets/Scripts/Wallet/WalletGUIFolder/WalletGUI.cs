@@ -711,24 +711,6 @@ namespace Poltergeist
 
             GUI.enabled = true;
 
-            GUI.color = Color.white;
-
-            var duration = 0.333f;
-            var delta = (Time.time - modalTime) / duration;
-            if (delta > 1.0f)
-            {
-                delta = 1;
-            }
-
-            bool hasModal = modalState != ModalState.None && !modalRedirected;
-
-            if (!hasModal)
-            {
-                delta = 1 - delta;
-            }
-
-            var k = Mathf.Lerp(1, 0.4f, delta);
-
             if (guiState == GUIState.Loading)
             {
                 if (!AccountManager.Instance.Ready)
@@ -747,8 +729,6 @@ namespace Poltergeist
                     GUI.Window(0, windowRect, DoMainWindow, WalletTitle);
                 }
             }
-
-            GUI.color = Color.white;
 
             if (modalState != ModalState.None && !modalRedirected)
             {
