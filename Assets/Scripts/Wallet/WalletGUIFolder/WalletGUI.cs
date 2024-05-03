@@ -1670,7 +1670,7 @@ namespace Poltergeist
 
                     DoButton(true, btnRect, "Rename", () =>
                     {
-                        ShowModal("Rename", $"Current local name: {account.name}\nPhantasma address: {account.phaAddress}\nNeo address: {account.neoAddress}\nEthereum address: {account.ethAddress}\n\nEnter new local account name:", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, input) =>
+                        ShowModal("Rename", $"Current local name: {account.name}\nAddress: {account.phaAddress}\n\nEnter new local account name:", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, input) =>
                         {
                             if (input == null || input.Length < AccountManager.MinAccountNameLength ||
                                 input.Length > AccountManager.MaxAccountNameLength)
