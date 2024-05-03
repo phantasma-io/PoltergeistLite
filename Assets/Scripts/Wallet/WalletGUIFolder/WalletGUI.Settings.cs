@@ -87,9 +87,6 @@ namespace Poltergeist
                 case NexusKind.Test_Net:
                     elementsNumber = VerticalLayout ? 27 : 26;
                     break;
-                case NexusKind.Mankini_Test_Net:
-                    elementsNumber = VerticalLayout ? 25 : 24;
-                    break;
                 case NexusKind.Local_Net:
                     elementsNumber = VerticalLayout ? 33 : 32;
                     break;

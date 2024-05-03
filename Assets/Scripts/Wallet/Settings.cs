@@ -10,7 +10,6 @@ namespace Poltergeist
         Unknown,
         Main_Net,
         Test_Net,
-        Mankini_Test_Net,
         Local_Net,
         Custom
     }
@@ -166,7 +165,7 @@ namespace Poltergeist
             }
 
             this.phantasmaRPCURL = PlayerPrefs.GetString(PhantasmaRPCTag, GetDefaultValue(PhantasmaRPCTag));
-            if (this.nexusKind == NexusKind.Main_Net || this.nexusKind == NexusKind.Test_Net || this.nexusKind == NexusKind.Mankini_Test_Net)
+            if (this.nexusKind == NexusKind.Main_Net || this.nexusKind == NexusKind.Test_Net)
             {
                 // For mainnet/testnet we always load defaults for hidden settings,
                 // to avoid dealing with "stuck" values from old PG version that had different defaults.
@@ -262,10 +261,6 @@ namespace Poltergeist
                             _return_value = "https://testnet.phantasma.info/rpc";
                             break;
 
-                        case NexusKind.Mankini_Test_Net:
-                            _return_value = "https://mankinitest.phantasma.io/rpc";
-                            break;
-
                         case NexusKind.Local_Net:
                             _return_value = "http://localhost:7077/rpc";
                             break;
@@ -285,10 +280,6 @@ namespace Poltergeist
 
                         case NexusKind.Test_Net:
                             _return_value = "https://test-explorer.phantasma.info/";
-                            break;
-
-                        case NexusKind.Mankini_Test_Net:
-                            _return_value = "http://mankinighost.phantasma.io:7083/";
                             break;
 
                         case NexusKind.Local_Net:
@@ -312,10 +303,6 @@ namespace Poltergeist
                             _return_value = "https://testnet.ghostmarket.io/asset/phat";
                             break;
 
-                        case NexusKind.Mankini_Test_Net:
-                            _return_value = "https://mankini.ghostmarket.io/asset/pha";
-                            break;
-
                         case NexusKind.Local_Net:
                             _return_value = "https://dev.ghostmarket.io/asset/pha";
                             break;
@@ -335,10 +322,6 @@ namespace Poltergeist
 
                         case NexusKind.Test_Net:
                             _return_value = "testnet";
-                            break;
-
-                        case NexusKind.Mankini_Test_Net:
-                            _return_value = "mainnet"; // TODO Currently this testnet works with mainnet nexus, should be changed later
                             break;
 
                         default:
