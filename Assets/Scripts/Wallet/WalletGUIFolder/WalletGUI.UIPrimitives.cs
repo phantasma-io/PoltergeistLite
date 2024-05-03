@@ -40,40 +40,6 @@ namespace Poltergeist
                 GUI.enabled = temp;
             }
         }
-        private void DoButton(bool enabled, Rect rect, Texture texture, bool active, Action callback)
-        {
-            var temp = GUI.enabled;
-            GUI.enabled = enabled;
-            if (active)
-            {
-                var style = new GUIStyle(GUI.skin.button);
-                style.normal = style.hover;
-                if (GUI.Button(rect, texture, style))
-                {
-                    if (currentAnimation == AnimationDirection.None)
-                    {
-                        callback();
-                    }
-                }
-            }
-            else
-            {
-                if (GUI.Button(rect, texture))
-                {
-                    if (currentAnimation == AnimationDirection.None)
-                    {
-                        callback();
-                    }
-                }
-            }
-            GUI.enabled = temp;
-        }
-        private Rect GetExpandedRect(int curY, int height)
-        {
-            var rect = new Rect(Border, curY, windowRect.width - Border * 2, height);
-            return rect;
-        }
-
         private void DoModalWindow(int windowID)
         {
             var accountManager = AccountManager.Instance;
