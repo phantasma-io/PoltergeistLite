@@ -912,7 +912,7 @@ namespace Phantasma.SDK
         //Returns an array of tokens deployed in Phantasma.
         public IEnumerator GetTokens(Action<Token[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getTokens", 5, 1, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest(Host, "getTokens", 10, 5, errorHandlingCallback, (node) =>
             {
                 var result = new Token[node.ChildCount];
                 for (int i = 0; i < result.Length; i++)
