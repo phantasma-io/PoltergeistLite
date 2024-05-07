@@ -1,12 +1,7 @@
 using System;
 using System.Collections;
 using System.Globalization;
-
-using UnityEngine;
-
 using LunarLabs.Parser;
-
-using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
