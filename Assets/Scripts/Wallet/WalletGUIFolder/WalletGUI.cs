@@ -751,7 +751,12 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
             }
 
-            
+
+            if (AccountManager.Instance.ReportGetPeersFailure)
+            {
+                AccountManager.Instance.ReportGetPeersFailure = false;
+                MessageBox(MessageKind.Error, $"Couldn't load RPCs list.\nWallet might malfunction.");
+            }
         }
 
         void OnApplicationQuit()

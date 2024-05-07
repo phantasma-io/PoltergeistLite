@@ -172,6 +172,7 @@ namespace Poltergeist
         public const string WalletVersionTag = "wallet.list.version";
         public const string WalletTag = "wallet.list";
 
+        public bool ReportGetPeersFailure = false;
         private int rpcNumberPhantasma; // Total number of Phantasma RPCs, received from getpeers.json.
         private int rpcBenchmarkedPhantasma; // Number of Phantasma RPCs which speed already measured.
         public int rpcAvailablePhantasma = 0;
@@ -238,7 +239,8 @@ namespace Poltergeist
             StartCoroutine(
                 WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
                 {
-                    Log.Write("auto error => " + error);
+                    ReportGetPeersFailure = true;
+                    Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + error);
                 },
                 (response) =>
                 {
