@@ -1,10 +1,15 @@
 ﻿using System;
+using System.Globalization;
+using System.Linq;
 using System.Numerics;
 
 namespace Phantasma.Core.Numerics
 {
     public static class UnitConversion
     {
+        private static readonly string s_NumberDecimalSeparator = ".";
+        private static readonly NumberFormatInfo s_NumberFormatInfo = new() { NumberDecimalSeparator = s_NumberDecimalSeparator };
+
         // TODO why not just BigInteger.Pow(10, units)???
         private static BigInteger GetMultiplier(int units)
         {
@@ -18,31 +23,29 @@ namespace Phantasma.Core.Numerics
             return unitMultiplier;
         }
 
-        public static decimal ToDecimal(BigInteger value, int units)
+        public static string ToDecimalString(string amount, int tokenDecimals)
         {
-            if (value == 0)
+            if (amount == "0" || tokenDecimals == 0)
+                return amount;
+
+            if (amount.Length <= tokenDecimals)
             {
-                return 0;
+                return "0" + s_NumberDecimalSeparator + amount.PadLeft(tokenDecimals, '0').TrimEnd('0');
             }
 
-            if (units == 0)
-            {
-                return (long)value;
-            }
-
-            var multiplier = (decimal)GetMultiplier(units);
-            var n = decimal.Parse(value.ToString()); // TODO not very efficient, improve later...
-            n /= multiplier;
-            return n;
+            var decimalPart = amount.Substring(amount.Length - tokenDecimals);
+            decimalPart = decimalPart.Any(x => x != '0') ? decimalPart.TrimEnd('0') : null;
+            return amount.Substring(0, amount.Length - tokenDecimals) + (decimalPart != null ? s_NumberDecimalSeparator + decimalPart : "");
         }
 
-        public static decimal ToDecimal(string value, int units)
+        public static decimal ToDecimal(string amount, int tokenDecimals)
         {
-            if (string.IsNullOrEmpty(value)) return 0;
+            return decimal.Parse(ToDecimalString(amount, tokenDecimals), s_NumberFormatInfo);
+        }
 
-            BigInteger big = BigInteger.Parse(value);
-
-            return ToDecimal(big, units);
+        public static decimal ToDecimal(BigInteger value, int tokenDecimals)
+        {
+            return ToDecimal(value.ToString(), tokenDecimals);
         }
 
         public static BigInteger ToBigInteger(decimal n, int units)

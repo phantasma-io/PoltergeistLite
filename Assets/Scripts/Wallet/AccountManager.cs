@@ -614,8 +614,7 @@ namespace Poltergeist
                 return 0;
             }
 
-            var n = BigInteger.Parse(str);
-            return UnitConversion.ToDecimal(n, decimals);
+            return UnitConversion.ToDecimal(str, decimals);
         }
 
         public void SignAndSendTransaction(string chain, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, ProofOfWork PoW, IKeyPair customKeys, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
