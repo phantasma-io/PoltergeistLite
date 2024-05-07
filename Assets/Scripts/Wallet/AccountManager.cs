@@ -173,6 +173,7 @@ namespace Poltergeist
         public const string WalletTag = "wallet.list";
 
         public bool ReportGetPeersFailure = false;
+        public bool ReportAllRpcsUnavailabe = false;
         private int rpcNumberPhantasma; // Total number of Phantasma RPCs, received from getpeers.json.
         private int rpcBenchmarkedPhantasma; // Number of Phantasma RPCs which speed already measured.
         public int rpcAvailablePhantasma = 0;
@@ -285,6 +286,7 @@ namespace Poltergeist
 
                                         if (String.IsNullOrEmpty(bestRpcUrl))
                                         {
+                                            ReportAllRpcsUnavailabe = true;
                                             Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
                                         }
                                         else
@@ -316,6 +318,7 @@ namespace Poltergeist
 
                                         if (String.IsNullOrEmpty(bestRpcUrl))
                                         {
+                                            ReportAllRpcsUnavailabe = true;
                                             Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
                                         }
                                         else
@@ -361,6 +364,7 @@ namespace Poltergeist
 
                 if (String.IsNullOrEmpty(bestRpcUrl))
                 {
+                    ReportAllRpcsUnavailabe = true;
                     Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
                 }
                 else
