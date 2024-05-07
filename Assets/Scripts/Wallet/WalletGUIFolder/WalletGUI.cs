@@ -431,14 +431,6 @@ namespace Poltergeist
                     cameraError = false;
                     scanTime = Time.time;
                     break;
-
-                case GUIState.Upload:
-                    currentTitle = "Archive upload";
-                    break;
-
-                case GUIState.Download:
-                    currentTitle = "Archive download";
-                    break;
             }
         }
 
@@ -719,24 +711,6 @@ namespace Poltergeist
 
             GUI.enabled = true;
 
-            GUI.color = Color.white;
-
-            var duration = 0.333f;
-            var delta = (Time.time - modalTime) / duration;
-            if (delta > 1.0f)
-            {
-                delta = 1;
-            }
-
-            bool hasModal = modalState != ModalState.None && !modalRedirected;
-
-            if (!hasModal)
-            {
-                delta = 1 - delta;
-            }
-
-            var k = Mathf.Lerp(1, 0.4f, delta);
-
             if (guiState == GUIState.Loading)
             {
                 if (!AccountManager.Instance.Ready)
@@ -755,8 +729,6 @@ namespace Poltergeist
                     GUI.Window(0, windowRect, DoMainWindow, WalletTitle);
                 }
             }
-
-            GUI.color = Color.white;
 
             if (modalState != ModalState.None && !modalRedirected)
             {
@@ -1359,8 +1331,7 @@ namespace Poltergeist
 
                     if (VerticalLayout)
                     {
-                        GUI.Label(new Rect(Border * 2, curY , windowRect.width - Border * 2, Units(2) + 4), account.name);
-                        GUI.Label(new Rect(Border * 2, curY + Units(1), windowRect.width - Border * 2, Units(2) + 4), $"[{account.platforms}]");
+                        GUI.Label(new Rect(Border * 2, curY , windowRect.width - Border * 2, Units(2) + 4), account.ToString());
                         btnRect = new Rect((rect.width - btnWidth)/2, curY + Units(3) + 4, btnWidth, Units(2));
                     }
                     else
@@ -1671,7 +1642,7 @@ namespace Poltergeist
 
                     DoButton(true, btnRect, "Rename", () =>
                     {
-                        ShowModal("Rename", $"Current local name: {account.name}\nPhantasma address: {account.phaAddress}\nNeo address: {account.neoAddress}\nEthereum address: {account.ethAddress}\n\nEnter new local account name:", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, input) =>
+                        ShowModal("Rename", $"Current local name: {account.name}\nAddress: {account.phaAddress}\n\nEnter new local account name:", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, input) =>
                         {
                             if (input == null || input.Length < AccountManager.MinAccountNameLength ||
                                 input.Length > AccountManager.MaxAccountNameLength)
@@ -2223,193 +2194,193 @@ namespace Poltergeist
             bool tertiaryEnabled = false;
             Action tertiaryCallback = null;
 
-                switch (balance.Symbol)
-                {
-                    case "SOUL":
-                        if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
+            switch (balance.Symbol)
+            {
+                case "SOUL":
+                    if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
+                    {
+                        if (Input.GetKey(KeyCode.LeftShift))
                         {
-                            if (Input.GetKey(KeyCode.LeftShift))
-                            {
-                                secondaryAction = "Info";
-                                secondaryEnabled = true;
-                                secondaryCallback = () =>
-                                {
-                                    accountManager.GetPhantasmaAddressInfo(state.address, (result, error) =>
-                                    {
-                                        if (!string.IsNullOrEmpty(error))
-                                        {
-                                            MessageBox(MessageKind.Error, "Something went wrong!\n" + error);
-                                            return;
-                                        }
-                                        else
-                                        {
-                                            ShowModal("Account information", result,
-                                                ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
-                                            return;
-                                        }
-                                    });
-                                };
-                            }
-                            else
-                            {
-                                secondaryAction = "Stake";
-                                secondaryEnabled = balance.Available > 1.2m;
-                                secondaryCallback = () =>
-                                {
-                                    RequireAmount($"Stake SOUL", null, "SOUL", 0.1m, balance.Available, (selectedAmount) =>
-                                    {
-                                        var crownMultiplier = 1m;
-                                        var crownBalance = state.balances.Where(x => x.Symbol.ToUpper() == "CROWN").FirstOrDefault();
-                                        if (crownBalance != default(Balance))
-                                        {
-                                            crownMultiplier += crownBalance.Available * 0.05m;
-                                        }
-                                        var expectedDailyKCAL = (selectedAmount + balance.Staked) * 0.002m * crownMultiplier;
-
-                                        var twoSmsWarning = "";
-                                        if (selectedAmount >= 100000)
-                                        {
-                                            twoSmsWarning = "\n\nSoul Master rewards are distributed evenly to every wallet with 50K or more SOUL. As you are staking over 100K SOUL, to maximise your rewards, you may wish to stake each 50K SOUL in a separate wallet.";
-                                        }
-
-                                        StakeSOUL(selectedAmount, $"Do you want to stake {selectedAmount} SOUL?\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day.\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours." + twoSmsWarning, (hash, error) =>
-                                        {
-                                            TxResultMessage(hash, error, "Your SOUL was staked!");
-                                        });
-                                    });
-                                };
-                            }
-
-                            if (balance.Staked > 0)
-                            {
-                                tertiaryAction = "Unstake";
-                                tertiaryEnabled = (Timestamp.Now - state.stakeTime) >= 86400;
-                                tertiaryCallback = () =>
-                                {
-                                    RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
-                                        (amount) =>
-                                        {
-                                            var line = amount == balance.Staked ? "You won't be able to claim KCAL anymore." : "The amount of KCAL that will be able to claim later will be reduced.";
-
-                                            if (amount == balance.Staked && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
-                                            {
-                                                line += "\nYour account will also lose the current registed name.";
-                                            }
-
-                                            PromptBox($"Do you want to unstake {amount} SOUL?\n{line}", ModalYesNo, (result) =>
-                                            {
-                                                RequestKCAL("SOUL", (kcal) =>
-                                                {
-                                                    if (kcal == PromptResult.Success)
-                                                    {
-                                                        var address = Address.FromText(state.address);
-
-                                                        var sb = new ScriptBuilder();
-                                                        
-                                                        sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                        sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
-                                                        sb.SpendGas(address);
-                                                        var script = sb.EndScript();
-
-                                                        SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
-                                                        {
-                                                            TxResultMessage(hash, error, "Your SOUL was unstaked!");
-                                                        });
-                                                    }
-                                                });
-                                            });
-                                        });
-                                };
-                            }
-                        }
-
-                        break;
-
-                    case "KCAL":
-                        if (balance.Claimable > 0)
-                        {
-                            secondaryAction = "Claim";
+                            secondaryAction = "Info";
                             secondaryEnabled = true;
                             secondaryCallback = () =>
                             {
-                                PromptBox($"Do you want to claim KCAL?\nThere is {balance.Claimable} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.", ModalYesNo, (result) =>
+                                accountManager.GetPhantasmaAddressInfo(state.address, accountManager.CurrentAccount,(result, error) =>
                                 {
-                                    if (result == PromptResult.Success)
+                                    if (!string.IsNullOrEmpty(error))
                                     {
-                                        RequestKCAL("SOUL", (feeResult) =>
-                                        {
-                                            if (feeResult == PromptResult.Success)
-                                            {
-                                                var address = Address.FromText(state.address);
-
-                                                var sb = new ScriptBuilder();
-
-                                                if (balance.Available > 0)
-                                                {
-                                                    sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                    sb.CallContract("stake", "Claim", address, address);
-                                                }
-                                                else
-                                                {
-                                                    sb.CallContract("stake", "Claim", address, address);
-                                                    sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                }
-
-                                                sb.SpendGas(address);
-                                                var script = sb.EndScript();
-
-                                                SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
-                                                {
-                                                    TxResultMessage(hash, error, "You claimed some KCAL!");
-                                                });
-
-
-                                            }
-                                            else
-                                            if (feeResult == PromptResult.Failure)
-                                            {
-                                                MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
-                                            }
-                                        });
+                                        MessageBox(MessageKind.Error, "Something went wrong!\n" + error);
+                                        return;
+                                    }
+                                    else
+                                    {
+                                        ShowModal("Account information", result,
+                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                        return;
                                     }
                                 });
                             };
                         }
-                        break;
-
-                    default:
-                    {
-                            if (Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token)) 
+                        else
+                        {
+                            secondaryAction = "Stake";
+                            secondaryEnabled = balance.Available > 1.2m;
+                            secondaryCallback = () =>
                             {
-                                if (!token.IsFungible())
+                                RequireAmount($"Stake SOUL", null, "SOUL", 0.1m, balance.Available, (selectedAmount) =>
                                 {
-                                    // It's an NFT. We add additional button to get to NFTs view mode.
-
-                                    secondaryAction = "View";
-                                    secondaryEnabled = balance.Available > 0;
-                                    secondaryCallback = () =>
+                                    var crownMultiplier = 1m;
+                                    var crownBalance = state.balances.Where(x => x.Symbol.ToUpper() == "CROWN").FirstOrDefault();
+                                    if (crownBalance != default(Balance))
                                     {
-                                        transferSymbol = balance.Symbol;
+                                        crownMultiplier += crownBalance.Available * 0.05m;
+                                    }
+                                    var expectedDailyKCAL = (selectedAmount + balance.Staked) * 0.002m * crownMultiplier;
 
-                                        // We should do this initialization here and not in PushState,
-                                        // to allow "Back" button to work properly.
-                                        nftScroll = Vector2.zero;
-                                        nftTransferList.Clear();
-                                        nftFilterName = "";
-                                        nftFilterTypeIndex = 0;
-                                        nftFilterType = "All";
-                                        nftFilterRarity = 0;
-                                        nftFilterMinted = 0;
-                                        accountManager.RefreshNft(false, transferSymbol);
+                                    var twoSmsWarning = "";
+                                    if (selectedAmount >= 100000)
+                                    {
+                                        twoSmsWarning = "\n\nSoul Master rewards are distributed evenly to every wallet with 50K or more SOUL. As you are staking over 100K SOUL, to maximise your rewards, you may wish to stake each 50K SOUL in a separate wallet.";
+                                    }
 
-                                        PushState(GUIState.NftView);
-                                        return;
-                                    };
-                                }
-                            }
-                            break;
+                                    StakeSOUL(selectedAmount, $"Do you want to stake {selectedAmount} SOUL?\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day.\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours." + twoSmsWarning, (hash, error) =>
+                                    {
+                                        TxResultMessage(hash, error, "Your SOUL was staked!");
+                                    });
+                                });
+                            };
                         }
+
+                        if (balance.Staked > 0)
+                        {
+                            tertiaryAction = "Unstake";
+                            tertiaryEnabled = (Timestamp.Now - state.stakeTime) >= 86400;
+                            tertiaryCallback = () =>
+                            {
+                                RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
+                                    (amount) =>
+                                    {
+                                        var line = amount == balance.Staked ? "You won't be able to claim KCAL anymore." : "The amount of KCAL that will be able to claim later will be reduced.";
+
+                                        if (amount == balance.Staked && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
+                                        {
+                                            line += "\nYour account will also lose the current registed name.";
+                                        }
+
+                                        PromptBox($"Do you want to unstake {amount} SOUL?\n{line}", ModalYesNo, (result) =>
+                                        {
+                                            RequestKCAL("SOUL", (kcal) =>
+                                            {
+                                                if (kcal == PromptResult.Success)
+                                                {
+                                                    var address = Address.FromText(state.address);
+
+                                                    var sb = new ScriptBuilder();
+                                                        
+                                                    sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                                                    sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
+                                                    sb.SpendGas(address);
+                                                    var script = sb.EndScript();
+
+                                                    SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                    {
+                                                        TxResultMessage(hash, error, "Your SOUL was unstaked!");
+                                                    });
+                                                }
+                                            });
+                                        });
+                                    });
+                            };
+                        }
+                    }
+
+                    break;
+
+                case "KCAL":
+                    if (balance.Claimable > 0)
+                    {
+                        secondaryAction = "Claim";
+                        secondaryEnabled = true;
+                        secondaryCallback = () =>
+                        {
+                            PromptBox($"Do you want to claim KCAL?\nThere is {balance.Claimable} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.", ModalYesNo, (result) =>
+                            {
+                                if (result == PromptResult.Success)
+                                {
+                                    RequestKCAL("SOUL", (feeResult) =>
+                                    {
+                                        if (feeResult == PromptResult.Success)
+                                        {
+                                            var address = Address.FromText(state.address);
+
+                                            var sb = new ScriptBuilder();
+
+                                            if (balance.Available > 0)
+                                            {
+                                                sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                                                sb.CallContract("stake", "Claim", address, address);
+                                            }
+                                            else
+                                            {
+                                                sb.CallContract("stake", "Claim", address, address);
+                                                sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                                            }
+
+                                            sb.SpendGas(address);
+                                            var script = sb.EndScript();
+
+                                            SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                            {
+                                                TxResultMessage(hash, error, "You claimed some KCAL!");
+                                            });
+
+
+                                        }
+                                        else
+                                        if (feeResult == PromptResult.Failure)
+                                        {
+                                            MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
+                                        }
+                                    });
+                                }
+                            });
+                        };
+                    }
+                    break;
+
+                default:
+                {
+                    if (Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token)) 
+                    {
+                        if (!token.IsFungible())
+                        {
+                            // It's an NFT. We add additional button to get to NFTs view mode.
+
+                            secondaryAction = "View";
+                            secondaryEnabled = balance.Available > 0;
+                            secondaryCallback = () =>
+                            {
+                                transferSymbol = balance.Symbol;
+
+                                // We should do this initialization here and not in PushState,
+                                // to allow "Back" button to work properly.
+                                nftScroll = Vector2.zero;
+                                nftTransferList.Clear();
+                                nftFilterName = "";
+                                nftFilterTypeIndex = 0;
+                                nftFilterType = "All";
+                                nftFilterRarity = 0;
+                                nftFilterMinted = 0;
+                                accountManager.RefreshNft(false, transferSymbol);
+
+                                PushState(GUIState.NftView);
+                                return;
+                            };
+                        }
+                    }
+                    break;
                 }
+            }
 
             int btnY = VerticalLayout ? Units(4) + 8 : Units(2);
 
@@ -3177,15 +3148,15 @@ namespace Poltergeist
                                 "\n\nHEX can be used to import wallet in MEW Ethereum wallet and Neon Neo wallet." +
                                 "\nHEX format example (64 symbols):" +
                                 "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3",
-                                ModalState.Message, 0, 0, ModalHexWif, 0, (result, input) =>
+                                ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
                                 {
-                                    if (result == PromptResult.Success)
+                                    if (result == PromptResult.Custom_1)
                                     {
                                         var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
                                         GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
                                         MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
                                     }
-                                    else
+                                    else if(result == PromptResult.Custom_2)
                                     {
                                         GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
                                         MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");

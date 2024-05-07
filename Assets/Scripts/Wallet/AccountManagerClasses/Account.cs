@@ -25,7 +25,7 @@ namespace Poltergeist
         
         public override string ToString()
         {
-            return $"{name.ToUpper()} [{platforms}]";
+            return $"{name.ToUpper()}";
         }
 
         public string GetWif(string passwordHash)

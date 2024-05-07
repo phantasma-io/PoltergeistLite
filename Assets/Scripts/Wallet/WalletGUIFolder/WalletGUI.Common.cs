@@ -37,9 +37,6 @@ namespace Poltergeist
         Settings,
         ScanQR,
         Backup,
-        Storage,
-        Upload,
-        Download,
         Exit,
         Fatal
     }
@@ -49,7 +46,9 @@ namespace Poltergeist
         Waiting,
         Failure,
         Success,
-        Canceled
+        Custom_1,
+        Custom_2,
+        Custom_3
     }
 
     public enum AnimationDirection

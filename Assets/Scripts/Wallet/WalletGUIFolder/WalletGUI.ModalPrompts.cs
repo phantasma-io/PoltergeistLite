@@ -16,9 +16,7 @@ namespace Poltergeist
         private string[] ModalConfirmCancel = new string[] { "Confirm", "Cancel" };
         private string[] ModalSendCancel = new string[] { "Send", "Cancel" };
         private string[] ModalYesNo = new string[] { "Yes" , "No" };
-        private string[] ModalHexWif = new string[] { "HEX format", "WIF format" };
-        private string[] ModalNeoEthereum = new string[] { "Neo", "Ethereum" };
-        private string[] ModalCurrentLegacy = new string[] { "Current", "Legacy" };
+        private string[] ModalHexWifCancel = new string[] { "HEX format", "WIF format", "Cancel" };
 
         private string[] modalOptions;
         private int modalConfirmDelay;

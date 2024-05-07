@@ -40,40 +40,6 @@ namespace Poltergeist
                 GUI.enabled = temp;
             }
         }
-        private void DoButton(bool enabled, Rect rect, Texture texture, bool active, Action callback)
-        {
-            var temp = GUI.enabled;
-            GUI.enabled = enabled;
-            if (active)
-            {
-                var style = new GUIStyle(GUI.skin.button);
-                style.normal = style.hover;
-                if (GUI.Button(rect, texture, style))
-                {
-                    if (currentAnimation == AnimationDirection.None)
-                    {
-                        callback();
-                    }
-                }
-            }
-            else
-            {
-                if (GUI.Button(rect, texture))
-                {
-                    if (currentAnimation == AnimationDirection.None)
-                    {
-                        callback();
-                    }
-                }
-            }
-            GUI.enabled = temp;
-        }
-        private Rect GetExpandedRect(int curY, int height)
-        {
-            var rect = new Rect(Border, curY, windowRect.width - Border * 2, height);
-            return rect;
-        }
-
         private void DoModalWindow(int windowID)
         {
             var accountManager = AccountManager.Instance;
@@ -184,6 +150,32 @@ namespace Poltergeist
 
             curY = (int)(rect.height - Units(2));
 
+            if (modalOptions == ModalHexWifCancel)
+            {
+                int thirdOfWidth = (int)(modalRect.width / 3);
+
+                DoButton(true,
+                    escapePressed,
+                    new Rect((thirdOfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), modalOptions[2], () =>
+                    {
+                        modalResult = PromptResult.Custom_3;
+                    });
+
+                DoButton(true,
+                    false,
+                    new Rect(thirdOfWidth + (thirdOfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), modalOptions[1], () =>
+                    {
+                        modalResult = PromptResult.Custom_2;
+                    });
+
+                DoButton(true,
+                    false,
+                    new Rect(thirdOfWidth * 2 + (thirdOfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), modalOptions[0], () =>
+                    {
+                        modalResult = PromptResult.Custom_1;
+                    });
+            }
+            else
             if (modalOptions.Length > 1)
             {
                 int halfWidth = (int)(modalRect.width / 2);
@@ -202,8 +194,7 @@ namespace Poltergeist
                        
                         GUIUtility.systemCopyBuffer = modalCaption;
                     }
-                    else if(modalOptions == ModalHexWif ||
-                        modalOptions == ModalOkView)
+                    else if(modalOptions == ModalOkView)
                     {
                         modalResult = PromptResult.Failure;
                     }
