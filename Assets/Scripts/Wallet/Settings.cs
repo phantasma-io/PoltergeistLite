@@ -32,6 +32,7 @@ namespace Poltergeist
 
     public enum UiThemes
     {
+        Default,
         Phantasia
     }
 
@@ -194,7 +195,7 @@ namespace Poltergeist
                 this.feeLimit = defaultGasLimit;
             }
 
-            this.uiThemeName = PlayerPrefs.GetString(UiThemeNameTag, UiThemes.Phantasia.ToString());
+            this.uiThemeName = PlayerPrefs.GetString(UiThemeNameTag, UiThemes.Default.ToString());
             this.uiFramerate = PlayerPrefs.GetInt(UiFramerateTag, -1);
 
             LoadLogSettings();
