@@ -1,9 +1,3 @@
-<p align="center">
-  <img
-    src="https://github.com/phantasma-io/PhantasmaSpook/blob/master/logo.png"
-    width="125px">
-</p>
-
 <h1 align="center">Poltergeist Lite Wallet</h1>
 
 <p align="center">
