@@ -3162,14 +3162,29 @@ namespace Poltergeist
                                 {
                                     if (result == PromptResult.Custom_1)
                                     {
-                                        var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                                        GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
-                                        MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
+                                        RequestPassword("Export private key (HEX)", accountManager.CurrentPlatform, true, false, (auth) =>
+                                        {
+                                            if (auth == PromptResult.Success)
+                                            {
+                                                var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
+                                                GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+                                                MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
+                                            }
+                                        },
+                                        ignoreStoredPassword: true);
                                     }
                                     else if(result == PromptResult.Custom_2)
                                     {
-                                        GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
-                                        MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");
+                                        RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
+                                        {
+                                            if (auth == PromptResult.Success)
+                                            {
+                                                GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
+                                                MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");
+                                            }
+                                        },
+                                        ignoreStoredPassword: true);
+                                        
                                     }
                                 });
                             break;

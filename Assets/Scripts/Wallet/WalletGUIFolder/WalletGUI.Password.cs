@@ -47,7 +47,7 @@ namespace Poltergeist
                 });
             }
         }
-        public void RequestPassword(string description, PlatformKind platforms, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, Action<PromptResult> callback)
+        public void RequestPassword(string description, PlatformKind platforms, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, Action<PromptResult> callback, bool ignoreStoredPassword = false)
         {
             var accountManager = AccountManager.Instance;
 
@@ -71,7 +71,7 @@ namespace Poltergeist
 
             var proceedWithPasswordCheck = new Action(() =>
             {
-                if (!string.IsNullOrEmpty(masterPassword))
+                if (!ignoreStoredPassword && !string.IsNullOrEmpty(masterPassword))
                 {
                     TryPassword(masterPassword, description, platforms, forcePasswordPrompt, allowMasterPasswordPrompt, callback);
                 }
