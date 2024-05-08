@@ -3152,24 +3152,39 @@ namespace Poltergeist
                     case 0:
                         {
                             ShowModal("Private key export", $"Copy private key in Wallet Import Format (WIF) or in HEX format to the clipboard" +
-                                "\n\nWIF can be used to import wallet in all Phantasma wallets, including Poltergeist, Phantom and Ecto." +
+                                "\n\nWIF format is supported by most of Phantasma blockchain wallets." +
                                 "\nWIF format example (52 symbols):" +
                                 "\nKz9xQgW1U49x8d6yijwLaBgN9x5zEdZaqkjLaS88ZnagcmBjckNE" +
-                                "\n\nHEX can be used to import wallet in MEW Ethereum wallet and Neon Neo wallet." +
-                                "\nHEX format example (64 symbols):" +
-                                "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3",
+                                "\n\nHEX format example (64 symbols):" +
+                                "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3" +
+                                "\n\nNEVER SHARE YOUR PRIVATE KEY WITH ANYONE, INCLUDING TEAM, SUPPORT OR COMMUNITY ADMINS",
                                 ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
                                 {
                                     if (result == PromptResult.Custom_1)
                                     {
-                                        var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                                        GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
-                                        MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
+                                        RequestPassword("Export private key (HEX)", accountManager.CurrentPlatform, true, false, (auth) =>
+                                        {
+                                            if (auth == PromptResult.Success)
+                                            {
+                                                var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
+                                                GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+                                                MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
+                                            }
+                                        },
+                                        ignoreStoredPassword: true);
                                     }
                                     else if(result == PromptResult.Custom_2)
                                     {
-                                        GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
-                                        MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");
+                                        RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
+                                        {
+                                            if (auth == PromptResult.Success)
+                                            {
+                                                GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
+                                                MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");
+                                            }
+                                        },
+                                        ignoreStoredPassword: true);
+                                        
                                     }
                                 });
                             break;
