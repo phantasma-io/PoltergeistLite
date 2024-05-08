@@ -751,7 +751,17 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
             }
 
-            
+
+            if (AccountManager.Instance.ReportGetPeersFailure)
+            {
+                AccountManager.Instance.ReportGetPeersFailure = false;
+                MessageBox(MessageKind.Error, $"Couldn't load RPCs list.\nWallet might malfunction.");
+            }
+            if (AccountManager.Instance.ReportAllRpcsUnavailabe)
+            {
+                AccountManager.Instance.ReportAllRpcsUnavailabe = false;
+                MessageBox(MessageKind.Error, "All Phantasma RPC servers are unavailable.\nPlease check your network connection.");
+            }
         }
 
         void OnApplicationQuit()

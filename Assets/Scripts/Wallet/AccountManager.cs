@@ -172,6 +172,8 @@ namespace Poltergeist
         public const string WalletVersionTag = "wallet.list.version";
         public const string WalletTag = "wallet.list";
 
+        public bool ReportGetPeersFailure = false;
+        public bool ReportAllRpcsUnavailabe = false;
         private int rpcNumberPhantasma; // Total number of Phantasma RPCs, received from getpeers.json.
         private int rpcBenchmarkedPhantasma; // Number of Phantasma RPCs which speed already measured.
         public int rpcAvailablePhantasma = 0;
@@ -238,7 +240,8 @@ namespace Poltergeist
             StartCoroutine(
                 WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
                 {
-                    Log.Write("auto error => " + error);
+                    ReportGetPeersFailure = true;
+                    Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + error);
                 },
                 (response) =>
                 {
@@ -283,6 +286,7 @@ namespace Poltergeist
 
                                         if (String.IsNullOrEmpty(bestRpcUrl))
                                         {
+                                            ReportAllRpcsUnavailabe = true;
                                             Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
                                         }
                                         else
@@ -314,6 +318,7 @@ namespace Poltergeist
 
                                         if (String.IsNullOrEmpty(bestRpcUrl))
                                         {
+                                            ReportAllRpcsUnavailabe = true;
                                             Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
                                         }
                                         else
@@ -359,6 +364,7 @@ namespace Poltergeist
 
                 if (String.IsNullOrEmpty(bestRpcUrl))
                 {
+                    ReportAllRpcsUnavailabe = true;
                     Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
                 }
                 else
@@ -614,8 +620,7 @@ namespace Poltergeist
                 return 0;
             }
 
-            var n = BigInteger.Parse(str);
-            return UnitConversion.ToDecimal(n, decimals);
+            return UnitConversion.ToDecimal(str, decimals);
         }
 
         public void SignAndSendTransaction(string chain, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, ProofOfWork PoW, IKeyPair customKeys, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
