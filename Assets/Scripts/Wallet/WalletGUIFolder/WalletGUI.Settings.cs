@@ -519,7 +519,6 @@ namespace Poltergeist
                                 {
                                     if (result == PromptResult.Failure)
                                     {
-                                        AudioManager.Instance.PlaySFX("click");
                                         GUIUtility.systemCopyBuffer = Log.FilePath;
                                     }
                                 });
