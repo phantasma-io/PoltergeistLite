@@ -163,7 +163,7 @@ PlayerSettings:
   applicationIdentifier:
     Android: com.Phantasma.PoltergeistLite
     Standalone: com.Phantasma.PoltergeistLite
-    iPhone: io.phantasma.poltergeist
+    iPhone: info.phantasma.poltergeistLite
   buildNumber:
     Bratwurst: 0
     Standalone: 0
