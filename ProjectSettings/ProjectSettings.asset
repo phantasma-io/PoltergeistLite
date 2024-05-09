@@ -161,9 +161,9 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Android: com.Phantasma.PoltergeistWallet
+    Android: com.Phantasma.PoltergeistLite
     Standalone: com.Phantasma.PoltergeistLite
-    iPhone: io.phantasma.poltergeist
+    iPhone: info.phantasma.poltergeistLite
   buildNumber:
     Bratwurst: 0
     Standalone: 0
