@@ -385,6 +385,49 @@ namespace Poltergeist
             });
             curY += Units(3);
 
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Get tx description from script", () =>
+            {
+                ShowModal("Transaction script", "Enter transaction script in Base16 encoding", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                {
+                    if (result == PromptResult.Success)
+                    {
+                        var script = Base16.Decode(input, false);
+                        if (script == null)
+                        {
+                            ShowModal("Script description", $"Cannot parse script '{input}'",
+                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                        }
+                        else
+                        {
+                            try
+                            {
+                                WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, true, (description, error) =>
+                                {
+                                    string message;
+                                    if (description == null)
+                                    {
+                                        message = "Error during script parsing.\nDetails: " + error;
+                                    }
+                                    else
+                                    {
+                                        message = description;
+                                    }
+
+                                    ShowModal("Script description", message,
+                                        ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                }));
+                            }
+                            catch (Exception e)
+                            {
+                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.Message);
+                                return;
+                            }
+                        }
+                    }
+                });
+            });
+            curY += Units(3);
+
             curY += Units(1);
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Clear cache", () =>
             {
