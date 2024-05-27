@@ -214,7 +214,13 @@ namespace Poltergeist
                 }
 
                 // Put it to log so that developer can easily check what PG is receiving.
-                Log.Write("GetDescription(): Contract's description: " + entry.ToString());
+                var unprocessedMethodCall = "Unprocessed method call: " + entry.ToString();
+                Log.Write(unprocessedMethodCall);
+                if(devMode)
+                {
+                    sb.AppendLine(unprocessedMethodCall);
+                    sb.AppendLine();
+                }
 
                 switch (GetCallFullName(entry))
                 {
