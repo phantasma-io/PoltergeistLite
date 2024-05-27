@@ -4,6 +4,7 @@ using System.Linq;
 using LunarLabs.Parser;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Numerics;
+using UnityEngine;
 
 namespace Phantasma.Core.Domain
 {
@@ -115,7 +116,7 @@ namespace Phantasma.Core.Domain
             }
         }
 
-        private Random rnd = new Random();
+        private System.Random rnd = new System.Random();
 
         private Dictionary<string, Connection> _connections = new Dictionary<string, Connection>();
 
@@ -499,7 +500,11 @@ namespace Phantasma.Core.Domain
             }
 
             var chain = args[index]; index++;
-            var script = Base16.Decode(args[index], false); index++;
+            var scriptEncoded = args[index]; index++;
+
+            Debug.Log($"[WalletLink:HandleSignTx] chain: {chain}, script: {scriptEncoded}");
+
+            var script = Base16.Decode(scriptEncoded, false);
 
             if (script == null)
             {
