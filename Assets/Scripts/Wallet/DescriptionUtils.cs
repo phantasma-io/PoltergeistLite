@@ -111,10 +111,7 @@ namespace Poltergeist
 
         public static IEnumerator GetDescription(byte[] script, bool devMode, Action<string, string> callback)
         {
-            foreach (var entry in methodTable.Keys)
-            {
-                Debug.Log("disam method: " + entry);
-            }
+            Debug.Log("disam methods: " + string.Join(", ", methodTable.Keys));
 
             if(knownContracts == null)
             {
