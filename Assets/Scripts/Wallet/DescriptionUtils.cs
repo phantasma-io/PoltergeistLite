@@ -109,7 +109,7 @@ namespace Poltergeist
             return tokenId.Substring(0, 5) + "..." + tokenId.Substring(tokenId.Length - 5);
         }
 
-        public static IEnumerator GetDescription(byte[] script, Action<string, string> callback)
+        public static IEnumerator GetDescription(byte[] script, bool devMode, Action<string, string> callback)
         {
             foreach (var entry in methodTable.Keys)
             {
@@ -371,6 +371,12 @@ namespace Poltergeist
                             if (typeAuction == 0)
                             {
                                 sb.AppendLine($"\u2605 List {tokenSymbol} NFT #{ShortenTokenId(nftNumber)} for a Fixed Auction with a price of {price} {priceSymbol}.");
+                                if (devMode)
+                                {
+                                    sb.AppendLine($"Start date: {startDate} [unix seconds: {startDate.Value}].");
+                                    sb.AppendLine($"End date: {untilDate} [unix seconds: {untilDate.Value}].");
+                                    sb.AppendLine($"Extension period: {extensionPeriod}.");
+                                }
                                 break;
                             }
                             else if (typeAuction == 1)
