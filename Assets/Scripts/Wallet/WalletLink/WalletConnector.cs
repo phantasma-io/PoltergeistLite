@@ -429,7 +429,7 @@ namespace Poltergeist
             {
                 try
                 {
-                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, false, (description, error) => {
+                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, accountManager.Settings.devMode, (description, error) => {
 
                         if (description == null)
                         {
