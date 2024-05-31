@@ -853,6 +853,7 @@ namespace Phantasma.Core.Domain
                 {
                     answer = APIUtils.FromAPIResult(new Error() { message = "Invalid or missing API token" });
                     callback(id, answer, false);
+                    _isPendingRequest = false;
                     return;
                 }
 
