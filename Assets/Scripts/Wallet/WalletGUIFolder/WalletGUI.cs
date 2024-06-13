@@ -2134,16 +2134,12 @@ namespace Poltergeist
                 return;
             }
 
-            int curY = Units(12);
-
-            decimal feeBalance = state.GetAvailableAmount("KCAL");
-
             if (state.balances == null)
             {
                 DrawCenteredText($"No assets found in this {accountManager.CurrentPlatform} account.");
                 return;
             }
-            
+
             var balanceCount = DoScrollArea<Balance>(ref balanceScroll, startY, endY, VerticalLayout ? Units(7) : Units(6), state.balances.Where(x => x.Total >= 0.001m),
                 DoBalanceEntry);
 
