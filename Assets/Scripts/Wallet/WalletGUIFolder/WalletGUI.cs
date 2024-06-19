@@ -3112,6 +3112,37 @@ namespace Poltergeist
             DoBottomMenu();
         }
 
+        private List<string> StringSplit(string input, int splitBy)
+        {
+            List<string> result = new();
+            var parts = (int)Math.Ceiling((decimal)input.Length / splitBy);
+            for (var i = 0; i < parts; i++)
+            {
+                if (i == parts - 1)
+                {
+                    result.Add(input.Substring(i * splitBy, input.Length - i * splitBy));
+                }
+                else
+                {
+                    result.Add(input.Substring(i * splitBy, splitBy));
+                }
+            }
+
+            return result;
+        }
+
+        private string KeyPrepareForMessageBox(string key)
+        {
+            if (VerticalLayout)
+            {
+                return string.Join('\n', StringSplit(key, 24).Select(x => string.Join(' ', StringSplit(x, 8))));
+            }
+            else
+            {
+                return string.Join(' ', StringSplit(key, 8));
+            }
+        }
+
         private void DoAccountManagementMenu(int btnOffset)
         {
             var accountManager = AccountManager.Instance;
@@ -3147,12 +3178,8 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            ShowModal("Private key export", $"Copy private key in Wallet Import Format (WIF) or in HEX format to the clipboard" +
+                            ShowModal("Private key export", $"Export private key in Wallet Import Format (WIF) or in HEX format" +
                                 "\n\nWIF format is supported by most of Phantasma blockchain wallets." +
-                                "\nWIF format example (52 symbols):" +
-                                "\nKz9xQgW1U49x8d6yijwLaBgN9x5zEdZaqkjLaS88ZnagcmBjckNE" +
-                                "\n\nHEX format example (64 symbols):" +
-                                "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3" +
                                 "\n\nNEVER SHARE YOUR PRIVATE KEY WITH ANYONE, INCLUDING TEAM, SUPPORT OR COMMUNITY ADMINS",
                                 ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
                                 {
@@ -3163,8 +3190,18 @@ namespace Poltergeist
                                             if (auth == PromptResult.Success)
                                             {
                                                 var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                                                GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
-                                                MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
+                                                var hexKey = PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+
+                                                ShowModal("Your private key (HEX)",
+                                                    KeyPrepareForMessageBox(hexKey),
+                                                    ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 1, (result1, _) =>
+                                                 {
+                                                     if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                     {
+                                                         GUIUtility.systemCopyBuffer = hexKey;
+                                                         MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                     }
+                                                 });
                                             }
                                         },
                                         ignoreStoredPassword: true);
@@ -3175,12 +3212,17 @@ namespace Poltergeist
                                         {
                                             if (auth == PromptResult.Success)
                                             {
-                                                GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
-                                                MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");
+                                                ShowModal("Your private key (WIF)", KeyPrepareForMessageBox(accountManager.CurrentWif), ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 1, (result1, _) =>
+                                                {
+                                                    if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                    {
+                                                        GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
+                                                        MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                    }
+                                                });
                                             }
                                         },
                                         ignoreStoredPassword: true);
-                                        
                                     }
                                 });
                             break;
