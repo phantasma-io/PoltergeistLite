@@ -3178,9 +3178,11 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            ShowModal("Private key export", $"Export private key in Wallet Import Format (WIF) or in HEX format" +
-                                "\n\nWIF format is supported by most of Phantasma blockchain wallets." +
-                                "\n\nNEVER SHARE YOUR PRIVATE KEY WITH ANYONE, INCLUDING TEAM, SUPPORT OR COMMUNITY ADMINS",
+                            ShowModal("Private key export", $"Show private key in WIF format (recommended) or in HEX format." +
+                                "\n\nNEVER SHARE YOUR PRIVATE KEY with ANYONE, including TEAM, SUPPORT or COMMUNITY ADMINS." +
+                                "\n\nFollowing screen will reveal your private key. It provides full access to your wallet and funds." +
+                                " Press 'WIF format' or 'HEX format' buttons to expose private key in corresponding format." +
+                                "\n\nMake sure NO ONE IS LOOKING AT YOUR SCREEN.",
                                 ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
                                 {
                                     if (result == PromptResult.Custom_1)
