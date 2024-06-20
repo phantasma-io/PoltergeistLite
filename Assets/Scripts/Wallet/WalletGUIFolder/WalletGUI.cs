@@ -1289,7 +1289,13 @@ namespace Poltergeist
                                     }
                                     else
                                     {
-                                        MessageBox(MessageKind.Error, "Invalid input format.");
+                                        MessageBox(MessageKind.Error, "Seed phrase or private key that you entered is incorrect." +
+"\nPlease check your spelling carefully, and try again." +
+"\n" +
+"\nEnsure that:" +
+"\n* If copy / pasting - That you've selected the entire set of characters." +
+"\n* If copy / pasting - That the characters have been copied into your clipboard correctly." +
+"\n* If typing it -Take care to check that you're using English keyboard layout and the correct case for each letter.");
                                     }
                                 }
                             });
