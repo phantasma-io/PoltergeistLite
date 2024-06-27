@@ -2810,7 +2810,9 @@ namespace Poltergeist
             {
                 var item = accountManager.GetNft(entryId);
 
-                var image = NftImages.GetImage(item.GetPropertyValue("ImageURL"));
+                var imageUrl = item.GetPropertyValue("ImageURL");
+                imageUrl = imageUrl.Replace("phantasma.io", "phantasma.info");
+                var image = NftImages.GetImage(imageUrl);
 
                 if (!String.IsNullOrEmpty(image.Url))
                 {
