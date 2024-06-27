@@ -2768,14 +2768,43 @@ namespace Poltergeist
 
                     if (!String.IsNullOrEmpty(image.Url))
                     {
-                        var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height), textureDisplayedHeight), image.Texture);
+                        // Placeholder: 962 x 576, 962/576 = 1.67
+                        // We need to fit image into area of the same shape.
+                        var textureWidthToHeight = (float)image.Texture.width / (float)image.Texture.height;
+
+                        float width, height;
+                        int yPosition;
+                        if (textureWidthToHeight <= 1.67)
+                        {
+                            height = VerticalLayout ? Units(3) : Units(3) - 8;
+                            width = (float)height * textureWidthToHeight;
+                            yPosition = VerticalLayout ? curY + Units(1) : curY + 12;
+                        }
+                        else
+                        {
+                            width = Units(4);
+                            height = width / textureWidthToHeight;
+                            yPosition = (VerticalLayout ? curY + Units(1) : curY + 12) + (int)(rect.height / 2 - height);
+                        }
+
+                        GUI.DrawTexture(new Rect(Units(2), yPosition, width, height), image.Texture);
                     }
                 }
 
                 nftName = item.name_english;
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / " + item.description_english);
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.description_english;
+
+                if (VerticalLayout)
+                {
+                    if (nftDescription.Length > 25)
+                        nftDescription = nftDescription.Substring(0, 22) + "...";
+                }
+                else
+                {
+                    if (nftDescription.Length > 123)
+                        nftDescription = nftDescription.Substring(0, 120) + "...";
+                }
             }
             else
             {
@@ -2892,8 +2921,8 @@ namespace Poltergeist
 
             if (VerticalLayout && nftName.Length > 18)
                 nftName = nftName.Substring(0, 15) + "...";
-            else if (nftName.Length > 50)
-                nftName = nftName.Substring(0, 47) + "...";
+            else if (nftName.Length > 123)
+                nftName = nftName.Substring(0, 120) + "...";
 
             if (transferSymbol == "TTRS" || transferSymbol == "GAME")
             {
