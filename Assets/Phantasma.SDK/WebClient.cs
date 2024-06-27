@@ -104,11 +104,27 @@ namespace Phantasma.SDK
                 try
                 {
                     var stringResponse = request.downloadHandler.text;
-                    if (method.ToUpper() == "GETNFT" && parameters.Length > 0 && ((string)parameters[0]).ToUpper() == "GAME")
+
+                    try
                     {
-                        // TODO remove later: Temporary HACK for binary data inside JSON
-                        var cutFrom = stringResponse.IndexOf(",{\"Key\" : \"OriginalMetadata\"");
-                        stringResponse = stringResponse.Substring(0, cutFrom) + "]}";
+                        root = JSONReader.ReadFromString(stringResponse);
+                    }
+                    catch
+                    {
+                        if (method.ToUpper() == "GETNFT" && parameters.Length > 0 && ((string)parameters[0]).ToUpper() == "GAME")
+                        {
+                            Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse GAME NFT, trying workaround. JSON: " + stringResponse, Log.Level.Logic);
+                            // TODO remove later: Temporary HACK for binary data inside JSON
+                            var cutFrom = stringResponse.IndexOf(",{\"Key\":\"OriginalMetadata\"", StringComparison.InvariantCultureIgnoreCase);
+                            if (cutFrom > 0)
+                            {
+                                stringResponse = stringResponse.Substring(0, cutFrom) + "]}";
+                            }
+                        }
+                        else
+                        {
+                            throw;
+                        }
                     }
 
                     root = JSONReader.ReadFromString(stringResponse);
