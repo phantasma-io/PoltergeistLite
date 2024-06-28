@@ -2903,8 +2903,8 @@ namespace Poltergeist
                 }
                 else
                 {
-                    if (nftDescription.Length > 103)
-                        nftDescription = nftDescription.Substring(0, 100) + "...";
+                    if (nftDescription.Length > 100)
+                        nftDescription = nftDescription.Substring(0, 97) + "...";
                 }
 
                 var style = GUI.skin.label;
