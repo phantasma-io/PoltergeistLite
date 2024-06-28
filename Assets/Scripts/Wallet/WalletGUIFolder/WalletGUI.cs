@@ -2794,17 +2794,6 @@ namespace Poltergeist
                 nftName = item.name_english;
 
                 nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.description_english;
-
-                if (VerticalLayout)
-                {
-                    if (nftDescription.Length > 25)
-                        nftDescription = nftDescription.Substring(0, 22) + "...";
-                }
-                else
-                {
-                    if (nftDescription.Length > 123)
-                        nftDescription = nftDescription.Substring(0, 120) + "...";
-                }
             }
             else
             {
@@ -2856,24 +2845,15 @@ namespace Poltergeist
 
                 nftName = item.GetPropertyValue("Name");
                 nftDescription = item.GetPropertyValue("Description");
-                if(VerticalLayout)
-                {
-                    if (nftDescription.Length > 15)
-                        nftDescription = nftDescription.Substring(0, 12) + "...";
-                }
-                else
-                {
-                    if (nftDescription.Length > 60)
-                        nftDescription = nftDescription.Substring(0, 57) + "...";
-                }
 
                 nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
                     (nftDate == DateTime.MinValue ? "" : (VerticalLayout ? nftDate.ToString("dd.MM.yy") : nftDate.ToString("dd.MM.yyyy HH:mm:ss"))) +
                     (String.IsNullOrEmpty(nftDescription) ? "" : ((VerticalLayout ? " " : " / ") + nftDescription));
 
-                infusionDescription = VerticalLayout ? "" : "Infusions: ";
-                if (item.infusion != null)
+                if (item.infusion != null && item.infusion.Length > 0)
                 {
+                    infusionDescription = VerticalLayout ? "" : "Infusions: ";
+
                     var fungibleInfusions = new Dictionary<string, decimal>();
                     var nftInfusions = new Dictionary<string, int>();
                     for (var i = 0; i < item.infusion.Length; i++)
@@ -2912,10 +2892,6 @@ namespace Poltergeist
                         }
                     }
                 }
-                else
-                {
-                    infusionDescription += "None";
-                }
             }
 
             if (String.IsNullOrEmpty(nftName))
@@ -2923,42 +2899,49 @@ namespace Poltergeist
 
             if (VerticalLayout && nftName.Length > 18)
                 nftName = nftName.Substring(0, 15) + "...";
-            else if (nftName.Length > 123)
-                nftName = nftName.Substring(0, 120) + "...";
+            else if (nftName.Length > 103)
+                nftName = nftName.Substring(0, 100) + "...";
 
-            if (transferSymbol == "TTRS" || transferSymbol == "GAME")
+            float nameYPosition = curY;
+            float descYPosition = curY;
+            if (!String.IsNullOrEmpty(infusionDescription))
             {
-                // Old drawing mode for TTRS
-
-                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + 4 : curY, rect.width - Units(6), Units(2) + 4), nftName);
-
-                if (!String.IsNullOrEmpty(nftDescription))
-                {
-                    var style = GUI.skin.label;
-                    style.fontSize -= VerticalLayout ? 2 : 4;
-                    GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(2) + 4 : curY + Units(1) + 8, rect.width - Units(6), Units(2)), nftDescription);
-                    style.fontSize += VerticalLayout ? 2 : 4;
-                }
+                nameYPosition += VerticalLayout ? - 2 : - 8;
+                descYPosition += VerticalLayout ? Units(1) + 6 : Units(1) - 2;
             }
             else
             {
-                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY - 2 : curY - 8, rect.width - Units(6), Units(2) + 4), nftName);
+                nameYPosition += VerticalLayout ? 4 : 0;
+                descYPosition += VerticalLayout ? Units(2) + 4 : Units(1) + 8;
+            }
 
-                if (!String.IsNullOrEmpty(nftDescription))
+            GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, nameYPosition, rect.width - Units(6), Units(2) + 4), nftName);
+
+            if (!String.IsNullOrEmpty(nftDescription))
+            {
+                if (VerticalLayout)
                 {
-                    var style = GUI.skin.label;
-                    style.fontSize -= VerticalLayout ? 2 : 4;
-                    GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(1) + 6 : curY + Units(1) - 2, rect.width - Units(6), Units(2)), nftDescription);
-                    style.fontSize += VerticalLayout ? 2 : 4;
+                    if (nftDescription.Length > 25)
+                        nftDescription = nftDescription.Substring(0, 22) + "...";
+                }
+                else
+                {
+                    if (nftDescription.Length > 103)
+                        nftDescription = nftDescription.Substring(0, 100) + "...";
                 }
 
-                if (!String.IsNullOrEmpty(infusionDescription))
-                {
-                    var style = GUI.skin.label;
-                    style.fontSize -= VerticalLayout ? 2 : 4;
-                    GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(2) + 10 : curY + Units(2), rect.width - Units(6), Units(2)), infusionDescription);
-                    style.fontSize += VerticalLayout ? 2 : 4;
-                }
+                var style = GUI.skin.label;
+                style.fontSize -= VerticalLayout ? 2 : 4;
+                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, descYPosition, rect.width - Units(6), Units(2)), nftDescription);
+                style.fontSize += VerticalLayout ? 2 : 4;
+            }
+
+            if (!String.IsNullOrEmpty(infusionDescription))
+            {
+                var style = GUI.skin.label;
+                style.fontSize -= VerticalLayout ? 2 : 4;
+                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(2) + 10 : curY + Units(2), rect.width - Units(6), Units(2)), infusionDescription);
+                style.fontSize += VerticalLayout ? 2 : 4;
             }
 
             Rect btnRectToggle;
