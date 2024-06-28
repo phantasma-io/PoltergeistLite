@@ -2696,6 +2696,7 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
+            string imageUrl = "";
             string nftName;
             string nftDescription;
             string infusionDescription = "";
@@ -2706,13 +2707,7 @@ namespace Poltergeist
 
                 if (!String.IsNullOrEmpty(item.NameEnglish))
                 {
-                    var image = NftImages.GetImage(item.Img);
-
-                    if (!String.IsNullOrEmpty(image.Url))
-                    {
-                        var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height), textureDisplayedHeight), image.Texture);
-                    }
+                    imageUrl = item.Img;
                 }
 
                 string rarity;
@@ -2764,31 +2759,7 @@ namespace Poltergeist
 
                 if (!String.IsNullOrEmpty(item.name_english))
                 {
-                    var image = NftImages.GetImage(item.img_url);
-
-                    if (!String.IsNullOrEmpty(image.Url))
-                    {
-                        // Placeholder: 962 x 576, 962/576 = 1.67
-                        // We need to fit image into area of the same shape.
-                        var textureWidthToHeight = (float)image.Texture.width / (float)image.Texture.height;
-
-                        float width, height;
-                        int yPosition;
-                        if (textureWidthToHeight <= 1.67)
-                        {
-                            height = VerticalLayout ? Units(3) : Units(3) - 8;
-                            width = (float)height * textureWidthToHeight;
-                            yPosition = VerticalLayout ? curY + Units(1) : curY + 12;
-                        }
-                        else
-                        {
-                            width = Units(4);
-                            height = width / textureWidthToHeight;
-                            yPosition = (VerticalLayout ? curY + Units(1) : curY + 12) + (int)(rect.height / 2 - height);
-                        }
-
-                        GUI.DrawTexture(new Rect(Units(2), yPosition, width, height), image.Texture);
-                    }
+                    imageUrl = item.img_url;
                 }
 
                 nftName = item.name_english;
@@ -2799,43 +2770,7 @@ namespace Poltergeist
             {
                 var item = accountManager.GetNft(entryId);
 
-                var imageUrl = item.GetPropertyValue("ImageURL");
-                imageUrl = imageUrl.Replace("phantasma.io", "phantasma.info");
-                var image = NftImages.GetImage(imageUrl);
-
-                if (!String.IsNullOrEmpty(image.Url))
-                {
-                    var textureDisplayedWidth = VerticalLayout ? Units(7) - Units(3) : Units(6) - Units(3) + 8;
-                    var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
-
-                    if (image.Url.StartsWith("ipfs-audio://"))
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftAudioPlaceholder.width / (float)ResourceManager.Instance.NftAudioPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftAudioPlaceholder);
-                    else if (image.Url.StartsWith("ipfs-video://"))
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftVideoPlaceholder.width / (float)ResourceManager.Instance.NftVideoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftVideoPlaceholder);
-                    else if (image.Texture == null)
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftPhotoPlaceholder.width / (float)ResourceManager.Instance.NftPhotoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftPhotoPlaceholder);
-                    else
-                    {
-                        var width = (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height);
-                        var height = (float)textureDisplayedHeight;
-                        if(width > textureDisplayedWidth)
-                        {
-                            var correction = textureDisplayedWidth / width;
-                            width = textureDisplayedWidth;
-                            height = height * correction;
-                        }
-
-                        // Following code helps to center images in the image area.
-                        var x = Units(2);
-                        if (width < textureDisplayedWidth)
-                            x += (int)((textureDisplayedWidth - width) / 2);
-                        var y = VerticalLayout ? curY + Units(1) : curY + 12;
-                        if (height < textureDisplayedHeight)
-                            y += (int)((textureDisplayedHeight - height) / 2);
-
-                        GUI.DrawTexture(new Rect(x, y, width, height), image.Texture);
-                    }
-                }
+                imageUrl = item.GetPropertyValue("ImageURL");
 
                 DateTime nftDate = new DateTime();
                 if (item.parsedRom != null)
@@ -2890,6 +2825,48 @@ namespace Poltergeist
                         {
                             infusionDescription += (fungibleInfusions.Count() > 0 || i > 0 ? ", " : "") + (nftInfusions.ElementAt(i).Value > 1 ? nftInfusions.ElementAt(i).Value + " " : "") + nftInfusions.ElementAt(i).Key + " NFT" + (nftInfusions.ElementAt(i).Value > 1 ? "s" : "");
                         }
+                    }
+                }
+            }
+
+            // Fixing CROWNs image url
+            imageUrl = imageUrl.Replace("phantasma.io", "phantasma.info");
+
+            if (!String.IsNullOrEmpty(imageUrl))
+            {
+                var image = NftImages.GetImage(imageUrl);
+
+                if (!String.IsNullOrEmpty(image.Url))
+                {
+                    var textureDisplayedWidth = VerticalLayout ? Units(7) - Units(3) : Units(6) - Units(3) + 8;
+                    var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
+
+                    if (image.Url.StartsWith("ipfs-audio://"))
+                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftAudioPlaceholder.width / (float)ResourceManager.Instance.NftAudioPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftAudioPlaceholder);
+                    else if (image.Url.StartsWith("ipfs-video://"))
+                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftVideoPlaceholder.width / (float)ResourceManager.Instance.NftVideoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftVideoPlaceholder);
+                    else if (image.Texture == null)
+                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftPhotoPlaceholder.width / (float)ResourceManager.Instance.NftPhotoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftPhotoPlaceholder);
+                    else
+                    {
+                        var width = (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height);
+                        var height = (float)textureDisplayedHeight;
+                        if (width > textureDisplayedWidth)
+                        {
+                            var correction = textureDisplayedWidth / width;
+                            width = textureDisplayedWidth;
+                            height = height * correction;
+                        }
+
+                        // Following code helps to center images in the image area.
+                        var x = Units(2);
+                        if (width < textureDisplayedWidth)
+                            x += (int)((textureDisplayedWidth - width) / 2);
+                        var y = VerticalLayout ? curY + Units(1) : curY + 12;
+                        if (height < textureDisplayedHeight)
+                            y += (int)((textureDisplayedHeight - height) / 2);
+
+                        GUI.DrawTexture(new Rect(x, y, width, height), image.Texture);
                     }
                 }
             }
