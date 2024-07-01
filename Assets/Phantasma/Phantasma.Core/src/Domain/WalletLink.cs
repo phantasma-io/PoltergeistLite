@@ -482,7 +482,7 @@ namespace Phantasma.Core.Domain
                 var txNexus = args[index]; index++;
                 if (txNexus != this.Nexus)
                 {
-                    answer = APIUtils.FromAPIResult(new Error() { message = $"signTx: Expected nexus {this.Nexus}, instead got {txNexus}" });
+                    answer = APIUtils.FromAPIResult(new Error() { message = $"signTx: Expected nexus {this.Nexus}, instead got {txNexus}. Wrong network selected, please check Dapp or Wallet settings" });
                     callback(id, answer, false);
                     _isPendingRequest = false;
                     return;
@@ -621,7 +621,14 @@ namespace Phantasma.Core.Domain
             var platform = connection.Version >= 2 ? args[2].ToLower() : "phantasma";
 
             var transaction = Phantasma.Core.Domain.Transaction.Unserialize(data);
-            
+            if (transaction.NexusName != this.Nexus)
+            {
+                answer = APIUtils.FromAPIResult(new Error() { message = $"signData: Expected nexus {this.Nexus}, instead got {transaction.NexusName}. Wrong network selected, please check Dapp or Wallet settings" });
+                callback(id, answer, false);
+                _isPendingRequest = false;
+                return;
+            }
+
             SignTransactionSignature(transaction, platform, signatureKind, (signature, txError) => {
                 if (signature != null)
                 {
