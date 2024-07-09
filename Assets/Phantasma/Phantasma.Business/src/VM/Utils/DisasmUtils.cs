@@ -12,15 +12,19 @@ namespace Phantasma.Business.VM.Utils
 
         public VMObject[] Arguments;
 
-        public override string ToString()
+        public string ToString(bool useNewlines)
         {
             var sb = new StringBuilder();
             sb.Append($"{ContractName}.{MethodName}(");
-            for (int i=0; i<Arguments.Length; i++)
+            for (int i = 0; i < Arguments.Length; i++)
             {
                 if (i > 0)
                 {
                     sb.Append(',');
+                    if(useNewlines)
+                    {
+                        sb.Append('\n');
+                    }
                 }
 
                 var arg = Arguments[i];
@@ -28,6 +32,11 @@ namespace Phantasma.Business.VM.Utils
             }
             sb.Append(")");
             return sb.ToString();
+        }
+
+        public override string ToString()
+        {
+            return ToString(true);
         }
     }
 

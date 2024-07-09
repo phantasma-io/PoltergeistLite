@@ -429,12 +429,16 @@ namespace Poltergeist
             {
                 try
                 {
-                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, (description, error) => {
+                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, accountManager.Settings.devMode, (description, error) => {
 
                         if (description == null)
                         {
                             Log.Write("Error during description parsing.\nDetails: " + error);
                             //description = "Could not decode transaction contents. (Not an error)";
+                        }
+                        else
+                        {
+                            Log.Write("Script description: " + description);
                         }
 
                         WalletGUI.Instance.Prompt("Allow dapp to send a transaction on your behalf?\n" + description, (success) =>

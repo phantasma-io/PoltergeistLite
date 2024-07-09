@@ -102,6 +102,8 @@ namespace Poltergeist
 
         public const string PasswordModeTag = "password.mode";
 
+        public const string DevModeTag = "developer.mode";
+
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
         public string phantasmaNftExplorer;
@@ -121,6 +123,7 @@ namespace Poltergeist
         public MnemonicPhraseLength mnemonicPhraseLength;
         public MnemonicPhraseVerificationMode mnemonicPhraseVerificationMode;
         public PasswordMode passwordMode;
+        public bool devMode;
 
         public override string ToString()
         {
@@ -141,7 +144,8 @@ namespace Poltergeist
                 "NFT sort direction: " + this.nftSortDirection + "\n" +
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
                 "Mnemonic phrase verification mode: " + this.mnemonicPhraseVerificationMode + "\n" +
-                "Password mode: " + this.passwordMode;
+                "Password mode: " + this.passwordMode + "\n" +
+                "Developer mode: " + this.devMode;
         }
 
         public void LoadLogSettings()
@@ -226,6 +230,8 @@ namespace Poltergeist
             {
                 this.passwordMode = PasswordMode.Ask_Always;
             }
+
+            this.devMode = PlayerPrefs.GetInt(DevModeTag, 0) != 0;
 
             Log.Write("Settings: Load: " + ToString());
         }
@@ -357,6 +363,7 @@ namespace Poltergeist
             PlayerPrefs.SetString(MnemonicPhraseLengthTag, this.mnemonicPhraseLength.ToString());
             PlayerPrefs.SetString(MnemonicPhraseVerificationModeTag, this.mnemonicPhraseVerificationMode.ToString());
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
+            PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
             PlayerPrefs.Save();
 
             Log.Write("Settings: Save: " + ToString());

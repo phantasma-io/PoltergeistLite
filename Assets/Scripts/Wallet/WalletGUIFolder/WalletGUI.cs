@@ -1289,7 +1289,13 @@ namespace Poltergeist
                                     }
                                     else
                                     {
-                                        MessageBox(MessageKind.Error, "Invalid input format.");
+                                        MessageBox(MessageKind.Error, "Seed phrase or private key that you entered is incorrect." +
+"\nPlease check your spelling carefully, and try again." +
+"\n" +
+"\nEnsure that:" +
+"\n* If copy / pasting - That you've selected the entire set of characters." +
+"\n* If copy / pasting - That the characters have been copied into your clipboard correctly." +
+"\n* If typing it -Take care to check that you're using English keyboard layout and the correct case for each letter.");
                                     }
                                 }
                             });
@@ -2134,16 +2140,12 @@ namespace Poltergeist
                 return;
             }
 
-            int curY = Units(12);
-
-            decimal feeBalance = state.GetAvailableAmount("KCAL");
-
             if (state.balances == null)
             {
                 DrawCenteredText($"No assets found in this {accountManager.CurrentPlatform} account.");
                 return;
             }
-            
+
             var balanceCount = DoScrollArea<Balance>(ref balanceScroll, startY, endY, VerticalLayout ? Units(7) : Units(6), state.balances.Where(x => x.Total >= 0.001m),
                 DoBalanceEntry);
 
@@ -2694,6 +2696,7 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
+            string imageUrl = "";
             string nftName;
             string nftDescription;
             string infusionDescription = "";
@@ -2704,13 +2707,7 @@ namespace Poltergeist
 
                 if (!String.IsNullOrEmpty(item.NameEnglish))
                 {
-                    var image = NftImages.GetImage(item.Img);
-
-                    if (!String.IsNullOrEmpty(image.Url))
-                    {
-                        var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height), textureDisplayedHeight), image.Texture);
-                    }
+                    imageUrl = item.Img;
                 }
 
                 string rarity;
@@ -2762,58 +2759,18 @@ namespace Poltergeist
 
                 if (!String.IsNullOrEmpty(item.name_english))
                 {
-                    var image = NftImages.GetImage(item.img_url);
-
-                    if (!String.IsNullOrEmpty(image.Url))
-                    {
-                        var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height), textureDisplayedHeight), image.Texture);
-                    }
+                    imageUrl = item.img_url;
                 }
 
                 nftName = item.name_english;
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / " + item.description_english);
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.description_english;
             }
             else
             {
                 var item = accountManager.GetNft(entryId);
 
-                var image = NftImages.GetImage(item.GetPropertyValue("ImageURL"));
-
-                if (!String.IsNullOrEmpty(image.Url))
-                {
-                    var textureDisplayedWidth = VerticalLayout ? Units(7) - Units(3) : Units(6) - Units(3) + 8;
-                    var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
-
-                    if (image.Url.StartsWith("ipfs-audio://"))
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftAudioPlaceholder.width / (float)ResourceManager.Instance.NftAudioPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftAudioPlaceholder);
-                    else if (image.Url.StartsWith("ipfs-video://"))
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftVideoPlaceholder.width / (float)ResourceManager.Instance.NftVideoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftVideoPlaceholder);
-                    else if (image.Texture == null)
-                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftPhotoPlaceholder.width / (float)ResourceManager.Instance.NftPhotoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftPhotoPlaceholder);
-                    else
-                    {
-                        var width = (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height);
-                        var height = (float)textureDisplayedHeight;
-                        if(width > textureDisplayedWidth)
-                        {
-                            var correction = textureDisplayedWidth / width;
-                            width = textureDisplayedWidth;
-                            height = height * correction;
-                        }
-
-                        // Following code helps to center images in the image area.
-                        var x = Units(2);
-                        if (width < textureDisplayedWidth)
-                            x += (int)((textureDisplayedWidth - width) / 2);
-                        var y = VerticalLayout ? curY + Units(1) : curY + 12;
-                        if (height < textureDisplayedHeight)
-                            y += (int)((textureDisplayedHeight - height) / 2);
-
-                        GUI.DrawTexture(new Rect(x, y, width, height), image.Texture);
-                    }
-                }
+                imageUrl = item.GetPropertyValue("ImageURL");
 
                 DateTime nftDate = new DateTime();
                 if (item.parsedRom != null)
@@ -2823,24 +2780,15 @@ namespace Poltergeist
 
                 nftName = item.GetPropertyValue("Name");
                 nftDescription = item.GetPropertyValue("Description");
-                if(VerticalLayout)
-                {
-                    if (nftDescription.Length > 15)
-                        nftDescription = nftDescription.Substring(0, 12) + "...";
-                }
-                else
-                {
-                    if (nftDescription.Length > 60)
-                        nftDescription = nftDescription.Substring(0, 57) + "...";
-                }
 
                 nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
                     (nftDate == DateTime.MinValue ? "" : (VerticalLayout ? nftDate.ToString("dd.MM.yy") : nftDate.ToString("dd.MM.yyyy HH:mm:ss"))) +
                     (String.IsNullOrEmpty(nftDescription) ? "" : ((VerticalLayout ? " " : " / ") + nftDescription));
 
-                infusionDescription = VerticalLayout ? "" : "Infusions: ";
-                if (item.infusion != null)
+                if (item.infusion != null && item.infusion.Length > 0)
                 {
+                    infusionDescription = VerticalLayout ? "" : "Infusions: ";
+
                     var fungibleInfusions = new Dictionary<string, decimal>();
                     var nftInfusions = new Dictionary<string, int>();
                     for (var i = 0; i < item.infusion.Length; i++)
@@ -2879,9 +2827,47 @@ namespace Poltergeist
                         }
                     }
                 }
-                else
+            }
+
+            // Fixing CROWNs image url
+            imageUrl = imageUrl.Replace("phantasma.io", "phantasma.info");
+
+            if (!String.IsNullOrEmpty(imageUrl))
+            {
+                var image = NftImages.GetImage(imageUrl);
+
+                if (!String.IsNullOrEmpty(image.Url))
                 {
-                    infusionDescription += "None";
+                    var textureDisplayedWidth = VerticalLayout ? Units(7) - Units(3) : Units(6) - Units(3) + 8;
+                    var textureDisplayedHeight = VerticalLayout ? Units(3) : Units(3) - 8;
+
+                    if (image.Url.StartsWith("ipfs-audio://"))
+                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftAudioPlaceholder.width / (float)ResourceManager.Instance.NftAudioPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftAudioPlaceholder);
+                    else if (image.Url.StartsWith("ipfs-video://"))
+                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftVideoPlaceholder.width / (float)ResourceManager.Instance.NftVideoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftVideoPlaceholder);
+                    else if (image.Texture == null)
+                        GUI.DrawTexture(new Rect(Units(2), VerticalLayout ? curY + Units(1) : curY + 12, (float)textureDisplayedHeight * ((float)ResourceManager.Instance.NftPhotoPlaceholder.width / (float)ResourceManager.Instance.NftPhotoPlaceholder.height), textureDisplayedHeight), ResourceManager.Instance.NftPhotoPlaceholder);
+                    else
+                    {
+                        var width = (float)textureDisplayedHeight * ((float)image.Texture.width / (float)image.Texture.height);
+                        var height = (float)textureDisplayedHeight;
+                        if (width > textureDisplayedWidth)
+                        {
+                            var correction = textureDisplayedWidth / width;
+                            width = textureDisplayedWidth;
+                            height = height * correction;
+                        }
+
+                        // Following code helps to center images in the image area.
+                        var x = Units(2);
+                        if (width < textureDisplayedWidth)
+                            x += (int)((textureDisplayedWidth - width) / 2);
+                        var y = VerticalLayout ? curY + Units(1) : curY + 12;
+                        if (height < textureDisplayedHeight)
+                            y += (int)((textureDisplayedHeight - height) / 2);
+
+                        GUI.DrawTexture(new Rect(x, y, width, height), image.Texture);
+                    }
                 }
             }
 
@@ -2890,42 +2876,49 @@ namespace Poltergeist
 
             if (VerticalLayout && nftName.Length > 18)
                 nftName = nftName.Substring(0, 15) + "...";
-            else if (nftName.Length > 50)
-                nftName = nftName.Substring(0, 47) + "...";
+            else if (nftName.Length > 103)
+                nftName = nftName.Substring(0, 100) + "...";
 
-            if (transferSymbol == "TTRS" || transferSymbol == "GAME")
+            float nameYPosition = curY;
+            float descYPosition = curY;
+            if (!String.IsNullOrEmpty(infusionDescription))
             {
-                // Old drawing mode for TTRS
-
-                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + 4 : curY, rect.width - Units(6), Units(2) + 4), nftName);
-
-                if (!String.IsNullOrEmpty(nftDescription))
-                {
-                    var style = GUI.skin.label;
-                    style.fontSize -= VerticalLayout ? 2 : 4;
-                    GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(2) + 4 : curY + Units(1) + 8, rect.width - Units(6), Units(2)), nftDescription);
-                    style.fontSize += VerticalLayout ? 2 : 4;
-                }
+                nameYPosition += VerticalLayout ? - 2 : - 8;
+                descYPosition += VerticalLayout ? Units(1) + 6 : Units(1) - 2;
             }
             else
             {
-                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY - 2 : curY - 8, rect.width - Units(6), Units(2) + 4), nftName);
+                nameYPosition += VerticalLayout ? 4 : 0;
+                descYPosition += VerticalLayout ? Units(2) + 4 : Units(1) + 8;
+            }
 
-                if (!String.IsNullOrEmpty(nftDescription))
+            GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, nameYPosition, rect.width - Units(6), Units(2) + 4), nftName);
+
+            if (!String.IsNullOrEmpty(nftDescription))
+            {
+                if (VerticalLayout)
                 {
-                    var style = GUI.skin.label;
-                    style.fontSize -= VerticalLayout ? 2 : 4;
-                    GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(1) + 6 : curY + Units(1) - 2, rect.width - Units(6), Units(2)), nftDescription);
-                    style.fontSize += VerticalLayout ? 2 : 4;
+                    if (nftDescription.Length > 25)
+                        nftDescription = nftDescription.Substring(0, 22) + "...";
+                }
+                else
+                {
+                    if (nftDescription.Length > 100)
+                        nftDescription = nftDescription.Substring(0, 97) + "...";
                 }
 
-                if (!String.IsNullOrEmpty(infusionDescription))
-                {
-                    var style = GUI.skin.label;
-                    style.fontSize -= VerticalLayout ? 2 : 4;
-                    GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(2) + 10 : curY + Units(2), rect.width - Units(6), Units(2)), infusionDescription);
-                    style.fontSize += VerticalLayout ? 2 : 4;
-                }
+                var style = GUI.skin.label;
+                style.fontSize -= VerticalLayout ? 2 : 4;
+                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, descYPosition, rect.width - Units(6), Units(2)), nftDescription);
+                style.fontSize += VerticalLayout ? 2 : 4;
+            }
+
+            if (!String.IsNullOrEmpty(infusionDescription))
+            {
+                var style = GUI.skin.label;
+                style.fontSize -= VerticalLayout ? 2 : 4;
+                GUI.Label(new Rect(VerticalLayout ? Units(7) : Units(6) + 8, VerticalLayout ? curY + Units(2) + 10 : curY + Units(2), rect.width - Units(6), Units(2)), infusionDescription);
+                style.fontSize += VerticalLayout ? 2 : 4;
             }
 
             Rect btnRectToggle;
@@ -3116,6 +3109,37 @@ namespace Poltergeist
             DoBottomMenu();
         }
 
+        private List<string> StringSplit(string input, int splitBy)
+        {
+            List<string> result = new();
+            var parts = (int)Math.Ceiling((decimal)input.Length / splitBy);
+            for (var i = 0; i < parts; i++)
+            {
+                if (i == parts - 1)
+                {
+                    result.Add(input.Substring(i * splitBy, input.Length - i * splitBy));
+                }
+                else
+                {
+                    result.Add(input.Substring(i * splitBy, splitBy));
+                }
+            }
+
+            return result;
+        }
+
+        private string KeyPrepareForMessageBox(string key)
+        {
+            if (VerticalLayout)
+            {
+                return string.Join('\n', StringSplit(key, 24).Select(x => string.Join(' ', StringSplit(x, 8))));
+            }
+            else
+            {
+                return string.Join(' ', StringSplit(key, 8));
+            }
+        }
+
         private void DoAccountManagementMenu(int btnOffset)
         {
             var accountManager = AccountManager.Instance;
@@ -3151,13 +3175,11 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            ShowModal("Private key export", $"Copy private key in Wallet Import Format (WIF) or in HEX format to the clipboard" +
-                                "\n\nWIF format is supported by most of Phantasma blockchain wallets." +
-                                "\nWIF format example (52 symbols):" +
-                                "\nKz9xQgW1U49x8d6yijwLaBgN9x5zEdZaqkjLaS88ZnagcmBjckNE" +
-                                "\n\nHEX format example (64 symbols):" +
-                                "\n5794a280d6d69c676855d6ffb63b40b20fde3c79d557cd058c95cd608a933fc3" +
-                                "\n\nNEVER SHARE YOUR PRIVATE KEY WITH ANYONE, INCLUDING TEAM, SUPPORT OR COMMUNITY ADMINS",
+                            ShowModal("Private key export", $"Show private key in WIF format (recommended) or in HEX format." +
+                                "\n\nNEVER SHARE YOUR PRIVATE KEY with ANYONE, including TEAM, SUPPORT or COMMUNITY ADMINS." +
+                                "\n\nFollowing screen will reveal your private key. It provides full access to your wallet and funds." +
+                                " Press 'WIF format' or 'HEX format' buttons to expose private key in corresponding format." +
+                                "\n\nMake sure NO ONE IS LOOKING AT YOUR SCREEN.",
                                 ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
                                 {
                                     if (result == PromptResult.Custom_1)
@@ -3167,8 +3189,18 @@ namespace Poltergeist
                                             if (auth == PromptResult.Success)
                                             {
                                                 var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                                                GUIUtility.systemCopyBuffer = Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
-                                                MessageBox(MessageKind.Default, "Private key (HEX format) copied to the clipboard.");
+                                                var hexKey = PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+
+                                                ShowModal("Your private key (HEX)",
+                                                    KeyPrepareForMessageBox(hexKey),
+                                                    ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 1, (result1, _) =>
+                                                 {
+                                                     if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                     {
+                                                         GUIUtility.systemCopyBuffer = hexKey;
+                                                         MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                     }
+                                                 });
                                             }
                                         },
                                         ignoreStoredPassword: true);
@@ -3179,12 +3211,17 @@ namespace Poltergeist
                                         {
                                             if (auth == PromptResult.Success)
                                             {
-                                                GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
-                                                MessageBox(MessageKind.Default, "Private key (WIF format) copied to the clipboard.");
+                                                ShowModal("Your private key (WIF)", KeyPrepareForMessageBox(accountManager.CurrentWif), ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 1, (result1, _) =>
+                                                {
+                                                    if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                    {
+                                                        GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
+                                                        MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                    }
+                                                });
                                             }
                                         },
                                         ignoreStoredPassword: true);
-                                        
                                     }
                                 });
                             break;

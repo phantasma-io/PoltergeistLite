@@ -109,12 +109,9 @@ namespace Poltergeist
             return tokenId.Substring(0, 5) + "..." + tokenId.Substring(tokenId.Length - 5);
         }
 
-        public static IEnumerator GetDescription(byte[] script, Action<string, string> callback)
+        public static IEnumerator GetDescription(byte[] script, bool devMode, Action<string, string> callback)
         {
-            foreach (var entry in methodTable.Keys)
-            {
-                Debug.Log("disam method: " + entry);
-            }
+            Debug.Log("disam methods: " + string.Join(", ", methodTable.Keys));
 
             if(knownContracts == null)
             {
@@ -217,7 +214,13 @@ namespace Poltergeist
                 }
 
                 // Put it to log so that developer can easily check what PG is receiving.
-                Log.Write("GetDescription(): Contract's description: " + entry.ToString());
+                var unprocessedMethodCall = "Unprocessed method call: " + entry.ToString();
+                Log.Write(unprocessedMethodCall);
+                if(devMode)
+                {
+                    sb.AppendLine(unprocessedMethodCall);
+                    sb.AppendLine();
+                }
 
                 switch (GetCallFullName(entry))
                 {
@@ -371,6 +374,12 @@ namespace Poltergeist
                             if (typeAuction == 0)
                             {
                                 sb.AppendLine($"\u2605 List {tokenSymbol} NFT #{ShortenTokenId(nftNumber)} for a Fixed Auction with a price of {price} {priceSymbol}.");
+                                if (devMode)
+                                {
+                                    sb.AppendLine($"Start date: {startDate} [unix seconds: {startDate.Value}].");
+                                    sb.AppendLine($"End date: {untilDate} [unix seconds: {untilDate.Value}].");
+                                    sb.AppendLine($"Extension period: {extensionPeriod}.");
+                                }
                                 break;
                             }
                             else if (typeAuction == 1)

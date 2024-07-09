@@ -4,6 +4,7 @@ using System.Linq;
 using LunarLabs.Parser;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Numerics;
+using UnityEngine;
 
 namespace Phantasma.Core.Domain
 {
@@ -115,7 +116,7 @@ namespace Phantasma.Core.Domain
             }
         }
 
-        private Random rnd = new Random();
+        private System.Random rnd = new System.Random();
 
         private Dictionary<string, Connection> _connections = new Dictionary<string, Connection>();
 
@@ -481,7 +482,7 @@ namespace Phantasma.Core.Domain
                 var txNexus = args[index]; index++;
                 if (txNexus != this.Nexus)
                 {
-                    answer = APIUtils.FromAPIResult(new Error() { message = $"signTx: Expected nexus {this.Nexus}, instead got {txNexus}" });
+                    answer = APIUtils.FromAPIResult(new Error() { message = $"signTx: Expected nexus {this.Nexus}, instead got {txNexus}. Wrong network selected, please check Dapp or Wallet settings" });
                     callback(id, answer, false);
                     _isPendingRequest = false;
                     return;
@@ -499,7 +500,11 @@ namespace Phantasma.Core.Domain
             }
 
             var chain = args[index]; index++;
-            var script = Base16.Decode(args[index], false); index++;
+            var scriptEncoded = args[index]; index++;
+
+            Debug.Log($"[WalletLink:HandleSignTx] chain: {chain}, script: {scriptEncoded}");
+
+            var script = Base16.Decode(scriptEncoded, false);
 
             if (script == null)
             {
@@ -616,7 +621,14 @@ namespace Phantasma.Core.Domain
             var platform = connection.Version >= 2 ? args[2].ToLower() : "phantasma";
 
             var transaction = Phantasma.Core.Domain.Transaction.Unserialize(data);
-            
+            if (transaction.NexusName != this.Nexus)
+            {
+                answer = APIUtils.FromAPIResult(new Error() { message = $"signData: Expected nexus {this.Nexus}, instead got {transaction.NexusName}. Wrong network selected, please check Dapp or Wallet settings" });
+                callback(id, answer, false);
+                _isPendingRequest = false;
+                return;
+            }
+
             SignTransactionSignature(transaction, platform, signatureKind, (signature, txError) => {
                 if (signature != null)
                 {
@@ -848,6 +860,7 @@ namespace Phantasma.Core.Domain
                 {
                     answer = APIUtils.FromAPIResult(new Error() { message = "Invalid or missing API token" });
                     callback(id, answer, false);
+                    _isPendingRequest = false;
                     return;
                 }
 

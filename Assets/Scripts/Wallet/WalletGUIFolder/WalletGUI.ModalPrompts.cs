@@ -11,7 +11,10 @@ namespace Poltergeist
         #region MODAL PROMPTS
         private string[] ModalNone = new string[] { };
         private string[] ModalOk = new string[] { "Ok" };
+        // ModalOkCopy automatically processes "Copy" button press
         private string[] ModalOkCopy = new string[] { "Ok", "Copy to clipboard" };
+        // ModalOkCopy_NoAutoCopy requires "Copy" button press callback to be implemented
+        private string[] ModalOkCopy_NoAutoCopy = new string[] { "Ok", "Copy to clipboard" };
         private string[] ModalOkView = new string[] { "Ok", "View" };
         private string[] ModalConfirmCancel = new string[] { "Confirm", "Cancel" };
         private string[] ModalSendCancel = new string[] { "Send", "Cancel" };
