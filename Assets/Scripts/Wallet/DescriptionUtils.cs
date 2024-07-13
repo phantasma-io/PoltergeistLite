@@ -262,8 +262,23 @@ namespace Poltergeist
                         }
                     case "Runtime.TransferTokens":
                         {
-                            var src = GetStringArg(entry, 0);
-                            var dst = GetStringArg(entry, 1);
+                            string src, dst;
+                            if (entry.Arguments[0].Type.ToString() == "Bytes")
+                            {
+                                src = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                src = GetStringArg(entry, 0);
+                            }
+                            if (entry.Arguments[1].Type.ToString() == "Bytes")
+                            {
+                                dst = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                dst = GetStringArg(entry, 1);
+                            }
                             var symbol = GetStringArg(entry, 2);
                             var amount = GetNumberArg(entry, 3);
 
