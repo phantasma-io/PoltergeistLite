@@ -432,6 +432,69 @@ namespace Poltergeist
             });
             curY += Units(3);
 
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Decode tx", () =>
+            {
+                ShowModal("Encoded transaction", "Enter transaction in Base16 encoding", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                {
+                    if (result == PromptResult.Success)
+                    {
+                        var tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+
+                        if (tx == null)
+                        {
+                            ShowModal("Tx description", $"Cannot parse transaction '{input}'",
+                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                        }
+                        else
+                        {
+                            try
+                            {
+                                WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(tx.Script, true, (description, error) =>
+                                {
+                                    string message;
+                                    if (description == null)
+                                    {
+                                        message = "Error during script parsing.\nDetails: " + error;
+                                    }
+                                    else
+                                    {
+                                        message = description;
+                                    }
+
+                                    string signatures = "";
+                                    if (tx.HasSignatures)
+                                    {
+                                        foreach (var s in tx.Signatures)
+                                        {
+                                            signatures += s.ToString() + "\n";
+                                        }
+                                    }
+
+                                    message = "Nexus name: " + tx.NexusName + "\n" +
+                                        "Chain name: " + tx.ChainName + "\n" +
+                                        "Expiration: " + tx.Expiration + "\n" +
+                                        "Payload: " + System.Text.Encoding.UTF8.GetString(tx.Payload) + "\n" +
+                                        "Hash: " + tx.Hash + "\n" +
+                                        "Signatures count: " + (tx.HasSignatures ? tx.Signatures.Length : "0") + "\n" +
+                                        "Signatures: " + signatures + "\n" +
+                                        "\n" +
+                                        message;
+
+                                    ShowModal("Tx description", message,
+                                        ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                }));
+                            }
+                            catch (Exception e)
+                            {
+                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.Message);
+                                return;
+                            }
+                        }
+                    }
+                });
+            });
+            curY += Units(3);
+
             curY += Units(1);
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Clear cache", () =>
             {
