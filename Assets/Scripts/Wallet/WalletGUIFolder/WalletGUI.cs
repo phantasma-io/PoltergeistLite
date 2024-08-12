@@ -2028,6 +2028,8 @@ namespace Poltergeist
                 });
             }
         }
+
+        private string[] backupScreenOptions = new string[] { "Copy to clipboard", "Continue", "Cancel" };
         private void DoBackupScreen()
         {
             int curY;
@@ -2050,42 +2052,52 @@ namespace Poltergeist
             rect.y += Border*2;
             GUI.Label(rect, "For your own safety, write down these words on a piece of paper and store it safely and hidden.\nThese words serve as a back-up of your wallet.\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.");
 
-            var btnWidth = Units(10);
-            var btnHeight = Units(3);
-            curY = (int)(windowRect.height - Units(VerticalLayout ? 6: 7));
-            DoButton(true, new Rect(windowRect.width / 3 - btnWidth / 2, curY, btnWidth, Units(2)), "Copy to clipboard", () =>
+            DoButtonGrid<int>(true, backupScreenOptions.Length, Units(2), 0, out _, (index) =>
             {
-                GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
-                MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
-            });
-
-            DoButton(true, new Rect((windowRect.width / 2) - btnWidth / 2, curY, btnWidth, Units(2)), "Continue", () =>
+                return new MenuEntry(index, backupScreenOptions[index], true);
+            },
+            (selected) =>
             {
-                int[] wordsOrder;
-                if(AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
-                    wordsOrder = Enumerable.Range(1, 12).ToArray();
-                else
-                    wordsOrder = Enumerable.Range(1, 24).ToArray();
-
-                var rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
-                wordsOrder = wordsOrder.OrderBy(x => GetNextInt32(rnd)).ToArray();
-
-                TrySeedVerification(wordsOrder, (success) =>
+                switch (selected)
                 {
-                    if (success)
-                    {
-                        newWalletCallback();
-                    }
-                    else
-                    {
-                        PopState();
-                    }
-                });
-            });
-            
-            DoButton(true, new Rect((windowRect.width / 3) * 2 - btnWidth / 2, curY, btnWidth, Units(2)), "Cancel", () =>
-            {
-                PopState();
+                    case 0:
+                        {
+                            GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
+                            MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
+                            break;
+                        }
+
+                    case 1:
+                        {
+                            int[] wordsOrder;
+                            if (AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
+                                wordsOrder = Enumerable.Range(1, 12).ToArray();
+                            else
+                                wordsOrder = Enumerable.Range(1, 24).ToArray();
+
+                            var rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
+                            wordsOrder = wordsOrder.OrderBy(x => GetNextInt32(rnd)).ToArray();
+
+                            TrySeedVerification(wordsOrder, (success) =>
+                            {
+                                if (success)
+                                {
+                                    newWalletCallback();
+                                }
+                                else
+                                {
+                                    PopState();
+                                }
+                            });
+                            break;
+                        }
+
+                    case 2:
+                        {
+                            PopState();
+                            break;
+                        }
+                }
             });
         }
 
