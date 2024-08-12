@@ -167,7 +167,7 @@ namespace Poltergeist
             DisasmMethodCall? prevCall = null;
             foreach (var call in disasm)
             {
-                if (CheckIfCallShouldBeIgnored(call))
+                if (CheckIfCallShouldBeIgnored(call) && !devMode)
                 {
                     continue;
                 }
@@ -208,7 +208,7 @@ namespace Poltergeist
             var sb = new StringBuilder();
             foreach (var entry in disasm)
             {
-                if (CheckIfCallShouldBeIgnored(entry))
+                if (CheckIfCallShouldBeIgnored(entry) && !devMode)
                 {
                     continue;
                 }
@@ -224,6 +224,50 @@ namespace Poltergeist
 
                 switch (GetCallFullName(entry))
                 {
+                    case "gas.AllowGas":
+                        {
+                            string from, to;
+                            if (entry.Arguments[0].Type.ToString() == "Bytes")
+                            {
+                                from = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                from = GetStringArg(entry, 0);
+                            }
+                            if (entry.Arguments[1].Type.ToString() == "Bytes")
+                            {
+                                to = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                to = GetStringArg(entry, 1);
+                            }
+                            var gasPrice = GetNumberArg(entry, 2);
+                            var gasLimit = GetNumberArg(entry, 3);
+
+                            sb.AppendLine($"\u2605 AllowGas price: {gasPrice} limit: {gasLimit} from {from} to {to}.");
+
+                            break;
+                        }
+
+                    case "gas.SpendGas":
+                        {
+                            string address;
+                            if (entry.Arguments[0].Type.ToString() == "Bytes")
+                            {
+                                address = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                address = GetStringArg(entry, 0);
+                            }
+
+                            sb.AppendLine($"\u2605 SpendGas address {address}.");
+
+                            break;
+                        }
+
                     case "Runtime.TransferToken":
                         {
                             var src = GetStringArg(entry, 0);
@@ -262,8 +306,23 @@ namespace Poltergeist
                         }
                     case "Runtime.TransferTokens":
                         {
-                            var src = GetStringArg(entry, 0);
-                            var dst = GetStringArg(entry, 1);
+                            string src, dst;
+                            if (entry.Arguments[0].Type.ToString() == "Bytes")
+                            {
+                                src = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                src = GetStringArg(entry, 0);
+                            }
+                            if (entry.Arguments[1].Type.ToString() == "Bytes")
+                            {
+                                dst = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                            }
+                            else
+                            {
+                                dst = GetStringArg(entry, 1);
+                            }
                             var symbol = GetStringArg(entry, 2);
                             var amount = GetNumberArg(entry, 3);
 
@@ -595,6 +654,7 @@ namespace Poltergeist
                         break;
                 }
 
+                sb.AppendLine();
             }
 
             if (sb.Length > 0)
