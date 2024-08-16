@@ -40,7 +40,21 @@ namespace Phantasma.Core.Cryptography.ECDsa
             var publicParams = new ECPublicKeyParameters(q, dom);
             return publicParams.Q.GetEncoded(compressed);
         }
-        
+
+        public static byte[] CompressPublicKey(byte[] uncompressedPublicKey)
+        {
+            var x = new BigInteger(1, uncompressedPublicKey.Take(32).ToArray());
+            var y = new BigInteger(1, uncompressedPublicKey.Skip(32).ToArray());
+
+            byte prefix = 0x02;
+            if(y.Mod(BigInteger.Two) != BigInteger.Zero)
+            {
+                prefix = 0x03;
+            }
+
+            return new byte[] { prefix }.Concat(x.ToByteArrayUnsigned()).ToArray();
+        }
+
         public static ECDomainParameters GetDomain(ECDsaCurve curve)
         {
             X9ECParameters ecCurve;
