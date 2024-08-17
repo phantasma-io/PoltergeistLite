@@ -21,6 +21,10 @@ using Phantasma.Business.VM.Utils;
 using Phantasma.Business.Blockchain;
 using Phantasma.Core.Types;
 using NBitcoin;
+using Phantasma.Core.Utils;
+using Phantasma.Core.Cryptography.ECDsa;
+using Poltergeist.Neo2.Core;
+using Phantasma.Core.Cryptography.EdDSA;
 
 namespace Poltergeist
 {
@@ -3217,7 +3221,7 @@ namespace Poltergeist
                                         },
                                         ignoreStoredPassword: true);
                                     }
-                                    else if(result == PromptResult.Custom_2)
+                                    else if (result == PromptResult.Custom_2)
                                     {
                                         RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
                                         {
@@ -3379,6 +3383,48 @@ namespace Poltergeist
                             }
                             break;
                         }
+                    case 3:
+                        {
+                            var account = AccountManager.Instance.CurrentAccount;
+
+                            var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
+                            var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
+                            var ethKeys = EthereumKey.FromWIF(wif);
+                            var neoKeys = NeoKeys.FromWIF(wif);
+
+                            var message = "I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
+                            "Phantasma address: " + account.phaAddress + "\n" +
+                            "Ethereum address: " + account.ethAddress + "\n" +
+                            "Ethereum public key: " + System.Convert.ToBase64String(ethKeys.UncompressedPublicKey) + "\n" +
+                            "Neo Legacy address: " + account.neoAddress + "\n" +
+                            "Neo Legacy public key: " + System.Convert.ToBase64String(neoKeys.PublicKey) + "\n";
+
+                            var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
+
+                            ShowModal("Proof of addresses", message,
+                                ModalState.Message, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalSignCancel, 1, (result, name) =>
+                            {
+                                if (result == PromptResult.Success)
+                                {
+                                    var phaSignature = phantasmaKeys.Sign(messageBytes);
+                                    message += "\nPhantasma signature: " + System.Convert.ToBase64String(((Ed25519Signature)phaSignature).Bytes);
+
+                                    {
+                                        var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(messageBytes, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                        var ethSignature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
+                                        message += "\nEthereum signature: " + System.Convert.ToBase64String(signatureBytes);
+                                    }
+                                    {
+                                        var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(messageBytes, neoKeys.PrivateKey, neoKeys.CompressedPublicKey, ECDsaCurve.Secp256r1);
+                                        var neoLegacySignature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256r1);
+                                        message += "\nNeo Legacy signature: " + System.Convert.ToBase64String(signatureBytes);
+                                    }
+
+                                    ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                }
+                            });
+                            break;
+                        }
                 }
             });
         }
@@ -3424,7 +3470,7 @@ namespace Poltergeist
             });
         }
 
-        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name" };
+        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name", "Prove addresses" };
 
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
 

@@ -7,6 +7,11 @@ using System.Numerics;
 using Phantasma.Business.VM.Utils;
 using Phantasma.Core.Domain;
 using Phantasma.Core.Numerics;
+using System.Text;
+using Phantasma.Core.Cryptography.ECDsa;
+using Phantasma.Core.Cryptography.EdDSA;
+using Phantasma.Core.Cryptography;
+using Poltergeist.PhantasmaLegacy.Ethereum;
 
 namespace Poltergeist
 {
@@ -490,6 +495,83 @@ namespace Poltergeist
                                 return;
                             }
                         }
+                    }
+                });
+            });
+            curY += Units(3);
+
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Verify proof of addresses", () =>
+            {
+                ShowModal("Verify proof of addresses", "Enter proof of addresses messages", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                {
+                    if (result == PromptResult.Success)
+                    {
+                        input = input.Replace("\r", string.Empty);
+                        var split = input.Split('\n');
+                        var signedMessage = string.Join('\n', split.Take(7));
+
+                        if (settings.devMode)
+                        {
+                            Log.Write("signedMessage: '" + signedMessage + "'");
+                        }
+                        
+                        var phaAddress = split[1].Substring(19);
+                        var ethAddress = split[2].Substring(18);
+                        var ethPublicKey = split[3].Substring(21);
+                        var neoAddress = split[4].Substring(20);
+                        var neoPublicKey = split[5].Substring(23);
+
+                        var phaSignatureSerialized = split[7].Substring(21);
+                        var ethSignatureSerialized = split[8].Substring(20);
+                        var neoSignatureSerialized = split[9].Substring(22);
+
+                        MessageBox(MessageKind.Default, $"phaAddress: '{phaAddress}'\n ethAddress: '{ethAddress}'\n ethPublicKey: '{ethPublicKey}'\n neoAddress: '{neoAddress}'\n neoPublicKey: '{neoPublicKey}'");
+
+                        var signedBytes = Encoding.ASCII.GetBytes(signedMessage);
+
+                        if (settings.devMode)
+                        {
+                            Log.Write("phaAddress: '" + phaAddress + "'");
+                            Log.Write("ethAddress: '" + ethAddress + "'");
+                            Log.Write("ethPublicKey: '" + ethPublicKey + "'");
+                            Log.Write("neoAddress: '" + neoAddress + "'");
+                            Log.Write("neoPublicKey: '" + neoPublicKey + "'");
+                            Log.Write("phaSignatureSerialized: '" + phaSignatureSerialized + "'");
+                            Log.Write("ethSignatureSerialized: '" + ethSignatureSerialized + "'");
+                            Log.Write("neoSignatureSerialized: '" + neoSignatureSerialized + "'");
+                        }
+
+                        if(!Ed25519.Verify(System.Convert.FromBase64String(phaSignatureSerialized), signedBytes, Address.FromText(phaAddress).GetPublicKey()))
+                        {
+                            MessageBox(MessageKind.Default, "Phantasma signature is incorrect!");
+                            return;
+                        }
+                        if(!ECDsa.Verify(signedBytes, System.Convert.FromBase64String(ethSignatureSerialized), System.Convert.FromBase64String(ethPublicKey), ECDsaCurve.Secp256k1))
+                        {
+                            MessageBox(MessageKind.Default, "Ethereum signature is incorrect!");
+                            return;
+                        }
+                        if(!ECDsa.Verify(signedBytes, System.Convert.FromBase64String(neoSignatureSerialized), System.Convert.FromBase64String(neoPublicKey), ECDsaCurve.Secp256r1))
+                        {
+                            MessageBox(MessageKind.Default, "Neo Legacy signature is incorrect!");
+                            return;
+                        }
+
+                        var ethAddressFromPublicKey = new PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(System.Convert.FromBase64String(ethPublicKey)));
+                        if(ethAddress != ethAddressFromPublicKey)
+                        {
+                            MessageBox(MessageKind.Default, "Ethereum address is incorrect: " + ethAddressFromPublicKey);
+                            return;
+                        }
+
+                        var neo2AddressFromPublicKey = Poltergeist.Neo2.Core.NeoKeys.PublicKeyToN2Address(System.Convert.FromBase64String(neoPublicKey));
+                        if (neoAddress != neo2AddressFromPublicKey)
+                        {
+                            MessageBox(MessageKind.Default, "Neo Legacy address is incorrect: " + neo2AddressFromPublicKey);
+                            return;
+                        }
+
+                        MessageBox(MessageKind.Default, "Proof of addresses message was validated successfully");
                     }
                 });
             });
