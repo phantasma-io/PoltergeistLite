@@ -35,7 +35,7 @@ public class ProofOfAddressesVerifier
 
         var split = Message.Replace("\r", string.Empty).Split('\n');
 
-        SignedMessage = string.Join('\n', split.Take(7));
+        SignedMessage = string.Join('\n', split.Take(6));
         SignedMessageBytes = Encoding.ASCII.GetBytes(SignedMessage);
 
         PhaAddress = split[1].Substring(19);

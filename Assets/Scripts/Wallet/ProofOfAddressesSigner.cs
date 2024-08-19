@@ -32,7 +32,7 @@ public class ProofOfAddressesSigner
             "Ethereum address: " + ethAddress + "\n" +
             "Ethereum public key: " + ethPubKey + "\n" +
             "Neo Legacy address: " + neo2Address + "\n" +
-            "Neo Legacy public key: " + neo2PubKey + "\n";
+            "Neo Legacy public key: " + neo2PubKey;
 
         return message;
     }
@@ -44,7 +44,7 @@ public class ProofOfAddressesSigner
         var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
 
         var phaSignature = PhantasmaKeys.Sign(messageBytes);
-        message += "\nPhantasma signature: " + System.Convert.ToBase64String(((Ed25519Signature)phaSignature).Bytes);
+        message += "\n\nPhantasma signature: " + System.Convert.ToBase64String(((Ed25519Signature)phaSignature).Bytes);
 
         {
             var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(messageBytes, EthKeys.PrivateKey, EthKeys.PublicKey, ECDsaCurve.Secp256k1);
