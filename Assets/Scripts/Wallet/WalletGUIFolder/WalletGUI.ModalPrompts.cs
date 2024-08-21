@@ -17,6 +17,7 @@ namespace Poltergeist
         private string[] ModalOkCopy_NoAutoCopy = new string[] { "Ok", "Copy to clipboard" };
         private string[] ModalOkView = new string[] { "Ok", "View" };
         private string[] ModalConfirmCancel = new string[] { "Confirm", "Cancel" };
+        private string[] ModalSignCancel = new string[] { "Sign", "Cancel" };
         private string[] ModalSendCancel = new string[] { "Send", "Cancel" };
         private string[] ModalYesNo = new string[] { "Yes" , "No" };
         private string[] ModalHexWifCancel = new string[] { "HEX format", "WIF format", "Cancel" };

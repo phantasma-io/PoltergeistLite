@@ -26,8 +26,7 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
             this.PublicKey = ECDsa.GetPublicKey(privateKey, true, ECDsaCurve.Secp256k1);
             this.UncompressedPublicKey = ECDsa.GetPublicKey(privateKey, false, ECDsaCurve.Secp256k1).Skip(1).ToArray();
 
-            var kak = new Sha3Keccack().CalculateHash(this.UncompressedPublicKey);
-            this.Address = "0x"+Base16.Encode( kak.Skip(12).ToArray());
+            this.Address = PublicKeyToAddress(this.UncompressedPublicKey);
         }
 
         public static EthereumKey FromPrivateKey(string prv)
@@ -75,6 +74,12 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
         {
             if (x.Length != y.Length) throw new ArgumentException();
             return x.Zip(y, (a, b) => (byte)(a ^ b)).ToArray();
+        }
+
+        public static string PublicKeyToAddress(byte[] uncompressedPublicKey)
+        {
+            var kak = new Sha3Keccack().CalculateHash(uncompressedPublicKey);
+            return "0x" + Base16.Encode(kak.Skip(12).ToArray());
         }
 
         public override string ToString()

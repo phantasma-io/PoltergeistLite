@@ -3,7 +3,6 @@ using System.Linq;
 using System.Numerics;
 using UnityEngine;
 using Phantasma.SDK;
-using System.Numerics;
 using Phantasma.Business.VM.Utils;
 using Phantasma.Core.Domain;
 using Phantasma.Core.Numerics;
@@ -490,6 +489,46 @@ namespace Poltergeist
                                 return;
                             }
                         }
+                    }
+                });
+            });
+            curY += Units(3);
+
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Verify proof of addresses", () =>
+            {
+                ShowModal("Verify proof of addresses", "Enter proof of addresses messages", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                {
+                    if (result == PromptResult.Success)
+                    {
+                        var verifier = new ProofOfAddressesVerifier(input);
+
+
+                        if (settings.devMode)
+                        {
+                            Log.Write("signedMessage: '" + verifier.SignedMessage + "'");
+                        }
+                        
+                        if (settings.devMode)
+                        {
+                            Log.Write("phaAddress: '" + verifier.PhaAddress + "'");
+                            Log.Write("ethAddress: '" + verifier.EthAddress + "'");
+                            Log.Write("ethPublicKey: '" + verifier.EthPublicKey + "'");
+                            Log.Write("neo2Address: '" + verifier.Neo2Address + "'");
+                            Log.Write("neo2PublicKey: '" + verifier.Neo2PublicKey + "'");
+                            Log.Write("phaSignature: '" + verifier.PhaSignature + "'");
+                            Log.Write("ethSignature: '" + verifier.EthSignature + "'");
+                            Log.Write("neo2Signature: '" + verifier.Neo2Signature + "'");
+                        }
+
+                        var (success, errorMessage) = verifier.VerifyMessage();
+
+                        if (!success)
+                        {
+                            MessageBox(MessageKind.Error, errorMessage);
+                            return;
+                        }
+
+                        MessageBox(MessageKind.Default, "Proof of addresses message was validated successfully");
                     }
                 });
             });
