@@ -408,6 +408,16 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
+            if(accountManager.Settings.devMode)
+            {
+                Log.Write($"WalletConnector: SignTransaction(): Script description: Platform: {platform}\n"+
+                    $"SignatureKind: {kind}\n"+
+                    $"Chain: {chain}\n" +
+                    $"Script: {Base16.Encode(script)}\n" +
+                    $"Payload: '{(payload == null ? "" : Encoding.UTF8.GetString(payload))}'\n" +
+                    $"ProofOfWork: {pow}");
+            }
+
             var targetPlatform = RequestPlatform(platform);
             if (targetPlatform == PlatformKind.None)
             {
