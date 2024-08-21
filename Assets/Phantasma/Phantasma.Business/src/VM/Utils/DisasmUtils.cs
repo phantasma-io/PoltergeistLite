@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Phantasma.Core;
 using Phantasma.Core.Domain;
 
 namespace Phantasma.Business.VM.Utils
@@ -133,7 +134,8 @@ namespace Phantasma.Business.VM.Utils
             var result = new List<string>();
 
             int index = 0;
-            var regs = new VMObject[16];
+            var regsLength = 16;
+            var regs = new VMObject[regsLength];
             while (index < instructions.Length)
             {
                 var instruction = instructions[index];
@@ -142,9 +144,13 @@ namespace Phantasma.Business.VM.Utils
                 {
                     case Opcode.LOAD:
                         {
+                            Throw.If(instruction.Args.Length < 3, $"Opcode.LOAD: instruction.Args length {instruction.Args.Length} is less than {3}");
+
                             var dst = (byte)instruction.Args[0];
                             var type = (VMType)instruction.Args[1];
                             var bytes = (byte[])instruction.Args[2];
+
+                            Throw.If(dst >= regsLength, $"Opcode.LOAD: Destination {dst} is out of range 0-{regsLength - 1}");
 
                             regs[dst] = new VMObject();
                             regs[dst].SetValue(bytes, type);
@@ -154,8 +160,13 @@ namespace Phantasma.Business.VM.Utils
 
                     case Opcode.CTX:
                         {
+                            Throw.If(instruction.Args.Length < 2, $"Opcode.CTX: instruction.Args length {instruction.Args.Length} is less than {2}");
+
                             var src = (byte)instruction.Args[0];
                             var dst = (byte)instruction.Args[1];
+
+                            Throw.If(src >= regsLength, $"Opcode.CTX: Source {src} is out of range 0-{regsLength - 1}");
+                            Throw.If(dst >= regsLength, $"Opcode.CTX: Destination {dst} is out of range 0-{regsLength - 1}");
 
                             regs[dst] = new VMObject();
                             regs[dst].Copy(regs[src]);
@@ -164,7 +175,11 @@ namespace Phantasma.Business.VM.Utils
 
                     case Opcode.SWITCH:
                         {
+                            Throw.If(instruction.Args.Length < 1, $"Opcode.SWITCH: instruction.Args length {instruction.Args.Length} is less than {1}");
+
                             var src = (byte)instruction.Args[0];
+
+                            Throw.If(src >= regsLength, $"Opcode.SWITCH: Source {src} is out of range 0-{regsLength - 1}");
 
                             var contractName = regs[src].AsString();
                             result.Add(contractName);
