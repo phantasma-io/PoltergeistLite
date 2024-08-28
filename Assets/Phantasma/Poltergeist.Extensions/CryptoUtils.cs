@@ -1,7 +1,10 @@
 using System;
 using System.Linq;
 using Org.BouncyCastle.Asn1.Nist;
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
 using Phantasma.Core.Cryptography;
@@ -94,6 +97,39 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
                 default:
                     throw new Exception("Unknown signature format");
             }
+        }
+
+        public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve = ECDsaCurve.Secp256r1)
+        {
+            var sha256 = new Sha256Digest();
+            sha256.BlockUpdate(message, 0, message.Length);
+            var messageHash = new byte[sha256.GetDigestSize()];
+            sha256.DoFinal(messageHash, 0);
+
+            X9ECParameters ecParams;
+            switch (curve)
+            {
+                case ECDsaCurve.Secp256k1:
+                    ecParams = ECNamedCurveTable.GetByName("secp256k1");
+                    break;
+                default:
+                    ecParams = ECNamedCurveTable.GetByName("secp256r1");
+                    break;
+            }
+
+            var dom = new ECDomainParameters(ecParams.Curve, ecParams.G, ecParams.N, ecParams.H, ecParams.GetSeed());
+
+            ECKeyParameters privateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, prikey), dom);
+
+            var signer = new ECDsaSigner(new HMacDsaKCalculator(new Sha256Digest()));
+
+            signer.Init(true, privateKeyParameters);
+
+            var RS = signer.GenerateSignature(messageHash);
+            var R = RS[0].ToByteArrayUnsigned();
+            var S = RS[1].ToByteArrayUnsigned();
+
+            return R.Concat(S).ToArray();
         }
 
         public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve phaCurve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
