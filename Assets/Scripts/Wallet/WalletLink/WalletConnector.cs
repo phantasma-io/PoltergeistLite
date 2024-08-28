@@ -299,7 +299,7 @@ namespace Poltergeist
 
                                     case SignatureKind.ECDSA:
                                         var ethKeys = EthereumKey.FromWIF(wif);
-                                        var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                        var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                         signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                         break;
 
@@ -372,7 +372,7 @@ namespace Poltergeist
 
                             case SignatureKind.ECDSA:
                                 var ethKeys = EthereumKey.FromWIF(wif);
-                                var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                 signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 break;
 
@@ -531,13 +531,13 @@ namespace Poltergeist
                                 {
                                     var ethKeys = EthereumKey.FromWIF(wif);
                                 
-                                    var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                    var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
                                 else
                                 {
                                     var neoKeys = NeoKeys.FromWIF(wif);
-                                    var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, neoKeys.PrivateKey, neoKeys.CompressedPublicKey, ECDsaCurve.Secp256k1);
+                                    var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, neoKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
                                 break;

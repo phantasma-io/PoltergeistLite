@@ -36,7 +36,7 @@ namespace Phantasma.Tests
             var msgBytes = Encoding.ASCII.GetBytes("Phantasma");
             var signature = ethKeys.Sign(msgBytes, (message, prikey, pubkey) =>
             {
-                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(message, prikey, pubkey, ECDsaCurve.Secp256k1);
+                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(message, prikey, ECDsaCurve.Secp256k1);
             });
 
             var ecdsaSignature = (ECDsaSignature)signature;
@@ -49,7 +49,7 @@ namespace Phantasma.Tests
 
             var signatureDEREncoded = ethKeys.Sign(msgBytes, (message, prikey, pubkey) =>
             {
-                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(message, prikey, pubkey, ECDsaCurve.Secp256k1, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded);
+                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(message, prikey, ECDsaCurve.Secp256k1, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded);
             });
 
             var ecdsaSignatureDEREncoded = (ECDsaSignature)signatureDEREncoded;

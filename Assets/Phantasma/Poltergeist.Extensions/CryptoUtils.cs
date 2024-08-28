@@ -1,15 +1,12 @@
 using System;
 using System.Linq;
-using Org.BouncyCastle.Asn1.Nist;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
-using Phantasma.Core.Cryptography;
 using Phantasma.Core.Cryptography.ECDsa;
-using Phantasma.Core.Numerics;
 
 namespace Poltergeist.PhantasmaLegacy.Cryptography
 {
@@ -66,21 +63,38 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             return concatSignature;
         }
 
-        public static byte[] Sign(byte[] message, byte[] prikey, byte[] pubkey, ECDsaCurve phaCurve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
+        private static X9ECParameters GetECParameters(ECDsaCurve curve)
+        {
+            return curve switch
+            {
+                ECDsaCurve.Secp256k1 => ECNamedCurveTable.GetByName("secp256k1"),
+                ECDsaCurve.Secp256r1 => ECNamedCurveTable.GetByName("secp256r1"),
+                _ => ECNamedCurveTable.GetByName("secp256r1"),
+            };
+        }
+
+        private static ECDomainParameters GetECDomainParameters(ECDsaCurve curve)
+        {
+            var ecParams = GetECParameters(curve);
+            return new ECDomainParameters(ecParams.Curve, ecParams.G, ecParams.N, ecParams.H);
+        }
+
+        private static ECPrivateKeyParameters GetECPrivateKeyParameters(ECDsaCurve curve, byte[] privateKey)
+        {
+            return new ECPrivateKeyParameters(new BigInteger(1, privateKey), GetECDomainParameters(curve));
+        }
+
+        private static ECPublicKeyParameters GetECPublicKeyParameters(ECDsaCurve curve, byte[] publicKey)
+        {
+            var ecDomainParameters = GetECDomainParameters(curve);
+            var point = ecDomainParameters.Curve.DecodePoint(publicKey);
+            return new ECPublicKeyParameters(point, ecDomainParameters);
+        }
+
+        public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            Org.BouncyCastle.Asn1.X9.X9ECParameters curve;
-            switch (phaCurve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    curve = Org.BouncyCastle.Asn1.Sec.SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    curve = NistNamedCurves.GetByName("P-256");
-                    break;
-            }
-            var dom = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
-            ECKeyParameters privateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, prikey), dom);
+            var privateKeyParameters = GetECPrivateKeyParameters(curve, prikey);
 
             signer.Init(true, privateKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
@@ -106,20 +120,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             var messageHash = new byte[sha256.GetDigestSize()];
             sha256.DoFinal(messageHash, 0);
 
-            X9ECParameters ecParams;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecParams = ECNamedCurveTable.GetByName("secp256k1");
-                    break;
-                default:
-                    ecParams = ECNamedCurveTable.GetByName("secp256r1");
-                    break;
-            }
-
-            var dom = new ECDomainParameters(ecParams.Curve, ecParams.G, ecParams.N, ecParams.H, ecParams.GetSeed());
-
-            ECKeyParameters privateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, prikey), dom);
+            var privateKeyParameters = GetECPrivateKeyParameters(curve, prikey);
 
             var signer = new ECDsaSigner(new HMacDsaKCalculator(new Sha256Digest()));
 
@@ -132,23 +133,10 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             return R.Concat(S).ToArray();
         }
 
-        public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve phaCurve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
+        public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            Org.BouncyCastle.Asn1.X9.X9ECParameters curve;
-            switch (phaCurve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    curve = Org.BouncyCastle.Asn1.Sec.SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    curve = NistNamedCurves.GetByName("P-256");
-                    break;
-            }
-            var dom = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
-
-            var point = dom.Curve.DecodePoint(pubkey);
-            var publicKeyParameters = new ECPublicKeyParameters(point, dom);
+            var publicKeyParameters = GetECPublicKeyParameters(curve, pubkey);
 
             signer.Init(false, publicKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
