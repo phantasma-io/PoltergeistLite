@@ -4,6 +4,7 @@ using Phantasma.Core.Cryptography.ECDsa;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using Phantasma.Core.Cryptography.EdDSA;
 using System.Text;
+using Phantasma.Core.Numerics;
 
 public class ProofOfAddressesVerifier
 {
@@ -42,17 +43,17 @@ public class ProofOfAddressesVerifier
         PhaPublicKeyBytes = Address.FromText(PhaAddress).GetPublicKey();
         EthAddress = split[2].Substring(18);
         EthPublicKey = split[3].Substring(21);
-        EthPublicKeyBytes = System.Convert.FromBase64String(EthPublicKey);
+        EthPublicKeyBytes = Base16.Decode(EthPublicKey);
         Neo2Address = split[4].Substring(20);
         Neo2PublicKey = split[5].Substring(23);
-        Neo2PublicKeyBytes = System.Convert.FromBase64String(Neo2PublicKey);
+        Neo2PublicKeyBytes = Base16.Decode(Neo2PublicKey);
 
         PhaSignature = split[7].Substring(21);
-        PhaSignatureBytes = System.Convert.FromBase64String(PhaSignature);
+        PhaSignatureBytes = Base16.Decode(PhaSignature);
         EthSignature = split[8].Substring(20);
-        EthSignatureBytes = System.Convert.FromBase64String(EthSignature);
+        EthSignatureBytes = Base16.Decode(EthSignature);
         Neo2Signature = split[9].Substring(22);
-        Neo2SignatureBytes = System.Convert.FromBase64String(Neo2Signature);
+        Neo2SignatureBytes = Base16.Decode(Neo2Signature);
     }
 
     public (bool, string) VerifyMessage()

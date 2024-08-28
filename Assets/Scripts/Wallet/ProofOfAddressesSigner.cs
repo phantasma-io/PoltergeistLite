@@ -3,6 +3,7 @@ using Phantasma.Core.Cryptography.ECDsa;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using Poltergeist.Neo2.Core;
 using Phantasma.Core.Cryptography.EdDSA;
+using Phantasma.Core.Numerics;
 
 public class ProofOfAddressesSigner
 {
@@ -21,10 +22,10 @@ public class ProofOfAddressesSigner
     {
         var phaAddress = PhantasmaKeys.Address.ToString();
         var ethAddress = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(EthKeys.UncompressedPublicKey));
-        var ethPubKey = System.Convert.ToBase64String(EthKeys.UncompressedPublicKey);
+        var ethPubKey = Base16.Encode(EthKeys.UncompressedPublicKey);
 
         var neo2Address = Poltergeist.Neo2.Core.NeoKeys.PublicKeyToN2Address(NeoKeys.PublicKey);
-        var neo2PubKey = System.Convert.ToBase64String(NeoKeys.PublicKey);
+        var neo2PubKey = Base16.Encode(NeoKeys.PublicKey);
 
 
         var message = "I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
@@ -44,16 +45,16 @@ public class ProofOfAddressesSigner
         var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
 
         var phaSignature = PhantasmaKeys.Sign(messageBytes);
-        message += "\n\nPhantasma signature: " + System.Convert.ToBase64String(((Ed25519Signature)phaSignature).Bytes);
+        message += "\n\nPhantasma signature: " + Base16.Encode(((Ed25519Signature)phaSignature).Bytes);
 
         {
             var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, EthKeys.PrivateKey, ECDsaCurve.Secp256k1);
-            message += "\nEthereum signature: " + System.Convert.ToBase64String(signatureBytes);
+            message += "\nEthereum signature: " + Base16.Encode(signatureBytes);
         }
 
         {
             var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, NeoKeys.PrivateKey, ECDsaCurve.Secp256r1);
-            message += "\nNeo Legacy signature: " + System.Convert.ToBase64String(signatureBytes);
+            message += "\nNeo Legacy signature: " + Base16.Encode(signatureBytes);
         }
 
         return message;
