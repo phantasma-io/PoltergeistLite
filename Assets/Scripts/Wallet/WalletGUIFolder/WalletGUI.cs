@@ -3388,7 +3388,14 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    ShowModal("Signed proof of addresses", signer.GenerateSignedMessage(), ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                    var message = signer.GenerateSignedMessage();
+                                    ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result2, input) => {
+                                        if (result2 != PromptResult.Success)
+                                        {
+                                            GUIUtility.systemCopyBuffer = message;
+                                            MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                        }
+                                    });
                                 }
                             });
                             break;
