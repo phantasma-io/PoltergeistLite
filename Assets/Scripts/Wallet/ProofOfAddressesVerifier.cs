@@ -77,7 +77,7 @@ public class ProofOfAddressesVerifier
             errorMessage += "Neo Legacy signature is incorrect!\n";
         }
 
-        var ethAddressFromPublicKey = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(EthPublicKeyBytes));
+        var ethAddressFromPublicKey = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(EthPublicKeyBytes, ECDsaCurve.Secp256k1));
         if (EthAddress != ethAddressFromPublicKey)
         {
             success = false;

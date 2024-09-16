@@ -55,6 +55,35 @@ namespace Phantasma.Core.Cryptography.ECDsa
             return new byte[] { prefix }.Concat(x.ToByteArrayUnsigned()).ToArray();
         }
 
+        public static byte[] DecompressPublicKey(byte[] compressedPublicKey, ECDsaCurve curve, bool dropUncompressedKeyPrefixByte = false)
+        {
+            if (compressedPublicKey.Length != 33)
+            {
+                throw new ArgumentException("Incorrect compressed key length: " + compressedPublicKey.Length);
+            }
+
+            X9ECParameters ecCurve;
+            switch (curve)
+            {
+                case ECDsaCurve.Secp256k1:
+                    ecCurve = SecNamedCurves.GetByName("secp256k1");
+                    break;
+                default:
+                    ecCurve = SecNamedCurves.GetByName("secp256r1");
+                    break;
+            }
+            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
+
+            ECPublicKeyParameters publicKeyParameters = new ECPublicKeyParameters(dom.Curve.DecodePoint(compressedPublicKey), dom);
+            var uncompressedPublicKey = publicKeyParameters.Q.GetEncoded(false);
+            
+            if (dropUncompressedKeyPrefixByte)
+            {
+                uncompressedPublicKey = uncompressedPublicKey.Skip(1).ToArray();
+            }
+            
+            return uncompressedPublicKey;
+        }
         public static ECDomainParameters GetDomain(ECDsaCurve curve)
         {
             X9ECParameters ecCurve;

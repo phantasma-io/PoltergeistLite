@@ -21,11 +21,11 @@ public class ProofOfAddressesSigner
     public string GenerateMessage()
     {
         var phaAddress = PhantasmaKeys.Address.ToString();
-        var ethAddress = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(EthKeys.UncompressedPublicKey));
-        var ethPubKey = Base16.Encode(EthKeys.UncompressedPublicKey);
+        var ethAddress = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(EthKeys.UncompressedPublicKey, ECDsaCurve.Secp256k1));
+        var ethPubKey = Base16.Encode(EthKeys.CompressedPublicKey);
 
         var neo2Address = Poltergeist.Neo2.Core.NeoKeys.PublicKeyToN2Address(NeoKeys.PublicKey);
-        var neo2PubKey = Base16.Encode(NeoKeys.PublicKey);
+        var neo2PubKey = Base16.Encode(NeoKeys.CompressedPublicKey);
 
 
         var message = "I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
