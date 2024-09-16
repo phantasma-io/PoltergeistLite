@@ -21,6 +21,9 @@ using Phantasma.Business.VM.Utils;
 using Phantasma.Business.Blockchain;
 using Phantasma.Core.Types;
 using NBitcoin;
+using Phantasma.Core.Cryptography.EdDSA;
+using Poltergeist.Neo2.Core;
+using Phantasma.Core.Cryptography.ECDsa;
 
 namespace Poltergeist
 {
@@ -3157,7 +3160,14 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             int posY;
 
-            DoButtonGrid<int>(false, managerMenu.Length, 0, -btnOffset, out posY, (index) =>
+            var menu = managerMenu;
+            if (Input.GetKey(KeyCode.LeftShift))
+            {
+                menu = (string[])managerMenu.Clone();
+                menu[3] = "Sign message";
+            }
+
+            DoButtonGrid<int>(false, menu.Length, 0, -btnOffset, out posY, (index) =>
             {
                 var enabled = true;
 
@@ -3179,7 +3189,7 @@ namespace Poltergeist
                     enabled = false;
                 }
 
-                return new MenuEntry(index, managerMenu[index], enabled);
+                return new MenuEntry(index, menu[index], enabled);
             },
             (selected) =>
             {
@@ -3381,23 +3391,85 @@ namespace Poltergeist
                         }
                     case 3:
                         {
-                            var signer = new ProofOfAddressesSigner(AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash));
-
-                            ShowModal("Proof of addresses", signer.GenerateMessage(),
-                                ModalState.Message, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalSignCancel, 1, (result, name) =>
+                            if (Input.GetKey(KeyCode.LeftShift))
                             {
-                                if (result == PromptResult.Success)
+                                ShowModal("", "Select chain", ModalState.Input, 1, 10, ModalConfirmCancel, 1, (result, chain) =>
                                 {
-                                    var message = signer.GenerateSignedMessage();
-                                    ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result2, input) => {
-                                        if (result2 != PromptResult.Success)
+                                    if (result == PromptResult.Failure)
+                                    {
+                                        return; // user cancelled
+                                    }
+
+                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result2, message) =>
+                                    {
+                                        if (result2 == PromptResult.Failure)
                                         {
-                                            GUIUtility.systemCopyBuffer = message;
-                                            MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                            return; // user cancelled
                                         }
+
+                                        var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
+
+                                        var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
+                                        byte[] signatureBytes;
+
+                                        if (chain == "Phantasma")
+                                        {
+                                            var keys = PhantasmaKeys.FromWIF(wif);
+                                            var phaSignature = keys.Sign(messageBytes);
+                                            signatureBytes = ((Ed25519Signature)phaSignature).Bytes;
+                                        }
+                                        else if (chain == "Ethereum")
+                                        {
+                                            var keys = EthereumKey.FromWIF(wif);
+                                            signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256k1);
+                                        }
+                                        else if (chain == "Neo Legacy")
+                                        {
+                                            var keys = NeoKeys.FromWIF(wif);
+                                            signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256r1);
+                                        }
+                                        else
+                                        {
+                                            MessageBox(MessageKind.Error, "Unsupported chain");
+                                            return;
+                                        }
+
+                                        var signature = Base16.Encode(signatureBytes);
+                                        
+                                        ShowModal("Signature", signature, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result3, input) =>
+                                        {
+                                            if (result3 != PromptResult.Success)
+                                            {
+                                                GUIUtility.systemCopyBuffer = signature;
+                                                MessageBox(MessageKind.Default, "Signature copied to the clipboard.");
+                                            }
+                                        });
                                     });
-                                }
-                            });
+                                });
+
+                                modalHints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
+                            }
+                            else
+                            {
+                                var signer = new ProofOfAddressesSigner(AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash));
+
+                                ShowModal("Proof of addresses", signer.GenerateMessage(),
+                                    ModalState.Message, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalSignCancel, 1, (result, name) =>
+                                {
+                                    if (result == PromptResult.Success)
+                                    {
+                                        var message = signer.GenerateSignedMessage();
+                                        ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result2, input) =>
+                                        {
+                                            if (result2 != PromptResult.Success)
+                                            {
+                                                GUIUtility.systemCopyBuffer = message;
+                                                MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                            }
+                                        });
+                                    }
+                                });
+                            }
                             break;
                         }
                 }
