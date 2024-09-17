@@ -3166,6 +3166,11 @@ namespace Poltergeist
                 menu = (string[])managerMenu.Clone();
                 menu[3] = "Sign message";
             }
+            else if (Input.GetKey(KeyCode.LeftControl))
+            {
+                menu = (string[])managerMenu.Clone();
+                menu[3] = "Verify signature";
+            }
 
             DoButtonGrid<int>(false, menu.Length, 0, -btnOffset, out posY, (index) =>
             {
@@ -3442,6 +3447,70 @@ namespace Poltergeist
                                             {
                                                 GUIUtility.systemCopyBuffer = signature;
                                                 MessageBox(MessageKind.Default, "Signature copied to the clipboard.");
+                                            }
+                                        });
+                                    });
+                                });
+
+                                modalHints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
+                            }
+                            else if (Input.GetKey(KeyCode.LeftControl))
+                            {
+                                ShowModal("", "Select chain", ModalState.Input, 1, 10, ModalConfirmCancel, 1, (result, chain) =>
+                                {
+                                    if (result == PromptResult.Failure)
+                                    {
+                                        return; // user cancelled
+                                    }
+
+                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result2, message) =>
+                                    {
+                                        if (result2 == PromptResult.Failure)
+                                        {
+                                            return; // user cancelled
+                                        }
+
+                                        ShowModal("", "Enter signature", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result3, signature) =>
+                                        {
+                                            if (result3 == PromptResult.Failure)
+                                            {
+                                                return; // user cancelled
+                                            }
+
+                                            var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
+                                            var signatureBytes = Base16.Decode(signature);
+
+                                            var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
+                                            var verificationResult = false;
+
+                                            if (chain == "Phantasma")
+                                            {
+                                                var keys = PhantasmaKeys.FromWIF(wif);
+                                                verificationResult = Ed25519.Verify(signatureBytes, messageBytes, keys.PublicKey);
+                                            }
+                                            else if (chain == "Ethereum")
+                                            {
+                                                var keys = EthereumKey.FromWIF(wif);
+                                                verificationResult = ECDsa.Verify(signatureBytes, messageBytes, keys.PublicKey, ECDsaCurve.Secp256k1);
+                                            }
+                                            else if (chain == "Neo Legacy")
+                                            {
+                                                var keys = NeoKeys.FromWIF(wif);
+                                                verificationResult = ECDsa.Verify(signatureBytes, messageBytes, keys.PublicKey, ECDsaCurve.Secp256r1);
+                                            }
+                                            else
+                                            {
+                                                MessageBox(MessageKind.Error, "Unsupported chain");
+                                                return;
+                                            }
+
+                                            if (verificationResult)
+                                            {
+                                                MessageBox(MessageKind.Success, "Signature is correct");
+                                            }
+                                            else
+                                            {
+                                                MessageBox(MessageKind.Error, "Signature is incorrect");
                                             }
                                         });
                                     });
