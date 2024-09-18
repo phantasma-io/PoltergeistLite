@@ -20,7 +20,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
         }
 
         // Transcodes the JCA ASN.1/DER-encoded signature into the concatenated R + S format expected by ECDSA JWS.
-        private static byte[] TranscodeSignatureToConcat(byte[] derSignature, int outputLength)
+        public static byte[] TranscodeSignatureToConcat(byte[] derSignature, int outputLength)
         {
             if (derSignature.Length < 8 || derSignature[0] != 48) throw new Exception("Invalid ECDSA signature format");
 
@@ -61,6 +61,16 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             Array.Copy(derSignature, offset + 2 + rLength + 2 + sLength - j, concatSignature, 2 * rawLen - j, j);
 
             return concatSignature;
+        }
+
+        public static byte[] RSBytesToDER(byte[] RSBytes)
+        {
+            return new Org.BouncyCastle.Asn1.DerSequence(
+                        // first 32 bytes is "r" number
+                        new Org.BouncyCastle.Asn1.DerInteger(new BigInteger(1, RSBytes.Take(32).ToArray())),
+                        // last 32 bytes is "s" number
+                        new Org.BouncyCastle.Asn1.DerInteger(new BigInteger(1, RSBytes.Skip(32).ToArray())))
+                        .GetDerEncoded();
         }
 
         private static X9ECParameters GetECParameters(ECDsaCurve curve)
@@ -145,12 +155,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             {
                 case SignatureFormat.Concatenated:
                     // We convert from concatenated "raw" R + S format to DER format that Bouncy Castle uses.
-                    signature = new Org.BouncyCastle.Asn1.DerSequence(
-                        // first 32 bytes is "r" number
-                        new Org.BouncyCastle.Asn1.DerInteger(new BigInteger(1, signature.Take(32).ToArray())),
-                        // last 32 bytes is "s" number
-                        new Org.BouncyCastle.Asn1.DerInteger(new BigInteger(1, signature.Skip(32).ToArray())))
-                        .GetDerEncoded();
+                    signature = RSBytesToDER(signature);
                     break;
                 case SignatureFormat.DEREncoded:
                     // Do nothing, signature already DER-encoded.
