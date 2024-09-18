@@ -3414,6 +3414,12 @@ namespace Poltergeist
 
                                         var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
 
+                                        var hash = Base16.Encode(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(messageBytes));
+                                        if (accountManager.Settings.devMode)
+                                        {
+                                            Log.Write($"Signed message: '{message}', hash: '{hash}'");
+                                        }
+
                                         var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
                                         byte[] signatureBytes;
 
@@ -3445,6 +3451,11 @@ namespace Poltergeist
                                         {
                                             if (result3 != PromptResult.Success)
                                             {
+                                                if (accountManager.Settings.devMode)
+                                                {
+                                                    Log.Write($"Signature: '{signature}'");
+                                                }
+
                                                 GUIUtility.systemCopyBuffer = signature;
                                                 MessageBox(MessageKind.Default, "Signature copied to the clipboard.");
                                             }
@@ -3479,6 +3490,12 @@ namespace Poltergeist
 
                                             var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
                                             var signatureBytes = Base16.Decode(signature);
+
+                                            var hash = Base16.Encode(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(messageBytes));
+                                            if (accountManager.Settings.devMode)
+                                            {
+                                                Log.Write($"Verified message: '{message}', hash: '{hash}', signature: '{signature}'");
+                                            }
 
                                             var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
                                             var verificationResult = false;

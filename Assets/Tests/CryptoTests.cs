@@ -143,6 +143,10 @@ namespace Phantasma.Tests
             Debug.Log("Eth compressed public key: " + Base16.Encode(ethPublicKeyCompressed));
 
             var msgBytes = Encoding.ASCII.GetBytes(message);
+
+            var hash = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(msgBytes);
+            Debug.Log("Message hash: " + Base16.Encode(hash));
+
             var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, privBytes, ECDsaCurve.Secp256k1);
             var signatureHex = Base16.Encode(signature);
 

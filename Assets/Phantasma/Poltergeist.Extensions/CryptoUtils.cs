@@ -125,10 +125,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
 
         public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve = ECDsaCurve.Secp256r1)
         {
-            var sha256 = new Sha256Digest();
-            sha256.BlockUpdate(message, 0, message.Length);
-            var messageHash = new byte[sha256.GetDigestSize()];
-            sha256.DoFinal(messageHash, 0);
+            var messageHash = Sha256Hash(message);
 
             var privateKeyParameters = GetECPrivateKeyParameters(curve, prikey);
 
@@ -165,6 +162,12 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             }
 
             return signer.VerifySignature(signature);
+        }
+
+        public static byte[] Sha256Hash(byte[] message)
+        {
+            var sha256 = new Phantasma.Core.Cryptography.Hashing.SHA256();
+            return sha256.ComputeHash(message);
         }
     }
 }
