@@ -79,7 +79,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             {
                 ECDsaCurve.Secp256k1 => ECNamedCurveTable.GetByName("secp256k1"),
                 ECDsaCurve.Secp256r1 => ECNamedCurveTable.GetByName("secp256r1"),
-                _ => ECNamedCurveTable.GetByName("secp256r1"),
+                _ => throw new Exception("Unsupported curve"),
             };
         }
 
@@ -97,11 +97,16 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
         private static ECPublicKeyParameters GetECPublicKeyParameters(ECDsaCurve curve, byte[] publicKey)
         {
             var ecDomainParameters = GetECDomainParameters(curve);
-            var point = ecDomainParameters.Curve.DecodePoint(publicKey);
-            return new ECPublicKeyParameters(point, ecDomainParameters);
-        }
 
-        public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
+            ECPublicKeyParameters publicKeyParameters;
+            if (publicKey.Length == 33)
+                publicKeyParameters = new ECPublicKeyParameters(ecDomainParameters.Curve.DecodePoint(publicKey), ecDomainParameters);
+            else
+                publicKeyParameters = new ECPublicKeyParameters(ecDomainParameters.Curve.CreatePoint(new BigInteger(1, publicKey.Take(publicKey.Length / 2).ToArray()), new BigInteger(1, publicKey.Skip(publicKey.Length / 2).ToArray())), ecDomainParameters);
+
+            return publicKeyParameters;
+        }
+        public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
             var privateKeyParameters = GetECPrivateKeyParameters(curve, prikey);
@@ -123,7 +128,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             }
         }
 
-        public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve = ECDsaCurve.Secp256r1)
+        public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve)
         {
             var messageHash = Sha256Hash(message);
 
@@ -140,7 +145,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             return R.Concat(S).ToArray();
         }
 
-        public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve = ECDsaCurve.Secp256r1, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
+        public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
             var publicKeyParameters = GetECPublicKeyParameters(curve, pubkey);

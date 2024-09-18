@@ -37,7 +37,7 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
             return new EthereumKey(prv.HexToByteArray());
         }
 
-        public static EthereumKey FromWIF(string wif)
+        public static byte[] FromWIFToBytes(string wif)
         {
             if (wif == null) throw new ArgumentNullException();
             byte[] data = wif.Base58CheckDecode();
@@ -46,7 +46,11 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
             byte[] privateKey = new byte[32];
             Buffer.BlockCopy(data, 1, privateKey, 0, privateKey.Length);
             Array.Clear(data, 0, data.Length);
-            return new EthereumKey(privateKey);
+            return privateKey;
+        }
+        public static EthereumKey FromWIF(string wif)
+        {
+            return new EthereumKey(FromWIFToBytes(wif));
         }
 
         private static System.Security.Cryptography.RNGCryptoServiceProvider rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();

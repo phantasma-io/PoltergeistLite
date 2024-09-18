@@ -1,7 +1,7 @@
 ﻿{
     "name": "Tests",
     "references": [
-        "Neo",
+        "Neo2Legacy",
         "PhantasmaLegacy"
     ],
     "precompiledReferences": [
