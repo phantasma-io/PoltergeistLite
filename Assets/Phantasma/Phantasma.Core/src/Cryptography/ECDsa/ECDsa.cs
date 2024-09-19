@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
 
@@ -69,6 +71,23 @@ namespace Phantasma.Core.Cryptography.ECDsa
             var signature = signer.GenerateSignature();
 
             return ECDsaHelpers.FromDER(signature);
+        }
+
+        public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve)
+        {
+            var messageHash = Hashing.SHA256.ComputeHash(message);
+
+            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
+
+            var signer = new ECDsaSigner(new HMacDsaKCalculator(new Sha256Digest()));
+
+            signer.Init(true, privateKeyParameters);
+
+            var RS = signer.GenerateSignature(messageHash);
+            var R = RS[0].ToByteArrayUnsigned();
+            var S = RS[1].ToByteArrayUnsigned();
+
+            return R.Concat(S).ToArray();
         }
 
         public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve)

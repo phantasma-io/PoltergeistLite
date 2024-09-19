@@ -48,12 +48,12 @@ public class ProofOfAddressesSigner
         message += "\n\nPhantasma signature: " + Base16.Encode(((Ed25519Signature)phaSignature).Bytes);
 
         {
-            var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, EthKeys.PrivateKey, ECDsaCurve.Secp256k1);
+            var signatureBytes = ECDsa.SignDeterministic(messageBytes, EthKeys.PrivateKey, ECDsaCurve.Secp256k1);
             message += "\nEthereum signature: " + Base16.Encode(signatureBytes);
         }
 
         {
-            var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, NeoKeys.PrivateKey, ECDsaCurve.Secp256r1);
+            var signatureBytes = ECDsa.SignDeterministic(messageBytes, NeoKeys.PrivateKey, ECDsaCurve.Secp256r1);
             message += "\nNeo Legacy signature: " + Base16.Encode(signatureBytes);
         }
 

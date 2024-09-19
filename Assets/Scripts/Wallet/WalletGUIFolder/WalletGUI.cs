@@ -3432,12 +3432,12 @@ namespace Poltergeist
                                         else if (chain == "Ethereum")
                                         {
                                             var keys = EthereumKey.FromWIF(wif);
-                                            signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256k1);
+                                            signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256k1);
                                         }
                                         else if (chain == "Neo Legacy")
                                         {
                                             var keys = NeoKeys.FromWIF(wif);
-                                            signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256r1);
+                                            signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256r1);
                                         }
                                         else
                                         {

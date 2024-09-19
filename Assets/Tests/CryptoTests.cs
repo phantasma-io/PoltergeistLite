@@ -135,7 +135,7 @@ namespace Phantasma.Tests
             var msgBytes = Encoding.ASCII.GetBytes("Phantasma");
             var signature = ethKeys.Sign(msgBytes, (message, prikey, pubkey) =>
             {
-                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(message, prikey, ECDsaCurve.Secp256k1);
+                return ECDsa.SignDeterministic(message, prikey, ECDsaCurve.Secp256k1);
             });
 
             var ecdsaSignature = (ECDsaSignature)signature;
@@ -224,7 +224,7 @@ namespace Phantasma.Tests
             var hash = Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(msgBytes);
             Debug.Log("Message hash: " + Base16.Encode(hash));
 
-            var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, keys.PrivKey, curve);
+            var signature = ECDsa.SignDeterministic(msgBytes, keys.PrivKey, curve);
             var signatureHex = Base16.Encode(signature);
 
             var signature2 = ECDsa.Sign(msgBytes, keys.PrivKey, curve);
