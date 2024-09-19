@@ -1,12 +1,8 @@
 using System;
 using System.Linq;
-using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.Sec;
-using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
-using Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions;
 
 namespace Phantasma.Core.Cryptography.ECDsa
 {
@@ -20,18 +16,7 @@ namespace Phantasma.Core.Cryptography.ECDsa
     {
         public static byte[] GetPublicKey(byte[] privateKey, bool compressed, ECDsaCurve curve)
         {
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
+            var dom = ECDsaHelpers.GetECDomainParameters(curve);
 
             var d = new BigInteger(1, privateKey);
             var q = dom.G.Multiply(d);
@@ -62,19 +47,8 @@ namespace Phantasma.Core.Cryptography.ECDsa
                 throw new ArgumentException("Incorrect compressed key length: " + compressedPublicKey.Length);
             }
 
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
+            var publicKeyParameters = ECDsaHelpers.GetECPublicKeyParameters(curve, compressedPublicKey);
 
-            ECPublicKeyParameters publicKeyParameters = new ECPublicKeyParameters(dom.Curve.DecodePoint(compressedPublicKey), dom);
             var uncompressedPublicKey = publicKeyParameters.Q.GetEncoded(false);
 
             if (dropUncompressedKeyPrefixByte)
@@ -88,18 +62,7 @@ namespace Phantasma.Core.Cryptography.ECDsa
         public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
-            var privateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, prikey), dom);
+            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
 
             signer.Init(true, privateKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
@@ -111,23 +74,7 @@ namespace Phantasma.Core.Cryptography.ECDsa
         public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
-
-            ECPublicKeyParameters publicKeyParameters;
-            if (pubkey.Length == 33)
-                publicKeyParameters = new ECPublicKeyParameters(dom.Curve.DecodePoint(pubkey), dom);
-            else
-                publicKeyParameters = new ECPublicKeyParameters(dom.Curve.CreatePoint(new BigInteger(1, pubkey.Take(pubkey.Length / 2).ToArray()), new BigInteger(1, pubkey.Skip(pubkey.Length / 2).ToArray())), dom);
+            var publicKeyParameters = ECDsaHelpers.GetECPublicKeyParameters(curve, pubkey);
 
             signer.Init(false, publicKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
