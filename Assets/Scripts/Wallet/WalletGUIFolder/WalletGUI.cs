@@ -3508,12 +3508,12 @@ namespace Poltergeist
                                             else if (chain == "Ethereum")
                                             {
                                                 var keys = EthereumKey.FromWIF(wif);
-                                                verificationResult = ECDsa.Verify(signatureBytes, messageBytes, keys.PublicKey, ECDsaCurve.Secp256k1);
+                                                verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256k1);
                                             }
                                             else if (chain == "Neo Legacy")
                                             {
                                                 var keys = NeoKeys.FromWIF(wif);
-                                                verificationResult = ECDsa.Verify(signatureBytes, messageBytes, keys.PublicKey, ECDsaCurve.Secp256r1);
+                                                verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256r1);
                                             }
                                             else
                                             {
