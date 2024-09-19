@@ -112,7 +112,7 @@ namespace Phantasma.Tests
             // Following is the format we use for signature:
             Debug.Log("\nSignature (curve byte + signature length + concatenated r & s, hex):\n" + Base16.Encode(signatureSerialized));
 
-            var signatureDEREncoded = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.RSBytesToDER(ecdsaSignature.Bytes);
+            var signatureDEREncoded = ECDsaHelpers.ToDER(ecdsaSignature.Bytes);
 
             Debug.Log("\nSignature (RAW DER-encoded, hex):\n" + Base16.Encode(signatureDEREncoded));
             Debug.Log("\nSignature (curve byte + signature length + DER-encoded, hex):\n" + Base16.Encode(signatureDEREncoded.Serialize()));
@@ -160,7 +160,7 @@ namespace Phantasma.Tests
             // Following is the format we use for signature:
             Debug.Log("\nSignature (concatenated r & s, hex):\n" + signatureHex);
 
-            var signatureDER = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.RSBytesToDER(signature);
+            var signatureDER = ECDsaHelpers.ToDER(signature);
 
             Debug.Log("\nSignature (RAW DER-encoded, hex):\n" + Base16.Encode(signatureDER));
 
@@ -182,7 +182,7 @@ namespace Phantasma.Tests
             // Verifying DER signature (unsupported).
             Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
 
-            var signatureConvertedBack = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.TranscodeSignatureToConcat(signatureDER, 64);
+            var signatureConvertedBack = ECDsaHelpers.FromDER(signatureDER);
             var signatureConvertedBackHex = Base16.Encode(signatureConvertedBack);
             Debug.Log("\nSignature (converted back from DER):\n" + signatureConvertedBackHex);
             Assert.AreEqual(signatureHex, signatureConvertedBackHex);

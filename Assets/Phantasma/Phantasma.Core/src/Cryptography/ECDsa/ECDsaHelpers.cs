@@ -10,22 +10,6 @@ namespace Phantasma.Core.Cryptography.ECDsa
 {
     public static class ECDsaHelpers
     {
-        public static ECDomainParameters GetDomain(ECDsaCurve curve)
-        {
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-
-            return new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
-        }
-
         public static byte[] FromDER(byte[] signature)
         {
             using var decoder = new Asn1InputStream(signature);
@@ -51,6 +35,40 @@ namespace Phantasma.Core.Cryptography.ECDsa
                 // last 32 bytes is "S" number
                 new DerInteger(new BigInteger(1, signature.Skip(32).ToArray())))
                 .GetDerEncoded();
+        }
+
+        public static X9ECParameters GetECParameters(ECDsaCurve curve)
+        {
+            return curve switch
+            {
+                ECDsaCurve.Secp256k1 => ECNamedCurveTable.GetByName("secp256k1"),
+                ECDsaCurve.Secp256r1 => ECNamedCurveTable.GetByName("secp256r1"),
+                _ => throw new Exception("Unsupported curve"),
+            };
+        }
+
+        public static ECDomainParameters GetECDomainParameters(ECDsaCurve curve)
+        {
+            var ecParams = GetECParameters(curve);
+            return new ECDomainParameters(ecParams.Curve, ecParams.G, ecParams.N, ecParams.H);
+        }
+
+        public static ECPrivateKeyParameters GetECPrivateKeyParameters(ECDsaCurve curve, byte[] privateKey)
+        {
+            return new ECPrivateKeyParameters(new BigInteger(1, privateKey), GetECDomainParameters(curve));
+        }
+
+        public static ECPublicKeyParameters GetECPublicKeyParameters(ECDsaCurve curve, byte[] publicKey)
+        {
+            var ecDomainParameters = GetECDomainParameters(curve);
+
+            ECPublicKeyParameters publicKeyParameters;
+            if (publicKey.Length == 33)
+                publicKeyParameters = new ECPublicKeyParameters(ecDomainParameters.Curve.DecodePoint(publicKey), ecDomainParameters);
+            else
+                publicKeyParameters = new ECPublicKeyParameters(ecDomainParameters.Curve.CreatePoint(new BigInteger(1, publicKey.Take(publicKey.Length / 2).ToArray()), new BigInteger(1, publicKey.Skip(publicKey.Length / 2).ToArray())), ecDomainParameters);
+
+            return publicKeyParameters;
         }
     }
 }

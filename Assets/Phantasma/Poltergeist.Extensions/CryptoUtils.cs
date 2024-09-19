@@ -19,97 +19,10 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             DEREncoded
         }
 
-        // Transcodes the JCA ASN.1/DER-encoded signature into the concatenated R + S format expected by ECDSA JWS.
-        public static byte[] TranscodeSignatureToConcat(byte[] derSignature, int outputLength)
-        {
-            if (derSignature.Length < 8 || derSignature[0] != 48) throw new Exception("Invalid ECDSA signature format");
-
-            int offset;
-            if (derSignature[1] > 0)
-                offset = 2;
-            else if (derSignature[1] == 0x81)
-                offset = 3;
-            else
-                throw new Exception("Invalid ECDSA signature format");
-
-            var rLength = derSignature[offset + 1];
-
-            int i = rLength;
-            while (i > 0
-                   && derSignature[offset + 2 + rLength - i] == 0)
-                i--;
-
-            var sLength = derSignature[offset + 2 + rLength + 1];
-
-            int j = sLength;
-            while (j > 0
-                   && derSignature[offset + 2 + rLength + 2 + sLength - j] == 0)
-                j--;
-
-            var rawLen = Math.Max(i, j);
-            rawLen = Math.Max(rawLen, outputLength / 2);
-
-            if ((derSignature[offset - 1] & 0xff) != derSignature.Length - offset
-                || (derSignature[offset - 1] & 0xff) != 2 + rLength + 2 + sLength
-                || derSignature[offset] != 2
-                || derSignature[offset + 2 + rLength] != 2)
-                throw new Exception("Invalid ECDSA signature format");
-
-            var concatSignature = new byte[2 * rawLen];
-
-            Array.Copy(derSignature, offset + 2 + rLength - i, concatSignature, rawLen - i, i);
-            Array.Copy(derSignature, offset + 2 + rLength + 2 + sLength - j, concatSignature, 2 * rawLen - j, j);
-
-            return concatSignature;
-        }
-
-        public static byte[] RSBytesToDER(byte[] RSBytes)
-        {
-            return new Org.BouncyCastle.Asn1.DerSequence(
-                        // first 32 bytes is "r" number
-                        new Org.BouncyCastle.Asn1.DerInteger(new BigInteger(1, RSBytes.Take(32).ToArray())),
-                        // last 32 bytes is "s" number
-                        new Org.BouncyCastle.Asn1.DerInteger(new BigInteger(1, RSBytes.Skip(32).ToArray())))
-                        .GetDerEncoded();
-        }
-
-        private static X9ECParameters GetECParameters(ECDsaCurve curve)
-        {
-            return curve switch
-            {
-                ECDsaCurve.Secp256k1 => ECNamedCurveTable.GetByName("secp256k1"),
-                ECDsaCurve.Secp256r1 => ECNamedCurveTable.GetByName("secp256r1"),
-                _ => throw new Exception("Unsupported curve"),
-            };
-        }
-
-        private static ECDomainParameters GetECDomainParameters(ECDsaCurve curve)
-        {
-            var ecParams = GetECParameters(curve);
-            return new ECDomainParameters(ecParams.Curve, ecParams.G, ecParams.N, ecParams.H);
-        }
-
-        private static ECPrivateKeyParameters GetECPrivateKeyParameters(ECDsaCurve curve, byte[] privateKey)
-        {
-            return new ECPrivateKeyParameters(new BigInteger(1, privateKey), GetECDomainParameters(curve));
-        }
-
-        private static ECPublicKeyParameters GetECPublicKeyParameters(ECDsaCurve curve, byte[] publicKey)
-        {
-            var ecDomainParameters = GetECDomainParameters(curve);
-
-            ECPublicKeyParameters publicKeyParameters;
-            if (publicKey.Length == 33)
-                publicKeyParameters = new ECPublicKeyParameters(ecDomainParameters.Curve.DecodePoint(publicKey), ecDomainParameters);
-            else
-                publicKeyParameters = new ECPublicKeyParameters(ecDomainParameters.Curve.CreatePoint(new BigInteger(1, publicKey.Take(publicKey.Length / 2).ToArray()), new BigInteger(1, publicKey.Skip(publicKey.Length / 2).ToArray())), ecDomainParameters);
-
-            return publicKeyParameters;
-        }
         public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            var privateKeyParameters = GetECPrivateKeyParameters(curve, prikey);
+            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
 
             signer.Init(true, privateKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
@@ -119,7 +32,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             {
                 case SignatureFormat.Concatenated:
                     // We convert from default DER format that Bouncy Castle uses to concatenated "raw" R + S format.
-                    return TranscodeSignatureToConcat(sig, 64);
+                    return ECDsaHelpers.FromDER(sig);
                 case SignatureFormat.DEREncoded:
                     // Return DER-encoded signature unchanged.
                     return sig;
@@ -132,7 +45,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
         {
             var messageHash = Sha256Hash(message);
 
-            var privateKeyParameters = GetECPrivateKeyParameters(curve, prikey);
+            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
 
             var signer = new ECDsaSigner(new HMacDsaKCalculator(new Sha256Digest()));
 
@@ -148,7 +61,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
         public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            var publicKeyParameters = GetECPublicKeyParameters(curve, pubkey);
+            var publicKeyParameters = ECDsaHelpers.GetECPublicKeyParameters(curve, pubkey);
 
             signer.Init(false, publicKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
@@ -157,7 +70,7 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             {
                 case SignatureFormat.Concatenated:
                     // We convert from concatenated "raw" R + S format to DER format that Bouncy Castle uses.
-                    signature = RSBytesToDER(signature);
+                    signature = ECDsaHelpers.ToDER(signature);
                     break;
                 case SignatureFormat.DEREncoded:
                     // Do nothing, signature already DER-encoded.
