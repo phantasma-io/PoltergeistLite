@@ -221,7 +221,7 @@ namespace Phantasma.Tests
 
             var msgBytes = Encoding.ASCII.GetBytes(message);
 
-            var hash = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(msgBytes);
+            var hash = Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(msgBytes);
             Debug.Log("Message hash: " + Base16.Encode(hash));
 
             var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, keys.PrivKey, curve);

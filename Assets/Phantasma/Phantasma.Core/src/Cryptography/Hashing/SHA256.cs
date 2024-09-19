@@ -2,14 +2,14 @@ using Org.BouncyCastle.Crypto.Digests;
 
 namespace Phantasma.Core.Cryptography.Hashing
 {
-    public class SHA256
+    public static class SHA256
     {
-        public byte[] ComputeHash(byte[] data)
+        public static byte[] ComputeHash(byte[] data)
         {
             return ComputeHash(data, 0, (uint)data.Length);
         }
 
-        public byte[] ComputeHash(byte[] data, uint offset, uint length)
+        public static byte[] ComputeHash(byte[] data, uint offset, uint length)
         {
             var digest = new Sha256Digest();
             var output = new byte[digest.GetDigestSize()];

@@ -3414,7 +3414,7 @@ namespace Poltergeist
 
                                         var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
 
-                                        var hash = Base16.Encode(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(messageBytes));
+                                        var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
                                         if (accountManager.Settings.devMode)
                                         {
                                             Log.Write($"Signed message: '{message}', hash: '{hash}'");
@@ -3493,7 +3493,7 @@ namespace Poltergeist
 
                                             if (accountManager.Settings.devMode)
                                             {
-                                                var hash = Base16.Encode(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(messageBytes));
+                                                var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
                                                 Log.WriteRaw($"Verified message: '{message}'");
                                                 Log.WriteRaw("\n\n");
                                                 Log.Write($"Hash: '{hash}'");
