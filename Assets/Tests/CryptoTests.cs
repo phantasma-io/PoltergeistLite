@@ -92,14 +92,14 @@ namespace Phantasma.Tests
             // Since ECDsaSignature class not working for us,
             // we use signature .Bytes directly to verify it with Bouncy Castle.
             // Verifying concatenated signature / compressed Eth public key.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, ecdsaSignature.Bytes, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, ecdsaSignature.Bytes, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
 
             // Verifying concatenated signature / uncompressed Eth public key.
             // Not working with Bouncy Castle.
             // Assert.IsTrue(Phantasma.Neo.Utils.CryptoUtils.Verify(msgBytes, ecdsaSignature.Bytes, ethPublicKeyUncompressed, ECDsaCurve.Secp256k1));
 
             // Verifying DER signature.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, ecdsaSignatureDEREncoded.Bytes, ethPublicKeyCompressed, ECDsaCurve.Secp256k1, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, ECDsaHelpers.FromDER(ecdsaSignatureDEREncoded.Bytes), ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
 
             // This method we cannot use, it gives "System.NotImplementedException : The method or operation is not implemented."
             // exception in Unity, because Unity does not fully support .NET cryptography.
@@ -152,10 +152,10 @@ namespace Phantasma.Tests
             // Since ECDsaSignature class not working for us,
             // we use signature .Bytes directly to verify it with Bouncy Castle.
             // Verifying concatenated signature / compressed Eth public key.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, ecdsaSignature.Bytes, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, ecdsaSignature.Bytes, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
 
             // Verifying DER signature.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signatureDEREncoded, ethPublicKeyCompressed, ECDsaCurve.Secp256k1, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, ECDsaHelpers.FromDER(signatureDEREncoded), ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
 
             yield return null;
         }
@@ -205,19 +205,10 @@ namespace Phantasma.Tests
             Debug.Log("\nSignature (RAW DER-encoded, hex):\n" + Base16.Encode(signatureDER));
 
             // Verifying concatenated signature / compressed Eth public key.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signature, ethPublicKeyCompressed, curve));
-
-            // Verifying concatenated signature / uncompressed Eth public key.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signature, ethPublicKeyUncompressed, curve));
-
-            // Verifying concatenated signature / compressed Eth public key.
             Assert.IsTrue(ECDsa.Verify(msgBytes, signature, ethPublicKeyCompressed, curve));
 
             // Verifying concatenated signature / uncompressed Eth public key.
             Assert.IsTrue(ECDsa.Verify(msgBytes, signature, ethPublicKeyUncompressed, curve));
-
-            // Verifying DER signature.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signatureDER, ethPublicKeyCompressed, curve, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded));
 
             // Verifying DER signature (unsupported).
             Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, ethPublicKeyCompressed, curve));
@@ -227,8 +218,8 @@ namespace Phantasma.Tests
             Debug.Log("\nSignature (converted back from DER):\n" + signatureConvertedBackHex);
             Assert.AreEqual(signatureHex, signatureConvertedBackHex);
 
-            // Verifying signature, converted back from DER.
-            Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signatureConvertedBack, ethPublicKeyCompressed, curve));
+            // Verifying DER signature.
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signatureConvertedBack, ethPublicKeyCompressed, curve));
         }
 
         [UnityTest]
