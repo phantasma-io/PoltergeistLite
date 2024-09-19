@@ -9,6 +9,8 @@ using Phantasma.Core.Numerics;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Cryptography.ECDsa;
 using Phantasma.Core.Domain;
+using Poltergeist.Neo2.Core;
+using System;
 
 namespace Phantasma.Tests
 {
@@ -160,28 +162,74 @@ namespace Phantasma.Tests
             yield return null;
         }
 
-        private void ECDsaTest(ECDsaCurve curve, string pkHex, string message, string signatureReference = null)
+        private class Keys
+        {
+            public ECDsaCurve Curve;
+            public byte[] PrivKey;
+            public byte[] PubKeyCompressed;
+            public byte[] PubKeyUncompressed;
+
+            public Keys(ECDsaCurve curve, bool useKeyClasses, string pkHex)
+            {
+                Assert.IsTrue(pkHex.Length == 64);
+
+                PrivKey = Base16.Decode(pkHex);
+
+                if (useKeyClasses)
+                {
+                    switch(curve)
+                    {
+                        case ECDsaCurve.Secp256k1:
+                            var phantasmaKeys = new PhantasmaKeys(PrivKey);
+
+                            var wif = phantasmaKeys.ToWIF();
+                            var ethKeys = EthereumKey.FromWIF(wif);
+
+                            PubKeyCompressed = ethKeys.CompressedPublicKey;
+                            PubKeyUncompressed = ethKeys.UncompressedPublicKey;
+                            break;
+                        case ECDsaCurve.Secp256r1:
+                            var neoKeys = new NeoKeys(PrivKey);
+
+                            PubKeyCompressed = neoKeys.CompressedPublicKey;
+                            PubKeyUncompressed = neoKeys.PublicKey;
+                            break;
+                        default:
+                            throw new Exception("Unsupported curve");
+                    }
+                }
+                else
+                {
+                    PubKeyCompressed = ECDsa.GetPublicKey(PrivKey, true, curve);
+                    PubKeyUncompressed = ECDsa.GetPublicKey(PrivKey, false, curve).Skip(1).ToArray();
+                }
+            }
+
+            public static Keys NewKeys(ECDsaCurve curve, bool useKeyClasses, string pkHex)
+            {
+                return new Keys(curve, useKeyClasses, pkHex);
+            }
+        }
+
+        private void ECDsaTest(ECDsaCurve curve,
+            Keys keys,
+            string message, string signatureReference = null)
         {
             Debug.Log("\n\n\nCurve: " + curve);
-            Assert.IsTrue(pkHex.Length == 64);
 
-            var privKey = Base16.Decode(pkHex);
-
-            var pubKeyCompressed = ECDsa.GetPublicKey(privKey, true, curve);
-            var pubKeyUncompressed = ECDsa.GetPublicKey(privKey, false, curve).Skip(1).ToArray();
-            Debug.Log("Eth compressed public key: " + Base16.Encode(pubKeyCompressed));
+            Debug.Log("Compressed public key: " + Base16.Encode(keys.PubKeyCompressed));
 
             var msgBytes = Encoding.ASCII.GetBytes(message);
 
             var hash = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(msgBytes);
             Debug.Log("Message hash: " + Base16.Encode(hash));
 
-            var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, privKey, curve);
+            var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, keys.PrivKey, curve);
             var signatureHex = Base16.Encode(signature);
 
-            var signature2 = ECDsa.Sign(msgBytes, privKey, curve);
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, pubKeyCompressed, curve));
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, pubKeyUncompressed, curve));
+            var signature2 = ECDsa.Sign(msgBytes, keys.PrivKey, curve);
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, keys.PubKeyCompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, keys.PubKeyUncompressed, curve));
 
             if (signatureReference != null)
             {
@@ -197,13 +245,13 @@ namespace Phantasma.Tests
             Debug.Log("\nSignature (RAW DER-encoded, hex):\n" + Base16.Encode(signatureDER));
 
             // Verifying concatenated signature / compressed Eth public key.
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, pubKeyCompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, keys.PubKeyCompressed, curve));
 
             // Verifying concatenated signature / uncompressed Eth public key.
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, pubKeyUncompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, keys.PubKeyUncompressed, curve));
 
             // Verifying DER signature (unsupported).
-            Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, pubKeyCompressed, curve));
+            Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, keys.PubKeyCompressed, curve));
 
             var signatureConvertedBack = ECDsaHelpers.FromDER(signatureDER);
             var signatureConvertedBackHex = Base16.Encode(signatureConvertedBack);
@@ -211,24 +259,55 @@ namespace Phantasma.Tests
             Assert.AreEqual(signatureHex, signatureConvertedBackHex);
 
             // Verifying DER signature.
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signatureConvertedBack, pubKeyCompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signatureConvertedBack, keys.PubKeyCompressed, curve));
         }
 
-        [UnityTest]
+        private void ECDsaTest(ECDsaCurve curve,
+            string pkHex,
+            string message, string signatureReference = null)
+        {
+            ECDsaTest(curve,
+                Keys.NewKeys(curve, false, pkHex),
+                message,
+                signatureReference);
+
+            ECDsaTest(curve,
+                Keys.NewKeys(curve, true, pkHex),
+                message,
+                signatureReference);
+        }
+
+            [UnityTest]
         public IEnumerator ECDsaSecP256k1_Mixed()
         {
             // Eth address: 0x66571c32d77c4852be4c282eb952ba94efbeac20
-            ECDsaTest(ECDsaCurve.Secp256k1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1", "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256r1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1", "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256k1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1", "test message");
-            ECDsaTest(ECDsaCurve.Secp256r1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1", "test message");
+            ECDsaTest(ECDsaCurve.Secp256k1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                "Phantasma");
+            ECDsaTest(ECDsaCurve.Secp256r1,
+                "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                "Phantasma");
+            ECDsaTest(ECDsaCurve.Secp256k1,
+                "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                "test message");
+            ECDsaTest(ECDsaCurve.Secp256r1,
+                "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                "test message");
+
             // Eth address: 0xDf738B927DA923fe0A5Fd3aD2192990C68913e6a
-            ECDsaTest(ECDsaCurve.Secp256k1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49", "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256r1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49", "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256k1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49", "test message", "55DEB9E4D985834192AB8298C3DDA18EB7082C2A744EBDF7233D0A93FB00A4A9F4750F4A6F3FB3928C28690BE3A2BE52DEB95E1935E960FACBF7CC4AC4FDADCB");
+            ECDsaTest(ECDsaCurve.Secp256k1,
+                "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+                "Phantasma");
+            ECDsaTest(ECDsaCurve.Secp256r1,
+                "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+                "Phantasma");
+            ECDsaTest(ECDsaCurve.Secp256k1,
+                "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+                "test message",
+                "55DEB9E4D985834192AB8298C3DDA18EB7082C2A744EBDF7233D0A93FB00A4A9F4750F4A6F3FB3928C28690BE3A2BE52DEB95E1935E960FACBF7CC4AC4FDADCB");
 
 
-            ECDsaTest(ECDsaCurve.Secp256k1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49", "I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
+            ECDsaTest(ECDsaCurve.Secp256k1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+"I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
 "Phantasma address: P2KHhbVZWDv1ZLLoJccN3PUAb9x9BqRnUyH3ZEhu5YwBeJQ\n" +
 "Ethereum address: 0xDf738B927DA923fe0A5Fd3aD2192990C68913e6a\n" +
 "Ethereum public key: 5D3F7F469803C68C12B8F731576C74A9B5308484FD3B425D87C35CAED0A2E398C7AC626D916A1D65E23F673A55E6B16FFC1ABD673F3EF6AE8D5E6A0F99784A56\n" +
