@@ -165,28 +165,23 @@ namespace Phantasma.Tests
             Debug.Log("\n\n\nCurve: " + curve);
             Assert.IsTrue(pkHex.Length == 64);
 
-            var privBytes = Base16.Decode(pkHex);
-            var phantasmaKeys = new PhantasmaKeys(privBytes);
+            var privKey = Base16.Decode(pkHex);
 
-            var wif = phantasmaKeys.ToWIF();
-            var ethKeys = EthereumKey.FromWIF(wif);
-            Debug.Log("Eth address: " + ethKeys);
-
-            var ethPublicKeyCompressed = ECDsa.GetPublicKey(privBytes, true, curve);
-            var ethPublicKeyUncompressed = ECDsa.GetPublicKey(privBytes, false, curve).Skip(1).ToArray();
-            Debug.Log("Eth compressed public key: " + Base16.Encode(ethPublicKeyCompressed));
+            var pubKeyCompressed = ECDsa.GetPublicKey(privKey, true, curve);
+            var pubKeyUncompressed = ECDsa.GetPublicKey(privKey, false, curve).Skip(1).ToArray();
+            Debug.Log("Eth compressed public key: " + Base16.Encode(pubKeyCompressed));
 
             var msgBytes = Encoding.ASCII.GetBytes(message);
 
             var hash = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sha256Hash(msgBytes);
             Debug.Log("Message hash: " + Base16.Encode(hash));
 
-            var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, privBytes, curve);
+            var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, privKey, curve);
             var signatureHex = Base16.Encode(signature);
 
-            var signature2 = ECDsa.Sign(msgBytes, privBytes, curve);
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, ethPublicKeyCompressed, curve));
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, ethPublicKeyUncompressed, curve));
+            var signature2 = ECDsa.Sign(msgBytes, privKey, curve);
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, pubKeyCompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, pubKeyUncompressed, curve));
 
             if (signatureReference != null)
             {
@@ -202,13 +197,13 @@ namespace Phantasma.Tests
             Debug.Log("\nSignature (RAW DER-encoded, hex):\n" + Base16.Encode(signatureDER));
 
             // Verifying concatenated signature / compressed Eth public key.
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, ethPublicKeyCompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, pubKeyCompressed, curve));
 
             // Verifying concatenated signature / uncompressed Eth public key.
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, ethPublicKeyUncompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, pubKeyUncompressed, curve));
 
             // Verifying DER signature (unsupported).
-            Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, ethPublicKeyCompressed, curve));
+            Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, pubKeyCompressed, curve));
 
             var signatureConvertedBack = ECDsaHelpers.FromDER(signatureDER);
             var signatureConvertedBackHex = Base16.Encode(signatureConvertedBack);
@@ -216,7 +211,7 @@ namespace Phantasma.Tests
             Assert.AreEqual(signatureHex, signatureConvertedBackHex);
 
             // Verifying DER signature.
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signatureConvertedBack, ethPublicKeyCompressed, curve));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signatureConvertedBack, pubKeyCompressed, curve));
         }
 
         [UnityTest]
