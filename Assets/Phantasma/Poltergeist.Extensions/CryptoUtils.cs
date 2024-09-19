@@ -16,28 +16,6 @@ namespace Poltergeist.PhantasmaLegacy.Cryptography
             DEREncoded
         }
 
-        public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve, SignatureFormat signatureFormat = SignatureFormat.Concatenated)
-        {
-            var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
-
-            signer.Init(true, privateKeyParameters);
-            signer.BlockUpdate(message, 0, message.Length);
-            var sig = signer.GenerateSignature();
-
-            switch (signatureFormat)
-            {
-                case SignatureFormat.Concatenated:
-                    // We convert from default DER format that Bouncy Castle uses to concatenated "raw" R + S format.
-                    return ECDsaHelpers.FromDER(sig);
-                case SignatureFormat.DEREncoded:
-                    // Return DER-encoded signature unchanged.
-                    return sig;
-                default:
-                    throw new Exception("Unknown signature format");
-            }
-        }
-
         public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve)
         {
             var messageHash = Sha256Hash(message);

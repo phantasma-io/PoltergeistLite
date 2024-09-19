@@ -68,7 +68,7 @@ namespace Phantasma.Tests
             var msgBytes = Encoding.ASCII.GetBytes("Phantasma");
             var signature = ethKeys.Sign(msgBytes, (message, prikey, pubkey) =>
             {
-                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(message, prikey, ECDsaCurve.Secp256k1);
+                return ECDsa.Sign(message, prikey, ECDsaCurve.Secp256k1);
             });
 
             var ecdsaSignature = (ECDsaSignature)signature;
@@ -81,7 +81,7 @@ namespace Phantasma.Tests
 
             var signatureDEREncoded = ethKeys.Sign(msgBytes, (message, prikey, pubkey) =>
             {
-                return Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(message, prikey, ECDsaCurve.Secp256k1, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded);
+                return ECDsaHelpers.ToDER(ECDsa.Sign(message, prikey, ECDsaCurve.Secp256k1));
             });
 
             var ecdsaSignatureDEREncoded = (ECDsaSignature)signatureDEREncoded;
@@ -184,12 +184,9 @@ namespace Phantasma.Tests
             var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, privBytes, curve);
             var signatureHex = Base16.Encode(signature);
 
-            var signature2 = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msgBytes, privBytes, curve);
+            var signature2 = ECDsa.Sign(msgBytes, privBytes, curve);
             Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, ethPublicKeyCompressed, curve));
             Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, ethPublicKeyUncompressed, curve));
-            var signature3 = ECDsa.Sign(msgBytes, privBytes, curve);
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature3, ethPublicKeyCompressed, curve));
-            Assert.IsTrue(ECDsa.Verify(msgBytes, signature3, ethPublicKeyUncompressed, curve));
 
             if (signatureReference != null)
             {
