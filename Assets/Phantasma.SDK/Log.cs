@@ -220,6 +220,35 @@ namespace Phantasma.SDK
 #endif
         }
 
+        public static void WriteRaw(string message, Level level = Level.Logic, UnityDebugLogMode unityDebugLogMode = UnityDebugLogMode.Normal)
+        {
+            if (LogStreamWriter != null && MaxLevel != Level.Disabled && level <= MaxLevel)
+            {
+                lock (Locker)
+                {
+                    if (ConsoleOutput)
+                        Console.Write(message);
+                    LogStreamWriter.Write(message);
+                    LogStreamWriter.Flush();
+                }
+            }
+
+#if UNITY_5_3_OR_NEWER
+            switch (unityDebugLogMode)
+            {
+                case UnityDebugLogMode.Normal:
+                    Debug.Log(message);
+                    break;
+                case UnityDebugLogMode.Warning:
+                    Debug.LogWarning(message);
+                    break;
+                case UnityDebugLogMode.Error:
+                    Debug.LogError(message);
+                    break;
+            }
+#endif
+        }
+
         public static void WriteJson(DataNode node, string message = "", Level level = Level.Logic, UnityDebugLogMode unityDebugLogMode = UnityDebugLogMode.Normal)
         {
             Write(message + DataFormats.SaveToString(DataFormat.JSON, node), level, unityDebugLogMode);
