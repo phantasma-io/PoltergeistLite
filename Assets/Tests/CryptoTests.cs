@@ -15,6 +15,38 @@ namespace Phantasma.Tests
     public class CryptoTests
     {
         [UnityTest]
+        public IEnumerator WifPkTest()
+        {
+            var wif = "Kyry8sMHFzx5DfubcqyGMQByaHQBtdyALBjAqcx9Lx1YtSZjy2vZ";
+            var pkHex = "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49";
+
+            var keyFromWif = EthereumKey.FromWIF(wif);
+
+            Assert.AreEqual(keyFromWif.PublicKey, keyFromWif.CompressedPublicKey);
+
+            var pkBytesFromHex = Base16.Decode(pkHex);
+            Assert.AreEqual(pkBytesFromHex.Length, 32);
+
+            var keyFromHex = new EthereumKey(pkBytesFromHex);
+
+            var pkBytesFromWif = EthereumKey.FromWIFToBytes(wif);
+            Assert.AreEqual(pkBytesFromWif, pkBytesFromHex);
+            Assert.AreEqual(pkBytesFromWif, keyFromWif.PrivateKey);
+            Assert.AreEqual(pkBytesFromWif, keyFromHex.PrivateKey);
+            Assert.AreEqual(pkBytesFromWif.Length, 32);
+
+            Assert.AreEqual(keyFromWif.PrivateKey.Length, 32);
+            Assert.AreEqual(keyFromHex.PrivateKey.Length, 32);
+            Assert.AreEqual(keyFromWif.PublicKey.Length, 33);
+            Assert.AreEqual(keyFromHex.PublicKey.Length, 33);
+
+            Assert.AreEqual(keyFromWif.PublicKey, keyFromHex.PublicKey);
+            Assert.AreEqual(keyFromWif.PrivateKey, keyFromHex.PrivateKey);
+
+            yield return null;
+        }
+
+        [UnityTest]
         public IEnumerator ECDsaSecP256k1()
         {
             // Eth address: "0x66571c32d77c4852be4c282eb952ba94efbeac20";
@@ -151,6 +183,13 @@ namespace Phantasma.Tests
             var signature = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignDeterministic(msgBytes, privBytes, ECDsaCurve.Secp256k1);
             var signatureHex = Base16.Encode(signature);
 
+            var signature2 = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msgBytes, privBytes, ECDsaCurve.Secp256k1);
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature2, ethPublicKeyUncompressed, ECDsaCurve.Secp256k1));
+            var signature3 = ECDsa.Sign(msgBytes, privBytes, ECDsaCurve.Secp256k1);
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature3, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature3, ethPublicKeyUncompressed, ECDsaCurve.Secp256k1));
+
             if (signatureReference != null)
             {
                 Assert.AreEqual(signatureHex, signatureReference);
@@ -189,39 +228,6 @@ namespace Phantasma.Tests
 
             // Verifying signature, converted back from DER.
             Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signatureConvertedBack, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
-        }
-
-
-        [UnityTest]
-        public IEnumerator WifPkTest()
-        {
-            var wif = "Kyry8sMHFzx5DfubcqyGMQByaHQBtdyALBjAqcx9Lx1YtSZjy2vZ";
-            var pkHex = "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49";
-
-            var keyFromWif = EthereumKey.FromWIF(wif);
-
-            Assert.AreEqual(keyFromWif.PublicKey, keyFromWif.CompressedPublicKey);
-
-            var pkBytesFromHex = Base16.Decode(pkHex);
-            Assert.AreEqual(pkBytesFromHex.Length, 32);
-
-            var keyFromHex = new EthereumKey(pkBytesFromHex);
-
-            var pkBytesFromWif = EthereumKey.FromWIFToBytes(wif);
-            Assert.AreEqual(pkBytesFromWif, pkBytesFromHex);
-            Assert.AreEqual(pkBytesFromWif, keyFromWif.PrivateKey);
-            Assert.AreEqual(pkBytesFromWif, keyFromHex.PrivateKey);
-            Assert.AreEqual(pkBytesFromWif.Length, 32);
-
-            Assert.AreEqual(keyFromWif.PrivateKey.Length, 32);
-            Assert.AreEqual(keyFromHex.PrivateKey.Length, 32);
-            Assert.AreEqual(keyFromWif.PublicKey.Length, 33);
-            Assert.AreEqual(keyFromHex.PublicKey.Length, 33);
-
-            Assert.AreEqual(keyFromWif.PublicKey, keyFromHex.PublicKey);
-            Assert.AreEqual(keyFromWif.PrivateKey, keyFromHex.PrivateKey);
-
-            yield return null;
         }
 
         [UnityTest]
