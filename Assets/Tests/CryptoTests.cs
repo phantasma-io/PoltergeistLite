@@ -170,8 +170,17 @@ namespace Phantasma.Tests
             // Verifying concatenated signature / uncompressed Eth public key.
             Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signature, ethPublicKeyUncompressed, ECDsaCurve.Secp256k1));
 
+            // Verifying concatenated signature / compressed Eth public key.
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
+
+            // Verifying concatenated signature / uncompressed Eth public key.
+            Assert.IsTrue(ECDsa.Verify(msgBytes, signature, ethPublicKeyUncompressed, ECDsaCurve.Secp256k1));
+
             // Verifying DER signature.
             Assert.IsTrue(Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Verify(msgBytes, signatureDER, ethPublicKeyCompressed, ECDsaCurve.Secp256k1, Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.SignatureFormat.DEREncoded));
+
+            // Verifying DER signature (unsupported).
+            Assert.IsFalse(ECDsa.Verify(msgBytes, signatureDER, ethPublicKeyCompressed, ECDsaCurve.Secp256k1));
 
             var signatureConvertedBack = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.TranscodeSignatureToConcat(signatureDER, 64);
             var signatureConvertedBackHex = Base16.Encode(signatureConvertedBack);
