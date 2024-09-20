@@ -10,18 +10,45 @@ namespace Phantasma.Core.Cryptography.ECDsa
 {
     public static class ECDsaHelpers
     {
-        public static byte[] FromDER(byte[] signature)
+        public static byte[] FromDER(byte[] derSignature, int outputLength = 64)
         {
-            using var decoder = new Asn1InputStream(signature);
-            var seq = decoder.ReadObject() as DerSequence;
-            if (seq == null || seq.Count != 2)
-                throw new FormatException("Invalid DER Signature");
-            var R = ((DerInteger)seq[0]).Value.ToByteArrayUnsigned();
-            var S = ((DerInteger)seq[1]).Value.ToByteArrayUnsigned();
+            if (derSignature.Length < 8 || derSignature[0] != 48) throw new Exception("Invalid ECDSA signature format");
 
-            byte[] concatenated = new byte[R.Length + S.Length];
-            Buffer.BlockCopy(R, 0, concatenated, 0, R.Length);
-            Buffer.BlockCopy(S, 0, concatenated, R.Length, S.Length);
+            int offset;
+            if (derSignature[1] > 0)
+                offset = 2;
+            else if (derSignature[1] == 0x81)
+                offset = 3;
+            else
+                throw new Exception("Invalid ECDSA signature format");
+
+            var rLength = derSignature[offset + 1];
+
+            int i = rLength;
+            while (i > 0
+                   && derSignature[offset + 2 + rLength - i] == 0)
+                i--;
+
+            var sLength = derSignature[offset + 2 + rLength + 1];
+
+            int j = sLength;
+            while (j > 0
+                   && derSignature[offset + 2 + rLength + 2 + sLength - j] == 0)
+                j--;
+
+            var rawLen = Math.Max(i, j);
+            rawLen = Math.Max(rawLen, outputLength / 2);
+
+            if ((derSignature[offset - 1] & 0xff) != derSignature.Length - offset
+                || (derSignature[offset - 1] & 0xff) != 2 + rLength + 2 + sLength
+                || derSignature[offset] != 2
+                || derSignature[offset + 2 + rLength] != 2)
+                throw new Exception("Invalid ECDSA signature format");
+
+            var concatenated = new byte[2 * rawLen];
+
+            Array.Copy(derSignature, offset + 2 + rLength - i, concatenated, rawLen - i, i);
+            Array.Copy(derSignature, offset + 2 + rLength + 2 + sLength - j, concatenated, 2 * rawLen - j, j);
 
             return concatenated;
         }
