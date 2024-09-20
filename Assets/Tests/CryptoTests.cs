@@ -16,6 +16,13 @@ namespace Phantasma.Tests
 {
     public class CryptoTests
     {
+        private string SignatureIncorrect1 = "45deb9e4d985834192ab8298c3dda18eb7082c2a744ebdf7233d0a93fb00a4a90b8af0b590c04c6d73d796f41c5d41abdbf57ecd795f3f40f3da92420b389376";
+        private string SignatureIncorrect2 = "55deb9e4d985834192ab8298c3dda18eb7082c2a744ebcf7233d0a93fb00a4a90b8af0b590c04c6d73d796f41c5d41abdbf57ecd795f3f40f3da92420b389376";
+        private string SignatureIncorrect3 = "55deb9e4d985834192ab8298c3dda18eb7082c2a744ebdf7233d0a93fb00a4a90b8af0b590c04c6d73d796f41c5d41abdbf57ecd000000000000000000000000";
+        private string SignatureIncorrect4 = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+        private string SignatureIncorrect5 = "7D375DEEB56530A8E09BB3F4AF9217F922FD3D33EBF02874239A2910E9DEF1BD25119CA641F13C6EBED1BFF4FEB7834F56723F9A9DCFC80B3128F1028B2C3A6B";
+
+
         [UnityTest]
         public IEnumerator WifPkTest()
         {
@@ -260,6 +267,13 @@ namespace Phantasma.Tests
 
             // Verifying DER signature.
             Assert.IsTrue(ECDsa.Verify(msgBytes, signatureConvertedBack, keys.PubKeyCompressed, curve));
+
+            // Incorrect signatures
+            Assert.IsFalse(ECDsa.Verify(msgBytes, Base16.Decode(SignatureIncorrect1), keys.PubKeyCompressed, curve));
+            Assert.IsFalse(ECDsa.Verify(msgBytes, Base16.Decode(SignatureIncorrect2), keys.PubKeyCompressed, curve));
+            Assert.IsFalse(ECDsa.Verify(msgBytes, Base16.Decode(SignatureIncorrect3), keys.PubKeyCompressed, curve));
+            Assert.IsFalse(ECDsa.Verify(msgBytes, Base16.Decode(SignatureIncorrect4), keys.PubKeyCompressed, curve));
+            Assert.IsFalse(ECDsa.Verify(msgBytes, Base16.Decode(SignatureIncorrect5), keys.PubKeyCompressed, curve));
         }
 
         private void ECDsaTest(ECDsaCurve curve,
@@ -280,41 +294,46 @@ namespace Phantasma.Tests
             [UnityTest]
         public IEnumerator ECDsaSecP256k1_Mixed()
         {
-            // Eth address: 0x66571c32d77c4852be4c282eb952ba94efbeac20
-            ECDsaTest(ECDsaCurve.Secp256k1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+            for (int i = 0; i < 10; i++)
+            {
+                // Eth address: 0x66571c32d77c4852be4c282eb952ba94efbeac20
+                ECDsaTest(ECDsaCurve.Secp256k1, "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
                 "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256r1,
-                "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
-                "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256k1,
-                "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
-                "test message");
-            ECDsaTest(ECDsaCurve.Secp256r1,
-                "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
-                "test message");
+                ECDsaTest(ECDsaCurve.Secp256r1,
+                    "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                    "Phantasma");
+                ECDsaTest(ECDsaCurve.Secp256k1,
+                    "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                    "test message");
+                ECDsaTest(ECDsaCurve.Secp256r1,
+                    "6f6784731c4e526c97fa6a97b6f22e96f307588c5868bc2c545248bc31207eb1",
+                    "test message");
 
-            // Eth address: 0xDf738B927DA923fe0A5Fd3aD2192990C68913e6a
-            ECDsaTest(ECDsaCurve.Secp256k1,
-                "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
-                "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256r1,
-                "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
-                "Phantasma");
-            ECDsaTest(ECDsaCurve.Secp256k1,
-                "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
-                "test message",
-                "55DEB9E4D985834192AB8298C3DDA18EB7082C2A744EBDF7233D0A93FB00A4A9F4750F4A6F3FB3928C28690BE3A2BE52DEB95E1935E960FACBF7CC4AC4FDADCB");
+                // Eth address: 0xDf738B927DA923fe0A5Fd3aD2192990C68913e6a
+                ECDsaTest(ECDsaCurve.Secp256k1,
+                    "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+                    "Phantasma");
 
 
-            ECDsaTest(ECDsaCurve.Secp256k1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
-"I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
-"Phantasma address: P2KHhbVZWDv1ZLLoJccN3PUAb9x9BqRnUyH3ZEhu5YwBeJQ\n" +
-"Ethereum address: 0xDf738B927DA923fe0A5Fd3aD2192990C68913e6a\n" +
-"Ethereum public key: 5D3F7F469803C68C12B8F731576C74A9B5308484FD3B425D87C35CAED0A2E398C7AC626D916A1D65E23F673A55E6B16FFC1ABD673F3EF6AE8D5E6A0F99784A56\n" +
-"Neo Legacy address: Ae3aEA6CpvckvypAUShj2CLsy7sfynKUzj\n" +
-"Neo Legacy public key: 183A301779007BF42DD7B5247587585B0524E13989F964C2A8E289A0CDC91F001765FCC3B4CEE5ED274C4A8B6D80978BDFED678210458CE264D4A4DAB3923EE6",
-"E3E1FCD85385675F9E3508630570C545DECCD1241C7A8FFF523D2AC500D6F68745E43975DBF871C99504100B8DD6715F036FA51EFF9EB8B79D1E31FD555E78FC");
+                ECDsaTest(ECDsaCurve.Secp256r1,
+                    "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+                    "Phantasma");
 
+                ECDsaTest(ECDsaCurve.Secp256k1,
+                    "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+                    "test message",
+                    "55DEB9E4D985834192AB8298C3DDA18EB7082C2A744EBDF7233D0A93FB00A4A9F4750F4A6F3FB3928C28690BE3A2BE52DEB95E1935E960FACBF7CC4AC4FDADCB");
+
+
+                ECDsaTest(ECDsaCurve.Secp256k1, "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49",
+    "I have signed this message with my Phantasma, Ethereum and Neo Legacy signatures to prove that following addresses belong to me and were derived from private key that belongs to me and to confirm my willingness to swap funds across these addresses upon my request. My public addresses are:\n" +
+    "Phantasma address: P2KHhbVZWDv1ZLLoJccN3PUAb9x9BqRnUyH3ZEhu5YwBeJQ\n" +
+    "Ethereum address: 0xDf738B927DA923fe0A5Fd3aD2192990C68913e6a\n" +
+    "Ethereum public key: 5D3F7F469803C68C12B8F731576C74A9B5308484FD3B425D87C35CAED0A2E398C7AC626D916A1D65E23F673A55E6B16FFC1ABD673F3EF6AE8D5E6A0F99784A56\n" +
+    "Neo Legacy address: Ae3aEA6CpvckvypAUShj2CLsy7sfynKUzj\n" +
+    "Neo Legacy public key: 183A301779007BF42DD7B5247587585B0524E13989F964C2A8E289A0CDC91F001765FCC3B4CEE5ED274C4A8B6D80978BDFED678210458CE264D4A4DAB3923EE6",
+    "E3E1FCD85385675F9E3508630570C545DECCD1241C7A8FFF523D2AC500D6F68745E43975DBF871C99504100B8DD6715F036FA51EFF9EB8B79D1E31FD555E78FC");
+            }
             yield return null;
         }
     }
