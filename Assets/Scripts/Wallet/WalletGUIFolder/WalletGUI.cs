@@ -3552,6 +3552,11 @@ namespace Poltergeist
                                         {
                                             if (result2 != PromptResult.Success)
                                             {
+                                                if (accountManager.Settings.devMode)
+                                                {
+                                                    Log.Write($"Signed POA message (Base64): '{Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(message))}'");
+                                                }
+
                                                 GUIUtility.systemCopyBuffer = message;
                                                 MessageBox(MessageKind.Default, "Message copied to the clipboard.");
                                             }
