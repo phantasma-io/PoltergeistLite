@@ -204,6 +204,10 @@ namespace Poltergeist
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma NFT URL");
                 settings.phantasmaNftExplorer = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaNftExplorer);
                 curY += Units(3);
+
+                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma POA URL");
+                settings.phantasmaPoaUrl = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaPoaUrl);
+                curY += Units(3);
             }
             else
             {

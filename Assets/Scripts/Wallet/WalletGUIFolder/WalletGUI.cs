@@ -3548,17 +3548,34 @@ namespace Poltergeist
                                     if (result == PromptResult.Success)
                                     {
                                         var message = signer.GenerateSignedMessage();
-                                        ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result2, input) =>
+                                        ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalSendCancel, 0, (result2, input) =>
                                         {
-                                            if (result2 != PromptResult.Success)
+                                            if (result2 == PromptResult.Success)
                                             {
+                                                var signedPoaBase64 = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(message));
                                                 if (accountManager.Settings.devMode)
                                                 {
-                                                    Log.Write($"Signed POA message (Base64): '{Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(message))}'");
+                                                    Log.Write($"Signed POA message (Base64): '{signedPoaBase64}'");
                                                 }
 
-                                                GUIUtility.systemCopyBuffer = message;
-                                                MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                                var url = string.Format("{0}/{1}", accountManager.Settings.phantasmaPoaUrl.TrimEnd('/'), "api/v1/poa/register");
+                                                
+                                                var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
+
+                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest(url, jsonMessage, (error, msg) =>
+                                                {
+                                                    MessageBox(MessageKind.Error, "Error occured. Please try later.");
+                                                },
+                                                (response) =>
+                                                {
+                                                    MessageBox(MessageKind.Default, "Message sent.");
+                                                }));
+
+                                                if (accountManager.Settings.devMode)
+                                                {
+                                                    GUIUtility.systemCopyBuffer = message;
+                                                    MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                                }
                                             }
                                         });
                                     }
