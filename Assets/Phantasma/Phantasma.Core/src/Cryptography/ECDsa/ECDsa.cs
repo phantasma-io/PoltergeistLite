@@ -73,6 +73,15 @@ namespace Phantasma.Core.Cryptography.ECDsa
             return ECDsaHelpers.FromDER(signature);
         }
 
+        private static byte[] ByteArrayLeftPad(byte[] sourceArray, byte padValue, int len)
+        {
+            if(sourceArray.Length == len)
+                return sourceArray;
+
+            var prefixArray = Enumerable.Repeat(padValue, len - sourceArray.Length).ToArray();
+            return prefixArray.Concat(sourceArray).ToArray();
+        }
+
         public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve)
         {
             var messageHash = Hashing.SHA256.ComputeHash(message);
@@ -84,8 +93,8 @@ namespace Phantasma.Core.Cryptography.ECDsa
             signer.Init(true, privateKeyParameters);
 
             var RS = signer.GenerateSignature(messageHash);
-            var R = RS[0].ToByteArrayUnsigned();
-            var S = RS[1].ToByteArrayUnsigned();
+            var R = ByteArrayLeftPad(RS[0].ToByteArrayUnsigned(), 0, 32);
+            var S = ByteArrayLeftPad(RS[1].ToByteArrayUnsigned(), 0, 32);
 
             return R.Concat(S).ToArray();
         }
