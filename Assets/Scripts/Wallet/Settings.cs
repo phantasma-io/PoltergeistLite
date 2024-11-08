@@ -78,6 +78,7 @@ namespace Poltergeist
         public const string PhantasmaRPCTag = "settings.phantasma.rpc.url";
         public const string PhantasmaExplorerTag = "settings.phantasma.explorer.url";
         public const string PhantasmaNftExplorerTag = "settings.phantasma.nft.explorer.url";
+        public const string PhantasmaPoaUrlTag = "settings.phantasma.poa.url";
         public const string NexusNameTag = "settings.nexus.name";
 
         public const string NexusKindTag = "settings.nexus.kind";
@@ -107,6 +108,7 @@ namespace Poltergeist
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
         public string phantasmaNftExplorer;
+        public string phantasmaPoaUrl;
         public string nexusName;
         public string currency;
         public BigInteger feePrice;
@@ -131,6 +133,7 @@ namespace Poltergeist
                 "Phantasma RPC: " + this.phantasmaRPCURL + "\n" +
                 "Phantasma Explorer: " + this.phantasmaExplorer + "\n" +
                 "Phantasma NFT Explorer: " + this.phantasmaNftExplorer + "\n" +
+                "Phantasma POA URL: " + this.phantasmaPoaUrl + "\n" +
                 "Fee price: " + this.feePrice + "\n" +
                 "Fee limit: " + this.feeLimit + "\n" +
                 "Nexus name: " + this.nexusName + "\n" +
@@ -176,12 +179,14 @@ namespace Poltergeist
                 // to avoid dealing with "stuck" values from old PG version that had different defaults.
                 this.phantasmaExplorer = GetDefaultValue(PhantasmaExplorerTag);
                 this.phantasmaNftExplorer = GetDefaultValue(PhantasmaNftExplorerTag);
+                this.phantasmaPoaUrl = GetDefaultValue(PhantasmaPoaUrlTag);
                 this.nexusName = GetDefaultValue(NexusNameTag);
             }
             else
             {
                 this.phantasmaExplorer = PlayerPrefs.GetString(PhantasmaExplorerTag, GetDefaultValue(PhantasmaExplorerTag));
                 this.phantasmaNftExplorer = PlayerPrefs.GetString(PhantasmaNftExplorerTag, GetDefaultValue(PhantasmaNftExplorerTag));
+                this.phantasmaPoaUrl = PlayerPrefs.GetString(PhantasmaPoaUrlTag, GetDefaultValue(PhantasmaPoaUrlTag));
                 this.nexusName = PlayerPrefs.GetString(NexusNameTag, GetDefaultValue(NexusNameTag));
             }
 
@@ -320,6 +325,19 @@ namespace Poltergeist
                     }
                     break;
 
+                case PhantasmaPoaUrlTag:
+                    switch (nexusKind)
+                    {
+                        case NexusKind.Main_Net:
+                            _return_value = "https://poa.phantasma.info";
+                            break;
+
+                        default:
+                            _return_value = "https://poa.phantasma.info";
+                            break;
+                    }
+                    break;
+
                 case NexusNameTag:
                     switch (nexusKind)
                     {
@@ -351,6 +369,7 @@ namespace Poltergeist
             PlayerPrefs.SetString(PhantasmaRPCTag, this.phantasmaRPCURL);
             PlayerPrefs.SetString(PhantasmaExplorerTag, this.phantasmaExplorer);
             PlayerPrefs.SetString(PhantasmaNftExplorerTag, this.phantasmaNftExplorer);
+            PlayerPrefs.SetString(PhantasmaPoaUrlTag, this.phantasmaPoaUrl);
             PlayerPrefs.SetString(GasPriceTag, this.feePrice.ToString());
             PlayerPrefs.SetString(GasLimitTag, this.feeLimit.ToString());
 
@@ -391,6 +410,7 @@ namespace Poltergeist
             this.phantasmaRPCURL = this.GetDefaultValue(PhantasmaRPCTag);
             this.phantasmaExplorer = this.GetDefaultValue(PhantasmaExplorerTag);
             this.phantasmaNftExplorer = this.GetDefaultValue(PhantasmaNftExplorerTag);
+            this.phantasmaPoaUrl = this.GetDefaultValue(PhantasmaPoaUrlTag);
 
             if (restoreName)
             {
@@ -401,6 +421,7 @@ namespace Poltergeist
                       "                             Phantasma RPC: " + this.phantasmaRPCURL + "\n" +
                       "                             Phantasma Explorer: " + this.phantasmaExplorer + "\n" +
                       "                             Phantasma NFT Explorer: " + this.phantasmaNftExplorer + "\n" +
+                      "                             Phantasma POA URL: " + this.phantasmaPoaUrl + "\n" +
                       "                             Nexus name: " + this.nexusName,
                       Log.Level.Debug1);
         }

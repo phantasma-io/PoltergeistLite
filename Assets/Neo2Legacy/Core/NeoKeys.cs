@@ -49,6 +49,23 @@ namespace Poltergeist.Neo2.Core
             this.WIF = GetWIF();
         }
 
+        public static string PublicKeyToN2Address(byte[] publicKey)
+        {
+            byte[] compressedPublicKey;
+            if(publicKey.Length == 33) // Compressed
+            {
+                compressedPublicKey = publicKey;
+            }
+            else
+            {
+                compressedPublicKey = ECDsa.CompressPublicKey(publicKey);
+            }
+
+            var signatureScriptN2 = CreateSignatureScript(compressedPublicKey);
+            var signatureHashN2 = NeoUtils.ToScriptHash(signatureScriptN2);
+            return NeoUtils.ToAddress(signatureHashN2);
+        }
+
         public static NeoKeys FromWIF(string wif)
         {
             if (wif == null) throw new ArgumentNullException();

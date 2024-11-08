@@ -388,6 +388,21 @@ namespace Phantasma.Core.Cryptography
             return bytes;
         }
 
+        public byte[] GetPublicKey()
+        {
+            var bytes = new byte[32];
+            if (_bytes != null)
+            {
+                if (_bytes.Length != LengthInBytes)
+                {
+                    throw new Exception("invalid address byte length");
+                }
+                ByteArrayUtils.CopyBytes(_bytes, 2, bytes, 0, _bytes.Length - 2);
+            }
+
+            return bytes;
+        }
+
         public int CompareTo(Address other)
         {
             byte[] x = ToByteArray();

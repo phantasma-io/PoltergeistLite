@@ -1,12 +1,10 @@
 using System;
 using System.Linq;
-using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.Sec;
-using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Security;
-using Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions;
 
 namespace Phantasma.Core.Cryptography.ECDsa
 {
@@ -20,117 +18,96 @@ namespace Phantasma.Core.Cryptography.ECDsa
     {
         public static byte[] GetPublicKey(byte[] privateKey, bool compressed, ECDsaCurve curve)
         {
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
+            var dom = ECDsaHelpers.GetECDomainParameters(curve);
 
             var d = new BigInteger(1, privateKey);
             var q = dom.G.Multiply(d);
-            
+
 
             var publicParams = new ECPublicKeyParameters(q, dom);
             return publicParams.Q.GetEncoded(compressed);
         }
-        
-        public static ECDomainParameters GetDomain(ECDsaCurve curve)
+
+        public static byte[] CompressPublicKey(byte[] uncompressedPublicKey)
         {
-            X9ECParameters ecCurve;
-            switch (curve)
+            var x = new BigInteger(1, uncompressedPublicKey.Take(32).ToArray());
+            var y = new BigInteger(1, uncompressedPublicKey.Skip(32).ToArray());
+
+            byte prefix = 0x02;
+            if (y.Mod(BigInteger.Two) != BigInteger.Zero)
             {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
+                prefix = 0x03;
             }
 
-            return new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
+            return new byte[] { prefix }.Concat(x.ToByteArrayUnsigned()).ToArray();
+        }
+
+        public static byte[] DecompressPublicKey(byte[] compressedPublicKey, ECDsaCurve curve, bool dropUncompressedKeyPrefixByte = false)
+        {
+            if (compressedPublicKey.Length != 33)
+            {
+                throw new ArgumentException("Incorrect compressed key length: " + compressedPublicKey.Length);
+            }
+
+            var publicKeyParameters = ECDsaHelpers.GetECPublicKeyParameters(curve, compressedPublicKey);
+
+            var uncompressedPublicKey = publicKeyParameters.Q.GetEncoded(false);
+
+            if (dropUncompressedKeyPrefixByte)
+            {
+                uncompressedPublicKey = uncompressedPublicKey.Skip(1).ToArray();
+            }
+
+            return uncompressedPublicKey;
         }
 
         public static byte[] Sign(byte[] message, byte[] prikey, ECDsaCurve curve)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
-            var privateKeyParameters = new ECPrivateKeyParameters(new BigInteger(1, prikey), dom);
+            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
 
             signer.Init(true, privateKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
             var signature = signer.GenerateSignature();
 
-            return FromDER(signature);
+            return ECDsaHelpers.FromDER(signature);
+        }
+
+        private static byte[] ByteArrayLeftPad(byte[] sourceArray, byte padValue, int len)
+        {
+            if(sourceArray.Length == len)
+                return sourceArray;
+
+            var prefixArray = Enumerable.Repeat(padValue, len - sourceArray.Length).ToArray();
+            return prefixArray.Concat(sourceArray).ToArray();
+        }
+
+        public static byte[] SignDeterministic(byte[] message, byte[] prikey, ECDsaCurve curve)
+        {
+            var messageHash = Hashing.SHA256.ComputeHash(message);
+
+            var privateKeyParameters = ECDsaHelpers.GetECPrivateKeyParameters(curve, prikey);
+
+            var signer = new ECDsaSigner(new HMacDsaKCalculator(new Sha256Digest()));
+
+            signer.Init(true, privateKeyParameters);
+
+            var RS = signer.GenerateSignature(messageHash);
+            var R = ByteArrayLeftPad(RS[0].ToByteArrayUnsigned(), 0, 32);
+            var S = ByteArrayLeftPad(RS[1].ToByteArrayUnsigned(), 0, 32);
+
+            return R.Concat(S).ToArray();
         }
 
         public static bool Verify(byte[] message, byte[] signature, byte[] pubkey, ECDsaCurve curve)
         {
             var signer = SignerUtilities.GetSigner("SHA256withECDSA");
-            X9ECParameters ecCurve;
-            switch (curve)
-            {
-                case ECDsaCurve.Secp256k1:
-                    ecCurve = SecNamedCurves.GetByName("secp256k1");
-                    break;
-                default:
-                    ecCurve = SecNamedCurves.GetByName("secp256r1");
-                    break;
-            }
-            var dom = new ECDomainParameters(ecCurve.Curve, ecCurve.G, ecCurve.N, ecCurve.H);
-
-            ECPublicKeyParameters publicKeyParameters;
-            if (pubkey.Length == 33)
-                publicKeyParameters = new ECPublicKeyParameters(dom.Curve.DecodePoint(pubkey), dom);
-            else
-                publicKeyParameters = new ECPublicKeyParameters(dom.Curve.CreatePoint(new BigInteger(1, pubkey.Take(pubkey.Length / 2).ToArray()), new BigInteger(1, pubkey.Skip(pubkey.Length / 2).ToArray())), dom);
+            var publicKeyParameters = ECDsaHelpers.GetECPublicKeyParameters(curve, pubkey);
 
             signer.Init(false, publicKeyParameters);
             signer.BlockUpdate(message, 0, message.Length);
 
-            return signer.VerifySignature(ToDER(signature));
-        }
-
-        public static byte[] FromDER(byte[] signature)
-        {
-            using var decoder = new Asn1InputStream(signature);
-            var seq = decoder.ReadObject() as DerSequence;
-            if (seq == null || seq.Count != 2)
-                throw new FormatException("Invalid DER Signature");
-            var R = ((DerInteger)seq[0]).Value.ToByteArrayUnsigned();
-            var S = ((DerInteger)seq[1]).Value.ToByteArrayUnsigned();
-
-            byte[] concatenated = new byte[R.Length + S.Length];
-            Buffer.BlockCopy(R, 0, concatenated, 0, R.Length);
-            Buffer.BlockCopy(S, 0, concatenated, R.Length, S.Length);
-
-            return concatenated;
-        }
-        public static byte[] ToDER(byte[] signature)
-        {
-            // We convert from concatenated "raw" R + S format to DER format that Bouncy Castle uses.
-            return new DerSequence(
-                // first 32 bytes is "R" number
-                new DerInteger(new BigInteger(1, signature.Take(32).ToArray())),
-                // last 32 bytes is "S" number
-                new DerInteger(new BigInteger(1, signature.Skip(32).ToArray())))
-                .GetDerEncoded();
+            return signer.VerifySignature(ECDsaHelpers.ToDER(signature));
         }
     }
 }

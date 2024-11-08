@@ -299,7 +299,7 @@ namespace Poltergeist
 
                                     case SignatureKind.ECDSA:
                                         var ethKeys = EthereumKey.FromWIF(wif);
-                                        var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                        var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                         signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                         break;
 
@@ -372,7 +372,7 @@ namespace Poltergeist
 
                             case SignatureKind.ECDSA:
                                 var ethKeys = EthereumKey.FromWIF(wif);
-                                var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                 signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 break;
 
@@ -407,6 +407,16 @@ namespace Poltergeist
         protected override void SignTransaction(string platform, SignatureKind kind, string chain, byte[] script, byte[] payload, int id, ProofOfWork pow, Action<Hash, string> callback)
         {
             var accountManager = AccountManager.Instance;
+
+            if(accountManager.Settings.devMode)
+            {
+                Log.Write($"WalletConnector: SignTransaction(): Script description: Platform: {platform}\n"+
+                    $"SignatureKind: {kind}\n"+
+                    $"Chain: {chain}\n" +
+                    $"Script: {Base16.Encode(script)}\n" +
+                    $"Payload: '{(payload == null ? "" : Encoding.UTF8.GetString(payload))}'\n" +
+                    $"ProofOfWork: {pow}");
+            }
 
             var targetPlatform = RequestPlatform(platform);
             if (targetPlatform == PlatformKind.None)
@@ -521,13 +531,13 @@ namespace Poltergeist
                                 {
                                     var ethKeys = EthereumKey.FromWIF(wif);
                                 
-                                    var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, ethKeys.PrivateKey, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                                    var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
                                 else
                                 {
                                     var neoKeys = NeoKeys.FromWIF(wif);
-                                    var signatureBytes = Poltergeist.PhantasmaLegacy.Cryptography.CryptoUtils.Sign(msg, neoKeys.PrivateKey, neoKeys.CompressedPublicKey, ECDsaCurve.Secp256k1);
+                                    var signatureBytes = ECDsa.Sign(msg, neoKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
                                 break;

@@ -21,6 +21,9 @@ using Phantasma.Business.VM.Utils;
 using Phantasma.Business.Blockchain;
 using Phantasma.Core.Types;
 using NBitcoin;
+using Phantasma.Core.Cryptography.EdDSA;
+using Poltergeist.Neo2.Core;
+using Phantasma.Core.Cryptography.ECDsa;
 
 namespace Poltergeist
 {
@@ -2028,6 +2031,8 @@ namespace Poltergeist
                 });
             }
         }
+
+        private string[] backupScreenOptions = new string[] { "Copy to clipboard", "Continue", "Cancel" };
         private void DoBackupScreen()
         {
             int curY;
@@ -2050,42 +2055,52 @@ namespace Poltergeist
             rect.y += Border*2;
             GUI.Label(rect, "For your own safety, write down these words on a piece of paper and store it safely and hidden.\nThese words serve as a back-up of your wallet.\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.");
 
-            var btnWidth = Units(10);
-            var btnHeight = Units(3);
-            curY = (int)(windowRect.height - Units(VerticalLayout ? 6: 7));
-            DoButton(true, new Rect(windowRect.width / 3 - btnWidth / 2, curY, btnWidth, Units(2)), "Copy to clipboard", () =>
+            DoButtonGrid<int>(true, backupScreenOptions.Length, Units(2), 0, out _, (index) =>
             {
-                GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
-                MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
-            });
-
-            DoButton(true, new Rect((windowRect.width / 2) - btnWidth / 2, curY, btnWidth, Units(2)), "Continue", () =>
+                return new MenuEntry(index, backupScreenOptions[index], true);
+            },
+            (selected) =>
             {
-                int[] wordsOrder;
-                if(AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
-                    wordsOrder = Enumerable.Range(1, 12).ToArray();
-                else
-                    wordsOrder = Enumerable.Range(1, 24).ToArray();
-
-                var rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
-                wordsOrder = wordsOrder.OrderBy(x => GetNextInt32(rnd)).ToArray();
-
-                TrySeedVerification(wordsOrder, (success) =>
+                switch (selected)
                 {
-                    if (success)
-                    {
-                        newWalletCallback();
-                    }
-                    else
-                    {
-                        PopState();
-                    }
-                });
-            });
-            
-            DoButton(true, new Rect((windowRect.width / 3) * 2 - btnWidth / 2, curY, btnWidth, Units(2)), "Cancel", () =>
-            {
-                PopState();
+                    case 0:
+                        {
+                            GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
+                            MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
+                            break;
+                        }
+
+                    case 1:
+                        {
+                            int[] wordsOrder;
+                            if (AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
+                                wordsOrder = Enumerable.Range(1, 12).ToArray();
+                            else
+                                wordsOrder = Enumerable.Range(1, 24).ToArray();
+
+                            var rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
+                            wordsOrder = wordsOrder.OrderBy(x => GetNextInt32(rnd)).ToArray();
+
+                            TrySeedVerification(wordsOrder, (success) =>
+                            {
+                                if (success)
+                                {
+                                    newWalletCallback();
+                                }
+                                else
+                                {
+                                    PopState();
+                                }
+                            });
+                            break;
+                        }
+
+                    case 2:
+                        {
+                            PopState();
+                            break;
+                        }
+                }
             });
         }
 
@@ -3145,7 +3160,19 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             int posY;
 
-            DoButtonGrid<int>(false, managerMenu.Length, 0, -btnOffset, out posY, (index) =>
+            var menu = managerMenu;
+            if (Input.GetKey(KeyCode.LeftShift))
+            {
+                menu = (string[])managerMenu.Clone();
+                menu[3] = "Sign message";
+            }
+            else if (Input.GetKey(KeyCode.LeftControl))
+            {
+                menu = (string[])managerMenu.Clone();
+                menu[3] = "Verify signature";
+            }
+
+            DoButtonGrid<int>(false, menu.Length, 0, -btnOffset, out posY, (index) =>
             {
                 var enabled = true;
 
@@ -3167,7 +3194,7 @@ namespace Poltergeist
                     enabled = false;
                 }
 
-                return new MenuEntry(index, managerMenu[index], enabled);
+                return new MenuEntry(index, menu[index], enabled);
             },
             (selected) =>
             {
@@ -3205,7 +3232,7 @@ namespace Poltergeist
                                         },
                                         ignoreStoredPassword: true);
                                     }
-                                    else if(result == PromptResult.Custom_2)
+                                    else if (result == PromptResult.Custom_2)
                                     {
                                         RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
                                         {
@@ -3367,6 +3394,195 @@ namespace Poltergeist
                             }
                             break;
                         }
+                    case 3:
+                        {
+                            if (Input.GetKey(KeyCode.LeftShift))
+                            {
+                                ShowModal("", "Select chain", ModalState.Input, 1, 10, ModalConfirmCancel, 1, (result, chain) =>
+                                {
+                                    if (result == PromptResult.Failure)
+                                    {
+                                        return; // user cancelled
+                                    }
+
+                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result2, message) =>
+                                    {
+                                        if (result2 == PromptResult.Failure)
+                                        {
+                                            return; // user cancelled
+                                        }
+
+                                        var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
+
+                                        var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
+                                        if (accountManager.Settings.devMode)
+                                        {
+                                            Log.Write($"Signed message: '{message}', hash: '{hash}'");
+                                        }
+
+                                        var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
+                                        byte[] signatureBytes;
+
+                                        if (chain == "Phantasma")
+                                        {
+                                            var keys = PhantasmaKeys.FromWIF(wif);
+                                            var phaSignature = keys.Sign(messageBytes);
+                                            signatureBytes = ((Ed25519Signature)phaSignature).Bytes;
+                                        }
+                                        else if (chain == "Ethereum")
+                                        {
+                                            var keys = EthereumKey.FromWIF(wif);
+                                            signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256k1);
+                                        }
+                                        else if (chain == "Neo Legacy")
+                                        {
+                                            var keys = NeoKeys.FromWIF(wif);
+                                            signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256r1);
+                                        }
+                                        else
+                                        {
+                                            MessageBox(MessageKind.Error, "Unsupported chain");
+                                            return;
+                                        }
+
+                                        var signature = Base16.Encode(signatureBytes);
+                                        
+                                        ShowModal("Signature", signature, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result3, input) =>
+                                        {
+                                            if (result3 != PromptResult.Success)
+                                            {
+                                                if (accountManager.Settings.devMode)
+                                                {
+                                                    Log.Write($"Signature: '{signature}'");
+                                                }
+
+                                                GUIUtility.systemCopyBuffer = signature;
+                                                MessageBox(MessageKind.Default, "Signature copied to the clipboard.");
+                                            }
+                                        });
+                                    });
+                                });
+
+                                modalHints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
+                            }
+                            else if (Input.GetKey(KeyCode.LeftControl))
+                            {
+                                ShowModal("", "Select chain", ModalState.Input, 1, 10, ModalConfirmCancel, 1, (result, chain) =>
+                                {
+                                    if (result == PromptResult.Failure)
+                                    {
+                                        return; // user cancelled
+                                    }
+
+                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result2, message) =>
+                                    {
+                                        if (result2 == PromptResult.Failure)
+                                        {
+                                            return; // user cancelled
+                                        }
+
+                                        ShowModal("", "Enter signature", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result3, signature) =>
+                                        {
+                                            if (result3 == PromptResult.Failure)
+                                            {
+                                                return; // user cancelled
+                                            }
+
+                                            var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
+                                            var signatureBytes = Base16.Decode(signature);
+
+                                            if (accountManager.Settings.devMode)
+                                            {
+                                                var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
+                                                Log.WriteRaw($"Verified message: '{message}'");
+                                                Log.WriteRaw("\n\n");
+                                                Log.Write($"Hash: '{hash}'");
+                                                Log.Write($"Signature: '{signature}'");
+                                            }
+
+                                            var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
+                                            var verificationResult = false;
+
+                                            if (chain == "Phantasma")
+                                            {
+                                                var keys = PhantasmaKeys.FromWIF(wif);
+                                                verificationResult = Ed25519.Verify(signatureBytes, messageBytes, keys.PublicKey);
+                                            }
+                                            else if (chain == "Ethereum")
+                                            {
+                                                var keys = EthereumKey.FromWIF(wif);
+                                                verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256k1);
+                                            }
+                                            else if (chain == "Neo Legacy")
+                                            {
+                                                var keys = NeoKeys.FromWIF(wif);
+                                                verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256r1);
+                                            }
+                                            else
+                                            {
+                                                MessageBox(MessageKind.Error, "Unsupported chain");
+                                                return;
+                                            }
+
+                                            if (verificationResult)
+                                            {
+                                                MessageBox(MessageKind.Success, "Signature is correct");
+                                            }
+                                            else
+                                            {
+                                                MessageBox(MessageKind.Error, "Signature is incorrect");
+                                            }
+                                        });
+                                    });
+                                });
+
+                                modalHints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
+                            }
+                            else
+                            {
+                                var signer = new ProofOfAddressesSigner(AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash));
+
+                                ShowModal("Proof of addresses", signer.GenerateMessage(),
+                                    ModalState.Message, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalSignCancel, 1, (result, name) =>
+                                {
+                                    if (result == PromptResult.Success)
+                                    {
+                                        var message = signer.GenerateSignedMessage();
+                                        ShowModal("Signed proof of addresses", message, ModalState.Message, 0, 0, ModalSendCancel, 0, (result2, input) =>
+                                        {
+                                            if (result2 == PromptResult.Success)
+                                            {
+                                                var signedPoaBase64 = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(message));
+                                                if (accountManager.Settings.devMode)
+                                                {
+                                                    Log.Write($"Signed POA message (Base64): '{signedPoaBase64}'");
+                                                }
+
+                                                var url = string.Format("{0}/{1}", accountManager.Settings.phantasmaPoaUrl.TrimEnd('/'), "api/v1/poa/register");
+                                                
+                                                var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
+
+                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest(url, jsonMessage, (error, msg) =>
+                                                {
+                                                    MessageBox(MessageKind.Error, "Error occured. Please try later.");
+                                                },
+                                                (response) =>
+                                                {
+                                                    MessageBox(MessageKind.Default, "Message sent.");
+                                                }));
+
+                                                if (accountManager.Settings.devMode)
+                                                {
+                                                    GUIUtility.systemCopyBuffer = message;
+                                                    MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                                }
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                            break;
+                        }
                 }
             });
         }
@@ -3412,7 +3628,7 @@ namespace Poltergeist
             });
         }
 
-        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name" };
+        private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name", "Prove addresses" };
 
         private GUIState[] bottomMenu = new GUIState[] { GUIState.Balances, GUIState.History, GUIState.Account, GUIState.Exit };
 

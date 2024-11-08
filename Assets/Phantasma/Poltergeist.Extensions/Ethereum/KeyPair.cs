@@ -1,7 +1,6 @@
 ﻿using Phantasma.Core.Cryptography;
 using Phantasma.Core.Cryptography.ECDsa;
 using Phantasma.Core.Numerics;
-using Poltergeist.PhantasmaLegacy.Cryptography;
 using Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions;
 using Poltergeist.PhantasmaLegacy.Ethereum.Util;
 using System;
@@ -15,6 +14,7 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
         public byte[] PublicKey { get; private set; }
         public readonly string Address;
         public readonly byte[] UncompressedPublicKey;
+        public readonly byte[] CompressedPublicKey;
 
         public EthereumKey(byte[] privateKey)
         {
@@ -25,9 +25,9 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
 
             this.PublicKey = ECDsa.GetPublicKey(privateKey, true, ECDsaCurve.Secp256k1);
             this.UncompressedPublicKey = ECDsa.GetPublicKey(privateKey, false, ECDsaCurve.Secp256k1).Skip(1).ToArray();
+            this.CompressedPublicKey = ECDsa.GetPublicKey(privateKey, true, ECDsaCurve.Secp256k1).ToArray();
 
-            var kak = new Sha3Keccack().CalculateHash(this.UncompressedPublicKey);
-            this.Address = "0x"+Base16.Encode( kak.Skip(12).ToArray());
+            this.Address = PublicKeyToAddress(this.UncompressedPublicKey, ECDsaCurve.Secp256k1);
         }
 
         public static EthereumKey FromPrivateKey(string prv)
@@ -36,7 +36,7 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
             return new EthereumKey(prv.HexToByteArray());
         }
 
-        public static EthereumKey FromWIF(string wif)
+        public static byte[] FromWIFToBytes(string wif)
         {
             if (wif == null) throw new ArgumentNullException();
             byte[] data = wif.Base58CheckDecode();
@@ -45,7 +45,11 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
             byte[] privateKey = new byte[32];
             Buffer.BlockCopy(data, 1, privateKey, 0, privateKey.Length);
             Array.Clear(data, 0, data.Length);
-            return new EthereumKey(privateKey);
+            return privateKey;
+        }
+        public static EthereumKey FromWIF(string wif)
+        {
+            return new EthereumKey(FromWIFToBytes(wif));
         }
 
         private static System.Security.Cryptography.RNGCryptoServiceProvider rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
@@ -75,6 +79,16 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum
         {
             if (x.Length != y.Length) throw new ArgumentException();
             return x.Zip(y, (a, b) => (byte)(a ^ b)).ToArray();
+        }
+
+        public static string PublicKeyToAddress(byte[] publicKey, ECDsaCurve curve)
+        {
+            if (publicKey.Length == 33)
+            {
+                publicKey = ECDsa.DecompressPublicKey(publicKey, curve, true);
+            }
+            var kak = new Sha3Keccack().CalculateHash(publicKey);
+            return "0x" + Base16.Encode(kak.Skip(12).ToArray());
         }
 
         public override string ToString()

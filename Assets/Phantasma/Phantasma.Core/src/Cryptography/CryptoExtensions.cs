@@ -2,18 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using Phantasma.Core.Cryptography.Hashing;
 using Phantasma.Core.Numerics;
 using Phantasma.Core.Utils;
-using SHA256 = System.Security.Cryptography.SHA256;
 
 namespace Phantasma.Core.Cryptography
 {
     public static class CryptoExtensions
     {
-        private static ThreadLocal<SHA256> _sha256 = new ThreadLocal<SHA256>(() => SHA256.Create());
-
         public static byte[] AESGenerateIV(int vectorSize)
         {
             var ivBytes = new byte[vectorSize];
@@ -69,16 +64,6 @@ namespace Phantasma.Core.Cryptography
             return Base58.Encode(buffer);
         }
 
-        public static byte[] Sha256(this IEnumerable<byte> value)
-        {
-            return _sha256.Value.ComputeHash(value.ToArray());
-        }
-
-        public static byte[] Sha256(this byte[] value, int offset, int count)
-        {
-            return _sha256.Value.ComputeHash(value, offset, count);
-        }
-
         public static byte[] Sha256(this string value)
         {
             var bytes = Encoding.UTF8.GetBytes(value);
@@ -87,12 +72,12 @@ namespace Phantasma.Core.Cryptography
 
         public static byte[] Sha256(this byte[] value)
         {
-            return new Hashing.SHA256().ComputeHash(value, 0, (uint)value.Length);
+            return Hashing.SHA256.ComputeHash(value, 0, (uint)value.Length);
         }
 
         public static byte[] Sha256(this byte[] value, uint offset, uint count)
         {
-            return new Hashing.SHA256().ComputeHash(value, offset, count);
+            return Hashing.SHA256.ComputeHash(value, offset, count);
         }
     }
 }
