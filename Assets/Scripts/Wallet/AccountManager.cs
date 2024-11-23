@@ -1525,6 +1525,19 @@ namespace Poltergeist
             return $"{url}{symbol.ToLower()}/{tokenId}";
         }
 
+        public string GetEthExplorerURL(string address)
+        {
+            return $"https://etherscan.io/address/{address}";
+        }
+        public string GetBscExplorerURL(string address)
+        {
+            return $"https://bscscan.com/address/{address}";
+        }
+        public string GetN2ExplorerURL(string address)
+        {
+            return $"https://neo2.neotube.io/address/{address}";
+        }
+
         public int AddWallet(string name, string wif, string password, bool legacySeed)
         {
             if (string.IsNullOrEmpty(name) || name.Length < 3)
