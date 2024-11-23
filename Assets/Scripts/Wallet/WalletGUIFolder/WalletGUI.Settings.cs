@@ -538,6 +538,48 @@ namespace Poltergeist
             });
             curY += Units(3);
 
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Old seed to WIF", () =>
+            {
+                ShowModal("Old seed to WIF", "Enter your old seed phrase (created with Poltergeist 2.3 or older)", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, legacySeed) =>
+                {
+                    if (result != PromptResult.Success)
+                    {
+                        return;
+                    }
+
+                    ShowModal("Legacy seed password",
+                        "For wallets created with Poltergeist v1.0-v1.2: Enter seed password.\nIf you put a wrong password, wrong WIF will be generated.\n\nFor wallets created with v1.3 or later (without a seed password), you must leave this field blank.\n\nThis is NOT your wallet password used to log into the wallet.\n",
+                        ModalState.Input, 0, 64, ModalConfirmCancel, 1, (pwdResult, legacySeedPassword) =>
+                        {
+                            if (pwdResult != PromptResult.Success)
+                            {
+                                return;
+                            }
+
+                            string wif;
+                            try
+                            {
+                                wif = BIP39Legacy.DecodeLegacySeedToWif(legacySeed, legacySeedPassword);
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Write("Legacy seed decoding exception: " + e);
+                                MessageBox(MessageKind.Error, $"Legacy seed cannot be decoded");
+                                return;
+                            }
+
+                            ShowModal("WIF", wif, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (copyResult, input) => {
+                                if (copyResult != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                {
+                                    GUIUtility.systemCopyBuffer = wif;
+                                    MessageBox(MessageKind.Default, "WIF copied to the clipboard.");
+                                }
+                            });
+                        });
+                });
+            });
+            curY += Units(3);
+
             curY += Units(1);
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Clear cache", () =>
             {
