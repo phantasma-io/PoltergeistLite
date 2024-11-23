@@ -3112,11 +3112,11 @@ namespace Poltergeist
                 curY += Units(1);
             }
 
-            int btnOffset = Units(4);
+            int btnOffset = Units(2) + 8;
 
             if (VerticalLayout)
             {
-                btnOffset += Units(6);
+                btnOffset += Units(7);
             }
 
             DoAccountManagementMenu(btnOffset);
@@ -3160,7 +3160,35 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             int posY;
 
-            var menu = managerMenu;
+            var menu = explorerMenu;
+
+            DoButtonGrid<int>(false, menu.Length, 0, -btnOffset * 2, out posY, (index) =>
+            {
+                return new MenuEntry(index, menu[index], enabled);
+            },
+            (selected) =>
+            {
+                switch (selected)
+                {
+                    case 0:
+                        {
+                            Application.OpenURL(accountManager.GetEthExplorerURL(accountManager.CurrentAccount.ethAddress));
+                            break;
+                        }
+                    case 1:
+                        {
+                            Application.OpenURL(accountManager.GetBscExplorerURL(accountManager.CurrentAccount.ethAddress));
+                            break;
+                        }
+                    case 2:
+                        {
+                            Application.OpenURL(accountManager.GetN2ExplorerURL(accountManager.CurrentAccount.neoAddress));
+                            break;
+                        }
+                }
+            });
+
+            menu = managerMenu;
             if (Input.GetKey(KeyCode.LeftShift))
             {
                 menu = (string[])managerMenu.Clone();
@@ -3627,6 +3655,8 @@ namespace Poltergeist
                 }
             });
         }
+
+        private string[] explorerMenu = new string[] { "ETH: Etherscan", "BSC: Bscscan", "N2: Neotube" };
 
         private string[] managerMenu = new string[] { "Export Private Key", "Migrate", "Set Name", "Prove addresses" };
 
