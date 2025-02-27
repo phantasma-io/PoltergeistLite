@@ -8,7 +8,7 @@ public class UpdateChecker : MonoBehaviour
 {
     public string githubOwner = "phantasma-io"; // Your GitHub username
     public string githubRepo = "PoltergeistLite"; // Your repository name
-    public string currentVersion = "1.3.0"; // Current version of your game
+    public string currentVersion = "1.3.1"; // Current version of your game
 
     private const string GITHUB_RELEASES_URL = "https://github.com/";
     private static string URL = "";
