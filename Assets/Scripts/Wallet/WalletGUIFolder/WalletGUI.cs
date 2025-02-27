@@ -341,7 +341,17 @@ namespace Poltergeist
 
                 case GUIState.Settings:
                     {
-                        currentTitle = accountManager.Settings.nexusKind != NexusKind.Unknown ? "Settings" : "Wallet Setup";
+                        if(accountManager.Settings.nexusKind == NexusKind.Unknown)
+                        {
+                            currentTitle = "Wallet Setup";
+                        } else if (accountManager.Settings.settingRequireReconfiguration)
+                        {
+                            currentTitle = "Wallet Setup (Connection failed)";
+                        } else
+                        {
+                            currentTitle = "Settings";
+                        }
+                        
                         settingsScroll = Vector2.zero;
                         currencyComboBox.SelectedItemIndex = 0;
                         for (int i = 0; i < currencyOptions.Length; i++)
@@ -590,7 +600,7 @@ namespace Poltergeist
                     stateStack.Clear();
                     PushState(GUIState.Wallets);
 
-                    if (AccountManager.Instance.Settings.nexusKind == NexusKind.Unknown)
+                    if (AccountManager.Instance.Settings.nexusKind == NexusKind.Unknown || AccountManager.Instance.Settings.settingRequireReconfiguration)
                     {
                         PushState(GUIState.Settings);
                     }

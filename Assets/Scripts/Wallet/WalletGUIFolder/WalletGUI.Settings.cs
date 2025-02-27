@@ -798,6 +798,7 @@ namespace Poltergeist
             accountManager.UpdateAPIs(true);
             accountManager.RefreshTokenPrices();
             accountManager.Settings.Save();
+            accountManager.Settings.settingRequireReconfiguration = false;
             return true;
         }
     }

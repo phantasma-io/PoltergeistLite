@@ -113,6 +113,7 @@ namespace Poltergeist
         public string currency;
         public BigInteger feePrice;
         public BigInteger feeLimit;
+        public bool settingRequireReconfiguration = false;
         public NexusKind nexusKind;
         public Log.Level logLevel;
         public bool logOverwriteMode;
@@ -169,6 +170,7 @@ namespace Poltergeist
             var nexusKind = PlayerPrefs.GetString(NexusKindTag, NexusKind.Main_Net.ToString());
             if (!Enum.TryParse<NexusKind>(nexusKind, true, out this.nexusKind))
             {
+                Log.Write("Settings: Cannot parse nexus: " + nexusKind);
                 this.nexusKind = NexusKind.Unknown;
             }
 

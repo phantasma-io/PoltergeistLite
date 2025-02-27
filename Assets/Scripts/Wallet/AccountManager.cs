@@ -515,7 +515,7 @@ namespace Poltergeist
                     {
                         CurrentTokenCurrency = "";
 
-                        AccountManager.Instance.Settings.nexusKind = NexusKind.Unknown;
+                        AccountManager.Instance.Settings.settingRequireReconfiguration = true;
                         Status = "ok"; // We are launching with uninitialized tokens,
                                        // to allow user to edit settings.
                         
