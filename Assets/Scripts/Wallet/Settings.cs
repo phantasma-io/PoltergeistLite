@@ -2,6 +2,7 @@ using Phantasma.SDK;
 using System;
 using UnityEngine;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace Poltergeist
 {
@@ -64,7 +65,21 @@ namespace Poltergeist
                 return false;
             }
 
-            if (!(url.StartsWith("http://") || url.StartsWith("https://")))
+            if(!Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            {
+                return false;
+            }
+
+            Uri uriResult;
+            if(!Uri.TryCreate(url, UriKind.Absolute, out uriResult)
+                && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+            {
+                return false;
+            }
+
+            // This fixes common copy-paste issue allowed by checks above.
+            // Specifically rejects this: 'https://somesite//rpc'
+            if (Regex.Matches(url, "//").Count > 1)
             {
                 return false;
             }
