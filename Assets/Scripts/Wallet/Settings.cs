@@ -2,6 +2,7 @@ using Phantasma.SDK;
 using System;
 using UnityEngine;
 using System.Numerics;
+using System.Text.RegularExpressions;
 
 namespace Poltergeist
 {
@@ -64,7 +65,21 @@ namespace Poltergeist
                 return false;
             }
 
-            if (!(url.StartsWith("http://") || url.StartsWith("https://")))
+            if(!Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            {
+                return false;
+            }
+
+            Uri uriResult;
+            if(!Uri.TryCreate(url, UriKind.Absolute, out uriResult)
+                && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
+            {
+                return false;
+            }
+
+            // This fixes common copy-paste issue allowed by checks above.
+            // Specifically rejects this: 'https://somesite//rpc'
+            if (Regex.Matches(url, "//").Count > 1)
             {
                 return false;
             }
@@ -113,6 +128,7 @@ namespace Poltergeist
         public string currency;
         public BigInteger feePrice;
         public BigInteger feeLimit;
+        public bool settingRequireReconfiguration = false;
         public NexusKind nexusKind;
         public Log.Level logLevel;
         public bool logOverwriteMode;
@@ -169,6 +185,7 @@ namespace Poltergeist
             var nexusKind = PlayerPrefs.GetString(NexusKindTag, NexusKind.Main_Net.ToString());
             if (!Enum.TryParse<NexusKind>(nexusKind, true, out this.nexusKind))
             {
+                Log.Write("Settings: Cannot parse nexus: " + nexusKind);
                 this.nexusKind = NexusKind.Unknown;
             }
 

@@ -6,11 +6,14 @@ import android.content.res.Configuration;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 
 import com.unity3d.player.IUnityPlayerLifecycleEvents;
 import com.unity3d.player.MultiWindowSupport;
 import com.unity3d.player.UnityPlayer;
+import com.unity3d.player.UnityPlayerForActivityOrService;
 
 public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecycleEvents
 {
@@ -37,9 +40,17 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
         String cmdLine = updateUnityCommandLineArguments(getIntent().getStringExtra("unity"));
         getIntent().putExtra("unity", cmdLine);
 
-        mUnityPlayer = new UnityPlayer(this, this);
-        setContentView(mUnityPlayer);
-        mUnityPlayer.requestFocus();
+        mUnityPlayer = new UnityPlayerForActivityOrService(this, this);
+
+        View unityView = mUnityPlayer.getView();
+        ViewGroup parent = (ViewGroup) unityView.getParent();
+
+        if (parent != null) {
+            parent.removeView(unityView);
+        }
+
+        setContentView(unityView);
+        unityView.requestFocus();
     }
 
     // When Unity player unloaded move task to background
@@ -76,7 +87,7 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
     {
         super.onStop();
 
-        if (!MultiWindowSupport.getAllowResizableWindow(this))
+        if (!MultiWindowSupport.isInMultiWindowMode(this))
             return;
 
         mUnityPlayer.pause();
@@ -86,7 +97,7 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
     {
         super.onStart();
 
-        if (!MultiWindowSupport.getAllowResizableWindow(this))
+        if (!MultiWindowSupport.isInMultiWindowMode(this))
             return;
 
         mUnityPlayer.resume();
@@ -97,7 +108,7 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
     {
         super.onPause();
 
-        if (MultiWindowSupport.getAllowResizableWindow(this))
+        if (MultiWindowSupport.isInMultiWindowMode(this))
             return;
 
         mUnityPlayer.pause();
@@ -108,7 +119,7 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
     {
         super.onResume();
 
-        if (MultiWindowSupport.getAllowResizableWindow(this))
+        if (MultiWindowSupport.isInMultiWindowMode(this))
             return;
 
         mUnityPlayer.resume();
@@ -118,7 +129,7 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
     @Override public void onLowMemory()
     {
         super.onLowMemory();
-        mUnityPlayer.lowMemory();
+        UnityPlayer.UnitySendMessage("LowMemoryHandler", "OnLowMemory", "");
     }
 
     // Trim Memory Unity
@@ -127,7 +138,7 @@ public class UnityPlayerActivity extends Activity implements IUnityPlayerLifecyc
         super.onTrimMemory(level);
         if (level == TRIM_MEMORY_RUNNING_CRITICAL)
         {
-            mUnityPlayer.lowMemory();
+            UnityPlayer.UnitySendMessage("LowMemoryHandler", "OnLowMemory", "");
         }
     }
 
