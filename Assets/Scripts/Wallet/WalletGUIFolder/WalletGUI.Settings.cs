@@ -270,6 +270,13 @@ namespace Poltergeist
             GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Developer mode");
             curY += Units(3);
 
+            if(settings.devMode)
+            {
+                settings.devMode_NoValidation = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode_NoValidation, "");
+                GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "No validation mode");
+                curY += Units(3);
+            }
+
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Phantasma staking info", () =>
             {
                 byte[] scriptMasterClaimDate;

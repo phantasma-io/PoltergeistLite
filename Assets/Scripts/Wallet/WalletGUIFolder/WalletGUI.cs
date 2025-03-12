@@ -4199,7 +4199,7 @@ namespace Poltergeist
                         // If not - reduce to balance
                         // We should update balance first
                         balance = AccountManager.Instance.CurrentState.GetAvailableAmount(symbol);
-                        if (amount > balance)
+                        if (amount > balance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
                             amount = balance;
 
                         byte[] script;
@@ -4396,6 +4396,12 @@ namespace Poltergeist
                 }
 
                 decimal amount = ParseNumber(temp);
+
+                if(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
+                {
+                    callback(amount);
+                    return;
+                }
 
                 if (amount > 0 && ValidDecimals(amount, symbol))
                 {
