@@ -919,7 +919,7 @@ namespace Poltergeist
                     transactionLastCheck = now;
                     transactionStillPending = false;
                     transactionCheckCount++;
-                    accountManager.RequestConfirmation(transactionHash.ToString(), transactionCheckCount, (msg) =>
+                    accountManager.RequestConfirmation(transactionHash.ToString(), transactionCheckCount, (txResult, msg) =>
                     {
                         if (string.IsNullOrEmpty(msg))
                         {
@@ -929,12 +929,12 @@ namespace Poltergeist
                             {
                                 accountManager.RefreshBalances(true, PlatformKind.None, () =>
                                 {
-                                    InvokeTransactionCallback(transactionHash, null);
+                                    InvokeTransactionCallback(transactionHash, txResult, null);
                                 }, true);
                             }
                             else
                             {
-                                InvokeTransactionCallback(transactionHash, null);
+                                InvokeTransactionCallback(transactionHash, txResult, null);
                             }
                         }
                         else
@@ -947,7 +947,7 @@ namespace Poltergeist
                         {
                             PopState();
 
-                            InvokeTransactionCallback(Hash.Null, msg);
+                            InvokeTransactionCallback(transactionHash, txResult, msg);
                         }
                     });
                 }
@@ -2280,9 +2280,9 @@ namespace Poltergeist
                                         twoSmsWarning = "\n\nSoul Master rewards are distributed evenly to every wallet with 50K or more SOUL. As you are staking over 100K SOUL, to maximise your rewards, you may wish to stake each 50K SOUL in a separate wallet.";
                                     }
 
-                                    StakeSOUL(selectedAmount, $"Do you want to stake {selectedAmount} SOUL?\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day.\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours." + twoSmsWarning, (hash, error) =>
+                                    StakeSOUL(selectedAmount, $"Do you want to stake {selectedAmount} SOUL?\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day.\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours." + twoSmsWarning, (hash, txResult, error) =>
                                     {
-                                        TxResultMessage(hash, error, "Your SOUL was staked!");
+                                        TxResultMessage(hash, txResult, error, "Your SOUL was staked!");
                                     });
                                 });
                             };
@@ -2319,9 +2319,9 @@ namespace Poltergeist
                                                     sb.SpendGas(address);
                                                     var script = sb.EndScript();
 
-                                                    SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                    SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                     {
-                                                        TxResultMessage(hash, error, "Your SOUL was unstaked!");
+                                                        TxResultMessage(hash, txResult, error, "Your SOUL was unstaked!");
                                                     });
                                                 }
                                             });
@@ -2366,9 +2366,9 @@ namespace Poltergeist
                                             sb.SpendGas(address);
                                             var script = sb.EndScript();
 
-                                            SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                            SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                             {
-                                                TxResultMessage(hash, error, "You claimed some KCAL!");
+                                                TxResultMessage(hash, txResult, error, "You claimed some KCAL!");
                                             });
 
 
@@ -2557,9 +2557,9 @@ namespace Poltergeist
                         return;
                     }
 
-                    SendTransaction($"Claim SM reward", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                    SendTransaction($"Claim SM reward", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                     {
-                        TxResultMessage(hash, error, "You claimed SM reward!");
+                        TxResultMessage(hash, txResult, error, "You claimed SM reward!");
                     });
                 }
                 else if (mainAction == "Burn")
@@ -2587,9 +2587,9 @@ namespace Poltergeist
                                     return;
                                 }
 
-                                SendTransaction($"Burn {amountToBurn} {balance.Symbol} tokens", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                SendTransaction($"Burn {amountToBurn} {balance.Symbol} tokens", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                 {
-                                    TxResultMessage(hash, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
+                                    TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
                                 });
                             }
                         }, 10);
@@ -3320,7 +3320,7 @@ namespace Poltergeist
                                                 sb.SpendGas(address);
                                                 var script = sb.EndScript();
 
-                                                SendTransaction("Migrate account", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                SendTransaction("Migrate account", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                 {
                                                     if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                     {
@@ -3335,7 +3335,7 @@ namespace Poltergeist
                                                     }
                                                     else
                                                     {
-                                                        TxResultMessage(hash, error, null, "It was not possible to migrate the account.");
+                                                        TxResultMessage(hash, txResult, error, null, "It was not possible to migrate the account.");
                                                     }
                                                 });
                                             }
@@ -3386,7 +3386,7 @@ namespace Poltergeist
                                                         return;
                                                     }
 
-                                                    SendTransaction($"Register address name\nName: {name}\nAddress: {accountManager.CurrentState.address}?", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                    SendTransaction($"Register address name\nName: {name}\nAddress: {accountManager.CurrentState.address}?", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                     {
                                                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                         {
@@ -3625,7 +3625,7 @@ namespace Poltergeist
             });
         }
 
-        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, string> callback)
+        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
@@ -3656,9 +3656,9 @@ namespace Poltergeist
 
                             var script = sb.EndScript();
 
-                            SendTransaction($"Stake {selectedAmount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                            SendTransaction($"Stake {selectedAmount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                             {
-                                callback(hash, error);
+                                callback(hash, txResult, error);
                             });
                         }
                     });
@@ -3867,9 +3867,9 @@ namespace Poltergeist
                             return;
                         }
 
-                        SendTransaction($"Burn {nftTransferList.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * nftTransferList.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                        SendTransaction($"Burn {nftTransferList.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * nftTransferList.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, error, $"You burned {nftTransferList.Count} NFTs!");
+                            TxResultMessage(hash, txResult, error, $"You burned {nftTransferList.Count} NFTs!");
                         });
                     }
                 }, 10);
@@ -3957,22 +3957,22 @@ namespace Poltergeist
             return posY;
         }
 
-        private Action<Hash, string> transactionCallback;
+        private Action<Hash, Phantasma.SDK.Transaction?, string> transactionCallback;
 
-        private void InvokeTransactionCallback(Hash hash, string error)
+        private void InvokeTransactionCallback(Hash hash, Phantasma.SDK.Transaction? txResult, string error)
         {
             var temp = transactionCallback;
             transactionCallback = null;
-            temp?.Invoke(hash, error);
+            temp?.Invoke(hash, txResult, error);
         }
 
-        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, string> callback)
+        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             if (script == null && transferRequest == null)
             {
                 MessageBox(MessageKind.Error, "Null transaction script and request", () =>
                 {
-                    callback(Hash.Null, "Null transaction scrip and requestt");
+                    callback(Hash.Null, null, "Null transaction scrip and request");
                 });
             }
 
@@ -4023,14 +4023,14 @@ namespace Poltergeist
 
                                             MessageBox(MessageKind.Error, $"Error sending transaction.\n{error}", () =>
                                             {
-                                                callback(Hash.Null, error);
+                                                callback(Hash.Null, null, error);
                                             });
                                         }
                                     });
                                 }
                                 else
                                 {
-                                    callback(Hash.Null, null); // User cancelled tx
+                                    callback(Hash.Null, null, null); // User cancelled tx
                                 };
                             });
                         });
@@ -4041,19 +4041,19 @@ namespace Poltergeist
                 {
                     MessageBox(MessageKind.Error, $"Authorization failed.", () =>
                     {
-                        callback(Hash.Null, "Authorization failed.");
+                        callback(Hash.Null, null, "Authorization failed.");
                     });
                 }
             });
         }
 
-        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, string> callback)
+        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             if (scripts.Count() == 0)
             {
                 MessageBox(MessageKind.Error, "Null transaction script", () =>
                 {
-                    callback(Hash.Null, "Null transaction script");
+                    callback(Hash.Null, null, "Null transaction script");
                 });
             }
 
@@ -4095,7 +4095,7 @@ namespace Poltergeist
                                 }
                                 else
                                 {
-                                    callback(Hash.Null, null); // Cancelled by user
+                                    callback(Hash.Null, null, null); // Cancelled by user
                                 };
                             });
                         });
@@ -4106,13 +4106,13 @@ namespace Poltergeist
                 {
                     MessageBox(MessageKind.Error, $"Authorization failed.", () =>
                     {
-                        callback(Hash.Null, "Authorization failed.");
+                        callback(Hash.Null, null, "Authorization failed.");
                     });
                 }
             });
         }
 
-        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, string> callback)
+        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             PushState(GUIState.Sending);
 
@@ -4122,7 +4122,7 @@ namespace Poltergeist
                 {
                     if (scripts.Count() > 1)
                     {
-                        ShowConfirmationScreen(hash, false, (txHash, error) =>
+                        ShowConfirmationScreen(hash, false, (txHash, txResult, error) =>
                         {
                             if (string.IsNullOrEmpty(error))
                             {
@@ -4142,13 +4142,13 @@ namespace Poltergeist
 
                     MessageBox(MessageKind.Error, $"Error sending transaction.\n{error}", () =>
                     {
-                        callback(Hash.Null, error);
+                        callback(Hash.Null, null, error);
                     });
                 }
             });
         }
 
-        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, string> callback)
+        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             transactionCallback = callback;
             transactionStillPending = true;
@@ -4229,9 +4229,9 @@ namespace Poltergeist
                             return;
                         }
 
-                        SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                        SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
+                            TxResultMessage(hash, txResult, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
                         });
                     }
                     else
@@ -4328,11 +4328,11 @@ namespace Poltergeist
                         return;
                     }
 
-                    SendPhaTransactions(description, scripts, gasPrice, gasLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                    SendPhaTransactions(description, scripts, gasPrice, gasLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                     {
                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                         {
-                            TxResultMessage(hash, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
+                            TxResultMessage(hash, txResult, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
 
                             // Removing sent NFTs from current NFT list.
                             var nfts = accountManager.CurrentNfts;
@@ -4348,7 +4348,7 @@ namespace Poltergeist
                         }
                         else
                         {
-                            TxResultMessage(hash, error, null, "Some or all transactions failed.");
+                            TxResultMessage(hash, txResult, error, null, "Some or all transactions failed.");
                         }
                     });
                 }
@@ -4526,7 +4526,7 @@ namespace Poltergeist
                              var swapSymbolBalance = AccountManager.Instance.CurrentState.GetAvailableAmount(swapSymbol);
                              var feeSymbolBalance = AccountManager.Instance.CurrentState.GetAvailableAmount(feeSymbol);
                              Log.Write($"Balance before swap: {swapSymbol}: {swapSymbolBalance}, {feeSymbol}: {feeSymbolBalance}.");
-                             SendTransaction($"Swap {swapSymbol} for {feeSymbol}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                             SendTransaction($"Swap {swapSymbol} for {feeSymbol}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                              {
                                  if (!string.IsNullOrEmpty(error) || hash == Hash.Null)
                                  {

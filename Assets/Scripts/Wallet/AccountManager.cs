@@ -938,24 +938,32 @@ namespace Poltergeist
 
         private const int maxChecks = 12; // Timeout after 36 seconds
 
-        public void RequestConfirmation(string transactionHash, int checkCount, Action<string> callback)
+        public void RequestConfirmation(string transactionHash, int checkCount, Action<Phantasma.SDK.Transaction?, string> callback)
         {
             switch (CurrentPlatform)
             {
                 case PlatformKind.Phantasma:
-                    StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (state, tx) =>
+                    StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (txResult) =>
                     {
-                        if (state == ExecutionState.Running)
+                        if (txResult.state == ExecutionState.Running)
                         {
-                            callback("pending");
+                            callback(txResult, "pending");
                         }
-                        else if (state == ExecutionState.Break || state == ExecutionState.Fault)
+                        else if (txResult.state == ExecutionState.Break || txResult.state == ExecutionState.Fault)
                         {
-                            callback("Transaction failed");
+                            if(string.IsNullOrEmpty(txResult.debugComment) && checkCount <= 6)
+                            {
+                                // We wait a bit for additional information about failure to become available
+                                callback(txResult, "pending");
+                            }
+                            else
+                            {
+                                callback(txResult, "Transaction failed");
+                            }
                         }
                         else
                         {
-                            callback(null);
+                            callback(txResult, null);
                         }
                     }, (error, msg) =>
                     {
@@ -966,17 +974,17 @@ namespace Poltergeist
 
                         if (checkCount <= maxChecks)
                         {
-                            callback(msg);
+                            callback(null, msg);
                         }
                         else
                         {
-                            callback("timeout");
+                            callback(null, "timeout");
                         }
                     }));
                     break;
 
                 default:
-                    callback("not implemented: " + CurrentPlatform);
+                    callback(null, "not implemented: " + CurrentPlatform);
                     break;
             }
 

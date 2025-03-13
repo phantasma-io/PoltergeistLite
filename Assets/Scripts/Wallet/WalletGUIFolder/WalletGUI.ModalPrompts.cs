@@ -152,7 +152,7 @@ namespace Poltergeist
                 });
         }
 
-        public void TxResultMessage(Hash hash, string error, string successCustomMessage = null, string failureCustomMessage = null)
+        public void TxResultMessage(Hash hash, Phantasma.SDK.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
             var accountManager = AccountManager.Instance;
 
@@ -175,7 +175,7 @@ namespace Poltergeist
             {
                 if(success)
                 {
-                    message = "Transaction succeeded.";
+                    message = "Transaction succeeded";
                 }
                 else
                 {
@@ -185,7 +185,10 @@ namespace Poltergeist
                     }
                     else
                     {
-                        message = "Transaction failed.";
+                        if(error != "Transaction failed")
+                        {
+                            message = "Transaction failed";
+                        }
                     }
                 }
             }
@@ -193,6 +196,16 @@ namespace Poltergeist
             if (!string.IsNullOrEmpty(error) && !timeout)
             {
                 message += "\nError: " + error;
+
+                if(txResult != null)
+                {
+                    message += "\nResult: " + txResult.Value.result;
+                    message += "\nComment: " + txResult.Value.debugComment;
+                }
+                else
+                {
+                    message += "\ntxResult is null";
+                }
             }
 
             message += "\nTransaction hash:\n" + hash;
