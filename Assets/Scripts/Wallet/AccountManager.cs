@@ -1990,15 +1990,15 @@ namespace Poltergeist
                                                                     }
                                                                     else
                                                                     {
-                                                                        var unclaimed = UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10);
-                                                                        var stake = UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8);
-                                                                        var storageStake = UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8);
-                                                                        var votingPower = VMObject.FromBytes(votingPowerResult).AsNumber();
-                                                                        var stakeTimestamp = VMObject.FromBytes(stakeTimestampResult).AsTimestamp();
-                                                                        var stakeTimestampLocal = ((DateTime)stakeTimestamp).ToLocalTime();
-                                                                        var timeBeforeUnstake = VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber();
-                                                                        var masterDate = VMObject.FromBytes(masterDateResult).AsTimestamp();
-                                                                        var isMaster = VMObject.FromBytes(isMasterResult).AsBool();
+                                                                        var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
+                                                                        var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
+                                                                        var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
+                                                                        var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
+                                                                        var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
+                                                                        var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;
+                                                                        var timeBeforeUnstake = timeBeforeUnstakeResult != null ? VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber() : -1;
+                                                                        var masterDate = masterDateResult != null ? VMObject.FromBytes(masterDateResult).AsTimestamp() : 0;
+                                                                        var isMaster = isMasterResult != null ? VMObject.FromBytes(isMasterResult).AsBool() : false;
 
                                                                         callback($"{addressString} account information:\n\n" +
                                                                             $"Unclaimed: {unclaimed} KCAL\n" +
