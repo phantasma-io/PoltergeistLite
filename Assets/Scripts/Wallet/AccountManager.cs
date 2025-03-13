@@ -1082,6 +1082,12 @@ namespace Poltergeist
 
                     }
 
+                    balanceMap = balanceMap
+                        .OrderBy(b => b.Key != "SOUL")
+                        .ThenBy(b => b.Key != "KCAL")
+                        .ThenBy(b => b.Key)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value);
+
                     var stakedAmount = AmountFromString(acc.stake.amount,
                         Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
                     var claimableAmount = AmountFromString(acc.stake.unclaimed,
