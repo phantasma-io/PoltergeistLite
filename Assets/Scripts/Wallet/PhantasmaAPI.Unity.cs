@@ -337,7 +337,6 @@ namespace Phantasma.SDK
     public class Token
     {
         public string symbol; //
-        public bool mainnetToken;
         public string apiSymbol; // API symbols may differ.
         public string name; //
         public int decimals; //
@@ -350,38 +349,8 @@ namespace Phantasma.SDK
         public string script;
         public TokenPlatform[] external;
         public decimal price;
-
-        public static Token FromNode(DataNode node)
-        {
-            Token result = new Token();
-
-            result.symbol = node.GetString("symbol");
-            result.mainnetToken = true;
-            result.name = node.GetString("name");
-            result.decimals = node.GetInt32("decimals");
-            result.currentSupply = node.GetString("currentSupply");
-            result.maxSupply = node.GetString("maxSupply");
-            result.burnedSupply = node.GetString("burnedSupply");
-            result.address = node.GetString("address");
-            result.owner = node.GetString("owner");
-            result.flags = node.GetString("flags");
-            result.script = node.GetString("script");
-
-            var platforms = new List<TokenPlatform>();
-            if (node.HasNode("external"))
-            {
-                foreach (var platform in node.GetNode("external").Children)
-                {
-                    platforms.Add(TokenPlatform.FromNode(platform));
-                }
-
-                result.external = platforms.ToArray();
-            }
-            
-            result.price = 0;
-
-            return result;
-        }
+        // TODO check if needed after refactoring
+        public bool mainnetToken = true;
 
         public bool IsBurnable()
         {
@@ -814,14 +783,8 @@ namespace Phantasma.SDK
         //Returns an array of tokens deployed in Phantasma.
         public IEnumerator GetTokens(Action<Token[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getTokens", 10, 5, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Token[]>(Host, "getTokens", 10, 5, errorHandlingCallback, (result) =>
             {
-                var result = new Token[node.ChildCount];
-                for (int i = 0; i < result.Length; i++)
-                {
-                    var child = node.GetNodeByIndex(i);
-                    result[i] = Token.FromNode(child);
-                }
                 callback(result);
             });
         }
