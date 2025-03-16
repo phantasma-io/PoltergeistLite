@@ -620,6 +620,11 @@ namespace Poltergeist
                 return 0;
             }
 
+            if(decimals < 0)
+            {
+                throw new ($"Decimals for token are unavailable, cannot convert {str} amount");
+            }
+
             return UnitConversion.ToDecimal(str, decimals);
         }
 
