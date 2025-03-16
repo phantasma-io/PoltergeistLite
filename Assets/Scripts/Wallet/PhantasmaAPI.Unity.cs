@@ -180,56 +180,6 @@ namespace Phantasma.SDK
         public string name; //
         public string script; //
         public ContractMethod[] methods;
-
-        public static Contract FromNode(DataNode node)
-        {
-            Contract result;
-
-            result.address = node.GetString("address");
-            result.name = node.GetString("name");
-            result.script = node.GetString("script");
-
-            var methodNode = node.GetNode("methods");
-            if (methodNode != null)
-            {
-                result.methods = new ContractMethod[methodNode.ChildCount];
-                for (int i = 0; i < result.methods.Length; i++)
-                {
-                    var child = methodNode.GetNodeByIndex(i);
-                    var method = new ContractMethod();
-                    method.name = child.GetString("name");
-                    method.returnType = child.GetString("returnType");
-
-                    var paramsNode = child.GetNode("parameters");
-                    if (paramsNode != null)
-                    {
-                        method.parameters = new ContractParameter[paramsNode.ChildCount];
-                        for (int j = 0; j < method.parameters.Length; j++)
-                        {
-                            var temp = paramsNode.GetNodeByIndex(j);
-                            var p = new ContractParameter();
-
-                            p.name = temp.GetString("name");
-                            p.type = temp.GetString("type");
-
-                            method.parameters[j] = p;
-                        }
-                    }
-                    else
-                    {
-                        method.parameters = new ContractParameter[0];
-                    }
-
-                    result.methods[i] = method;
-                }
-            }
-            else
-            {
-                result.methods = new ContractMethod[0];
-            }
-
-            return result;
-        }
     }
 
     public struct Event
@@ -238,18 +188,6 @@ namespace Phantasma.SDK
         public string kind; //
         public string contract; //
         public string data; //
-
-        public static Event FromNode(DataNode node)
-        {
-            Event result;
-
-            result.address = node.GetString("address");
-            result.kind = node.GetString("kind");
-            result.contract = node.GetString("contract");
-            result.data = node.GetString("data");
-
-            return result;
-        }
     }
 
     public struct Transaction
@@ -266,45 +204,6 @@ namespace Phantasma.SDK
         public string fee; //
         public ExecutionState state;
         public string debugComment;
-
-        public static Transaction FromNode(DataNode node)
-        {
-            Transaction result;
-
-            result.hash = node.GetString("hash");
-            result.chainAddress = node.GetString("chainAddress");
-            result.timestamp = node.GetUInt32("timestamp");
-            result.confirmations = node.GetInt32("confirmations");
-            result.blockHeight = node.GetInt32("blockHeight");
-            result.blockHash = node.GetString("blockHash");
-            result.script = node.GetString("script");
-            result.debugComment = node.GetString("debugComment");
-            var events_array = node.GetNode("events");
-            if (events_array != null)
-            {
-                result.events = new Event[events_array.ChildCount];
-                for (int i = 0; i < events_array.ChildCount; i++)
-                {
-
-                    result.events[i] = Event.FromNode(events_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.events = new Event[0];
-            }
-
-            result.result = node.GetString("result");
-            result.fee = node.GetString("fee");
-
-            if(!Enum.TryParse<ExecutionState>(node.GetString("state"), out result.state))
-            {
-                result.state = ExecutionState.Break;
-            }
-
-            return result;
-        }
     }
 
     public struct AccountTransactions
@@ -661,9 +560,8 @@ namespace Phantasma.SDK
 
         public IEnumerator GetContract(string contractName, Action<Contract> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Contract>(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Contract.FromNode(node);
                 callback(result);
             }, DomainSettings.RootChainName, contractName);
         }
@@ -715,9 +613,8 @@ namespace Phantasma.SDK
         //Returns information about a transaction by hash.
         public IEnumerator GetTransaction(string hashText, Action<Transaction> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Transaction>(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Transaction.FromNode(node);
                 callback(result);
             }, hashText);
         }
