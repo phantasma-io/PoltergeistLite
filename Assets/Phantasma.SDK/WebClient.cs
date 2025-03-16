@@ -8,6 +8,7 @@ using LunarLabs.Parser;
 using LunarLabs.Parser.JSON;
 using System.Text;
 using System.Threading;
+using Newtonsoft.Json;
 
 namespace Phantasma.SDK
 {
@@ -29,35 +30,151 @@ namespace Phantasma.SDK
 
             return requestNumber;
         }
-        public static IEnumerator RPCRequest(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
-                                            Action<DataNode> callback, params object[] parameters)
-        {
-            var paramData = DataNode.CreateArray("params");
 
-            if (parameters != null && parameters.Length > 0)
+        public class JsonRpcRequest
+        {
+            public string jsonrpc = "2.0";
+            public string method;
+            public string id = "1";
+            public object[] @params;
+
+            public JsonRpcRequest(string method, object[] parameters)
             {
-                foreach (var obj in parameters)
+                this.method = method;
+                this.@params = parameters;
+            }
+        }
+        public class JsonRpcError
+        {
+            public int code;
+            public string message;
+        }
+        public class JsonRpcResponse<T>
+        {
+            public string jsonrpc;
+            public string id;
+            public T result;
+            public JsonRpcError error;
+        }
+
+        public static IEnumerator RPCRequest<T>(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
+                                            Action<T> callback, params object[] parameters)
+        {
+            var json = JsonConvert.SerializeObject(new JsonRpcRequest(method, parameters));
+
+            var requestNumber = GetNextRequestNumber();
+            Log.Write($"RPC request [{requestNumber}]\nurl: {url}\njson: {json}", Log.Level.Networking);
+
+            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+
+            DateTime startTime = DateTime.Now;
+
+            UnityWebRequest request;
+            for (; ; )
+            {
+                request = new UnityWebRequest(url, "POST");
+                request.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+                request.SetRequestHeader("Content-Type", "application/json");
+                if (timeout > 0)
+                    request.timeout = timeout;
+
+                yield return request.SendWebRequest();
+
+                if (request.error == null || retriesOnNetworkError == 0)
                 {
-                    paramData.AddField(null, obj);
+                    // success
+                    break;
+                }
+
+                Log.Write($"RPC network error [{requestNumber}], {retriesOnNetworkError} retries left.", Log.Level.Networking);
+                Thread.Sleep(1000);
+                retriesOnNetworkError--;
+            }
+
+            TimeSpan responseTime = DateTime.Now - startTime;
+
+            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
+            {
+                Log.Write($"RPC error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
+            }
+            else
+            {
+                Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
+                JsonRpcResponse<T> rpcResponse = null;
+
+                try
+                {
+                    var stringResponse = request.downloadHandler.text;
+
+                    try
+                    {
+                        rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
+                    }
+                    catch
+                    {
+                        if (method.ToUpper() == "GETNFT" && parameters.Length > 0 && ((string)parameters[0]).ToUpper() == "GAME")
+                        {
+                            Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse GAME NFT, trying workaround. JSON: " + stringResponse, Log.Level.Logic);
+                            // TODO remove later: Temporary HACK for binary data inside JSON
+                            var cutFrom = stringResponse.IndexOf(",{\"Key\":\"OriginalMetadata\"", StringComparison.InvariantCultureIgnoreCase);
+                            if (cutFrom > 0)
+                            {
+                                stringResponse = stringResponse.Substring(0, cutFrom) + "]}";
+                                rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
+                            }
+                        }
+                        else
+                        {
+                            throw;
+                        }
+                    }
+                    if (rpcResponse != null && rpcResponse.result != null)
+                    {
+                        callback?.Invoke(rpcResponse.result);
+                    }
+                    else
+                    {
+                        errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, "Invalid or null response");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.ToString(), Log.Level.Networking);
+                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse JSON: " + e.Message);
+                    yield break;
+                }
+
+                if (rpcResponse == null)
+                {
+                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON", Log.Level.Networking);
+                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "failed to parse JSON");
+                }
+                else
+                if (rpcResponse.error != null)
+                {
+                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {rpcResponse.error.message}", Log.Level.Networking);
+                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, rpcResponse.error.message);
+                }
+                else
+                if (rpcResponse.result != null)
+                {
+                    callback((T)(object)rpcResponse.result);
+                }
+                else
+                {
+                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.MALFORMED_RESPONSE, "malformed response");
                 }
             }
 
-            var jsonRpcData = DataNode.CreateObject(null);
-            jsonRpcData.AddField("jsonrpc", "2.0");
-            jsonRpcData.AddField("method", method);
-            jsonRpcData.AddField("id", "1");
-            jsonRpcData.AddNode(paramData);
+            yield break;
+        }
 
-            string json;
-
-            try
-            {
-                json = JSONWriter.WriteToString(jsonRpcData);
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+        public static IEnumerator RPCRequest(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
+                                            Action<DataNode> callback, params object[] parameters)
+        {
+            var json = JsonConvert.SerializeObject(new JsonRpcRequest(method, parameters));
 
             var requestNumber = GetNextRequestNumber();
             Log.Write($"RPC request [{requestNumber}]\nurl: {url}\njson: {json}", Log.Level.Networking);
@@ -130,118 +247,6 @@ namespace Phantasma.SDK
                     root = JSONReader.ReadFromString(stringResponse);
                 }
                 catch (Exception e)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.Message, Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse JSON: " + e.Message);
-                    yield break;
-                }
-
-                if (root == null)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "failed to parse JSON");
-                }
-                else
-                if (root.HasNode("error"))
-                {
-                    var errorDesc = root["error"].GetString("message");
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {errorDesc}", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, errorDesc);
-                }
-                else
-                if (root.HasNode("result"))
-                {
-                    var result = root["result"];
-
-                    if (result.HasNode("error"))
-                    {
-                        // This is incorrect way of RPC error reporting,
-                        // but it happens sometimes and should be handeled at least for now.
-                        var errorDesc = result.GetString("error");
-                        Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found (2): {errorDesc}", Log.Level.Networking);
-                        if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, errorDesc);
-                    }
-                    else
-                    {
-                        callback(result);
-                    }
-                }
-                else
-                {
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.MALFORMED_RESPONSE, "malformed response");
-                }
-            }
-
-            yield break;
-        }
-        public static IEnumerator RPCRequestEx(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
-            Action<DataNode> callback, DataNode parametersNode)
-        {
-            var jsonRpcData = DataNode.CreateObject(null);
-            jsonRpcData.AddField("jsonrpc", "2.0");
-            jsonRpcData.AddField("method", method);
-            jsonRpcData.AddField("id", "1");
-            jsonRpcData.AddNode(parametersNode);
-
-            string json;
-
-            try
-            {
-                json = JSONWriter.WriteToString(jsonRpcData);
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
-
-            var requestNumber = GetNextRequestNumber();
-            Log.Write($"RPC request [{requestNumber}]\nurl: {url}\njson: {json}", Log.Level.Networking);
-
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
-
-            DateTime startTime = DateTime.Now;
-
-            UnityWebRequest request;
-            for (; ; )
-            {
-                request = new UnityWebRequest(url, "POST");
-                request.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
-                request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-                request.SetRequestHeader("Content-Type", "application/json");
-
-                if (timeout > 0)
-                    request.timeout = timeout;
-
-                yield return request.SendWebRequest();
-
-                if (request.error == null || retriesOnNetworkError == 0)
-                {
-                    // success
-                    break;
-                }
-
-                Log.Write($"RPC network error [{requestNumber}], {retriesOnNetworkError} retries left.", Log.Level.Networking);
-                Thread.Sleep(1000);
-                retriesOnNetworkError--;
-            }
-
-            TimeSpan responseTime = DateTime.Now - startTime;
-
-            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
-            {
-                Log.Write($"RPC error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
-            }
-            else
-            {
-                Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                DataNode root = null;
-
-                try
-                {
-                    root = JSONReader.ReadFromString(request.downloadHandler.text);
-                }
-                catch(Exception e)
                 {
                     Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.Message, Log.Level.Networking);
                     if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse JSON: " + e.Message);

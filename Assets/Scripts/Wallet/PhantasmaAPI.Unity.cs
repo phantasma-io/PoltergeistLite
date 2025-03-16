@@ -20,33 +20,6 @@ namespace Phantasma.SDK
         public string symbol; //
         public uint decimals; //
         public string[] ids; //
-
-        public static Balance FromNode(DataNode node)
-        {
-            Balance result;
-
-            result.chain = node.GetString("chain");
-            result.amount = node.GetString("amount");
-            result.symbol = node.GetString("symbol");
-            result.decimals = node.GetUInt32("decimals");
-            var ids_array = node.GetNode("ids");
-            if (ids_array != null)
-            {
-                result.ids = new string[ids_array.ChildCount];
-                for (int i = 0; i < ids_array.ChildCount; i++)
-                {
-
-                    result.ids[i] = ids_array.GetNodeByIndex(i).AsString();
-                }
-            }
-            else
-            {
-                result.ids = new string[0];
-            }
-
-
-            return result;
-        }
     }
 
     public struct Interop
@@ -116,22 +89,11 @@ namespace Phantasma.SDK
         }
     }
 
-    public struct Stake
+    public struct Stakes
     {
         public string amount; //
         public uint time; //
         public string unclaimed; //
-
-        public static Stake FromNode(DataNode node)
-        {
-            Stake result;
-
-            result.amount = node.GetString("amount");
-            result.time = node.GetUInt32("time");
-            result.unclaimed = node.GetString("unclaimed");
-
-            return result;
-        }
     }
 
     public struct Storage
@@ -182,40 +144,11 @@ namespace Phantasma.SDK
     {
         public string address; //
         public string name; //
-        public Stake stake; //
+        public Stakes stakes; //
         public Storage storage; //
         public string relay; //
         public string validator; //
         public Balance[] balances; //
-
-        public static Account FromNode(DataNode node)
-        {
-            Account result;
-
-            result.address = node.GetString("address");
-            result.name = node.GetString("name");
-            result.stake = Stake.FromNode(node.GetNode("stakes"));
-            result.storage = Storage.FromNode(node.GetNode("storage"));
-            result.relay = node.GetString("relay");
-            result.validator = node.GetString("validator");
-            var balances_array = node.GetNode("balances");
-            if (balances_array != null)
-            {
-                result.balances = new Balance[balances_array.ChildCount];
-                for (int i = 0; i < balances_array.ChildCount; i++)
-                {
-
-                    result.balances[i] = Balance.FromNode(balances_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.balances = new Balance[0];
-            }
-
-            return result;
-        }
     }
 
     public struct ContractParameter
@@ -822,10 +755,9 @@ namespace Phantasma.SDK
         //Returns the account name and balance of given address.
         public IEnumerator GetAccount(string addressText, Action<Account> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Account>(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (account) =>
             {
-                var result = Account.FromNode(node);
-                callback(result);
+                callback(account);
             }, addressText);
         }
 

@@ -1093,12 +1093,12 @@ namespace Poltergeist
                         .ThenBy(b => b.Key)
                         .ToDictionary(kv => kv.Key, kv => kv.Value);
 
-                    var stakedAmount = AmountFromString(acc.stake.amount,
+                    var stakedAmount = AmountFromString(acc.stakes.amount,
                         Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
-                    var claimableAmount = AmountFromString(acc.stake.unclaimed,
+                    var claimableAmount = AmountFromString(acc.stakes.unclaimed,
                         Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma));
 
-                    var stakeTimestamp = new Timestamp(acc.stake.time);
+                    var stakeTimestamp = new Timestamp(acc.stakes.time);
 
                     if (stakedAmount > 0)
                     {
