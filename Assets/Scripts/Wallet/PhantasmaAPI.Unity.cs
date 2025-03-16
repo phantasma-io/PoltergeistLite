@@ -13,6 +13,16 @@ using Phantasma.Core.Types;
 
 namespace Phantasma.SDK
 {
+    public class PaginatedResult<T>
+    {
+        public uint page { get; set; }
+        public uint pageSize { get; set; }
+        public uint total { get; set; }
+        public uint totalPages { get; set; }
+
+        public T result { get; set; }
+    }
+
     public struct Balance
     {
         public string chain; //
@@ -301,31 +311,6 @@ namespace Phantasma.SDK
     {
         public string address; //
         public Transaction[] txs; //
-
-        public static AccountTransactions FromNode(DataNode node)
-        {
-            AccountTransactions result;
-
-            result.address = node.GetString("address");
-            var txs_array = node.GetNode("txs");
-            if (txs_array != null)
-            {
-                result.txs = new Transaction[txs_array.ChildCount];
-                for (int i = 0; i < txs_array.ChildCount; i++)
-                {
-
-                    result.txs[i] = Transaction.FromNode(txs_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.txs = new Transaction[0];
-            }
-
-
-            return result;
-        }
     }
 
     public class TokenPlatform
@@ -783,26 +768,14 @@ namespace Phantasma.SDK
 
         //Returns last X transactions of given address.
         //This api call is paginated, multiple calls might be required to obtain a complete result 
-        public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactions, int, int> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactions, uint, uint> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<PaginatedResult<AccountTransactions>>(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (paginatedResult) =>
             {
-                var currentPage = node.GetInt32("page");
-                var totalPages = node.GetInt32("totalPages");
-                node = node.GetNode("result");
-                var result = AccountTransactions.FromNode(node);
-                callback(result, currentPage, totalPages);
+                var currentPage = paginatedResult.page;
+                var totalPages = paginatedResult.totalPages;
+                callback(paginatedResult.result, currentPage, totalPages);
             }, addressText, page, pageSize);
-        }
-
-        public IEnumerator GetAllAddressTransactions(string addressText, Action<AccountTransactions> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
-            {
-                node = node.GetNode("result");
-                var result = AccountTransactions.FromNode(node);
-                callback(result);
-            }, addressText);
         }
 
         //Allows to broadcast a signed operation on the network, but it&apos;s required to build it manually.
@@ -880,21 +853,6 @@ namespace Phantasma.SDK
                 var result = Boolean.Parse(node.Value);
                 callback(result);
             }, hashText, blockIndex, Convert.ToBase64String(blockContent));
-        }
-
-        //Returns an array of available interop platforms.
-        public IEnumerator GetPlatforms(Action<Platform[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest(Host, "getPlatforms", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
-            {
-                var result = new Platform[node.ChildCount];
-                for (int i = 0; i < result.Length; i++)
-                {
-                    var child = node.GetNodeByIndex(i);
-                    result[i] = Platform.FromNode(child);
-                }
-                callback(result);
-            });
         }
 
         public IEnumerator SignAndSendTransactionWithPayload(PhantasmaKeys keys, IKeyPair otherKeys, string nexus, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, ProofOfWork PoW, Action<string, string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
