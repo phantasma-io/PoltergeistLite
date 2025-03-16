@@ -596,62 +596,6 @@ namespace Phantasma.SDK
         public string result; //
         public string[] results; //
         public Oracle[] oracles; //
-
-        public static Script FromNode(DataNode node)
-        {
-            Script result;
-
-            var events_array = node.GetNode("events");
-            if (events_array != null)
-            {
-                result.events = new Event[events_array.ChildCount];
-                for (int i = 0; i < events_array.ChildCount; i++)
-                {
-
-                    result.events[i] = Event.FromNode(events_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.events = new Event[0];
-            }
-
-            result.result = node.GetString("result");
-            var oracles_array = node.GetNode("oracles");
-            if (oracles_array != null)
-            {
-                result.oracles = new Oracle[oracles_array.ChildCount];
-                for (int i = 0; i < oracles_array.ChildCount; i++)
-                {
-
-                    result.oracles[i] = Oracle.FromNode(oracles_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.oracles = new Oracle[0];
-            }
-
-            var result_array = node.GetNode("results");
-            if (result_array != null)
-            {
-                result.results= new string[result_array.ChildCount];
-                int i = 0;
-                foreach (var child in result_array.Children)
-                {
-                    result.results[i] = child.Value;
-                    i++;
-                }
-            }
-            else
-            {
-                result.results = new string[] { result.result };
-            }
-
-            return result;
-        }
     }
 
     public struct Archive
@@ -761,9 +705,8 @@ namespace Phantasma.SDK
         //Allows to invoke script based on network state, without state changes.
         public IEnumerator InvokeRawScript(string chainInput, string scriptData, Action<Script> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "invokeRawScript", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Script>(Host, "invokeRawScript", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Script.FromNode(node);
                 callback(result);
             }, chainInput, scriptData);
         }
