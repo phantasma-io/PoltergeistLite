@@ -247,7 +247,6 @@ namespace Phantasma.SDK
         public string flags; //
         public string script;
         public TokenPlatform[] external;
-        public decimal price;
         // TODO check if needed after refactoring
         public bool mainnetToken = true;
 
