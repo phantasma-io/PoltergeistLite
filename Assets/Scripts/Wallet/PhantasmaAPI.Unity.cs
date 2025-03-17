@@ -10,6 +10,7 @@ using Phantasma.Core.Numerics;
 using Phantasma.Core.Domain;
 using Phantasma.Business.Blockchain.Storage;
 using Phantasma.Core.Types;
+using Newtonsoft.Json;
 
 namespace Phantasma.SDK
 {
@@ -294,86 +295,32 @@ namespace Phantasma.SDK
     public struct TokenData
     {
         public string ID;
-        public uint series;
+        public string series;
         public uint mint;
         public string chainName;
         public string ownerAddress;
         public string creatorAddress;
+        [JsonConverter(typeof(HexByteArrayConverter))]
         public byte[] ram;
+        [JsonConverter(typeof(HexByteArrayConverter))]
         public byte[] rom;
         public TokenStatus status;
         public IRom parsedRom;
         public TokenProperty[] infusion;
         public List<TokenProperty> properties;
 
-        public static TokenData FromNode(DataNode node, string symbol)
+        public void ParseRoms(string symbol)
         {
-            TokenData result;
-
-            result.ID = node.GetString("ID");
-            result.series = node.GetUInt32("series");
-            result.mint = node.GetUInt32("mint");
-            result.chainName = node.GetString("chainName");
-            result.ownerAddress = node.GetString("ownerAddress");
-            result.creatorAddress = node.GetString("creatorAddress");
-            result.ram = Base16.Decode(node.GetString("ram"));
-            result.rom = Base16.Decode(node.GetString("rom"));
-            if (!Enum.TryParse(node.GetString("status"), true, out result.status))
-                result.status = TokenStatus.Infused;
-
             // Pasring ROM
             switch (symbol)
             {
                 case "CROWN":
-                    result.parsedRom = new CrownRom(result.rom, result.ID);
+                    parsedRom = new CrownRom(rom, ID);
                     break;
                 default:
-                    result.parsedRom = new CustomRom(result.rom);
+                    parsedRom = new CustomRom(rom);
                     break;
             }
-
-            // Reading infused assets
-            var infusionNode = node.GetNode("infusion");
-
-            if (infusionNode != null)
-            {
-                var infusion = new List<TokenProperty>();
-                foreach (DataNode entry in infusionNode.Children)
-                {
-                    var property = new TokenProperty();
-                    property.Key = entry.GetString("Key");
-                    property.Value = entry.GetString("Value");
-                    infusion.Add(property);
-                }
-
-                result.infusion = infusion.ToArray();
-            }
-            else
-            {
-                result.infusion = null;
-            }
-
-            // Reading properties
-            var propertiesNode = node.GetNode("properties");
-            if (propertiesNode != null)
-            {
-                var properties = new List<TokenProperty>();
-                foreach (DataNode entry in propertiesNode.Children)
-                {
-                    var property = new TokenProperty();
-                    property.Key = entry.GetString("Key");
-                    property.Value = entry.GetString("Value");
-                    properties.Add(property);
-                }
-
-                result.properties = properties;
-            }
-            else
-            {
-                result.properties = null;
-            }
-
-            return result;
         }
 
         public string GetPropertyValue(string key)
@@ -631,7 +578,7 @@ namespace Phantasma.SDK
         private int tokensLoadedSimultaneously = 0;
 
         //Returns data of a non-fungible token, in hexadecimal format.
-        public IEnumerator GetNFT(string symbol, string IDtext, Action<DataNode> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetNFT(string symbol, string IDtext, Action<TokenData> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
             while (tokensLoadedSimultaneously > 5)
             {
@@ -639,9 +586,9 @@ namespace Phantasma.SDK
             }
             tokensLoadedSimultaneously++;
 
-            yield return WebClient.RPCRequest(Host, "getNFT", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                callback(node);
+                callback(result);
             }, symbol, IDtext, true);
 
             tokensLoadedSimultaneously--;

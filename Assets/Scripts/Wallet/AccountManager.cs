@@ -1281,54 +1281,40 @@ namespace Poltergeist
                                         if (!_nfts.ContainsKey(platform))
                                             _nfts.Add(platform, new List<TokenData>());
 
-                                        var cache = Cache.GetDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
-
-                                        if (cache == null)
+                                        var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
+                                        if(cache == null)
                                         {
-                                            cache = DataNode.CreateObject();
+                                            cache = new TokenData[]{};
                                         }
-                                        DataNode cachedTokens;
-                                        if (cache.HasNode("tokens-" + symbol.ToLower()))
-                                            cachedTokens = cache.GetNode("tokens-" + symbol.ToLower());
-                                        else
-                                            cachedTokens = cache.AddNode(DataNode.CreateObject("tokens-" + symbol.ToLower()));
 
                                         int loadedTokenCounter = 0;
                                         foreach (var id in balanceEntry.Ids)
                                         {
                                             // Checking if token is cached.
-                                            DataNode token = null;
-                                            foreach (var cachedToken in cachedTokens.Children)
-                                            {
-                                                if (cachedToken.GetString("id") == id)
-                                                {
-                                                    token = cachedToken;
-                                                    break;
-                                                }
-                                            }
+                                            TokenData? tokenData = Cache.FindTokenData(cache, id);
 
-                                            if (token != null)
+                                            if (tokenData != null)
                                             {
                                                 // Loading token from cache.
-                                                var tokenId = token.GetString("id");
+                                                var tokenId = tokenData.Value.ID;
 
                                                 loadedTokenCounter++;
 
                                                 // Checking if token already loaded to dictionary.
                                                 if (!_nfts[platform].Exists(x => x.ID == tokenId))
                                                 {
-                                                    var tokenData = TokenData.FromNode(token, symbol);
-                                                    _nfts[platform].Add(tokenData);
+                                                    tokenData.Value.ParseRoms(symbol);
+                                                    _nfts[platform].Add(tokenData.Value);
 
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.GetPropertyValue("ImageURL"), id));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.Value.GetPropertyValue("ImageURL"), id));
                                                 }
 
                                                 if (loadedTokenCounter == balanceEntry.Ids.Length)
                                                 {
                                                     // We finished loading tokens.
                                                     // Saving them in cache.
-                                                    Cache.AddDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+                                                    Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
                                                     
                                                     if (symbol != "TTRS")
                                                     {
@@ -1347,32 +1333,31 @@ namespace Poltergeist
                                                     // TODO: Load TokenData for TTRS too (add batch load method for TokenDatas).
                                                     // For now we skip TokenData loading to speed up TTRS NFTs loading,
                                                     // since it's not used for TTRS anyway.
-                                                    var tokenData = new TokenData();
-                                                    tokenData.ID = id;
-                                                    _nfts[platform].Add(tokenData);
+                                                    var tokenData2 = new TokenData();
+                                                    tokenData2.ID = id;
+                                                    _nfts[platform].Add(tokenData2);
 
                                                     loadedTokenCounter++;
                                                 }
                                                 else
                                                 {
-                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, (result) =>
+                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
                                                     {
-                                                        var tokenData = TokenData.FromNode(result, symbol);
+                                                        tokenData2.ParseRoms(symbol);
                                                         
                                                         // Downloading NFT images.
-                                                        StartCoroutine(NftImages.DownloadImage(symbol, tokenData.GetPropertyValue("ImageURL"), id));
+                                                        StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
 
                                                         loadedTokenCounter++;
 
-                                                        token = cachedTokens.AddNode(result);
-
-                                                        _nfts[platform].Add(tokenData);
+                                                        _nfts[platform].Add(tokenData2);
+                                                        cache = cache.Append(tokenData2).ToArray();
 
                                                         if (loadedTokenCounter == balanceEntry.Ids.Length)
                                                         {
                                                             // We finished loading tokens.
                                                             // Saving them in cache.
-                                                            Cache.AddDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+                                                            Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
 
                                                             ReportWalletNft(platform, symbol);
                                                         }

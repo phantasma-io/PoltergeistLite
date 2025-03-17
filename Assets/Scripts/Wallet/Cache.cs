@@ -3,6 +3,7 @@ using System.IO;
 using LunarLabs.Parser;
 using UnityEngine;
 using Phantasma.SDK;
+using Newtonsoft.Json;
 
 public static class Cache
 {
@@ -219,18 +220,20 @@ public static class Cache
         UpdateRegistry(CacheId, DateTime.Now, 0, WalletName);
     }
 
-    public static void AddDataNode(string CacheId, FileType FileType, DataNode CacheContents, string WalletAddress = "", string WalletName = "")
+    public static void SaveTokenDatas(string CacheId, FileType FileType, TokenData[] CacheContents, string WalletAddress = "", string WalletName = "")
     {
         if (!String.IsNullOrEmpty(WalletAddress))
             CacheId = CacheId + "." + WalletAddress;
 
         string filePath = GetFilePath(CacheId, FileType);
 
-        var serializedCacheContents = DataFormats.SaveToString(DataFormat.JSON, CacheContents);
+        var serializedCacheContents = JsonConvert.SerializeObject(CacheContents);
+
         File.WriteAllText(filePath, serializedCacheContents);
 
         UpdateRegistry(CacheId, DateTime.Now, System.Text.ASCIIEncoding.ASCII.GetByteCount(serializedCacheContents), WalletName);
     }
+
     public static void ClearDataNode(string CacheId, FileType FileType, string WalletAddress = "", string WalletName = "")
     {
         if (!String.IsNullOrEmpty(WalletAddress))
@@ -279,6 +282,48 @@ public static class Cache
         var texture = new Texture2D(2, 2);
         texture.LoadImage(bytes);
         return texture;
+    }
+
+    public static TokenData[] GetTokenCache(string CacheId, FileType FileType, int CacheLifetimeInMinutes, string WalletAddress = "")
+    {
+        var cacheContents = GetAsString(CacheId, FileType, CacheLifetimeInMinutes, WalletAddress);
+
+        if (String.IsNullOrEmpty(cacheContents))
+            return null;
+
+        TokenData[] cache = new TokenData[]{};
+        try
+        {
+            cache = JsonConvert.DeserializeObject<TokenData[]>(cacheContents);
+        }
+        catch
+        {
+            Log.Write("Cache is corrupted, probably old version");
+        }
+
+        if(cache == null)
+        {
+            cache = new TokenData[]{};
+        }
+
+        return cache;
+    }
+    public static TokenData? FindTokenData(TokenData[] cache, string id)
+    {
+        if(cache == null)
+        {
+            return null;
+        }
+
+        foreach (var cachedToken in cache)
+        {
+            if (cachedToken.ID == id)
+            {
+                return cachedToken;
+            }
+        }
+
+        return null;
     }
 
     public static DataNode GetDataNode(string CacheId, FileType FileType, int CacheLifetimeInMinutes, string WalletAddress = "")
