@@ -130,13 +130,21 @@ namespace Phantasma.SDK
                             throw;
                         }
                     }
-                    if (rpcResponse != null && rpcResponse.result != null)
+                    if (rpcResponse != null && rpcResponse.result != null && rpcResponse.error == null)
                     {
                         callback?.Invoke(rpcResponse.result);
                     }
                     else
                     {
-                        errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, "Invalid or null response");
+                        if (rpcResponse?.error != null)
+                        {
+                            Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {rpcResponse.error.message}", Log.Level.Networking);
+                            if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, rpcResponse.error.message);
+                        }
+                        else
+                        {
+                            errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Invalid or null response");
+                        }
                     }
                 }
                 catch (Exception e)
@@ -144,27 +152,6 @@ namespace Phantasma.SDK
                     Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.ToString(), Log.Level.Networking);
                     if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse JSON: " + e.Message);
                     yield break;
-                }
-
-                if (rpcResponse == null)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "failed to parse JSON");
-                }
-                else
-                if (rpcResponse.error != null)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {rpcResponse.error.message}", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, rpcResponse.error.message);
-                }
-                else
-                if (rpcResponse.result != null)
-                {
-                    callback((T)(object)rpcResponse.result);
-                }
-                else
-                {
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.MALFORMED_RESPONSE, "malformed response");
                 }
             }
 
