@@ -227,7 +227,7 @@ public static class Cache
 
         string filePath = GetFilePath(CacheId, FileType);
 
-        var serializedCacheContents = JsonConvert.SerializeObject(CacheContents);
+        var serializedCacheContents = JsonConvert.SerializeObject(CacheContents, Formatting.Indented);
 
         File.WriteAllText(filePath, serializedCacheContents);
 
