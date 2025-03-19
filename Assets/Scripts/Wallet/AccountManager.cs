@@ -1390,7 +1390,7 @@ namespace Poltergeist
                                                 StartCoroutine(GameStore.LoadStoreNft(balanceEntry.Ids, (item) =>
                                                 {
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.img_url, item.ID));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.parsed_rom.img_url, item.ID));
                                                 }, () =>
                                                 {
                                                     nftDescriptionsAreFullyLoaded = true;
@@ -1795,21 +1795,21 @@ namespace Poltergeist
                 {
                     case NftSortMode.Name:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).name_english).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).meta?.name_english).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).name_english).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).meta?.name_english).ToList();
                         break;
                     case NftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).mint).ThenBy(x => GameStore.GetNft(x.ID).timestampDT).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).mint).ThenBy(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).mint).ThenByDescending(x => GameStore.GetNft(x.ID).timestampDT).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).mint).ThenByDescending(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ToList();
                         break;
                     case NftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).timestampDT).ThenBy(x => GameStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ThenBy(x => GameStore.GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).timestampDT).ThenByDescending(x => GameStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ThenByDescending(x => GameStore.GetNft(x.ID).mint).ToList();
                         break;
                 }
 

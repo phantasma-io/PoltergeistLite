@@ -2651,13 +2651,13 @@ namespace Poltergeist
                     {
                         var item = GameStore.GetNft(x.ID);
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
+                        if ((String.IsNullOrEmpty(nftFilterName) || (item.meta?.name_english.ToUpper().Contains(nftFilterName.ToUpper()) ?? false)) &&
                             (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.timestampDT, DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.timestampDT, DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.timestampDT, DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.timestampDT, DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.timestampDT, DateTime.Now.AddMonths(-1)) >= 0)
+                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddMinutes(-15)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddHours(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddDays(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddDays(-7)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddMonths(-1)) >= 0)
                             ))
                         {
                             nftFilteredList.Add(x);
@@ -2782,14 +2782,14 @@ namespace Poltergeist
             {
                 var item = GameStore.GetNft(entryId);
 
-                if (!String.IsNullOrEmpty(item.name_english))
+                if (!String.IsNullOrEmpty(item.meta?.name_english))
                 {
-                    imageUrl = item.img_url;
+                    imageUrl = item.parsed_rom.img_url;
                 }
 
-                nftName = item.name_english;
+                nftName = item.meta?.name_english;
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.description_english;
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.parsed_rom.timestampDT().ToString("dd.MM.yy") : item.parsed_rom.timestampDT().ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.meta?.description_english;
             }
             else
             {
