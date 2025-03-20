@@ -154,6 +154,12 @@ namespace Poltergeist
 
         public void TxResultMessage(Hash hash, Phantasma.SDK.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
+            if(hash == Hash.Null && txResult == null && error == null)
+            {
+                // User cancelled tx
+                return;
+            }
+
             var accountManager = AccountManager.Instance;
 
             var success = string.IsNullOrEmpty(error) && hash != Hash.Null;
