@@ -2297,7 +2297,7 @@ namespace Poltergeist
                                 RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
                                     (amount) =>
                                     {
-                                        var line = amount == balance.Staked ? "You won't be able to claim KCAL anymore." : "The amount of KCAL that will be able to claim later will be reduced.";
+                                        var line = "\nAll unclaimed KCAL will be claimed.";
 
                                         if (amount == balance.Staked && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
                                         {
@@ -2306,25 +2306,28 @@ namespace Poltergeist
 
                                         PromptBox($"Do you want to unstake {amount} SOUL?\n{line}", ModalYesNo, (result) =>
                                         {
-                                            RequestKCAL("SOUL", (kcal) =>
+                                            if(result == PromptResult.Success)
                                             {
-                                                if (kcal == PromptResult.Success)
+                                                RequestKCAL("SOUL", (kcal) =>
                                                 {
-                                                    var address = Address.FromText(state.address);
-
-                                                    var sb = new ScriptBuilder();
-                                                        
-                                                    sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                    sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
-                                                    sb.SpendGas(address);
-                                                    var script = sb.EndScript();
-
-                                                    SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                                    if (kcal == PromptResult.Success)
                                                     {
-                                                        TxResultMessage(hash, txResult, error, "Your SOUL was unstaked!");
-                                                    });
-                                                }
-                                            });
+                                                        var address = Address.FromText(state.address);
+
+                                                        var sb = new ScriptBuilder();
+                                                            
+                                                        sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                                                        sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
+                                                        sb.SpendGas(address);
+                                                        var script = sb.EndScript();
+
+                                                        SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                                        {
+                                                            TxResultMessage(hash, txResult, error, "Your SOUL was unstaked!");
+                                                        });
+                                                    }
+                                                });
+                                            }
                                         });
                                     });
                             };
