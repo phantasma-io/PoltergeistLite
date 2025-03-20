@@ -1091,12 +1091,6 @@ namespace Poltergeist
 
                     }
 
-                    balanceMap = balanceMap
-                        .OrderBy(b => b.Key != "SOUL")
-                        .ThenBy(b => b.Key != "KCAL")
-                        .ThenBy(b => b.Key)
-                        .ToDictionary(kv => kv.Key, kv => kv.Value);
-
                     var stakedAmount = AmountFromString(acc.stakes.amount,
                         Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
                     var claimableAmount = AmountFromString(acc.stakes.unclaimed,
@@ -1155,6 +1149,12 @@ namespace Poltergeist
                             balanceMap[symbol] = entry;
                         }
                     }
+
+                    balanceMap = balanceMap
+                        .OrderBy(b => b.Key != "SOUL")
+                        .ThenBy(b => b.Key != "KCAL")
+                        .ThenBy(b => b.Key)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value);
 
                     // State without swaps
                     var state = new AccountState()
