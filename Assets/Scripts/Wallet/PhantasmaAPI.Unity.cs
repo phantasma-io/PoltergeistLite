@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Globalization;
-using LunarLabs.Parser;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -37,16 +36,6 @@ namespace Phantasma.SDK
     {
         public string local; //
         public string external; //
-
-        public static Interop FromNode(DataNode node)
-        {
-            Interop result;
-
-            result.local = node.GetString("local");
-            result.external = node.GetString("external");
-
-            return result;
-        }
     }
 
     public struct Platform
@@ -56,48 +45,6 @@ namespace Phantasma.SDK
         public string fuel; //
         public string[] tokens; //
         public Interop[] interop; //
-
-        public static Platform FromNode(DataNode node)
-        {
-            Platform result;
-
-            result.platform = node.GetString("platform");
-            result.chain = node.GetString("chain");
-            result.fuel = node.GetString("fuel");
-            var tokens_array = node.GetNode("tokens");
-            if (tokens_array != null)
-            {
-                result.tokens = new string[tokens_array.ChildCount];
-                for (int i = 0; i < tokens_array.ChildCount; i++)
-                {
-
-                    result.tokens[i] = tokens_array.GetNodeByIndex(i).AsString();
-                }
-            }
-            else
-            {
-                result.tokens = new string[0];
-            }
-
-            var interop_array = node.GetNode("interop");
-            if (interop_array != null)
-            {
-                result.interop = new Interop[interop_array.ChildCount];
-                for (int i = 0; i < interop_array.ChildCount; i++)
-                {
-
-                    result.interop[i] = Interop.FromNode(interop_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.interop = new Interop[0];
-            }
-
-
-            return result;
-        }
     }
 
     public struct Stakes
@@ -113,42 +60,6 @@ namespace Phantasma.SDK
         public uint used; //
         public string avatar; //
         public Archive[] archives; //
-
-        public static Storage FromNode(DataNode node)
-        {
-            Storage result;
-
-            if (node == null)
-            {
-                result.archives = null;
-                result.available = 0;
-                result.avatar = null;
-                result.used = 0;
-                return result;
-            }
-
-            result.available = node.GetUInt32("available");
-            result.used = node.GetUInt32("used");
-            result.avatar = node.GetString("avatar");
-
-            var archive_array = node.GetNode("archives");
-            if (archive_array != null)
-            {
-                result.archives = new Archive[archive_array.ChildCount];
-                for (int i = 0; i < archive_array.ChildCount; i++)
-                {
-
-                    result.archives[i] = Archive.FromNode(archive_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.archives = new Archive[0];
-            }
-
-            return result;
-        }
     }
 
     public struct Account
@@ -217,16 +128,6 @@ namespace Phantasma.SDK
     {
         public string platform;
         public string hash;
-
-        public static TokenPlatform FromNode(DataNode node)
-        {
-            var result = new TokenPlatform();
-
-            result.platform = node.GetString("platform");
-            result.hash = node.GetString("hash");
-
-            return result;
-        }
 
         public override string ToString()
         {
@@ -423,16 +324,6 @@ namespace Phantasma.SDK
     {
         public string url; //
         public string content; //
-
-        public static Oracle FromNode(DataNode node)
-        {
-            Oracle result;
-
-            result.url = node.GetString("url");
-            result.content = node.GetString("content");
-
-            return result;
-        }
     }
 
     public struct Script
@@ -450,38 +341,13 @@ namespace Phantasma.SDK
         public uint size; //
         public uint time; //
         public string flags; //
-        public IArchiveEncryption encryption; //
+        [JsonConverter(typeof(HexByteArrayConverter))]
+        public byte[] encryption; //
         public int blockCount; //
         public string[] metadata; //
-
-        public static Archive FromNode(DataNode node)
+        public IArchiveEncryption GetEncryption()
         {
-            Archive result;
-
-            result.hash = node.GetString("hash");
-            result.name = node.GetString("name");
-            result.size = node.GetUInt32("size");
-            result.time = node.GetUInt32("time");
-            result.flags = node.GetString("flags");
-            result.encryption = ArchiveExtensions.ReadArchiveEncryption(Base16.Decode(node.GetString("encryption")));
-            result.blockCount = node.GetInt32("blockCount");
-            var metadata_array = node.GetNode("metadata");
-            if (metadata_array != null)
-            {
-                result.metadata = new string[metadata_array.ChildCount];
-                for (int i = 0; i < metadata_array.ChildCount; i++)
-                {
-
-                    result.metadata[i] = metadata_array.GetNodeByIndex(i).AsString();
-                }
-            }
-            else
-            {
-                result.metadata = new string[0];
-            }
-
-
-            return result;
+            return ArchiveExtensions.ReadArchiveEncryption(encryption);
         }
     }
 
