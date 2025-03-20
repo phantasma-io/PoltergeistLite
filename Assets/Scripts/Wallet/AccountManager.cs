@@ -979,6 +979,10 @@ namespace Poltergeist
 
                         if (checkCount <= maxChecks)
                         {
+                            if (error == EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON)
+                            {
+                                msg = "Cannot determine if transaction was successful or not due to incorrect RPC response. " + msg;
+                            }
                             callback(null, msg);
                         }
                         else

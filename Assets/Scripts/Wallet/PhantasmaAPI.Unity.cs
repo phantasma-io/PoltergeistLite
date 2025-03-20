@@ -382,9 +382,8 @@ namespace Phantasma.SDK
         //Returns the address that owns a given name.
         public IEnumerator LookUpName(string name, Action<string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "lookUpName", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<string>(Host, "lookUpName", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = node.Value;
                 callback(result);
             }, name);
         }
@@ -404,9 +403,8 @@ namespace Phantasma.SDK
         //Allows to broadcast a signed operation on the network, but it&apos;s required to build it manually.
         public IEnumerator SendRawTransaction(string txData, Action<string, string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "sendRawTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<string>(Host, "sendRawTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = node.Value;
                 callback(result, txData);
             }, txData);
         }
@@ -463,10 +461,9 @@ namespace Phantasma.SDK
         //Writes the contents of an incomplete archive.
         public IEnumerator WriteArchive(string hashText, int blockIndex, byte[] blockContent, Action<Boolean> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "writeArchive", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<string>(Host, "writeArchive", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Boolean.Parse(node.Value);
-                callback(result);
+                callback(Boolean.Parse(result));
             }, hashText, blockIndex, Convert.ToBase64String(blockContent));
         }
 

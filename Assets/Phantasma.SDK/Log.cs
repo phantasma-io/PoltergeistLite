@@ -1,4 +1,3 @@
-using LunarLabs.Parser;
 using System;
 using System.IO;
 using System.Threading;
@@ -247,15 +246,6 @@ namespace Phantasma.SDK
                     break;
             }
 #endif
-        }
-
-        public static void WriteJson(DataNode node, string message = "", Level level = Level.Logic, UnityDebugLogMode unityDebugLogMode = UnityDebugLogMode.Normal)
-        {
-            Write(message + DataFormats.SaveToString(DataFormat.JSON, node), level, unityDebugLogMode);
-        }
-        public static void WriteXML(DataNode node, string message = "", Level level = Level.Logic, UnityDebugLogMode unityDebugLogMode = UnityDebugLogMode.Normal)
-        {
-            Write(message + DataFormats.SaveToString(DataFormat.XML, node), level, unityDebugLogMode);
         }
     }
 }
