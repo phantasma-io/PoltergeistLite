@@ -2633,15 +2633,15 @@ namespace Poltergeist
                     {
                         var item = TtrsStore.GetNft(x.ID);
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.NameEnglish.ToUpper().Contains(nftFilterName.ToUpper())) &&
-                            (nftFilterType == "All" || item.DisplayTypeEnglish == nftFilterType) &&
-                            (nftFilterRarity == (int)ttrsNftRarity.All || (int)item.Rarity == nftFilterRarity) &&
+                        if ((String.IsNullOrEmpty(nftFilterName) || item.item_info.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
+                            (nftFilterType == "All" || item.item_info.display_type_english == nftFilterType) &&
+                            (nftFilterRarity == (int)ttrsNftRarity.All || (int)item.item_info.rarity == nftFilterRarity) &&
                             (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.Timestamp, DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.Timestamp, DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.Timestamp, DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.Timestamp, DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.Timestamp, DateTime.Now.AddMonths(-1)) >= 0)
+                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.timestampDT(), DateTime.Now.AddMinutes(-15)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.timestampDT(), DateTime.Now.AddHours(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.timestampDT(), DateTime.Now.AddDays(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.timestampDT(), DateTime.Now.AddDays(-7)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.timestampDT(), DateTime.Now.AddMonths(-1)) >= 0)
                             ))
                         {
                             nftFilteredList.Add(x);
@@ -2730,13 +2730,13 @@ namespace Poltergeist
             {
                 var item = TtrsStore.GetNft(entryId);
 
-                if (!String.IsNullOrEmpty(item.NameEnglish))
+                if (!String.IsNullOrEmpty(item.item_info.name_english))
                 {
-                    imageUrl = item.Img;
+                    imageUrl = item.img;
                 }
 
                 string rarity;
-                switch (item.Rarity)
+                switch (item.item_info.rarity)
                 {
                     case 1:
                         rarity = VerticalLayout ? "/Con" : " / Consumer";
@@ -2755,9 +2755,9 @@ namespace Poltergeist
                         break;
                 }
 
-                nftName = item.NameEnglish;
+                nftName = item.item_info.name_english;
 
-                var nftType = item.DisplayTypeEnglish;
+                var nftType = item.item_info.display_type_english;
                 if (VerticalLayout)
                 {
                     switch (nftType)
@@ -2776,7 +2776,7 @@ namespace Poltergeist
                     }
                 }
 
-                nftDescription = item.Mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.Mint + " " + (VerticalLayout ? item.Timestamp.ToString("dd.MM.yy") : item.Timestamp.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestamp.ToString("dd.MM.yy") : item.timestamp.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
             }
             else if (transferSymbol == "GAME")
             {
@@ -4305,10 +4305,10 @@ namespace Poltergeist
                                 {
                                     var item = TtrsStore.GetNft(nft);
 
-                                    if (item.NameEnglish != null)
-                                        nftDescription = " " + ((item.NameEnglish.Length > 25) ? item.NameEnglish.Substring(0, 22) + "..." : item.NameEnglish);
+                                    if (item.item_info.name_english != null)
+                                        nftDescription = " " + ((item.item_info.name_english.Length > 25) ? item.item_info.name_english.Substring(0, 22) + "..." : item.item_info.name_english);
 
-                                    nftDescription += " Minted " + item.Timestamp.ToString("dd.MM.yy") + " #" + item.Mint;
+                                    nftDescription += " Minted " + item.timestamp.ToString("dd.MM.yy") + " #" + item.mint;
                                 }
 
                                 description += $"#{nft.Substring(0, 5) + "..." + nft.Substring(nft.Length - 5)}{nftDescription}\n";

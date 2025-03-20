@@ -1379,7 +1379,7 @@ namespace Poltergeist
                                                 StartCoroutine(TtrsStore.LoadStoreNft(balanceEntry.Ids, (item) =>
                                                 {
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.ImageUrl, item.Id));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.item_info.image_url, item.id));
                                                 }, () =>
                                                 {
                                                     nftDescriptionsAreFullyLoaded = true;
@@ -1754,33 +1754,33 @@ namespace Poltergeist
                 {
                     case TtrsNftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Mint).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         break;
                     case TtrsNftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         break;
                     case TtrsNftSortMode.Type_Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Type).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Type).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         break;
                     case TtrsNftSortMode.Type_Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Type).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Type).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         break;
                     case TtrsNftSortMode.Type_Rarity: // And also Number and Date as last sorting parameters.
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Type).ThenByDescending(x => TtrsStore.GetNft(x.ID).Rarity).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).item_info.rarity).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Type).ThenBy(x => TtrsStore.GetNft(x.ID).Rarity).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).item_info.rarity).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         break;
                 }
 
