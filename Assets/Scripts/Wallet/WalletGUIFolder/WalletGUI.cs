@@ -4024,10 +4024,7 @@ namespace Poltergeist
                                         {
                                             PopState();
 
-                                            MessageBox(MessageKind.Error, $"Error sending transaction.\n{error}", () =>
-                                            {
-                                                callback(Hash.Null, null, error);
-                                            });
+                                            callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
                                         }
                                     });
                                 }

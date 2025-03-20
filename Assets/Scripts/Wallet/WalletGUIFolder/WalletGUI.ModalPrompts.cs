@@ -2,6 +2,7 @@ using Phantasma.Core.Cryptography;
 using Phantasma.SDK;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Poltergeist
@@ -152,6 +153,12 @@ namespace Poltergeist
                 });
         }
 
+        private static string AddIndent(string input, string indent)
+        {
+            var lines = input.Split('\n');
+            return string.Join("\n", lines.Select((line, index) => index == 0 ? line : indent + line));
+        }
+
         public void TxResultMessage(Hash hash, Phantasma.SDK.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
             if(hash == Hash.Null && txResult == null && error == null)
@@ -172,6 +179,11 @@ namespace Poltergeist
             if(success && !string.IsNullOrEmpty(successCustomMessage))
             {
                 message = successCustomMessage;
+            }
+            else if(!success && hash == Hash.Null)
+            {
+                // Hash is unavailable - tx wasn't transferred.
+                // Just printing error as is.
             }
             else if(!success && !string.IsNullOrEmpty(failureCustomMessage))
             {
@@ -201,20 +213,19 @@ namespace Poltergeist
 
             if (!string.IsNullOrEmpty(error) && !timeout)
             {
-                message += "\nError: " + error;
+                message += "\nError: " + AddIndent(error, "    ");
 
                 if(txResult != null)
                 {
                     message += "\nResult: " + txResult.Value.result;
                     message += "\nComment: " + txResult.Value.debugComment;
                 }
-                else
-                {
-                    message += "\ntxResult is null";
-                }
             }
 
-            message += "\nTransaction hash:\n" + hash;
+            if(hash != Hash.Null)
+            {
+                message += "\nTransaction hash:\n" + hash;
+            }
 
             ShowModal(success ? "Success" : (timeout ? "Attention" : "Failure"),
                 message,
