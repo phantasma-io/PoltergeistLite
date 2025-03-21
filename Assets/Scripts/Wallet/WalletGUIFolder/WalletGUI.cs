@@ -3607,7 +3607,7 @@ namespace Poltergeist
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },
-                                                (response) =>
+                                                () =>
                                                 {
                                                     MessageBox(MessageKind.Default, "Message sent.");
                                                 }));

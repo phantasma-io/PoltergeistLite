@@ -286,7 +286,7 @@ namespace Phantasma.SDK
             yield break;
         }
 
-        public static IEnumerator RESTRequest(string url, string serializedJson, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<DataNode> callback)
+        public static IEnumerator RESTRequest(string url, string serializedJson, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action callback)
         {
             UnityWebRequest request;
 
@@ -313,17 +313,8 @@ namespace Phantasma.SDK
             }
             else
             {
-                DataNode root = null;
-                try
-                {
-                    Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                    root = JSONReader.ReadFromString(request.downloadHandler.text);
-                }
-                catch(Exception e)
-                {
-                    Log.Write(e.Message);
-                }
-                callback(root);
+                Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
+                callback();
             }
 
             yield break;
