@@ -242,51 +242,7 @@ namespace Phantasma.SDK
             yield break;
         }
 
-        public static IEnumerator RESTRequest<T>(string url, string serializedJson, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
-        {
-            UnityWebRequest request;
-
-            var requestNumber = GetNextRequestNumber();
-            Log.Write($"REST request (POST) [{requestNumber}]\nurl: {url}", Log.Level.Networking);
-
-            Log.Write($"REST request (POST) [{requestNumber}]\nserializedJson: {serializedJson}", Log.Level.Debug1);
-
-            request = new UnityWebRequest(url, "POST");
-
-            byte[] data = Encoding.UTF8.GetBytes(serializedJson);
-            request.uploadHandler = (UploadHandler)new UploadHandlerRaw(data);
-            request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-            request.SetRequestHeader("Content-Type", "application/json");
-
-            DateTime startTime = DateTime.Now;
-            yield return request.SendWebRequest();
-            TimeSpan responseTime = DateTime.Now - startTime;
-
-            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
-            {
-                Log.Write($"REST error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
-            }
-            else
-            {
-                T response = default;
-                try
-                {
-
-                    Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                    response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
-                }
-                catch(Exception e)
-                {
-                    Log.Write(e.Message);
-                }
-                callback(response);
-            }
-
-            yield break;
-        }
-
-        public static IEnumerator RESTRequest(string url, string serializedJson, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action callback)
+        public static IEnumerator RESTRequest<T>(string url, string serializedJson, bool deserializeResponse, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
 
@@ -314,7 +270,24 @@ namespace Phantasma.SDK
             else
             {
                 Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                callback();
+
+                T response = default;
+                try
+                {
+                    if(deserializeResponse)
+                    {
+                        response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
+                    }
+                    else
+                    {
+                        response = (T)(object)request.downloadHandler.text;
+                    }
+                }
+                catch(Exception e)
+                {
+                    Log.Write(e.Message);
+                }
+                callback(response);
             }
 
             yield break;

@@ -3603,11 +3603,11 @@ namespace Poltergeist
                                                 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest(url, jsonMessage, (error, msg) =>
+                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest<string>(url, jsonMessage, false, (error, msg) =>
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },
-                                                () =>
+                                                (result) =>
                                                 {
                                                     MessageBox(MessageKind.Default, "Message sent.");
                                                 }));
