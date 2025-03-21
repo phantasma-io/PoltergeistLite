@@ -763,9 +763,6 @@ namespace Poltergeist
             }
         }
 
-        private DateTime _lastNftRefresh = DateTime.MinValue;
-        private string _lastNftRefreshSymbol = "";
-
         // We use this to detect when account was just loaded
         // and needs balances/histories to be loaded.
         public bool accountBalanceNotLoaded = true;
@@ -773,8 +770,6 @@ namespace Poltergeist
 
         public void SelectAccount(int index)
         {
-            _lastNftRefresh = DateTime.MinValue;
-            _lastNftRefreshSymbol = "";
             _selectedAccountIndex = index;
             CurrentPasswordHash = "";
 
@@ -999,7 +994,7 @@ namespace Poltergeist
 
         }
 
-        public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null, bool allowOneUserRefreshAfterExecution = false)
+        public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null)
         {
             List<PlatformKind> platformsList;
             if(platforms == PlatformKind.None)
@@ -1015,19 +1010,8 @@ namespace Poltergeist
                 {
                     refreshStatus = _refreshStatus[PlatformKind.Phantasma];
 
-                    var diff = now - refreshStatus.LastBalanceRefresh;
-
-                    if (!force && diff.TotalSeconds < 30)
-                    {
-                        var temp = refreshStatus.BalanceRefreshCallback;
-                        refreshStatus.BalanceRefreshCallback = null;
-                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
-                        temp?.Invoke();
-                        return;
-                    }
-
                     refreshStatus.BalanceRefreshing = true;
-                    refreshStatus.LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now;
+                    refreshStatus.LastBalanceRefresh = now;
                     refreshStatus.BalanceRefreshCallback = callback;
 
                     _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
@@ -1038,7 +1022,7 @@ namespace Poltergeist
                         new RefreshStatus
                         {
                             BalanceRefreshing = true,
-                            LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now,
+                            LastBalanceRefresh = now,
                             BalanceRefreshCallback = callback,
                             HistoryRefreshing = false,
                             LastHistoryRefresh = DateTime.MinValue
@@ -1233,12 +1217,6 @@ namespace Poltergeist
         public void RefreshNft(bool force, string symbol)
         {
             var now = DateTime.UtcNow;
-            var diff = now - _lastNftRefresh;
-
-            if (!force && diff.TotalSeconds < 30 && _lastNftRefreshSymbol == symbol)
-            {
-                return;
-            }
 
             if (force)
             {
@@ -1252,9 +1230,6 @@ namespace Poltergeist
 
                 NftImages.Clear(symbol);
             }
-
-            _lastNftRefresh = now;
-            _lastNftRefreshSymbol = symbol;
 
             var platforms = CurrentAccount.platforms.Split();
 

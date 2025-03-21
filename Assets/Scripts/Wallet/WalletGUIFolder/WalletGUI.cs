@@ -930,7 +930,7 @@ namespace Poltergeist
                                 accountManager.RefreshBalances(true, PlatformKind.None, () =>
                                 {
                                     InvokeTransactionCallback(transactionHash, txResult, null);
-                                }, true);
+                                });
                             }
                             else
                             {
@@ -4572,7 +4572,7 @@ namespace Poltergeist
                                                          // Balance updated after swap.
                                                          callback(PromptResult.Success);
                                                      }
-                                                 }, true);
+                                                 });
                                              }
                                              else
                                              {
