@@ -171,7 +171,7 @@ public static class GameStore
                 idList += "," + ids[i];
         }
 
-        yield return WebClient.RESTRequest<GameNftApiResponse>(url + idList, 0, (error, msg) =>
+        yield return WebClient.RESTRequestT<GameNftApiResponse>(url + idList, 0, (error, msg) =>
         {
             Log.Write("LoadStoreNft() error: " + error);
         },

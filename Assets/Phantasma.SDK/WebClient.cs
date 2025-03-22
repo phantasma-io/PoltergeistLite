@@ -158,7 +158,7 @@ namespace Phantasma.SDK
             yield break;
         }
 
-        public static IEnumerator RESTRequest<T>(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
+        public static IEnumerator RESTRequestT<T>(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
 

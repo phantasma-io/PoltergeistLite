@@ -130,7 +130,7 @@ namespace Poltergeist
         {
             var separator = "%2C";
             var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, symbols.Where(x => !String.IsNullOrEmpty(x.apiSymbol)).Select(x => x.apiSymbol).Distinct().ToList()) + "&vs_currencies=" + currency;
-            return WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
+            return WebClient.RESTRequestT<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, (error, msg) =>
             {
 
             },
@@ -140,10 +140,10 @@ namespace Poltergeist
                 {
                     foreach (var symbol in symbols)
                     {
-                        var node = response.GetNode(symbol.apiSymbol);
-                        if (node != null)
+                        var node = response.Where(x => x.Key.ToUpperInvariant() == symbol.apiSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                        if (node != default)
                         {
-                            var price = node.GetDecimal(currency);
+                            var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
 
                             SetTokenPrice(symbol.symbol, price);
                         }
