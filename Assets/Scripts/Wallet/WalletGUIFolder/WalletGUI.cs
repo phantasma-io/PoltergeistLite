@@ -2395,11 +2395,17 @@ namespace Poltergeist
                         if (!token.IsFungible())
                         {
                             // It's an NFT. We add additional button to get to NFTs view mode.
-
                             secondaryAction = "View";
                             secondaryEnabled = balance.Available > 0;
                             secondaryCallback = () =>
                             {
+                                // TODO remove later
+                                if (!accountManager.Settings.devMode)
+                                {
+                                    MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
+                                    return;
+                                }
+
                                 transferSymbol = balance.Symbol;
 
                                 // We should do this initialization here and not in PushState,
@@ -2471,6 +2477,13 @@ namespace Poltergeist
                     Phantasma.SDK.Token transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
+
+                    // TODO remove later
+                    if (!transferToken.IsFungible() && !accountManager.Settings.devMode)
+                    {
+                        MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
+                        return;
+                    }
 
                     if (string.IsNullOrEmpty(transferToken.flags))
                     {
