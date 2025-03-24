@@ -3336,7 +3336,7 @@ namespace Poltergeist
                                     var newKeys = PhantasmaKeys.FromWIF(wif);
                                     if (newKeys.Address.Text != accountManager.CurrentState.address)
                                     {
-                                        PromptBox("Are you sure you want to migrate this account?\n\nBefore doing migration, make sure that both old and new private keys (WIFs or seed phrases) are safely stored.\n\nCheck your Eth/Neo/BSC balances for current wallet, if they have funds, move them to a new wallet before doing migration.\n\nBy doing a migration, any existing Phantasma rewards will be transfered without penalizations.\nTarget address: " + newKeys.Address.Text, ModalYesNo, (result) =>
+                                        PromptBox("Are you sure you want to migrate this account?\n\nBefore doing migration, make sure that both old and new private keys (WIFs or seed phrases) are safely stored.\n\nCheck your Eth/Neo/BSC balances for current wallet, if they have funds, move them to a new wallet before doing migration.\n\nBy doing a migration, any existing Phantasma rewards will be transferred without penalizations.\nTarget address: " + newKeys.Address.Text, ModalYesNo, (result) =>
                                         {
                                             if (result == PromptResult.Success)
                                             {
@@ -4257,7 +4257,7 @@ namespace Poltergeist
 
                         SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, txResult, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
+                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                         });
                     }
                     else
@@ -4358,7 +4358,7 @@ namespace Poltergeist
                     {
                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                         {
-                            TxResultMessage(hash, txResult, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
+                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
                             // Removing sent NFTs from current NFT list.
                             var nfts = accountManager.CurrentNfts;

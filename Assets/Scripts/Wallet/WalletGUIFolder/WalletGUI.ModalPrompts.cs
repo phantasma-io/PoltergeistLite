@@ -193,7 +193,7 @@ namespace Poltergeist
             {
                 if(success)
                 {
-                    message = "Transaction succeeded";
+                    message = "The transaction has successfully completed, but it may take up to 30 secs until the change is reflected in your wallet balance";
                 }
                 else
                 {
