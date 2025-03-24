@@ -197,7 +197,7 @@ namespace Phantasma.SDK
     {
         public string ID;
         public string series;
-        public uint mint;
+        public uint? mint; // Nullable to fix crash on incorrect API response parsing
         public string chainName;
         public string ownerAddress;
         public string creatorAddress;
@@ -205,7 +205,7 @@ namespace Phantasma.SDK
         public byte[] ram;
         [JsonConverter(typeof(HexByteArrayConverter))]
         public byte[] rom;
-        public TokenStatus status;
+        public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
         public IRom parsedRom;
         public TokenProperty[] infusion;
         public List<TokenProperty> properties;
@@ -276,6 +276,12 @@ namespace Phantasma.SDK
 
         public CustomRom(byte[] romBytes)
         {
+            if(romBytes == null || romBytes.Length == 0)
+            {
+                Log.Write($"ROM is null or empty");
+                return;
+            }
+
             try
             {
                 var rom = VMObject.FromBytes(romBytes);
@@ -290,7 +296,7 @@ namespace Phantasma.SDK
             }
             catch (Exception e)
             {
-                Log.Write($"ROM parsing error: {e.ToString()}");
+                Log.Write($"ROM parsing error: {e.ToString()}, ROM: {System.Text.Encoding.ASCII.GetString(romBytes)}/{BitConverter.ToString(romBytes)}");
             }
         }
 

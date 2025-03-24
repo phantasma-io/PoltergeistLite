@@ -2858,7 +2858,7 @@ namespace Poltergeist
             }
 
             // Fixing CROWNs image url
-            imageUrl = imageUrl.Replace("phantasma.io", "phantasma.info");
+            imageUrl = imageUrl?.Replace("phantasma.io", "phantasma.info");
 
             if (!String.IsNullOrEmpty(imageUrl))
             {

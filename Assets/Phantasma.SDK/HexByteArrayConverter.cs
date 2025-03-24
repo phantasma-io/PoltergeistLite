@@ -14,6 +14,11 @@ namespace Phantasma.SDK
         public override byte[] ReadJson(JsonReader reader, Type objectType, byte[] existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             string hex = (string)reader.Value;
+            if(hex == null)
+            {
+                return new byte[]{};
+            }
+            
             return Enumerable.Range(0, hex.Length / 2)
                              .Select(x => Convert.ToByte(hex.Substring(x * 2, 2), 16))
                              .ToArray();
