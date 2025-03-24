@@ -251,6 +251,12 @@ namespace Phantasma.SDK
         {
             this.tokenId = tokenId;
 
+            if(rom == null || rom.Length == 0)
+            {
+                Log.Write($"CROWN's ROM is null or empty");
+                return;
+            }
+
             using (var stream = new System.IO.MemoryStream(rom))
             {
                 using (var reader = new System.IO.BinaryReader(stream))
@@ -278,7 +284,7 @@ namespace Phantasma.SDK
         {
             if(romBytes == null || romBytes.Length == 0)
             {
-                Log.Write($"ROM is null or empty");
+                Log.Write($"Custom ROM is null or empty");
                 return;
             }
 
@@ -458,6 +464,12 @@ namespace Phantasma.SDK
 
             yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
+                // TODO remove later
+                if(string.IsNullOrEmpty(result.ID))
+                {
+                    result.ID = IDtext;
+                }
+
                 callback(result);
             }, symbol, IDtext, true);
 

@@ -2722,6 +2722,10 @@ namespace Poltergeist
         // Used for both NFT list and transfer NFT list.
         private void DoNftEntry(string entryId, int index, int curY, Rect rect)
         {
+            if(string.IsNullOrEmpty(entryId))
+            {
+                return;
+            }
             var accountManager = AccountManager.Instance;
 
             string imageUrl = "";
@@ -2809,7 +2813,7 @@ namespace Poltergeist
                 nftName = item.GetPropertyValue("Name");
                 nftDescription = item.GetPropertyValue("Description");
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
+                nftDescription = (item.mint ?? 0) == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
                     (nftDate == DateTime.MinValue ? "" : (VerticalLayout ? nftDate.ToString("dd.MM.yy") : nftDate.ToString("dd.MM.yyyy HH:mm:ss"))) +
                     (String.IsNullOrEmpty(nftDescription) ? "" : ((VerticalLayout ? " " : " / ") + nftDescription));
 
@@ -2900,7 +2904,16 @@ namespace Poltergeist
             }
 
             if (String.IsNullOrEmpty(nftName))
-                nftName = "Loading...";
+            {
+                if (VerticalLayout)
+                {
+                    nftName = "#" + entryId.Substring(0, 4) + "..." + entryId.Substring(entryId.Length - 4);
+                }
+                else
+                {
+                    nftName = "#" + entryId.Substring(0, 8) + "..." + entryId.Substring(entryId.Length - 8);
+                }
+            }
 
             if (VerticalLayout && nftName.Length > 18)
                 nftName = nftName.Substring(0, 15) + "...";
