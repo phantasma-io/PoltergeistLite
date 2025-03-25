@@ -2280,7 +2280,23 @@ namespace Poltergeist
                                         twoSmsWarning = "\n\nSoul Master rewards are distributed evenly to every wallet with 50K or more SOUL. As you are staking over 100K SOUL, to maximise your rewards, you may wish to stake each 50K SOUL in a separate wallet.";
                                     }
 
-                                    StakeSOUL(selectedAmount, $"Do you want to stake {selectedAmount} SOUL?\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day.\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours." + twoSmsWarning, (hash, txResult, error) =>
+                                    var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
+                                    decimal kcalClaimable = 0;
+                                    if(kcalBalance != default)
+                                    {
+                                        kcalClaimable = kcalBalance.Claimable;
+                                    }
+
+                                    var message = $"Do you want to stake {selectedAmount} SOUL?" + 
+                                        $"\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
+                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours.";
+                                    
+                                    if(kcalClaimable > 0)
+                                    {
+                                        message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                                    }
+
+                                    StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
                                     {
                                         TxResultMessage(hash, txResult, error, "Your SOUL was staked!");
                                     });
