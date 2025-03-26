@@ -1897,7 +1897,7 @@ namespace Poltergeist
             {
                 if (!string.IsNullOrEmpty(unclaimedInvokeError))
                 {
-                    callback(null, "Script invokation error!\n\n" + unclaimedInvokeError);
+                    callback(null, "Script invocation error!\n\n" + unclaimedInvokeError);
                     return;
                 }
                 else
@@ -1906,7 +1906,7 @@ namespace Poltergeist
                     {
                         if (!string.IsNullOrEmpty(stakeInvokeError))
                         {
-                            callback(null, "Script invokation error!\n\n" + stakeInvokeError);
+                            callback(null, "Script invocation error!\n\n" + stakeInvokeError);
                             return;
                         }
                         else
@@ -1915,7 +1915,7 @@ namespace Poltergeist
                             {
                                 if (!string.IsNullOrEmpty(storageStakeInvokeError))
                                 {
-                                    callback(null, "Script invokation error!\n\n" + storageStakeInvokeError);
+                                    callback(null, "Script invocation error!\n\n" + storageStakeInvokeError);
                                     return;
                                 }
                                 else
@@ -1924,7 +1924,7 @@ namespace Poltergeist
                                     {
                                         if (!string.IsNullOrEmpty(votingPowerInvokeError))
                                         {
-                                            callback(null, "Script invokation error!\n\n" + votingPowerInvokeError);
+                                            callback(null, "Script invocation error!\n\n" + votingPowerInvokeError);
                                             return;
                                         }
                                         else
@@ -1933,7 +1933,7 @@ namespace Poltergeist
                                             {
                                                 if (!string.IsNullOrEmpty(stakeTimestampInvokeError))
                                                 {
-                                                    callback(null, "Script invokation error!\n\n" + stakeTimestampInvokeError);
+                                                    callback(null, "Script invocation error!\n\n" + stakeTimestampInvokeError);
                                                     return;
                                                 }
                                                 else
@@ -1942,7 +1942,7 @@ namespace Poltergeist
                                                     {
                                                         if (!string.IsNullOrEmpty(timeBeforeUnstakeInvokeError))
                                                         {
-                                                            callback(null, "Script invokation error!\n\n" + timeBeforeUnstakeInvokeError);
+                                                            callback(null, "Script invocation error!\n\n" + timeBeforeUnstakeInvokeError);
                                                             return;
                                                         }
                                                         else
@@ -1951,7 +1951,7 @@ namespace Poltergeist
                                                             {
                                                                 if (!string.IsNullOrEmpty(masterDateInvokeError))
                                                                 {
-                                                                    callback(null, "Script invokation error!\n\n" + masterDateInvokeError);
+                                                                    callback(null, "Script invocation error!\n\n" + masterDateInvokeError);
                                                                     return;
                                                                 }
                                                                 else
@@ -1960,7 +1960,7 @@ namespace Poltergeist
                                                                     {
                                                                     if (!string.IsNullOrEmpty(isMasterInvokeError))
                                                                     {
-                                                                        callback(null, "Script invokation error!\n\n" + isMasterInvokeError);
+                                                                        callback(null, "Script invocation error!\n\n" + isMasterInvokeError);
                                                                         return;
                                                                     }
                                                                     else

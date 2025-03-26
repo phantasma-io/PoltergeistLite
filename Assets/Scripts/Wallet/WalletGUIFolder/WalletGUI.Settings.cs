@@ -311,7 +311,7 @@ namespace Poltergeist
                 {
                     if(!string.IsNullOrEmpty(masterClaimInvokeError))
                     {
-                        MessageBox(MessageKind.Error, "Script invokation error!\n\n" + masterClaimInvokeError);
+                        MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterClaimInvokeError);
                         return;
                     }
                     else
@@ -326,7 +326,7 @@ namespace Poltergeist
                         {
                             if (!string.IsNullOrEmpty(claimMasterCountInvokeError))
                             {
-                                MessageBox(MessageKind.Error, "Script invokation error!\n\n" + claimMasterCountInvokeError);
+                                MessageBox(MessageKind.Error, "Script invocation error!\n\n" + claimMasterCountInvokeError);
                                 return;
                             }
                             else
@@ -335,7 +335,7 @@ namespace Poltergeist
                                 {
                                     if (!string.IsNullOrEmpty(masterCountInvokeError))
                                     {
-                                        MessageBox(MessageKind.Error, "Script invokation error!\n\n" + masterCountInvokeError);
+                                        MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterCountInvokeError);
                                         return;
                                     }
                                     else
@@ -344,7 +344,7 @@ namespace Poltergeist
                                         {
                                             if (!string.IsNullOrEmpty(masterThresholdInvokeError))
                                             {
-                                                MessageBox(MessageKind.Error, "Script invokation error!\n\n" + masterThresholdInvokeError);
+                                                MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterThresholdInvokeError);
                                                 return;
                                             }
                                             else

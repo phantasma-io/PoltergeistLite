@@ -2236,7 +2236,9 @@ namespace Poltergeist
                 case "SOUL":
                     if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
                     {
-                        if (Input.GetKey(KeyCode.LeftShift))
+                        if (Input.GetKey(KeyCode.LeftShift) &&
+                            accountManager.Settings.devMode // TODO remove later
+                        )
                         {
                             secondaryAction = "Info";
                             secondaryEnabled = true;
@@ -2487,7 +2489,9 @@ namespace Poltergeist
             else if (accountManager.CurrentPlatform == PlatformKind.Phantasma &&
                 balance.Symbol.ToUpper() == "SOUL" &&
                 balance.Staked >= 50000 &&
-                Input.GetKey(KeyCode.LeftShift))
+                Input.GetKey(KeyCode.LeftShift) &&
+                accountManager.Settings.devMode // TODO remove later
+                )
             {
                 mainAction = "SM reward";
                 mainActionEnabled = true; // This one should be always enabled
