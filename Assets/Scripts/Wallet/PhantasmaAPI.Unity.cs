@@ -433,9 +433,9 @@ namespace Phantasma.SDK
 
 
         //Returns information about a transaction by hash.
-        public IEnumerator GetTransaction(string hashText, Action<Transaction> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetTransaction(string hashText, Action<Transaction?> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Transaction>(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<Transaction?>(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, hashText);

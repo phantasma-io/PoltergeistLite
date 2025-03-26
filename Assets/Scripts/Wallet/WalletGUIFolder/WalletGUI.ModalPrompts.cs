@@ -199,7 +199,7 @@ namespace Poltergeist
                 {
                     if (timeout)
                     {
-                        message = "Your transaction has been broadcasted but its state cannot be determined.\nPlease use explorer to ensure transaction is confirmed successfully and funds are transferred(button 'View' below).";
+                        message = "Your transaction has been broadcasted but its state cannot be determined.\nPlease use explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).\n";
                     }
                     else
                     {

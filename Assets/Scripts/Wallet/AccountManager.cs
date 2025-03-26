@@ -945,13 +945,13 @@ namespace Poltergeist
                 case PlatformKind.Phantasma:
                     StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (txResult) =>
                     {
-                        if (txResult.state == ExecutionState.Running)
+                        if (txResult.Value.state == ExecutionState.Running)
                         {
                             callback(txResult, "pending");
                         }
-                        else if (txResult.state == ExecutionState.Break || txResult.state == ExecutionState.Fault)
+                        else if (txResult.Value.state == ExecutionState.Break || txResult.Value.state == ExecutionState.Fault)
                         {
-                            if(string.IsNullOrEmpty(txResult.debugComment) && checkCount <= 6)
+                            if(string.IsNullOrEmpty(txResult.Value.debugComment) && checkCount <= 6)
                             {
                                 // We wait a bit for additional information about failure to become available
                                 callback(txResult, "pending");
@@ -977,6 +977,12 @@ namespace Poltergeist
                             if (error == EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON)
                             {
                                 msg = "Cannot determine if transaction was successful or not due to incorrect RPC response. " + msg;
+                            }
+                            else if(msg.ToUpperInvariant().Contains("PENDING") || msg.ToUpperInvariant().Contains("TRANSACTION NOT FOUND"))
+                            {
+                                // If tx is PENDING or NOT FOUND, we want to wait till timeout
+                                // to ensure that no new information about tx will appear.
+                                msg = "pending";
                             }
                             callback(null, msg);
                         }

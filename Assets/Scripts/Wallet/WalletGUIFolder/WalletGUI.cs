@@ -4589,6 +4589,7 @@ namespace Poltergeist
                              {
                                  if (!string.IsNullOrEmpty(error) || hash == Hash.Null)
                                  {
+                                     TxResultMessage(hash, txResult, error);
                                      callback(PromptResult.Failure);
                                  }
                                  else
