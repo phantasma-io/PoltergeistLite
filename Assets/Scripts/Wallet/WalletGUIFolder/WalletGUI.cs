@@ -2313,14 +2313,25 @@ namespace Poltergeist
                                 RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
                                     (amount) =>
                                     {
-                                        var line = "\nAll unclaimed KCAL will be claimed.";
+                                        var message = $"Do you want to unstake {amount} SOUL?";
 
-                                        if (amount == balance.Staked && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
+                                        var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
+                                        decimal kcalClaimable = 0;
+                                        if(kcalBalance != default)
                                         {
-                                            line += "\nYour account will also lose the current registed name.";
+                                            kcalClaimable = kcalBalance.Claimable;
+                                        }
+                                        if(kcalClaimable > 0)
+                                        {
+                                            message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
                                         }
 
-                                        PromptBox($"Do you want to unstake {amount} SOUL?\n{line}", ModalYesNo, (result) =>
+                                        if (amount > balance.Staked - 2 && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
+                                        {
+                                            message += "\n\nYour account will also lose the current registed name.\nKeep 2 SOUL staked if you want to keep your registered name.";
+                                        }
+
+                                        PromptBox(message, ModalYesNo, (result) =>
                                         {
                                             if(result == PromptResult.Success)
                                             {
