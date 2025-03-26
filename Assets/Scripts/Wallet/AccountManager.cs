@@ -1415,13 +1415,6 @@ namespace Poltergeist
                 {
                     refreshStatus = _refreshStatus[PlatformKind.Phantasma];
 
-                    var diff = now - refreshStatus.LastHistoryRefresh;
-
-                    if (!force && diff.TotalSeconds < 30)
-                    {
-                        return;
-                    }
-
                     refreshStatus.HistoryRefreshing = true;
                     refreshStatus.LastHistoryRefresh = now;
 
