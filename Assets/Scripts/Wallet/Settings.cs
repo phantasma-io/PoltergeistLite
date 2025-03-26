@@ -295,7 +295,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Local_Net:
-                            _return_value = "http://localhost:7077/rpc";
+                            _return_value = "http://localhost:5172/rpc";
                             break;
 
                         default:
@@ -316,7 +316,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Local_Net:
-                            _return_value = "http://localhost:7074/";
+                            _return_value = "http://localhost:3000/";
                             break;
 
                         default:
