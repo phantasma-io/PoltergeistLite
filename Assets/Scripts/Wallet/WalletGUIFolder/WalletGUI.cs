@@ -2478,7 +2478,9 @@ namespace Poltergeist
             if (accountManager.CurrentPlatform == PlatformKind.Phantasma &&
                 balance.Burnable &&
                 balance.Fungible &&
-                Input.GetKey(KeyCode.LeftShift))
+                Input.GetKey(KeyCode.LeftShift) &&
+                accountManager.Settings.devMode // TODO remove later
+                )
             {
                 mainAction = "Burn";
             }
