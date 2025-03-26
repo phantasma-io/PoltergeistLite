@@ -4547,7 +4547,7 @@ namespace Poltergeist
                 }
             }
 
-            if (swapDecimals> 0 || swapBalance > 1)
+            if ((swapDecimals> 0 || swapBalance > 1) && accountManager.Settings.devMode)
             {
                 PromptBox($"Not enough {feeSymbol} for transaction fees.\nUse some {swapSymbol} to perform a cosmic swap?", ModalYesNo,
                      (result) =>
@@ -4656,7 +4656,8 @@ namespace Poltergeist
             }
             else
             {
-                MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.\nHowever to use {swapSymbol} cosmic swaps, you need at least 2 {swapSymbol}.");
+                MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.");
+                // \nHowever to use {swapSymbol} cosmic swaps, you need at least 2 {swapSymbol}.
             }
         }
         #endregion
