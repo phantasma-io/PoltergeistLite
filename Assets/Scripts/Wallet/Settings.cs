@@ -119,6 +119,7 @@ namespace Poltergeist
         public const string PasswordModeTag = "password.mode";
 
         public const string DevModeTag = "developer.mode";
+        public const string DevNoValidationModeTag = "developer.no.validation.mode";
 
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
@@ -142,6 +143,7 @@ namespace Poltergeist
         public MnemonicPhraseVerificationMode mnemonicPhraseVerificationMode;
         public PasswordMode passwordMode;
         public bool devMode;
+        public bool devMode_NoValidation;
 
         public override string ToString()
         {
@@ -164,7 +166,8 @@ namespace Poltergeist
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
                 "Mnemonic phrase verification mode: " + this.mnemonicPhraseVerificationMode + "\n" +
                 "Password mode: " + this.passwordMode + "\n" +
-                "Developer mode: " + this.devMode;
+                "Developer mode: " + this.devMode + "\n" + 
+                "Developer mode (no validation): " + this.devMode_NoValidation;
         }
 
         public void LoadLogSettings()
@@ -254,6 +257,7 @@ namespace Poltergeist
             }
 
             this.devMode = PlayerPrefs.GetInt(DevModeTag, 0) != 0;
+            this.devMode_NoValidation = PlayerPrefs.GetInt(DevNoValidationModeTag, 0) != 0;
 
             Log.Write("Settings: Load: " + ToString());
         }
@@ -291,7 +295,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Local_Net:
-                            _return_value = "http://localhost:7077/rpc";
+                            _return_value = "http://localhost:5172/rpc";
                             break;
 
                         default:
@@ -312,7 +316,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Local_Net:
-                            _return_value = "http://localhost:7074/";
+                            _return_value = "http://localhost:3000/";
                             break;
 
                         default:
@@ -400,6 +404,7 @@ namespace Poltergeist
             PlayerPrefs.SetString(MnemonicPhraseVerificationModeTag, this.mnemonicPhraseVerificationMode.ToString());
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
             PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
+            PlayerPrefs.SetInt(DevNoValidationModeTag, this.devMode_NoValidation ? 1 : 0);
             PlayerPrefs.Save();
 
             Log.Write("Settings: Save: " + ToString());

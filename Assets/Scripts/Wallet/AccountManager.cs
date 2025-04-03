@@ -130,7 +130,7 @@ namespace Poltergeist
         {
             var separator = "%2C";
             var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, symbols.Where(x => !String.IsNullOrEmpty(x.apiSymbol)).Select(x => x.apiSymbol).Distinct().ToList()) + "&vs_currencies=" + currency;
-            return WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
+            return WebClient.RESTRequestT<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, (error, msg) =>
             {
 
             },
@@ -140,10 +140,10 @@ namespace Poltergeist
                 {
                     foreach (var symbol in symbols)
                     {
-                        var node = response.GetNode(symbol.apiSymbol);
-                        if (node != null)
+                        var node = response.Where(x => x.Key.ToUpperInvariant() == symbol.apiSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                        if (node != default)
                         {
-                            var price = node.GetDecimal(currency);
+                            var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
 
                             SetTokenPrice(symbol.symbol, price);
                         }
@@ -620,6 +620,11 @@ namespace Poltergeist
                 return 0;
             }
 
+            if(decimals < 0)
+            {
+                throw new ($"Decimals for token are unavailable, cannot convert {str} amount");
+            }
+
             return UnitConversion.ToDecimal(str, decimals);
         }
 
@@ -758,9 +763,6 @@ namespace Poltergeist
             }
         }
 
-        private DateTime _lastNftRefresh = DateTime.MinValue;
-        private string _lastNftRefreshSymbol = "";
-
         // We use this to detect when account was just loaded
         // and needs balances/histories to be loaded.
         public bool accountBalanceNotLoaded = true;
@@ -768,8 +770,6 @@ namespace Poltergeist
 
         public void SelectAccount(int index)
         {
-            _lastNftRefresh = DateTime.MinValue;
-            _lastNftRefreshSymbol = "";
             _selectedAccountIndex = index;
             CurrentPasswordHash = "";
 
@@ -938,24 +938,32 @@ namespace Poltergeist
 
         private const int maxChecks = 12; // Timeout after 36 seconds
 
-        public void RequestConfirmation(string transactionHash, int checkCount, Action<string> callback)
+        public void RequestConfirmation(string transactionHash, int checkCount, Action<Phantasma.SDK.Transaction?, string> callback)
         {
             switch (CurrentPlatform)
             {
                 case PlatformKind.Phantasma:
-                    StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (state, tx) =>
+                    StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (txResult) =>
                     {
-                        if (state == ExecutionState.Running)
+                        if (txResult.Value.state == ExecutionState.Running)
                         {
-                            callback("pending");
+                            callback(txResult, "pending");
                         }
-                        else if (state == ExecutionState.Break || state == ExecutionState.Fault)
+                        else if (txResult.Value.state == ExecutionState.Break || txResult.Value.state == ExecutionState.Fault)
                         {
-                            callback("Transaction failed");
+                            if(string.IsNullOrEmpty(txResult.Value.debugComment) && checkCount <= 6)
+                            {
+                                // We wait a bit for additional information about failure to become available
+                                callback(txResult, "pending");
+                            }
+                            else
+                            {
+                                callback(txResult, "Transaction failed");
+                            }
                         }
                         else
                         {
-                            callback(null);
+                            callback(txResult, null);
                         }
                     }, (error, msg) =>
                     {
@@ -966,23 +974,33 @@ namespace Poltergeist
 
                         if (checkCount <= maxChecks)
                         {
-                            callback(msg);
+                            if (error == EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON)
+                            {
+                                msg = "Cannot determine if transaction was successful or not due to incorrect RPC response. " + msg;
+                            }
+                            else if(msg.ToUpperInvariant().Contains("PENDING") || msg.ToUpperInvariant().Contains("TRANSACTION NOT FOUND"))
+                            {
+                                // If tx is PENDING or NOT FOUND, we want to wait till timeout
+                                // to ensure that no new information about tx will appear.
+                                msg = "pending";
+                            }
+                            callback(null, msg);
                         }
                         else
                         {
-                            callback("timeout");
+                            callback(null, "timeout");
                         }
                     }));
                     break;
 
                 default:
-                    callback("not implemented: " + CurrentPlatform);
+                    callback(null, "not implemented: " + CurrentPlatform);
                     break;
             }
 
         }
 
-        public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null, bool allowOneUserRefreshAfterExecution = false)
+        public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null)
         {
             List<PlatformKind> platformsList;
             if(platforms == PlatformKind.None)
@@ -998,19 +1016,8 @@ namespace Poltergeist
                 {
                     refreshStatus = _refreshStatus[PlatformKind.Phantasma];
 
-                    var diff = now - refreshStatus.LastBalanceRefresh;
-
-                    if (!force && diff.TotalSeconds < 30)
-                    {
-                        var temp = refreshStatus.BalanceRefreshCallback;
-                        refreshStatus.BalanceRefreshCallback = null;
-                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
-                        temp?.Invoke();
-                        return;
-                    }
-
                     refreshStatus.BalanceRefreshing = true;
-                    refreshStatus.LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now;
+                    refreshStatus.LastBalanceRefresh = now;
                     refreshStatus.BalanceRefreshCallback = callback;
 
                     _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
@@ -1021,7 +1028,7 @@ namespace Poltergeist
                         new RefreshStatus
                         {
                             BalanceRefreshing = true,
-                            LastBalanceRefresh = allowOneUserRefreshAfterExecution ? DateTime.MinValue : now,
+                            LastBalanceRefresh = now,
                             BalanceRefreshCallback = callback,
                             HistoryRefreshing = false,
                             LastHistoryRefresh = DateTime.MinValue
@@ -1074,12 +1081,12 @@ namespace Poltergeist
 
                     }
 
-                    var stakedAmount = AmountFromString(acc.stake.amount,
+                    var stakedAmount = AmountFromString(acc.stakes.amount,
                         Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
-                    var claimableAmount = AmountFromString(acc.stake.unclaimed,
+                    var claimableAmount = AmountFromString(acc.stakes.unclaimed,
                         Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma));
 
-                    var stakeTimestamp = new Timestamp(acc.stake.time);
+                    var stakeTimestamp = new Timestamp(acc.stakes.time);
 
                     if (stakedAmount > 0)
                     {
@@ -1132,6 +1139,12 @@ namespace Poltergeist
                             balanceMap[symbol] = entry;
                         }
                     }
+
+                    balanceMap = balanceMap
+                        .OrderBy(b => b.Key != "SOUL")
+                        .ThenBy(b => b.Key != "KCAL")
+                        .ThenBy(b => b.Key)
+                        .ToDictionary(kv => kv.Key, kv => kv.Value);
 
                     // State without swaps
                     var state = new AccountState()
@@ -1210,12 +1223,6 @@ namespace Poltergeist
         public void RefreshNft(bool force, string symbol)
         {
             var now = DateTime.UtcNow;
-            var diff = now - _lastNftRefresh;
-
-            if (!force && diff.TotalSeconds < 30 && _lastNftRefreshSymbol == symbol)
-            {
-                return;
-            }
 
             if (force)
             {
@@ -1229,9 +1236,6 @@ namespace Poltergeist
 
                 NftImages.Clear(symbol);
             }
-
-            _lastNftRefresh = now;
-            _lastNftRefreshSymbol = symbol;
 
             var platforms = CurrentAccount.platforms.Split();
 
@@ -1262,54 +1266,40 @@ namespace Poltergeist
                                         if (!_nfts.ContainsKey(platform))
                                             _nfts.Add(platform, new List<TokenData>());
 
-                                        var cache = Cache.GetDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
-
-                                        if (cache == null)
+                                        var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
+                                        if(cache == null)
                                         {
-                                            cache = DataNode.CreateObject();
+                                            cache = new TokenData[]{};
                                         }
-                                        DataNode cachedTokens;
-                                        if (cache.HasNode("tokens-" + symbol.ToLower()))
-                                            cachedTokens = cache.GetNode("tokens-" + symbol.ToLower());
-                                        else
-                                            cachedTokens = cache.AddNode(DataNode.CreateObject("tokens-" + symbol.ToLower()));
 
                                         int loadedTokenCounter = 0;
                                         foreach (var id in balanceEntry.Ids)
                                         {
                                             // Checking if token is cached.
-                                            DataNode token = null;
-                                            foreach (var cachedToken in cachedTokens.Children)
-                                            {
-                                                if (cachedToken.GetString("id") == id)
-                                                {
-                                                    token = cachedToken;
-                                                    break;
-                                                }
-                                            }
+                                            TokenData? tokenData = Cache.FindTokenData(cache, id);
 
-                                            if (token != null)
+                                            if (tokenData != null)
                                             {
                                                 // Loading token from cache.
-                                                var tokenId = token.GetString("id");
+                                                var tokenId = tokenData.Value.ID;
 
                                                 loadedTokenCounter++;
 
                                                 // Checking if token already loaded to dictionary.
                                                 if (!_nfts[platform].Exists(x => x.ID == tokenId))
                                                 {
-                                                    var tokenData = TokenData.FromNode(token, symbol);
-                                                    _nfts[platform].Add(tokenData);
+                                                    tokenData.Value.ParseRoms(symbol);
+                                                    _nfts[platform].Add(tokenData.Value);
 
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.GetPropertyValue("ImageURL"), id));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.Value.GetPropertyValue("ImageURL"), id));
                                                 }
 
                                                 if (loadedTokenCounter == balanceEntry.Ids.Length)
                                                 {
                                                     // We finished loading tokens.
                                                     // Saving them in cache.
-                                                    Cache.AddDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+                                                    Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
                                                     
                                                     if (symbol != "TTRS")
                                                     {
@@ -1328,32 +1318,31 @@ namespace Poltergeist
                                                     // TODO: Load TokenData for TTRS too (add batch load method for TokenDatas).
                                                     // For now we skip TokenData loading to speed up TTRS NFTs loading,
                                                     // since it's not used for TTRS anyway.
-                                                    var tokenData = new TokenData();
-                                                    tokenData.ID = id;
-                                                    _nfts[platform].Add(tokenData);
+                                                    var tokenData2 = new TokenData();
+                                                    tokenData2.ID = id;
+                                                    _nfts[platform].Add(tokenData2);
 
                                                     loadedTokenCounter++;
                                                 }
                                                 else
                                                 {
-                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, (result) =>
+                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
                                                     {
-                                                        var tokenData = TokenData.FromNode(result, symbol);
+                                                        tokenData2.ParseRoms(symbol);
                                                         
                                                         // Downloading NFT images.
-                                                        StartCoroutine(NftImages.DownloadImage(symbol, tokenData.GetPropertyValue("ImageURL"), id));
+                                                        StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
 
                                                         loadedTokenCounter++;
 
-                                                        token = cachedTokens.AddNode(result);
-
-                                                        _nfts[platform].Add(tokenData);
+                                                        _nfts[platform].Add(tokenData2);
+                                                        cache = cache.Append(tokenData2).ToArray();
 
                                                         if (loadedTokenCounter == balanceEntry.Ids.Length)
                                                         {
                                                             // We finished loading tokens.
                                                             // Saving them in cache.
-                                                            Cache.AddDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+                                                            Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
 
                                                             ReportWalletNft(platform, symbol);
                                                         }
@@ -1375,7 +1364,7 @@ namespace Poltergeist
                                                 StartCoroutine(TtrsStore.LoadStoreNft(balanceEntry.Ids, (item) =>
                                                 {
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.ImageUrl, item.Id));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.item_info.image_url, item.id));
                                                 }, () =>
                                                 {
                                                     nftDescriptionsAreFullyLoaded = true;
@@ -1386,7 +1375,7 @@ namespace Poltergeist
                                                 StartCoroutine(GameStore.LoadStoreNft(balanceEntry.Ids, (item) =>
                                                 {
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.img_url, item.ID));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.parsed_rom.img_url, item.ID));
                                                 }, () =>
                                                 {
                                                     nftDescriptionsAreFullyLoaded = true;
@@ -1425,13 +1414,6 @@ namespace Poltergeist
                 if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
                 {
                     refreshStatus = _refreshStatus[PlatformKind.Phantasma];
-
-                    var diff = now - refreshStatus.LastHistoryRefresh;
-
-                    if (!force && diff.TotalSeconds < 30)
-                    {
-                        return;
-                    }
 
                     refreshStatus.HistoryRefreshing = true;
                     refreshStatus.LastHistoryRefresh = now;
@@ -1750,33 +1732,33 @@ namespace Poltergeist
                 {
                     case TtrsNftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Mint).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         break;
                     case TtrsNftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         break;
                     case TtrsNftSortMode.Type_Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Type).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Type).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         break;
                     case TtrsNftSortMode.Type_Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Type).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Type).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ToList();
                         break;
                     case TtrsNftSortMode.Type_Rarity: // And also Number and Date as last sorting parameters.
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).Type).ThenByDescending(x => TtrsStore.GetNft(x.ID).Rarity).ThenBy(x => TtrsStore.GetNft(x.ID).Mint).ThenBy(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).item_info.rarity).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).Type).ThenBy(x => TtrsStore.GetNft(x.ID).Rarity).ThenByDescending(x => TtrsStore.GetNft(x.ID).Mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).Timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).item_info.rarity).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
                         break;
                 }
 
@@ -1791,21 +1773,21 @@ namespace Poltergeist
                 {
                     case NftSortMode.Name:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).name_english).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).meta?.name_english).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).name_english).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).meta?.name_english).ToList();
                         break;
                     case NftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).mint).ThenBy(x => GameStore.GetNft(x.ID).timestampDT).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).mint).ThenBy(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).mint).ThenByDescending(x => GameStore.GetNft(x.ID).timestampDT).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).mint).ThenByDescending(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ToList();
                         break;
                     case NftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).timestampDT).ThenBy(x => GameStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ThenBy(x => GameStore.GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).timestampDT).ThenByDescending(x => GameStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ThenByDescending(x => GameStore.GetNft(x.ID).mint).ToList();
                         break;
                 }
 
@@ -1914,7 +1896,7 @@ namespace Poltergeist
             {
                 if (!string.IsNullOrEmpty(unclaimedInvokeError))
                 {
-                    callback(null, "Script invokation error!\n\n" + unclaimedInvokeError);
+                    callback(null, "Script invocation error!\n\n" + unclaimedInvokeError);
                     return;
                 }
                 else
@@ -1923,7 +1905,7 @@ namespace Poltergeist
                     {
                         if (!string.IsNullOrEmpty(stakeInvokeError))
                         {
-                            callback(null, "Script invokation error!\n\n" + stakeInvokeError);
+                            callback(null, "Script invocation error!\n\n" + stakeInvokeError);
                             return;
                         }
                         else
@@ -1932,7 +1914,7 @@ namespace Poltergeist
                             {
                                 if (!string.IsNullOrEmpty(storageStakeInvokeError))
                                 {
-                                    callback(null, "Script invokation error!\n\n" + storageStakeInvokeError);
+                                    callback(null, "Script invocation error!\n\n" + storageStakeInvokeError);
                                     return;
                                 }
                                 else
@@ -1941,7 +1923,7 @@ namespace Poltergeist
                                     {
                                         if (!string.IsNullOrEmpty(votingPowerInvokeError))
                                         {
-                                            callback(null, "Script invokation error!\n\n" + votingPowerInvokeError);
+                                            callback(null, "Script invocation error!\n\n" + votingPowerInvokeError);
                                             return;
                                         }
                                         else
@@ -1950,7 +1932,7 @@ namespace Poltergeist
                                             {
                                                 if (!string.IsNullOrEmpty(stakeTimestampInvokeError))
                                                 {
-                                                    callback(null, "Script invokation error!\n\n" + stakeTimestampInvokeError);
+                                                    callback(null, "Script invocation error!\n\n" + stakeTimestampInvokeError);
                                                     return;
                                                 }
                                                 else
@@ -1959,7 +1941,7 @@ namespace Poltergeist
                                                     {
                                                         if (!string.IsNullOrEmpty(timeBeforeUnstakeInvokeError))
                                                         {
-                                                            callback(null, "Script invokation error!\n\n" + timeBeforeUnstakeInvokeError);
+                                                            callback(null, "Script invocation error!\n\n" + timeBeforeUnstakeInvokeError);
                                                             return;
                                                         }
                                                         else
@@ -1968,7 +1950,7 @@ namespace Poltergeist
                                                             {
                                                                 if (!string.IsNullOrEmpty(masterDateInvokeError))
                                                                 {
-                                                                    callback(null, "Script invokation error!\n\n" + masterDateInvokeError);
+                                                                    callback(null, "Script invocation error!\n\n" + masterDateInvokeError);
                                                                     return;
                                                                 }
                                                                 else
@@ -1977,20 +1959,20 @@ namespace Poltergeist
                                                                     {
                                                                     if (!string.IsNullOrEmpty(isMasterInvokeError))
                                                                     {
-                                                                        callback(null, "Script invokation error!\n\n" + isMasterInvokeError);
+                                                                        callback(null, "Script invocation error!\n\n" + isMasterInvokeError);
                                                                         return;
                                                                     }
                                                                     else
                                                                     {
-                                                                        var unclaimed = UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10);
-                                                                        var stake = UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8);
-                                                                        var storageStake = UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8);
-                                                                        var votingPower = VMObject.FromBytes(votingPowerResult).AsNumber();
-                                                                        var stakeTimestamp = VMObject.FromBytes(stakeTimestampResult).AsTimestamp();
-                                                                        var stakeTimestampLocal = ((DateTime)stakeTimestamp).ToLocalTime();
-                                                                        var timeBeforeUnstake = VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber();
-                                                                        var masterDate = VMObject.FromBytes(masterDateResult).AsTimestamp();
-                                                                        var isMaster = VMObject.FromBytes(isMasterResult).AsBool();
+                                                                        var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
+                                                                        var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
+                                                                        var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
+                                                                        var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
+                                                                        var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
+                                                                        var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;
+                                                                        var timeBeforeUnstake = timeBeforeUnstakeResult != null ? VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber() : -1;
+                                                                        var masterDate = masterDateResult != null ? VMObject.FromBytes(masterDateResult).AsTimestamp() : 0;
+                                                                        var isMaster = isMasterResult != null ? VMObject.FromBytes(isMasterResult).AsBool() : false;
 
                                                                         callback($"{addressString} account information:\n\n" +
                                                                             $"Unclaimed: {unclaimed} KCAL\n" +

@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Globalization;
-using LunarLabs.Parser;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -10,9 +9,20 @@ using Phantasma.Core.Numerics;
 using Phantasma.Core.Domain;
 using Phantasma.Business.Blockchain.Storage;
 using Phantasma.Core.Types;
+using Newtonsoft.Json;
 
 namespace Phantasma.SDK
 {
+    public class PaginatedResult<T>
+    {
+        public uint page { get; set; }
+        public uint pageSize { get; set; }
+        public uint total { get; set; }
+        public uint totalPages { get; set; }
+
+        public T result { get; set; }
+    }
+
     public struct Balance
     {
         public string chain; //
@@ -20,49 +30,12 @@ namespace Phantasma.SDK
         public string symbol; //
         public uint decimals; //
         public string[] ids; //
-
-        public static Balance FromNode(DataNode node)
-        {
-            Balance result;
-
-            result.chain = node.GetString("chain");
-            result.amount = node.GetString("amount");
-            result.symbol = node.GetString("symbol");
-            result.decimals = node.GetUInt32("decimals");
-            var ids_array = node.GetNode("ids");
-            if (ids_array != null)
-            {
-                result.ids = new string[ids_array.ChildCount];
-                for (int i = 0; i < ids_array.ChildCount; i++)
-                {
-
-                    result.ids[i] = ids_array.GetNodeByIndex(i).AsString();
-                }
-            }
-            else
-            {
-                result.ids = new string[0];
-            }
-
-
-            return result;
-        }
     }
 
     public struct Interop
     {
         public string local; //
         public string external; //
-
-        public static Interop FromNode(DataNode node)
-        {
-            Interop result;
-
-            result.local = node.GetString("local");
-            result.external = node.GetString("external");
-
-            return result;
-        }
     }
 
     public struct Platform
@@ -72,66 +45,13 @@ namespace Phantasma.SDK
         public string fuel; //
         public string[] tokens; //
         public Interop[] interop; //
-
-        public static Platform FromNode(DataNode node)
-        {
-            Platform result;
-
-            result.platform = node.GetString("platform");
-            result.chain = node.GetString("chain");
-            result.fuel = node.GetString("fuel");
-            var tokens_array = node.GetNode("tokens");
-            if (tokens_array != null)
-            {
-                result.tokens = new string[tokens_array.ChildCount];
-                for (int i = 0; i < tokens_array.ChildCount; i++)
-                {
-
-                    result.tokens[i] = tokens_array.GetNodeByIndex(i).AsString();
-                }
-            }
-            else
-            {
-                result.tokens = new string[0];
-            }
-
-            var interop_array = node.GetNode("interop");
-            if (interop_array != null)
-            {
-                result.interop = new Interop[interop_array.ChildCount];
-                for (int i = 0; i < interop_array.ChildCount; i++)
-                {
-
-                    result.interop[i] = Interop.FromNode(interop_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.interop = new Interop[0];
-            }
-
-
-            return result;
-        }
     }
 
-    public struct Stake
+    public struct Stakes
     {
         public string amount; //
         public uint time; //
         public string unclaimed; //
-
-        public static Stake FromNode(DataNode node)
-        {
-            Stake result;
-
-            result.amount = node.GetString("amount");
-            result.time = node.GetUInt32("time");
-            result.unclaimed = node.GetString("unclaimed");
-
-            return result;
-        }
     }
 
     public struct Storage
@@ -140,82 +60,17 @@ namespace Phantasma.SDK
         public uint used; //
         public string avatar; //
         public Archive[] archives; //
-
-        public static Storage FromNode(DataNode node)
-        {
-            Storage result;
-
-            if (node == null)
-            {
-                result.archives = null;
-                result.available = 0;
-                result.avatar = null;
-                result.used = 0;
-                return result;
-            }
-
-            result.available = node.GetUInt32("available");
-            result.used = node.GetUInt32("used");
-            result.avatar = node.GetString("avatar");
-
-            var archive_array = node.GetNode("archives");
-            if (archive_array != null)
-            {
-                result.archives = new Archive[archive_array.ChildCount];
-                for (int i = 0; i < archive_array.ChildCount; i++)
-                {
-
-                    result.archives[i] = Archive.FromNode(archive_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.archives = new Archive[0];
-            }
-
-            return result;
-        }
     }
 
     public struct Account
     {
         public string address; //
         public string name; //
-        public Stake stake; //
+        public Stakes stakes; //
         public Storage storage; //
         public string relay; //
         public string validator; //
         public Balance[] balances; //
-
-        public static Account FromNode(DataNode node)
-        {
-            Account result;
-
-            result.address = node.GetString("address");
-            result.name = node.GetString("name");
-            result.stake = Stake.FromNode(node.GetNode("stakes"));
-            result.storage = Storage.FromNode(node.GetNode("storage"));
-            result.relay = node.GetString("relay");
-            result.validator = node.GetString("validator");
-            var balances_array = node.GetNode("balances");
-            if (balances_array != null)
-            {
-                result.balances = new Balance[balances_array.ChildCount];
-                for (int i = 0; i < balances_array.ChildCount; i++)
-                {
-
-                    result.balances[i] = Balance.FromNode(balances_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.balances = new Balance[0];
-            }
-
-            return result;
-        }
     }
 
     public struct ContractParameter
@@ -237,56 +92,6 @@ namespace Phantasma.SDK
         public string name; //
         public string script; //
         public ContractMethod[] methods;
-
-        public static Contract FromNode(DataNode node)
-        {
-            Contract result;
-
-            result.address = node.GetString("address");
-            result.name = node.GetString("name");
-            result.script = node.GetString("script");
-
-            var methodNode = node.GetNode("methods");
-            if (methodNode != null)
-            {
-                result.methods = new ContractMethod[methodNode.ChildCount];
-                for (int i = 0; i < result.methods.Length; i++)
-                {
-                    var child = methodNode.GetNodeByIndex(i);
-                    var method = new ContractMethod();
-                    method.name = child.GetString("name");
-                    method.returnType = child.GetString("returnType");
-
-                    var paramsNode = child.GetNode("parameters");
-                    if (paramsNode != null)
-                    {
-                        method.parameters = new ContractParameter[paramsNode.ChildCount];
-                        for (int j = 0; j < method.parameters.Length; j++)
-                        {
-                            var temp = paramsNode.GetNodeByIndex(j);
-                            var p = new ContractParameter();
-
-                            p.name = temp.GetString("name");
-                            p.type = temp.GetString("type");
-
-                            method.parameters[j] = p;
-                        }
-                    }
-                    else
-                    {
-                        method.parameters = new ContractParameter[0];
-                    }
-
-                    result.methods[i] = method;
-                }
-            }
-            else
-            {
-                result.methods = new ContractMethod[0];
-            }
-
-            return result;
-        }
     }
 
     public struct Event
@@ -295,18 +100,6 @@ namespace Phantasma.SDK
         public string kind; //
         public string contract; //
         public string data; //
-
-        public static Event FromNode(DataNode node)
-        {
-            Event result;
-
-            result.address = node.GetString("address");
-            result.kind = node.GetString("kind");
-            result.contract = node.GetString("contract");
-            result.data = node.GetString("data");
-
-            return result;
-        }
     }
 
     public struct Transaction
@@ -322,91 +115,19 @@ namespace Phantasma.SDK
         public string result; //
         public string fee; //
         public ExecutionState state;
-
-        public static Transaction FromNode(DataNode node)
-        {
-            Transaction result;
-
-            result.hash = node.GetString("hash");
-            result.chainAddress = node.GetString("chainAddress");
-            result.timestamp = node.GetUInt32("timestamp");
-            result.confirmations = node.GetInt32("confirmations");
-            result.blockHeight = node.GetInt32("blockHeight");
-            result.blockHash = node.GetString("blockHash");
-            result.script = node.GetString("script");
-            var events_array = node.GetNode("events");
-            if (events_array != null)
-            {
-                result.events = new Event[events_array.ChildCount];
-                for (int i = 0; i < events_array.ChildCount; i++)
-                {
-
-                    result.events[i] = Event.FromNode(events_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.events = new Event[0];
-            }
-
-            result.result = node.GetString("result");
-            result.fee = node.GetString("fee");
-
-            if(!Enum.TryParse<ExecutionState>(node.GetString("state"), out result.state))
-            {
-                result.state = ExecutionState.Break;
-            }
-
-            return result;
-        }
+        public string debugComment;
     }
 
     public struct AccountTransactions
     {
         public string address; //
         public Transaction[] txs; //
-
-        public static AccountTransactions FromNode(DataNode node)
-        {
-            AccountTransactions result;
-
-            result.address = node.GetString("address");
-            var txs_array = node.GetNode("txs");
-            if (txs_array != null)
-            {
-                result.txs = new Transaction[txs_array.ChildCount];
-                for (int i = 0; i < txs_array.ChildCount; i++)
-                {
-
-                    result.txs[i] = Transaction.FromNode(txs_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.txs = new Transaction[0];
-            }
-
-
-            return result;
-        }
     }
 
     public class TokenPlatform
     {
         public string platform;
         public string hash;
-
-        public static TokenPlatform FromNode(DataNode node)
-        {
-            var result = new TokenPlatform();
-
-            result.platform = node.GetString("platform");
-            result.hash = node.GetString("hash");
-
-            return result;
-        }
 
         public override string ToString()
         {
@@ -417,7 +138,6 @@ namespace Phantasma.SDK
     public class Token
     {
         public string symbol; //
-        public bool mainnetToken;
         public string apiSymbol; // API symbols may differ.
         public string name; //
         public int decimals; //
@@ -429,39 +149,8 @@ namespace Phantasma.SDK
         public string flags; //
         public string script;
         public TokenPlatform[] external;
-        public decimal price;
-
-        public static Token FromNode(DataNode node)
-        {
-            Token result = new Token();
-
-            result.symbol = node.GetString("symbol");
-            result.mainnetToken = true;
-            result.name = node.GetString("name");
-            result.decimals = node.GetInt32("decimals");
-            result.currentSupply = node.GetString("currentSupply");
-            result.maxSupply = node.GetString("maxSupply");
-            result.burnedSupply = node.GetString("burnedSupply");
-            result.address = node.GetString("address");
-            result.owner = node.GetString("owner");
-            result.flags = node.GetString("flags");
-            result.script = node.GetString("script");
-
-            var platforms = new List<TokenPlatform>();
-            if (node.HasNode("external"))
-            {
-                foreach (var platform in node.GetNode("external").Children)
-                {
-                    platforms.Add(TokenPlatform.FromNode(platform));
-                }
-
-                result.external = platforms.ToArray();
-            }
-            
-            result.price = 0;
-
-            return result;
-        }
+        // TODO check if needed after refactoring
+        public bool mainnetToken = true;
 
         public bool IsBurnable()
         {
@@ -507,86 +196,32 @@ namespace Phantasma.SDK
     public struct TokenData
     {
         public string ID;
-        public uint series;
-        public uint mint;
+        public string series;
+        public uint? mint; // Nullable to fix crash on incorrect API response parsing
         public string chainName;
         public string ownerAddress;
         public string creatorAddress;
+        [JsonConverter(typeof(HexByteArrayConverter))]
         public byte[] ram;
+        [JsonConverter(typeof(HexByteArrayConverter))]
         public byte[] rom;
-        public TokenStatus status;
+        public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
         public IRom parsedRom;
         public TokenProperty[] infusion;
         public List<TokenProperty> properties;
 
-        public static TokenData FromNode(DataNode node, string symbol)
+        public void ParseRoms(string symbol)
         {
-            TokenData result;
-
-            result.ID = node.GetString("ID");
-            result.series = node.GetUInt32("series");
-            result.mint = node.GetUInt32("mint");
-            result.chainName = node.GetString("chainName");
-            result.ownerAddress = node.GetString("ownerAddress");
-            result.creatorAddress = node.GetString("creatorAddress");
-            result.ram = Base16.Decode(node.GetString("ram"));
-            result.rom = Base16.Decode(node.GetString("rom"));
-            if (!Enum.TryParse(node.GetString("status"), true, out result.status))
-                result.status = TokenStatus.Infused;
-
             // Pasring ROM
             switch (symbol)
             {
                 case "CROWN":
-                    result.parsedRom = new CrownRom(result.rom, result.ID);
+                    parsedRom = new CrownRom(rom, ID);
                     break;
                 default:
-                    result.parsedRom = new CustomRom(result.rom);
+                    parsedRom = new CustomRom(rom);
                     break;
             }
-
-            // Reading infused assets
-            var infusionNode = node.GetNode("infusion");
-
-            if (infusionNode != null)
-            {
-                var infusion = new List<TokenProperty>();
-                foreach (DataNode entry in infusionNode.Children)
-                {
-                    var property = new TokenProperty();
-                    property.Key = entry.GetString("Key");
-                    property.Value = entry.GetString("Value");
-                    infusion.Add(property);
-                }
-
-                result.infusion = infusion.ToArray();
-            }
-            else
-            {
-                result.infusion = null;
-            }
-
-            // Reading properties
-            var propertiesNode = node.GetNode("properties");
-            if (propertiesNode != null)
-            {
-                var properties = new List<TokenProperty>();
-                foreach (DataNode entry in propertiesNode.Children)
-                {
-                    var property = new TokenProperty();
-                    property.Key = entry.GetString("Key");
-                    property.Value = entry.GetString("Value");
-                    properties.Add(property);
-                }
-
-                result.properties = properties;
-            }
-            else
-            {
-                result.properties = null;
-            }
-
-            return result;
         }
 
         public string GetPropertyValue(string key)
@@ -616,6 +251,12 @@ namespace Phantasma.SDK
         {
             this.tokenId = tokenId;
 
+            if(rom == null || rom.Length == 0)
+            {
+                Log.Write($"CROWN's ROM is null or empty");
+                return;
+            }
+
             using (var stream = new System.IO.MemoryStream(rom))
             {
                 using (var reader = new System.IO.BinaryReader(stream))
@@ -641,6 +282,12 @@ namespace Phantasma.SDK
 
         public CustomRom(byte[] romBytes)
         {
+            if(romBytes == null || romBytes.Length == 0)
+            {
+                Log.Write($"Custom ROM is null or empty");
+                return;
+            }
+
             try
             {
                 var rom = VMObject.FromBytes(romBytes);
@@ -655,7 +302,7 @@ namespace Phantasma.SDK
             }
             catch (Exception e)
             {
-                Log.Write($"ROM parsing error: {e.ToString()}");
+                Log.Write($"ROM parsing error: {e.ToString()}, ROM: {System.Text.Encoding.ASCII.GetString(romBytes)}/{BitConverter.ToString(romBytes)}");
             }
         }
 
@@ -689,16 +336,6 @@ namespace Phantasma.SDK
     {
         public string url; //
         public string content; //
-
-        public static Oracle FromNode(DataNode node)
-        {
-            Oracle result;
-
-            result.url = node.GetString("url");
-            result.content = node.GetString("content");
-
-            return result;
-        }
     }
 
     public struct Script
@@ -707,62 +344,6 @@ namespace Phantasma.SDK
         public string result; //
         public string[] results; //
         public Oracle[] oracles; //
-
-        public static Script FromNode(DataNode node)
-        {
-            Script result;
-
-            var events_array = node.GetNode("events");
-            if (events_array != null)
-            {
-                result.events = new Event[events_array.ChildCount];
-                for (int i = 0; i < events_array.ChildCount; i++)
-                {
-
-                    result.events[i] = Event.FromNode(events_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.events = new Event[0];
-            }
-
-            result.result = node.GetString("result");
-            var oracles_array = node.GetNode("oracles");
-            if (oracles_array != null)
-            {
-                result.oracles = new Oracle[oracles_array.ChildCount];
-                for (int i = 0; i < oracles_array.ChildCount; i++)
-                {
-
-                    result.oracles[i] = Oracle.FromNode(oracles_array.GetNodeByIndex(i));
-
-                }
-            }
-            else
-            {
-                result.oracles = new Oracle[0];
-            }
-
-            var result_array = node.GetNode("results");
-            if (result_array != null)
-            {
-                result.results= new string[result_array.ChildCount];
-                int i = 0;
-                foreach (var child in result_array.Children)
-                {
-                    result.results[i] = child.Value;
-                    i++;
-                }
-            }
-            else
-            {
-                result.results = new string[] { result.result };
-            }
-
-            return result;
-        }
     }
 
     public struct Archive
@@ -772,38 +353,13 @@ namespace Phantasma.SDK
         public uint size; //
         public uint time; //
         public string flags; //
-        public IArchiveEncryption encryption; //
+        [JsonConverter(typeof(HexByteArrayConverter))]
+        public byte[] encryption; //
         public int blockCount; //
         public string[] metadata; //
-
-        public static Archive FromNode(DataNode node)
+        public IArchiveEncryption GetEncryption()
         {
-            Archive result;
-
-            result.hash = node.GetString("hash");
-            result.name = node.GetString("name");
-            result.size = node.GetUInt32("size");
-            result.time = node.GetUInt32("time");
-            result.flags = node.GetString("flags");
-            result.encryption = ArchiveExtensions.ReadArchiveEncryption(Base16.Decode(node.GetString("encryption")));
-            result.blockCount = node.GetInt32("blockCount");
-            var metadata_array = node.GetNode("metadata");
-            if (metadata_array != null)
-            {
-                result.metadata = new string[metadata_array.ChildCount];
-                for (int i = 0; i < metadata_array.ChildCount; i++)
-                {
-
-                    result.metadata[i] = metadata_array.GetNodeByIndex(i).AsString();
-                }
-            }
-            else
-            {
-                result.metadata = new string[0];
-            }
-
-
-            return result;
+            return ArchiveExtensions.ReadArchiveEncryption(encryption);
         }
     }
 
@@ -820,18 +376,16 @@ namespace Phantasma.SDK
         //Returns the account name and balance of given address.
         public IEnumerator GetAccount(string addressText, Action<Account> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Account>(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (account) =>
             {
-                var result = Account.FromNode(node);
-                callback(result);
+                callback(account);
             }, addressText);
         }
 
         public IEnumerator GetContract(string contractName, Action<Contract> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Contract>(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Contract.FromNode(node);
                 callback(result);
             }, DomainSettings.RootChainName, contractName);
         }
@@ -840,43 +394,29 @@ namespace Phantasma.SDK
         //Returns the address that owns a given name.
         public IEnumerator LookUpName(string name, Action<string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "lookUpName", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<string>(Host, "lookUpName", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = node.Value;
                 callback(result);
             }, name);
         }
 
         //Returns last X transactions of given address.
         //This api call is paginated, multiple calls might be required to obtain a complete result 
-        public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactions, int, int> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactions, uint, uint> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<PaginatedResult<AccountTransactions>>(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (paginatedResult) =>
             {
-                var currentPage = node.GetInt32("page");
-                var totalPages = node.GetInt32("totalPages");
-                node = node.GetNode("result");
-                var result = AccountTransactions.FromNode(node);
-                callback(result, currentPage, totalPages);
+                var currentPage = paginatedResult.page;
+                var totalPages = paginatedResult.totalPages;
+                callback(paginatedResult.result, currentPage, totalPages);
             }, addressText, page, pageSize);
-        }
-
-        public IEnumerator GetAllAddressTransactions(string addressText, Action<AccountTransactions> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
-            {
-                node = node.GetNode("result");
-                var result = AccountTransactions.FromNode(node);
-                callback(result);
-            }, addressText);
         }
 
         //Allows to broadcast a signed operation on the network, but it&apos;s required to build it manually.
         public IEnumerator SendRawTransaction(string txData, Action<string, string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "sendRawTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<string>(Host, "sendRawTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = node.Value;
                 callback(result, txData);
             }, txData);
         }
@@ -885,21 +425,19 @@ namespace Phantasma.SDK
         //Allows to invoke script based on network state, without state changes.
         public IEnumerator InvokeRawScript(string chainInput, string scriptData, Action<Script> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "invokeRawScript", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Script>(Host, "invokeRawScript", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Script.FromNode(node);
                 callback(result);
             }, chainInput, scriptData);
         }
 
 
         //Returns information about a transaction by hash.
-        public IEnumerator GetTransaction(string hashText, Action<ExecutionState, Transaction> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetTransaction(string hashText, Action<Transaction?> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Transaction?>(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Transaction.FromNode(node);
-                callback(result.state, result);
+                callback(result);
             }, hashText);
         }
 
@@ -907,14 +445,8 @@ namespace Phantasma.SDK
         //Returns an array of tokens deployed in Phantasma.
         public IEnumerator GetTokens(Action<Token[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "getTokens", 10, 5, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<Token[]>(Host, "getTokens", 10, 5, errorHandlingCallback, (result) =>
             {
-                var result = new Token[node.ChildCount];
-                for (int i = 0; i < result.Length; i++)
-                {
-                    var child = node.GetNodeByIndex(i);
-                    result[i] = Token.FromNode(child);
-                }
                 callback(result);
             });
         }
@@ -922,7 +454,7 @@ namespace Phantasma.SDK
         private int tokensLoadedSimultaneously = 0;
 
         //Returns data of a non-fungible token, in hexadecimal format.
-        public IEnumerator GetNFT(string symbol, string IDtext, Action<DataNode> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetNFT(string symbol, string IDtext, Action<TokenData> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
             while (tokensLoadedSimultaneously > 5)
             {
@@ -930,9 +462,15 @@ namespace Phantasma.SDK
             }
             tokensLoadedSimultaneously++;
 
-            yield return WebClient.RPCRequest(Host, "getNFT", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                callback(node);
+                // TODO remove later
+                if(string.IsNullOrEmpty(result.ID))
+                {
+                    result.ID = IDtext;
+                }
+
+                callback(result);
             }, symbol, IDtext, true);
 
             tokensLoadedSimultaneously--;
@@ -941,26 +479,10 @@ namespace Phantasma.SDK
         //Writes the contents of an incomplete archive.
         public IEnumerator WriteArchive(string hashText, int blockIndex, byte[] blockContent, Action<Boolean> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest(Host, "writeArchive", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
+            yield return WebClient.RPCRequest<string>(Host, "writeArchive", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                var result = Boolean.Parse(node.Value);
-                callback(result);
+                callback(Boolean.Parse(result));
             }, hashText, blockIndex, Convert.ToBase64String(blockContent));
-        }
-
-        //Returns an array of available interop platforms.
-        public IEnumerator GetPlatforms(Action<Platform[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest(Host, "getPlatforms", WebClient.NoTimeout, 0, errorHandlingCallback, (node) =>
-            {
-                var result = new Platform[node.ChildCount];
-                for (int i = 0; i < result.Length; i++)
-                {
-                    var child = node.GetNodeByIndex(i);
-                    result[i] = Platform.FromNode(child);
-                }
-                callback(result);
-            });
         }
 
         public IEnumerator SignAndSendTransactionWithPayload(PhantasmaKeys keys, IKeyPair otherKeys, string nexus, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, ProofOfWork PoW, Action<string, string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)

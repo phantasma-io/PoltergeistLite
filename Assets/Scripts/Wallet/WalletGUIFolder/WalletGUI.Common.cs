@@ -28,7 +28,7 @@ namespace Poltergeist
         Balances,
         Nft, // Full list of NFTs with sorting and filtering capabilities.
         NftView, // Full list of NFTs with sorting and filtering capabilities, view only mode.
-        NftTransferList, // List of user-selected NFTs, ready to be transfered to another wallet.
+        NftTransferList, // List of user-selected NFTs, ready to be transferred to another wallet.
         History,
         Account,
         Sending,

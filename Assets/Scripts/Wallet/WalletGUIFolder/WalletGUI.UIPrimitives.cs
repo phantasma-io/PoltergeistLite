@@ -11,7 +11,13 @@ namespace Poltergeist
         {
             var temp = GUI.enabled;
             GUI.enabled = enabled;
-            if (GUI.Button(rect, text))
+
+            GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                padding = new RectOffset(2, 2, 1, 1)
+            };
+
+            if (GUI.Button(rect, text, buttonStyle))
             {
                 if (currentAnimation == AnimationDirection.None)
                 {
@@ -30,7 +36,13 @@ namespace Poltergeist
             {
                 var temp = GUI.enabled;
                 GUI.enabled = enabled;
-                if (GUI.Button(rect, text))
+
+                GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
+                {
+                    padding = new RectOffset(2, 2, 1, 1)
+                };
+
+                if (GUI.Button(rect, text, buttonStyle))
                 {
                     if (currentAnimation == AnimationDirection.None)
                     {

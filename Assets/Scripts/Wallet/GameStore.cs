@@ -1,12 +1,9 @@
-using UnityEngine;
-using UnityEngine.Networking;
 using Phantasma.SDK;
-using LunarLabs.Parser;
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 
 // Parsing and storing data received from GAME store.
 public static class GameStore
@@ -16,7 +13,31 @@ public static class GameStore
         StoreNft.Clear();
     }
 
-    public struct Nft
+    public struct GameNftApiResponse
+    {
+        public GameNft[] nfts;
+        public Dictionary<string, GameNftMeta> meta;
+
+        public void Merge(GameNftApiResponse? source)
+        {
+            if(source == null)
+            {
+                return;
+            }
+
+            foreach (var nft in source.Value.nfts)
+            {
+                nfts = nfts.Append(nft).ToArray();
+            }
+
+            foreach (var m in source.Value.meta)
+            {
+                meta.Add(m.Key, m.Value);
+            }
+        }
+    }
+
+    public struct GameNft
     {
         public string ID;
         public string chainName;
@@ -24,7 +45,19 @@ public static class GameStore
         public UInt64 mint;
         public string ownerAddress;
 
-        // parsed rom
+        public ParsedRom parsed_rom;
+
+        public string ram;
+        public string rom;
+        public string series;
+        public string status;
+        public string pavillion_id;
+        [JsonIgnore]
+        public GameNftMeta? meta;
+    }
+
+    public struct ParsedRom
+    {
         public UInt64 app_index;
         public string extra;
         public string img_url;
@@ -34,15 +67,17 @@ public static class GameStore
         public string mintedFor;
         public string seed;
         public UInt64 timestamp;
-        public DateTime timestampDT;
         public UInt64 type;
 
-        public string ram;
-        public string rom;
-        public string series;
-        public string status;
-        public string pavillion_id;
+        public DateTime timestampDT()
+        {
+            return new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc)
+                .AddSeconds(timestamp).ToLocalTime();
+        }
+    }
 
+    public struct GameNftMeta
+    {
         // meta
         public UInt64 available_from;
         public string current_hash;
@@ -62,78 +97,52 @@ public static class GameStore
         return StoreNft.Contains(id);
     }
 
-    public static Nft GetNft(string id)
+    public static GameNft GetNft(string id)
     {
-        return StoreNft.Contains(id) ? (Nft)StoreNft[id] : new Nft();
+        return StoreNft.Contains(id) ? (GameNft)StoreNft[id] : new GameNft();
     }
 
-    private static void LoadStoreNftFromDataNode(DataNode storeNft, Action<Nft> callback)
+    private static void LoadStoreNftFromApiResponse(GameNftApiResponse? apiResponse, Action<GameNft> callback)
     {
-        if (storeNft == null)
+        if (apiResponse == null)
         {
             return;
         }
 
-        var nfts = storeNft.GetNode("nfts");
-        var meta = storeNft.GetNode("meta");
-
-        foreach (DataNode item in nfts.Children)
+        for (int i = 0; i < apiResponse.Value.nfts.Length; i++)
         {
-            var currentId = item.GetString("ID");
+            var item = apiResponse.Value.nfts[i];
 
-            var nft = GetNft(currentId);
-            var newNft = String.IsNullOrEmpty(nft.ID); // There's no such NFT in StoreNft yet.
+            if (!StoreNft.Contains(item.ID))
+            {
+                item.meta = apiResponse.Value.meta.Where(m => m.Key == item.parsed_rom.metadata).Select(m => m.Value).FirstOrDefault();
+                StoreNft.Add(item.ID, item);
+            }
 
-            nft.ID = currentId;
-            nft.chainName = item.GetString("chainName");
-            nft.creatorAddress = item.GetString("creatorAddress");
-            nft.mint = item.GetUInt32("mint");
-            nft.ownerAddress = item.GetString("ownerAddress");
-            
-            var parsedRom = item.GetNode("parsed_rom");
-            
-            nft.app_index = parsedRom.GetUInt32("app_index");
-            nft.extra = parsedRom.GetString("extra");
-            nft.img_url = parsedRom.GetString("img_url");
-            nft.info_url = parsedRom.GetString("info_url");
-            nft.item_id = parsedRom.GetUInt32("item_id");
-            nft.metadata = parsedRom.GetString("metadata");
-            nft.mintedFor = parsedRom.GetString("mintedFor");
-            nft.seed = parsedRom.GetString("seed");
-            nft.timestamp = parsedRom.GetUInt32("timestamp");
-            nft.timestampDT = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(nft.timestamp).ToLocalTime();
-            nft.type = parsedRom.GetUInt32("type");
-
-            nft.ram = item.GetString("ram");
-            nft.rom = item.GetString("rom");
-            nft.series = item.GetString("series");
-            nft.status = item.GetString("status");
-            nft.pavillion_id = item.GetString("pavillion_id");
-
-            var metaNode = meta.GetNode(nft.metadata);
-            nft.available_from = metaNode.GetUInt32("available_from");
-            nft.current_hash = metaNode.GetString("current_hash");
-            nft.description_english = metaNode.GetString("description_english");
-            nft.itemdefid = metaNode.GetString("itemdefid");
-            nft.modified_timestamp = metaNode.GetUInt32("modified_timestamp");
-            nft.name_english = metaNode.GetString("name_english");
-            nft.price_usd_cent = metaNode.GetUInt32("price_usd_cent");
-            nft.meta_type = metaNode.GetString("type");
-
-            if (newNft)
-                StoreNft.Add(currentId, nft);
-
-            callback(nft);
+            callback(item);
         }
+
+        LogStoreNft();
     }
 
-    public static IEnumerator LoadStoreNft(string[] ids, Action<Nft> onItemLoadedCallback, Action onAllItemsLoadedCallback)
+    public static IEnumerator LoadStoreNft(string[] ids, Action<GameNft> onItemLoadedCallback, Action onAllItemsLoadedCallback)
     {
         var url = "https://pavillionhub.com/api/nft_data?phantasma_ids=1&token=GAME&meta=1&ids=";
-        var storeNft = Cache.GetDataNode("game-store-nft", Cache.FileType.JSON, 60 * 24);
+
+        var cacheContents = Cache.GetAsString("game-store-nft", Cache.FileType.JSON, 60 * 24);
+        GameNftApiResponse? storeNft = null;
+        try
+        {
+            storeNft = JsonConvert.DeserializeObject<GameNftApiResponse?>(cacheContents);
+        }
+        catch
+        {
+            Log.Write("Cache is corrupted, probably old version");
+        }
+
         if (storeNft != null)
         {
-            LoadStoreNftFromDataNode(storeNft, onItemLoadedCallback);
+            LoadStoreNftFromApiResponse(storeNft, onItemLoadedCallback);
 
             // Checking, that cache contains all needed NFTs.
             string[] missingIds = ids;
@@ -162,72 +171,67 @@ public static class GameStore
                 idList += "," + ids[i];
         }
 
-        yield return WebClient.RESTRequest(url + idList, 0, (error, msg) =>
+        yield return WebClient.RESTRequestT<GameNftApiResponse>(url + idList, 0, (error, msg) =>
         {
             Log.Write("LoadStoreNft() error: " + error);
         },
         (response) =>
         {
-            if (response != null)
-            {
-                LoadStoreNftFromDataNode(response, onItemLoadedCallback);
+            LoadStoreNftFromApiResponse(response, onItemLoadedCallback);
 
-                if (storeNft != null)
-                {
-                    // Cache already exists, need to add new nfts to existing cache.
-                    foreach (var node in response.Children)
-                    {
-                        storeNft.AddNode(node);
-                    }
-                }
-                else
-                {
-                    storeNft = response;
-                }
-                if (storeNft != null)
-                    Cache.Add("game-store-nft", Cache.FileType.JSON, DataFormats.SaveToString(DataFormat.JSON, storeNft));
+            if (storeNft != null)
+            {
+                // Cache already exists, need to add new nfts to existing cache.
+                storeNft.Value.Merge(response);
             }
+            else
+            {
+                storeNft = response;
+            }
+            if (storeNft != null)
+                Cache.Add("game-store-nft", Cache.FileType.JSON, JsonConvert.SerializeObject(storeNft, Formatting.Indented));
+
             onAllItemsLoadedCallback();
         });
     }
 
-    private static string NftToString(Nft nft)
+    private static string NftToString(GameNft nft)
     {
         return "Item #: " + nft.ID + "\n" +
             "chainName: " + nft.chainName + "\n" +
             "creatorAddress: " + nft.creatorAddress + "\n" +
             "mint: " + nft.mint + "\n" +
             "ownerAddress: " + nft.ownerAddress + "\n" +
-            "app_index: " + nft.app_index + "\n" +
-            "extra: " + nft.extra + "\n" +
-            "img_url: " + nft.img_url + "\n" +
-            "info_url: " + nft.info_url + "\n" +
-            "item_id: " + nft.item_id + "\n" +
-            "metadata: " + nft.metadata + "\n" +
-            "mintedFor: " + nft.mintedFor + "\n" +
-            "seed: " + nft.seed + "\n" +
-            "timestamp: " + nft.timestamp + "\n" +
-            "type: " + nft.type + "\n" +
+            "app_index: " + nft.parsed_rom.app_index + "\n" +
+            "extra: " + nft.parsed_rom.extra + "\n" +
+            "img_url: " + nft.parsed_rom.img_url + "\n" +
+            "info_url: " + nft.parsed_rom.info_url + "\n" +
+            "item_id: " + nft.parsed_rom.item_id + "\n" +
+            "metadata: " + nft.meta + "\n" +
+            "mintedFor: " + nft.parsed_rom.mintedFor + "\n" +
+            "seed: " + nft.parsed_rom.seed + "\n" +
+            "timestamp: " + nft.parsed_rom.timestamp + "\n" +
+            "type: " + nft.parsed_rom.type + "\n" +
             "ram: " + nft.ram + "\n" +
             "rom: " + nft.rom + "\n" +
             "series: " + nft.series + "\n" +
             "status: " + nft.status + "\n" +
             "pavillion_id: " + nft.pavillion_id + "\n" +
-            "available_from: " + nft.available_from + "\n" +
-            "current_hash: " + nft.current_hash + "\n" +
-            "description_english: " + nft.description_english + "\n" +
-            "itemdefid: " + nft.itemdefid + "\n" +
-            "modified_timestamp: " + nft.modified_timestamp + "\n" +
-            "name_english: " + nft.name_english + "\n" +
-            "price_usd_cent: " + nft.price_usd_cent + "\n" +
-            "type: " + nft.meta_type;
+            "available_from: " + nft.meta?.available_from + "\n" +
+            "current_hash: " + nft.meta?.current_hash + "\n" +
+            "description_english: " + nft.meta?.description_english + "\n" +
+            "itemdefid: " + nft.meta?.itemdefid + "\n" +
+            "modified_timestamp: " + nft.meta?.modified_timestamp + "\n" +
+            "name_english: " + nft.meta?.name_english + "\n" +
+            "price_usd_cent: " + nft.meta?.price_usd_cent + "\n" +
+            "type: " + nft.meta?.meta_type;
     }
 
     public static void LogStoreNft()
     {
-        for (int i = 0; i < StoreNft.Count; i++)
+        foreach (DictionaryEntry entry in StoreNft)
         {
-            Log.Write(NftToString((Nft)StoreNft[i]));
+            Log.Write(NftToString((GameNft)entry.Value));
         }
     }
 }

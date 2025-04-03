@@ -2,6 +2,7 @@ using Phantasma.Core.Cryptography;
 using Phantasma.SDK;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace Poltergeist
@@ -152,8 +153,20 @@ namespace Poltergeist
                 });
         }
 
-        public void TxResultMessage(Hash hash, string error, string successCustomMessage = null, string failureCustomMessage = null)
+        private static string AddIndent(string input, string indent)
         {
+            var lines = input.Split('\n');
+            return string.Join("\n", lines.Select((line, index) => index == 0 ? line : indent + line));
+        }
+
+        public void TxResultMessage(Hash hash, Phantasma.SDK.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
+        {
+            if(hash == Hash.Null && txResult == null && error == null)
+            {
+                // User cancelled tx
+                return;
+            }
+
             var accountManager = AccountManager.Instance;
 
             var success = string.IsNullOrEmpty(error) && hash != Hash.Null;
@@ -167,6 +180,11 @@ namespace Poltergeist
             {
                 message = successCustomMessage;
             }
+            else if(!success && hash == Hash.Null)
+            {
+                // Hash is unavailable - tx wasn't transferred.
+                // Just printing error as is.
+            }
             else if(!success && !string.IsNullOrEmpty(failureCustomMessage))
             {
                 message = failureCustomMessage;
@@ -175,27 +193,39 @@ namespace Poltergeist
             {
                 if(success)
                 {
-                    message = "Transaction succeeded.";
+                    message = "The transaction has successfully completed, but it may take up to 30 secs until the change is reflected in your wallet balance";
                 }
                 else
                 {
                     if (timeout)
                     {
-                        message = "Your transaction has been broadcasted but its state cannot be determined.\nPlease use explorer to ensure transaction is confirmed successfully and funds are transferred(button 'View' below).";
+                        message = "Your transaction has been broadcasted but its state cannot be determined.\nPlease use explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).\n";
                     }
                     else
                     {
-                        message = "Transaction failed.";
+                        if(error != "Transaction failed")
+                        {
+                            message = "Transaction failed";
+                        }
                     }
                 }
             }
 
             if (!string.IsNullOrEmpty(error) && !timeout)
             {
-                message += "\nError: " + error;
+                message += "\nError: " + AddIndent(error, "    ");
+
+                if(txResult != null)
+                {
+                    message += "\nResult: " + txResult.Value.result;
+                    message += "\nComment: " + txResult.Value.debugComment;
+                }
             }
 
-            message += "\nTransaction hash:\n" + hash;
+            if(hash != Hash.Null)
+            {
+                message += "\nTransaction hash:\n" + hash;
+            }
 
             ShowModal(success ? "Success" : (timeout ? "Attention" : "Failure"),
                 message,

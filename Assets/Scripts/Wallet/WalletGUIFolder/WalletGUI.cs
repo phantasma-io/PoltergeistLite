@@ -919,7 +919,7 @@ namespace Poltergeist
                     transactionLastCheck = now;
                     transactionStillPending = false;
                     transactionCheckCount++;
-                    accountManager.RequestConfirmation(transactionHash.ToString(), transactionCheckCount, (msg) =>
+                    accountManager.RequestConfirmation(transactionHash.ToString(), transactionCheckCount, (txResult, msg) =>
                     {
                         if (string.IsNullOrEmpty(msg))
                         {
@@ -929,12 +929,12 @@ namespace Poltergeist
                             {
                                 accountManager.RefreshBalances(true, PlatformKind.None, () =>
                                 {
-                                    InvokeTransactionCallback(transactionHash, null);
-                                }, true);
+                                    InvokeTransactionCallback(transactionHash, txResult, null);
+                                });
                             }
                             else
                             {
-                                InvokeTransactionCallback(transactionHash, null);
+                                InvokeTransactionCallback(transactionHash, txResult, null);
                             }
                         }
                         else
@@ -947,7 +947,7 @@ namespace Poltergeist
                         {
                             PopState();
 
-                            InvokeTransactionCallback(Hash.Null, msg);
+                            InvokeTransactionCallback(transactionHash, txResult, msg);
                         }
                     });
                 }
@@ -2236,7 +2236,9 @@ namespace Poltergeist
                 case "SOUL":
                     if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
                     {
-                        if (Input.GetKey(KeyCode.LeftShift))
+                        if (Input.GetKey(KeyCode.LeftShift) &&
+                            accountManager.Settings.devMode // TODO remove later
+                        )
                         {
                             secondaryAction = "Info";
                             secondaryEnabled = true;
@@ -2280,9 +2282,25 @@ namespace Poltergeist
                                         twoSmsWarning = "\n\nSoul Master rewards are distributed evenly to every wallet with 50K or more SOUL. As you are staking over 100K SOUL, to maximise your rewards, you may wish to stake each 50K SOUL in a separate wallet.";
                                     }
 
-                                    StakeSOUL(selectedAmount, $"Do you want to stake {selectedAmount} SOUL?\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day.\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours." + twoSmsWarning, (hash, error) =>
+                                    var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
+                                    decimal kcalClaimable = 0;
+                                    if(kcalBalance != default)
                                     {
-                                        TxResultMessage(hash, error, "Your SOUL was staked!");
+                                        kcalClaimable = kcalBalance.Claimable;
+                                    }
+
+                                    var message = $"Do you want to stake {selectedAmount} SOUL?" + 
+                                        $"\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
+                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours.";
+                                    
+                                    if(kcalClaimable > 0)
+                                    {
+                                        message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                                    }
+
+                                    StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
+                                    {
+                                        TxResultMessage(hash, txResult, error, "Your SOUL was staked!");
                                     });
                                 });
                             };
@@ -2297,34 +2315,48 @@ namespace Poltergeist
                                 RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
                                     (amount) =>
                                     {
-                                        var line = amount == balance.Staked ? "You won't be able to claim KCAL anymore." : "The amount of KCAL that will be able to claim later will be reduced.";
+                                        var message = $"Do you want to unstake {amount} SOUL?";
 
-                                        if (amount == balance.Staked && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
+                                        var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
+                                        decimal kcalClaimable = 0;
+                                        if(kcalBalance != default)
                                         {
-                                            line += "\nYour account will also lose the current registed name.";
+                                            kcalClaimable = kcalBalance.Claimable;
+                                        }
+                                        if(kcalClaimable > 0)
+                                        {
+                                            message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
                                         }
 
-                                        PromptBox($"Do you want to unstake {amount} SOUL?\n{line}", ModalYesNo, (result) =>
+                                        if (amount > balance.Staked - 2 && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
                                         {
-                                            RequestKCAL("SOUL", (kcal) =>
+                                            message += "\n\nYour account will also lose the current registed name.\nKeep 2 SOUL staked if you want to keep your registered name.";
+                                        }
+
+                                        PromptBox(message, ModalYesNo, (result) =>
+                                        {
+                                            if(result == PromptResult.Success)
                                             {
-                                                if (kcal == PromptResult.Success)
+                                                RequestKCAL("SOUL", (kcal) =>
                                                 {
-                                                    var address = Address.FromText(state.address);
-
-                                                    var sb = new ScriptBuilder();
-                                                        
-                                                    sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                    sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
-                                                    sb.SpendGas(address);
-                                                    var script = sb.EndScript();
-
-                                                    SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                    if (kcal == PromptResult.Success)
                                                     {
-                                                        TxResultMessage(hash, error, "Your SOUL was unstaked!");
-                                                    });
-                                                }
-                                            });
+                                                        var address = Address.FromText(state.address);
+
+                                                        var sb = new ScriptBuilder();
+                                                            
+                                                        sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                                                        sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
+                                                        sb.SpendGas(address);
+                                                        var script = sb.EndScript();
+
+                                                        SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                                        {
+                                                            TxResultMessage(hash, txResult, error, "Your SOUL was unstaked!");
+                                                        });
+                                                    }
+                                                });
+                                            }
                                         });
                                     });
                             };
@@ -2366,9 +2398,9 @@ namespace Poltergeist
                                             sb.SpendGas(address);
                                             var script = sb.EndScript();
 
-                                            SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                            SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                             {
-                                                TxResultMessage(hash, error, "You claimed some KCAL!");
+                                                TxResultMessage(hash, txResult, error, "You claimed some KCAL!");
                                             });
 
 
@@ -2392,11 +2424,17 @@ namespace Poltergeist
                         if (!token.IsFungible())
                         {
                             // It's an NFT. We add additional button to get to NFTs view mode.
-
                             secondaryAction = "View";
                             secondaryEnabled = balance.Available > 0;
                             secondaryCallback = () =>
                             {
+                                // TODO remove later
+                                if (!accountManager.Settings.devMode)
+                                {
+                                    MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
+                                    return;
+                                }
+
                                 transferSymbol = balance.Symbol;
 
                                 // We should do this initialization here and not in PushState,
@@ -2442,14 +2480,18 @@ namespace Poltergeist
             if (accountManager.CurrentPlatform == PlatformKind.Phantasma &&
                 balance.Burnable &&
                 balance.Fungible &&
-                Input.GetKey(KeyCode.LeftShift))
+                Input.GetKey(KeyCode.LeftShift) &&
+                accountManager.Settings.devMode // TODO remove later
+                )
             {
                 mainAction = "Burn";
             }
             else if (accountManager.CurrentPlatform == PlatformKind.Phantasma &&
                 balance.Symbol.ToUpper() == "SOUL" &&
                 balance.Staked >= 50000 &&
-                Input.GetKey(KeyCode.LeftShift))
+                Input.GetKey(KeyCode.LeftShift) &&
+                accountManager.Settings.devMode // TODO remove later
+                )
             {
                 mainAction = "SM reward";
                 mainActionEnabled = true; // This one should be always enabled
@@ -2468,6 +2510,13 @@ namespace Poltergeist
                     Phantasma.SDK.Token transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
+
+                    // TODO remove later
+                    if (!transferToken.IsFungible() && !accountManager.Settings.devMode)
+                    {
+                        MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
+                        return;
+                    }
 
                     if (string.IsNullOrEmpty(transferToken.flags))
                     {
@@ -2557,9 +2606,9 @@ namespace Poltergeist
                         return;
                     }
 
-                    SendTransaction($"Claim SM reward", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                    SendTransaction($"Claim SM reward", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                     {
-                        TxResultMessage(hash, error, "You claimed SM reward!");
+                        TxResultMessage(hash, txResult, error, "You claimed SM reward!");
                     });
                 }
                 else if (mainAction == "Burn")
@@ -2587,9 +2636,9 @@ namespace Poltergeist
                                     return;
                                 }
 
-                                SendTransaction($"Burn {amountToBurn} {balance.Symbol} tokens", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                SendTransaction($"Burn {amountToBurn} {balance.Symbol} tokens", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                 {
-                                    TxResultMessage(hash, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
+                                    TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
                                 });
                             }
                         }, 10);
@@ -2633,15 +2682,15 @@ namespace Poltergeist
                     {
                         var item = TtrsStore.GetNft(x.ID);
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.NameEnglish.ToUpper().Contains(nftFilterName.ToUpper())) &&
-                            (nftFilterType == "All" || item.DisplayTypeEnglish == nftFilterType) &&
-                            (nftFilterRarity == (int)ttrsNftRarity.All || (int)item.Rarity == nftFilterRarity) &&
+                        if ((String.IsNullOrEmpty(nftFilterName) || item.item_info.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
+                            (nftFilterType == "All" || item.item_info.display_type_english == nftFilterType) &&
+                            (nftFilterRarity == (int)ttrsNftRarity.All || (int)item.item_info.rarity == nftFilterRarity) &&
                             (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.Timestamp, DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.Timestamp, DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.Timestamp, DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.Timestamp, DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.Timestamp, DateTime.Now.AddMonths(-1)) >= 0)
+                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.timestampDT(), DateTime.Now.AddMinutes(-15)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.timestampDT(), DateTime.Now.AddHours(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.timestampDT(), DateTime.Now.AddDays(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.timestampDT(), DateTime.Now.AddDays(-7)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.timestampDT(), DateTime.Now.AddMonths(-1)) >= 0)
                             ))
                         {
                             nftFilteredList.Add(x);
@@ -2651,13 +2700,13 @@ namespace Poltergeist
                     {
                         var item = GameStore.GetNft(x.ID);
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
+                        if ((String.IsNullOrEmpty(nftFilterName) || (item.meta?.name_english.ToUpper().Contains(nftFilterName.ToUpper()) ?? false)) &&
                             (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.timestampDT, DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.timestampDT, DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.timestampDT, DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.timestampDT, DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.timestampDT, DateTime.Now.AddMonths(-1)) >= 0)
+                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddMinutes(-15)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddHours(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddDays(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddDays(-7)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddMonths(-1)) >= 0)
                             ))
                         {
                             nftFilteredList.Add(x);
@@ -2719,6 +2768,10 @@ namespace Poltergeist
         // Used for both NFT list and transfer NFT list.
         private void DoNftEntry(string entryId, int index, int curY, Rect rect)
         {
+            if(string.IsNullOrEmpty(entryId))
+            {
+                return;
+            }
             var accountManager = AccountManager.Instance;
 
             string imageUrl = "";
@@ -2730,13 +2783,13 @@ namespace Poltergeist
             {
                 var item = TtrsStore.GetNft(entryId);
 
-                if (!String.IsNullOrEmpty(item.NameEnglish))
+                if (!String.IsNullOrEmpty(item.item_info.name_english))
                 {
-                    imageUrl = item.Img;
+                    imageUrl = item.img;
                 }
 
                 string rarity;
-                switch (item.Rarity)
+                switch (item.item_info.rarity)
                 {
                     case 1:
                         rarity = VerticalLayout ? "/Con" : " / Consumer";
@@ -2755,9 +2808,9 @@ namespace Poltergeist
                         break;
                 }
 
-                nftName = item.NameEnglish;
+                nftName = item.item_info.name_english;
 
-                var nftType = item.DisplayTypeEnglish;
+                var nftType = item.item_info.display_type_english;
                 if (VerticalLayout)
                 {
                     switch (nftType)
@@ -2776,20 +2829,20 @@ namespace Poltergeist
                     }
                 }
 
-                nftDescription = item.Mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.Mint + " " + (VerticalLayout ? item.Timestamp.ToString("dd.MM.yy") : item.Timestamp.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestamp.ToString("dd.MM.yy") : item.timestamp.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
             }
             else if (transferSymbol == "GAME")
             {
                 var item = GameStore.GetNft(entryId);
 
-                if (!String.IsNullOrEmpty(item.name_english))
+                if (!String.IsNullOrEmpty(item.meta?.name_english))
                 {
-                    imageUrl = item.img_url;
+                    imageUrl = item.parsed_rom.img_url;
                 }
 
-                nftName = item.name_english;
+                nftName = item.meta?.name_english;
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestampDT.ToString("dd.MM.yy") : item.timestampDT.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.description_english;
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.parsed_rom.timestampDT().ToString("dd.MM.yy") : item.parsed_rom.timestampDT().ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + item.meta?.description_english;
             }
             else
             {
@@ -2806,7 +2859,7 @@ namespace Poltergeist
                 nftName = item.GetPropertyValue("Name");
                 nftDescription = item.GetPropertyValue("Description");
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
+                nftDescription = (item.mint ?? 0) == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
                     (nftDate == DateTime.MinValue ? "" : (VerticalLayout ? nftDate.ToString("dd.MM.yy") : nftDate.ToString("dd.MM.yyyy HH:mm:ss"))) +
                     (String.IsNullOrEmpty(nftDescription) ? "" : ((VerticalLayout ? " " : " / ") + nftDescription));
 
@@ -2855,7 +2908,7 @@ namespace Poltergeist
             }
 
             // Fixing CROWNs image url
-            imageUrl = imageUrl.Replace("phantasma.io", "phantasma.info");
+            imageUrl = imageUrl?.Replace("phantasma.io", "phantasma.info");
 
             if (!String.IsNullOrEmpty(imageUrl))
             {
@@ -2897,7 +2950,16 @@ namespace Poltergeist
             }
 
             if (String.IsNullOrEmpty(nftName))
-                nftName = "Loading...";
+            {
+                if (VerticalLayout)
+                {
+                    nftName = "#" + entryId.Substring(0, 4) + "..." + entryId.Substring(entryId.Length - 4);
+                }
+                else
+                {
+                    nftName = "#" + entryId.Substring(0, 8) + "..." + entryId.Substring(entryId.Length - 8);
+                }
+            }
 
             if (VerticalLayout && nftName.Length > 18)
                 nftName = nftName.Substring(0, 15) + "...";
@@ -3307,7 +3369,7 @@ namespace Poltergeist
                                     var newKeys = PhantasmaKeys.FromWIF(wif);
                                     if (newKeys.Address.Text != accountManager.CurrentState.address)
                                     {
-                                        PromptBox("Are you sure you want to migrate this account?\n\nBefore doing migration, make sure that both old and new private keys (WIFs or seed phrases) are safely stored.\n\nCheck your Eth/Neo/BSC balances for current wallet, if they have funds, move them to a new wallet before doing migration.\n\nBy doing a migration, any existing Phantasma rewards will be transfered without penalizations.\nTarget address: " + newKeys.Address.Text, ModalYesNo, (result) =>
+                                        PromptBox("Are you sure you want to migrate this account?\n\nBefore doing migration, make sure that both old and new private keys (WIFs or seed phrases) are safely stored.\n\nCheck your Eth/Neo/BSC balances for current wallet, if they have funds, move them to a new wallet before doing migration.\n\nBy doing a migration, any existing Phantasma rewards will be transferred without penalizations.\nTarget address: " + newKeys.Address.Text, ModalYesNo, (result) =>
                                         {
                                             if (result == PromptResult.Success)
                                             {
@@ -3320,7 +3382,7 @@ namespace Poltergeist
                                                 sb.SpendGas(address);
                                                 var script = sb.EndScript();
 
-                                                SendTransaction("Migrate account", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                SendTransaction("Migrate account", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                 {
                                                     if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                     {
@@ -3335,7 +3397,7 @@ namespace Poltergeist
                                                     }
                                                     else
                                                     {
-                                                        TxResultMessage(hash, error, null, "It was not possible to migrate the account.");
+                                                        TxResultMessage(hash, txResult, error, null, "It was not possible to migrate the account.");
                                                     }
                                                 });
                                             }
@@ -3386,7 +3448,7 @@ namespace Poltergeist
                                                         return;
                                                     }
 
-                                                    SendTransaction($"Register address name\nName: {name}\nAddress: {accountManager.CurrentState.address}?", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                                                    SendTransaction($"Register address name\nName: {name}\nAddress: {accountManager.CurrentState.address}?", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                     {
                                                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                         {
@@ -3600,11 +3662,11 @@ namespace Poltergeist
                                                 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest(url, jsonMessage, (error, msg) =>
+                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest<string>(url, jsonMessage, false, (error, msg) =>
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },
-                                                (response) =>
+                                                (result) =>
                                                 {
                                                     MessageBox(MessageKind.Default, "Message sent.");
                                                 }));
@@ -3625,7 +3687,7 @@ namespace Poltergeist
             });
         }
 
-        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, string> callback)
+        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
@@ -3656,9 +3718,9 @@ namespace Poltergeist
 
                             var script = sb.EndScript();
 
-                            SendTransaction($"Stake {selectedAmount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                            SendTransaction($"Stake {selectedAmount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                             {
-                                callback(hash, error);
+                                callback(hash, txResult, error);
                             });
                         }
                     });
@@ -3867,9 +3929,9 @@ namespace Poltergeist
                             return;
                         }
 
-                        SendTransaction($"Burn {nftTransferList.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * nftTransferList.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                        SendTransaction($"Burn {nftTransferList.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * nftTransferList.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, error, $"You burned {nftTransferList.Count} NFTs!");
+                            TxResultMessage(hash, txResult, error, $"You burned {nftTransferList.Count} NFTs!");
                         });
                     }
                 }, 10);
@@ -3957,22 +4019,22 @@ namespace Poltergeist
             return posY;
         }
 
-        private Action<Hash, string> transactionCallback;
+        private Action<Hash, Phantasma.SDK.Transaction?, string> transactionCallback;
 
-        private void InvokeTransactionCallback(Hash hash, string error)
+        private void InvokeTransactionCallback(Hash hash, Phantasma.SDK.Transaction? txResult, string error)
         {
             var temp = transactionCallback;
             transactionCallback = null;
-            temp?.Invoke(hash, error);
+            temp?.Invoke(hash, txResult, error);
         }
 
-        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, string> callback)
+        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             if (script == null && transferRequest == null)
             {
                 MessageBox(MessageKind.Error, "Null transaction script and request", () =>
                 {
-                    callback(Hash.Null, "Null transaction scrip and requestt");
+                    callback(Hash.Null, null, "Null transaction scrip and request");
                 });
             }
 
@@ -4021,16 +4083,13 @@ namespace Poltergeist
                                         {
                                             PopState();
 
-                                            MessageBox(MessageKind.Error, $"Error sending transaction.\n{error}", () =>
-                                            {
-                                                callback(Hash.Null, error);
-                                            });
+                                            callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
                                         }
                                     });
                                 }
                                 else
                                 {
-                                    callback(Hash.Null, null); // User cancelled tx
+                                    callback(Hash.Null, null, null); // User cancelled tx
                                 };
                             });
                         });
@@ -4041,19 +4100,19 @@ namespace Poltergeist
                 {
                     MessageBox(MessageKind.Error, $"Authorization failed.", () =>
                     {
-                        callback(Hash.Null, "Authorization failed.");
+                        callback(Hash.Null, null, "Authorization failed.");
                     });
                 }
             });
         }
 
-        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, string> callback)
+        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             if (scripts.Count() == 0)
             {
                 MessageBox(MessageKind.Error, "Null transaction script", () =>
                 {
-                    callback(Hash.Null, "Null transaction script");
+                    callback(Hash.Null, null, "Null transaction script");
                 });
             }
 
@@ -4095,7 +4154,7 @@ namespace Poltergeist
                                 }
                                 else
                                 {
-                                    callback(Hash.Null, null); // Cancelled by user
+                                    callback(Hash.Null, null, null); // Cancelled by user
                                 };
                             });
                         });
@@ -4106,13 +4165,13 @@ namespace Poltergeist
                 {
                     MessageBox(MessageKind.Error, $"Authorization failed.", () =>
                     {
-                        callback(Hash.Null, "Authorization failed.");
+                        callback(Hash.Null, null, "Authorization failed.");
                     });
                 }
             });
         }
 
-        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, string> callback)
+        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             PushState(GUIState.Sending);
 
@@ -4122,7 +4181,7 @@ namespace Poltergeist
                 {
                     if (scripts.Count() > 1)
                     {
-                        ShowConfirmationScreen(hash, false, (txHash, error) =>
+                        ShowConfirmationScreen(hash, false, (txHash, txResult, error) =>
                         {
                             if (string.IsNullOrEmpty(error))
                             {
@@ -4142,13 +4201,13 @@ namespace Poltergeist
 
                     MessageBox(MessageKind.Error, $"Error sending transaction.\n{error}", () =>
                     {
-                        callback(Hash.Null, error);
+                        callback(Hash.Null, null, error);
                     });
                 }
             });
         }
 
-        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, string> callback)
+        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
         {
             transactionCallback = callback;
             transactionStillPending = true;
@@ -4199,7 +4258,7 @@ namespace Poltergeist
                         // If not - reduce to balance
                         // We should update balance first
                         balance = AccountManager.Instance.CurrentState.GetAvailableAmount(symbol);
-                        if (amount > balance)
+                        if (amount > balance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
                             amount = balance;
 
                         byte[] script;
@@ -4229,9 +4288,9 @@ namespace Poltergeist
                             return;
                         }
 
-                        SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                        SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
+                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                         });
                     }
                     else
@@ -4305,10 +4364,10 @@ namespace Poltergeist
                                 {
                                     var item = TtrsStore.GetNft(nft);
 
-                                    if (item.NameEnglish != null)
-                                        nftDescription = " " + ((item.NameEnglish.Length > 25) ? item.NameEnglish.Substring(0, 22) + "..." : item.NameEnglish);
+                                    if (item.item_info.name_english != null)
+                                        nftDescription = " " + ((item.item_info.name_english.Length > 25) ? item.item_info.name_english.Substring(0, 22) + "..." : item.item_info.name_english);
 
-                                    nftDescription += " Minted " + item.Timestamp.ToString("dd.MM.yy") + " #" + item.Mint;
+                                    nftDescription += " Minted " + item.timestamp.ToString("dd.MM.yy") + " #" + item.mint;
                                 }
 
                                 description += $"#{nft.Substring(0, 5) + "..." + nft.Substring(nft.Length - 5)}{nftDescription}\n";
@@ -4328,11 +4387,11 @@ namespace Poltergeist
                         return;
                     }
 
-                    SendPhaTransactions(description, scripts, gasPrice, gasLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                    SendPhaTransactions(description, scripts, gasPrice, gasLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                     {
                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                         {
-                            TxResultMessage(hash, error, $"You transfered {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!");
+                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
                             // Removing sent NFTs from current NFT list.
                             var nfts = accountManager.CurrentNfts;
@@ -4348,7 +4407,7 @@ namespace Poltergeist
                         }
                         else
                         {
-                            TxResultMessage(hash, error, null, "Some or all transactions failed.");
+                            TxResultMessage(hash, txResult, error, null, "Some or all transactions failed.");
                         }
                     });
                 }
@@ -4396,6 +4455,12 @@ namespace Poltergeist
                 }
 
                 decimal amount = ParseNumber(temp);
+
+                if(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
+                {
+                    callback(amount);
+                    return;
+                }
 
                 if (amount > 0 && ValidDecimals(amount, symbol))
                 {
@@ -4482,7 +4547,7 @@ namespace Poltergeist
                 }
             }
 
-            if (swapDecimals> 0 || swapBalance > 1)
+            if ((swapDecimals> 0 || swapBalance > 1) && accountManager.Settings.devMode)
             {
                 PromptBox($"Not enough {feeSymbol} for transaction fees.\nUse some {swapSymbol} to perform a cosmic swap?", ModalYesNo,
                      (result) =>
@@ -4520,10 +4585,11 @@ namespace Poltergeist
                              var swapSymbolBalance = AccountManager.Instance.CurrentState.GetAvailableAmount(swapSymbol);
                              var feeSymbolBalance = AccountManager.Instance.CurrentState.GetAvailableAmount(feeSymbol);
                              Log.Write($"Balance before swap: {swapSymbol}: {swapSymbolBalance}, {feeSymbol}: {feeSymbolBalance}.");
-                             SendTransaction($"Swap {swapSymbol} for {feeSymbol}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, error) =>
+                             SendTransaction($"Swap {swapSymbol} for {feeSymbol}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                              {
                                  if (!string.IsNullOrEmpty(error) || hash == Hash.Null)
                                  {
+                                     TxResultMessage(hash, txResult, error);
                                      callback(PromptResult.Failure);
                                  }
                                  else
@@ -4566,7 +4632,7 @@ namespace Poltergeist
                                                          // Balance updated after swap.
                                                          callback(PromptResult.Success);
                                                      }
-                                                 }, true);
+                                                 });
                                              }
                                              else
                                              {
@@ -4591,7 +4657,8 @@ namespace Poltergeist
             }
             else
             {
-                MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.\nHowever to use {swapSymbol} cosmic swaps, you need at least 2 {swapSymbol}.");
+                MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.");
+                // \nHowever to use {swapSymbol} cosmic swaps, you need at least 2 {swapSymbol}.
             }
         }
         #endregion

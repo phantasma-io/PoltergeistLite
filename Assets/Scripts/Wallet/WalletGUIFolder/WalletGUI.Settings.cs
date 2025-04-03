@@ -270,6 +270,13 @@ namespace Poltergeist
             GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Developer mode");
             curY += Units(3);
 
+            if(settings.devMode)
+            {
+                settings.devMode_NoValidation = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode_NoValidation, "");
+                GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "No validation mode");
+                curY += Units(3);
+            }
+
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Phantasma staking info", () =>
             {
                 byte[] scriptMasterClaimDate;
@@ -304,7 +311,7 @@ namespace Poltergeist
                 {
                     if(!string.IsNullOrEmpty(masterClaimInvokeError))
                     {
-                        MessageBox(MessageKind.Error, "Script invokation error!\n\n" + masterClaimInvokeError);
+                        MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterClaimInvokeError);
                         return;
                     }
                     else
@@ -319,7 +326,7 @@ namespace Poltergeist
                         {
                             if (!string.IsNullOrEmpty(claimMasterCountInvokeError))
                             {
-                                MessageBox(MessageKind.Error, "Script invokation error!\n\n" + claimMasterCountInvokeError);
+                                MessageBox(MessageKind.Error, "Script invocation error!\n\n" + claimMasterCountInvokeError);
                                 return;
                             }
                             else
@@ -328,7 +335,7 @@ namespace Poltergeist
                                 {
                                     if (!string.IsNullOrEmpty(masterCountInvokeError))
                                     {
-                                        MessageBox(MessageKind.Error, "Script invokation error!\n\n" + masterCountInvokeError);
+                                        MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterCountInvokeError);
                                         return;
                                     }
                                     else
@@ -337,7 +344,7 @@ namespace Poltergeist
                                         {
                                             if (!string.IsNullOrEmpty(masterThresholdInvokeError))
                                             {
-                                                MessageBox(MessageKind.Error, "Script invokation error!\n\n" + masterThresholdInvokeError);
+                                                MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterThresholdInvokeError);
                                                 return;
                                             }
                                             else

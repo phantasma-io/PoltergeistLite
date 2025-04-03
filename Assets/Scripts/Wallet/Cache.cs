@@ -1,8 +1,9 @@
 using System;
 using System.IO;
-using LunarLabs.Parser;
 using UnityEngine;
 using Phantasma.SDK;
+using Newtonsoft.Json;
+using System.Collections.Generic;
 
 public static class Cache
 {
@@ -47,54 +48,49 @@ public static class Cache
         Directory.CreateDirectory(ImageFolderPath);
     }
 
+    public class CacheInfo
+    {
+        public string cacheId;
+        public DateTime timestamp;
+        public string size;
+        public string walletName;
+    }
+
     private static void UpdateRegistry(string CacheId, DateTime Timestamp, int Size, string WalletName)
     {
-        DataNode root;
+        List<CacheInfo> cacheInfos = new();
 
         if (File.Exists(FilePath))
         {
-            root = DataFormats.LoadFromFile(FilePath);
+            try
+            {
+                cacheInfos = JsonConvert.DeserializeObject<List<CacheInfo>>(File.ReadAllText(FilePath));
+            }
+            catch
+            {
+                Log.Write("Cache is corrupted, probably old version");
+            }
+        }
+
+        int index = cacheInfos.FindIndex(x => x.cacheId == CacheId);
+        if (index != -1)
+        {
+            cacheInfos[index].timestamp = Timestamp;
+            cacheInfos[index].size = Size.ToString();
+            cacheInfos[index].walletName = WalletName;
         }
         else
         {
-            root = DataNode.CreateObject();
+            cacheInfos.Add(new CacheInfo
+            {
+                cacheId = CacheId,
+                timestamp = Timestamp,
+                size = Size.ToString(),
+                walletName = WalletName
+            });
         }
 
-        DataNode caches;
-        if (root.HasNode("caches"))
-            caches = root.GetNode("caches");
-        else
-            caches = root.AddNode(DataNode.CreateObject("caches"));
-
-        DataNode cacheNode;
-        if (caches.HasNode(CacheId))
-        {
-            cacheNode = caches.GetNode(CacheId);
-        }
-        else
-        {
-            cacheNode = caches.AddNode(DataNode.CreateObject(CacheId));
-        }
-
-        if (cacheNode.HasNode("timestamp"))
-            cacheNode.GetNode("timestamp").Value = Timestamp.ToString();
-        else
-            cacheNode.AddField("timestamp", Timestamp.ToString());
-
-        if (cacheNode.HasNode("size"))
-            cacheNode.GetNode("size").Value = Size.ToString();
-        else
-            cacheNode.AddField("size", Size.ToString());
-
-        if (cacheNode.HasNode("wallet-name"))
-            cacheNode.GetNode("wallet-name").Value = WalletName;
-        else
-        {
-            if(!String.IsNullOrEmpty(WalletName))
-                cacheNode.AddField("wallet-name", WalletName);
-        }
-
-        DataFormats.SaveToFile(FilePath, root);
+        File.WriteAllText(FilePath, JsonConvert.SerializeObject(cacheInfos, Formatting.Indented));
     }
 
     private static Nullable<DateTime> GetRegistryTimestamp(string CacheId)
@@ -104,32 +100,24 @@ public static class Cache
             return null;
         }
 
-        var root = DataFormats.LoadFromFile(FilePath);
 
-        var caches = root.GetNode("caches");
-        if (caches == null)
+        List<CacheInfo> cacheInfos = new();
+        try
         {
-            Log.Write("caches == null");
-            return null;
+            cacheInfos = JsonConvert.DeserializeObject<List<CacheInfo>>(File.ReadAllText(FilePath));
+        }
+        catch
+        {
+            Log.Write("Cache is corrupted, probably old version");
         }
 
-        var cacheNode = caches.GetNode(CacheId);
-        if (cacheNode == null)
+        int index = cacheInfos.FindIndex(x => x.cacheId == CacheId);
+        if (index != -1)
         {
-            return null;
+            return cacheInfos[index].timestamp;
         }
 
-        string timestamp = cacheNode.GetString("timestamp");
-
-        if (String.IsNullOrEmpty(timestamp))
-        {
-            return null;
-        }
-
-        if (DateTime.TryParse(timestamp, out var ts))
-            return ts;
-        else
-            return null;
+        return null;
     }
 
     private static string GetFilePath(string CacheId, FileType FileType)
@@ -219,18 +207,20 @@ public static class Cache
         UpdateRegistry(CacheId, DateTime.Now, 0, WalletName);
     }
 
-    public static void AddDataNode(string CacheId, FileType FileType, DataNode CacheContents, string WalletAddress = "", string WalletName = "")
+    public static void SaveTokenDatas(string CacheId, FileType FileType, TokenData[] CacheContents, string WalletAddress = "", string WalletName = "")
     {
         if (!String.IsNullOrEmpty(WalletAddress))
             CacheId = CacheId + "." + WalletAddress;
 
         string filePath = GetFilePath(CacheId, FileType);
 
-        var serializedCacheContents = DataFormats.SaveToString(DataFormat.JSON, CacheContents);
+        var serializedCacheContents = JsonConvert.SerializeObject(CacheContents, Formatting.Indented);
+
         File.WriteAllText(filePath, serializedCacheContents);
 
         UpdateRegistry(CacheId, DateTime.Now, System.Text.ASCIIEncoding.ASCII.GetByteCount(serializedCacheContents), WalletName);
     }
+
     public static void ClearDataNode(string CacheId, FileType FileType, string WalletAddress = "", string WalletName = "")
     {
         if (!String.IsNullOrEmpty(WalletAddress))
@@ -281,13 +271,45 @@ public static class Cache
         return texture;
     }
 
-    public static DataNode GetDataNode(string CacheId, FileType FileType, int CacheLifetimeInMinutes, string WalletAddress = "")
+    public static TokenData[] GetTokenCache(string CacheId, FileType FileType, int CacheLifetimeInMinutes, string WalletAddress = "")
     {
         var cacheContents = GetAsString(CacheId, FileType, CacheLifetimeInMinutes, WalletAddress);
 
         if (String.IsNullOrEmpty(cacheContents))
             return null;
 
-        return DataFormats.LoadFromString(cacheContents);
+        TokenData[] cache = new TokenData[]{};
+        try
+        {
+            cache = JsonConvert.DeserializeObject<TokenData[]>(cacheContents);
+        }
+        catch
+        {
+            Log.Write("Cache is corrupted, probably old version");
+        }
+
+        if(cache == null)
+        {
+            cache = new TokenData[]{};
+        }
+
+        return cache;
+    }
+    public static TokenData? FindTokenData(TokenData[] cache, string id)
+    {
+        if(cache == null)
+        {
+            return null;
+        }
+
+        foreach (var cachedToken in cache)
+        {
+            if (cachedToken.ID == id)
+            {
+                return cachedToken;
+            }
+        }
+
+        return null;
     }
 }

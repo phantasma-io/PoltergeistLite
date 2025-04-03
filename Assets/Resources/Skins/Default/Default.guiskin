@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 12001, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: Default
   m_EditorClassIdentifier: 
-  m_Font: {fileID: 12800000, guid: 4a24db803eac8e74584c387a8f18d0b4, type: 3}
+  m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
   m_box:
     m_Name: box
     m_Normal:

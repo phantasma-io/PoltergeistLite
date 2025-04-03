@@ -8,6 +8,7 @@ using LunarLabs.Parser;
 using LunarLabs.Parser.JSON;
 using System.Text;
 using System.Threading;
+using Newtonsoft.Json;
 
 namespace Phantasma.SDK
 {
@@ -29,35 +30,37 @@ namespace Phantasma.SDK
 
             return requestNumber;
         }
-        public static IEnumerator RPCRequest(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
-                                            Action<DataNode> callback, params object[] parameters)
+
+        public class JsonRpcRequest
         {
-            var paramData = DataNode.CreateArray("params");
+            public string jsonrpc = "2.0";
+            public string method;
+            public string id = "1";
+            public object[] @params;
 
-            if (parameters != null && parameters.Length > 0)
+            public JsonRpcRequest(string method, object[] parameters)
             {
-                foreach (var obj in parameters)
-                {
-                    paramData.AddField(null, obj);
-                }
+                this.method = method;
+                this.@params = parameters;
             }
+        }
+        public class JsonRpcError
+        {
+            public int code;
+            public string message;
+        }
+        public class JsonRpcResponse<T>
+        {
+            public string jsonrpc;
+            public string id;
+            public T result;
+            public JsonRpcError error;
+        }
 
-            var jsonRpcData = DataNode.CreateObject(null);
-            jsonRpcData.AddField("jsonrpc", "2.0");
-            jsonRpcData.AddField("method", method);
-            jsonRpcData.AddField("id", "1");
-            jsonRpcData.AddNode(paramData);
-
-            string json;
-
-            try
-            {
-                json = JSONWriter.WriteToString(jsonRpcData);
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+        public static IEnumerator RPCRequest<T>(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
+                                            Action<T> callback, params object[] parameters)
+        {
+            var json = JsonConvert.SerializeObject(new JsonRpcRequest(method, parameters));
 
             var requestNumber = GetNextRequestNumber();
             Log.Write($"RPC request [{requestNumber}]\nurl: {url}\njson: {json}", Log.Level.Networking);
@@ -99,7 +102,7 @@ namespace Phantasma.SDK
             else
             {
                 Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                DataNode root = null;
+                JsonRpcResponse<T> rpcResponse = null;
 
                 try
                 {
@@ -107,7 +110,7 @@ namespace Phantasma.SDK
 
                     try
                     {
-                        root = JSONReader.ReadFromString(stringResponse);
+                        rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
                     }
                     catch
                     {
@@ -119,6 +122,7 @@ namespace Phantasma.SDK
                             if (cutFrom > 0)
                             {
                                 stringResponse = stringResponse.Substring(0, cutFrom) + "]}";
+                                rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
                             }
                         }
                         else
@@ -126,166 +130,76 @@ namespace Phantasma.SDK
                             throw;
                         }
                     }
-
-                    root = JSONReader.ReadFromString(stringResponse);
-                }
-                catch (Exception e)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.Message, Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse JSON: " + e.Message);
-                    yield break;
-                }
-
-                if (root == null)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "failed to parse JSON");
-                }
-                else
-                if (root.HasNode("error"))
-                {
-                    var errorDesc = root["error"].GetString("message");
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {errorDesc}", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, errorDesc);
-                }
-                else
-                if (root.HasNode("result"))
-                {
-                    var result = root["result"];
-
-                    if (result.HasNode("error"))
+                    if (rpcResponse != null && rpcResponse.result != null && rpcResponse.error == null)
                     {
-                        // This is incorrect way of RPC error reporting,
-                        // but it happens sometimes and should be handeled at least for now.
-                        var errorDesc = result.GetString("error");
-                        Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found (2): {errorDesc}", Log.Level.Networking);
-                        if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, errorDesc);
+                        callback?.Invoke(rpcResponse.result);
                     }
                     else
                     {
-                        callback(result);
+                        if (rpcResponse?.error != null)
+                        {
+                            Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {rpcResponse.error.message}", Log.Level.Networking);
+                            if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, rpcResponse.error.message);
+                        }
+                        else
+                        {
+                            errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Invalid or null response");
+                        }
                     }
                 }
-                else
+                catch (Exception e)
                 {
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.MALFORMED_RESPONSE, "malformed response");
+                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.ToString(), Log.Level.Networking);
+                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse RPC response: \"" + e.Message + "\"");
+                    yield break;
                 }
             }
 
             yield break;
         }
-        public static IEnumerator RPCRequestEx(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
-            Action<DataNode> callback, DataNode parametersNode)
+
+        public static IEnumerator RESTRequestT<T>(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
-            var jsonRpcData = DataNode.CreateObject(null);
-            jsonRpcData.AddField("jsonrpc", "2.0");
-            jsonRpcData.AddField("method", method);
-            jsonRpcData.AddField("id", "1");
-            jsonRpcData.AddNode(parametersNode);
-
-            string json;
-
-            try
-            {
-                json = JSONWriter.WriteToString(jsonRpcData);
-            }
-            catch (Exception e)
-            {
-                throw e;
-            }
+            UnityWebRequest request;
 
             var requestNumber = GetNextRequestNumber();
-            Log.Write($"RPC request [{requestNumber}]\nurl: {url}\njson: {json}", Log.Level.Networking);
+            Log.Write($"REST request [{requestNumber}]\nurl: {url}", Log.Level.Networking);
 
-            byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
+            request = new UnityWebRequest(url, "GET");
+            request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
 
             DateTime startTime = DateTime.Now;
 
-            UnityWebRequest request;
-            for (; ; )
-            {
-                request = new UnityWebRequest(url, "POST");
-                request.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
-                request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-                request.SetRequestHeader("Content-Type", "application/json");
-
-                if (timeout > 0)
-                    request.timeout = timeout;
-
-                yield return request.SendWebRequest();
-
-                if (request.error == null || retriesOnNetworkError == 0)
-                {
-                    // success
-                    break;
-                }
-
-                Log.Write($"RPC network error [{requestNumber}], {retriesOnNetworkError} retries left.", Log.Level.Networking);
-                Thread.Sleep(1000);
-                retriesOnNetworkError--;
-            }
-
+            if (timeout > 0)
+                request.timeout = timeout;
+            
+            yield return request.SendWebRequest();
+            
             TimeSpan responseTime = DateTime.Now - startTime;
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                Log.Write($"RPC error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
+                Log.Write($"REST error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
                 if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
             }
             else
             {
-                Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                DataNode root = null;
-
+                T response = default;
                 try
                 {
-                    root = JSONReader.ReadFromString(request.downloadHandler.text);
+                    Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
+                    response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.Message, Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse JSON: " + e.Message);
-                    yield break;
+                    Log.Write(e.Message);
                 }
-
-                if (root == null)
-                {
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "failed to parse JSON");
-                }
-                else
-                if (root.HasNode("error"))
-                {
-                    var errorDesc = root["error"].GetString("message");
-                    Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {errorDesc}", Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, errorDesc);
-                }
-                else
-                if (root.HasNode("result"))
-                {
-                    var result = root["result"];
-
-                    if (result.HasNode("error"))
-                    {
-                        // This is incorrect way of RPC error reporting,
-                        // but it happens sometimes and should be handeled at least for now.
-                        var errorDesc = result.GetString("error");
-                        Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found (2): {errorDesc}", Log.Level.Networking);
-                        if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, errorDesc);
-                    }
-                    else
-                    {
-                        callback(result);
-                    }
-                }
-                else
-                {
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.MALFORMED_RESPONSE, "malformed response");
-                }
+                callback(response);
             }
 
             yield break;
         }
+
         public static IEnumerator RESTRequest(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<DataNode> callback)
         {
             UnityWebRequest request;
@@ -328,7 +242,7 @@ namespace Phantasma.SDK
             yield break;
         }
 
-        public static IEnumerator RESTRequest(string url, string serializedJson, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<DataNode> callback)
+        public static IEnumerator RESTRequest<T>(string url, string serializedJson, bool deserializeResponse, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
 
@@ -355,17 +269,25 @@ namespace Phantasma.SDK
             }
             else
             {
-                DataNode root = null;
+                Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
+
+                T response = default;
                 try
                 {
-                    Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                    root = JSONReader.ReadFromString(request.downloadHandler.text);
+                    if(deserializeResponse)
+                    {
+                        response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
+                    }
+                    else
+                    {
+                        response = (T)(object)request.downloadHandler.text;
+                    }
                 }
                 catch(Exception e)
                 {
                     Log.Write(e.Message);
                 }
-                callback(root);
+                callback(response);
             }
 
             yield break;

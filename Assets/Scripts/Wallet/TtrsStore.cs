@@ -1,12 +1,10 @@
-using UnityEngine;
-using UnityEngine.Networking;
 using Phantasma.SDK;
-using LunarLabs.Parser;
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json;
 
 // Parsing and storing data received from TTRS store.
 public static class TtrsStore
@@ -18,36 +16,55 @@ public static class TtrsStore
 
     public struct Nft
     {
-        public string Id;
-        public UInt64 Item; // "item": "371"
-        public string Url; // "url": "http://www.22series.com/api/store/part_info?id=371"
-        public string Img; // "img": "http://www.22series.com/api/store/part_img?id=371"
-        public string NftType; // "type": "Item"
-        public UInt64 Source; // "source": 0
-        public UInt64 SourceData; // "source_data": 2
-        public DateTime Timestamp; // "timestamp": 1581797657
-        public UInt64 Mint; // "mint": 3
+        [JsonIgnore]
+        public string id;
+        public string item; // "item": "371"
+        public string url; // "url": "http://www.22series.com/api/store/part_info?id=371"
+        public string img; // "img": "http://www.22series.com/api/store/part_img?id=371"
+        public string type; // "type": "Item"
+        public UInt64 source; // "source": 0
+        public UInt64 source_data; // "source_data": 2
+        public UInt64 timestamp; // "timestamp": 1581797657
+        public UInt64 mint; // "mint": 3
 
-        public string NameEnglish; // "name_english": "Akuna Front Spoiler (Carbon Fibre)"
-        public string Make; // "make": "Kaya"
-        public string Model; // "model": "Akuna"
-        public string Part; // "part": "Front Spoiler"
-        public string Material; // "material": "Aluminium"
-        public string ImageUrl; // "image_url": "http://www.22series.com/api/store/part_img?id=371"
-        public string DescriptionEnglish; // "description_english": "Make: Kaya<br/>Model: Akuna<br/>Part: Aluminium Front Spoiler<br/>Aerodynamic Adjustable<br/>Finish: Clear (High Gloss)<br/>Part No: KA-3301-AERO-SP-FR-Carbon-Fibre"
-        public string DisplayTypeEnglish; // "display_type_english": "Part"
-        public UInt64 ItemDefId; // "itemdefid": 371
-        public UInt64 Season; // "season": 1
-        public UInt64 Rarity; // "rarity": 3
-        public string BodyPart; // "body_part": "AeroSpoilerFront"
-        public string ModelAsset; // "model_asset": "ka-3301-aero-sp-fr-carbon-fibre"
-        public string Type; // "type": "kaya akuna"
-        public string ParentTypes; // "parent_types": "kaya akuna"
-        public string Series; // "series": ""
-        public string Extra; // "extra": "Aerodynamic Adjustable"
-        public string Color; // "color": "Clear"
-        public string Finish; // "finish": "High Gloss"
-        public UInt64 MintLimit; // "mint_limit": 0
+        public ItemInfo item_info;
+
+        public DateTime timestampDT()
+        {
+            return new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc)
+                .AddSeconds(timestamp).ToLocalTime();
+        }
+        public void Postprocess(string id)
+        {
+            this.id = id;
+
+            if (item_info.rarity == 5) // Fixing ttrs rarity gap.
+                item_info.rarity = 4;
+        }
+    }
+
+    public struct ItemInfo
+    {
+        public string name_english; // "name_english": "Akuna Front Spoiler (Carbon Fibre)"
+        public string make; // "make": "Kaya"
+        public string model; // "model": "Akuna"
+        public string part; // "part": "Front Spoiler"
+        public string material; // "material": "Aluminium"
+        public string image_url; // "image_url": "http://www.22series.com/api/store/part_img?id=371"
+        public string description_english; // "description_english": "Make: Kaya<br/>Model: Akuna<br/>Part: Aluminium Front Spoiler<br/>Aerodynamic Adjustable<br/>Finish: Clear (High Gloss)<br/>Part No: KA-3301-AERO-SP-FR-Carbon-Fibre"
+        public string display_type_english; // "display_type_english": "Part"
+        public UInt64 itemdefid; // "itemdefid": 371
+        public UInt64 season; // "season": 1
+        public UInt64 rarity; // "rarity": 3
+        public string body_part; // "body_part": "AeroSpoilerFront"
+        public string model_asset; // "model_asset": "ka-3301-aero-sp-fr-carbon-fibre"
+        public string type; // "type": "kaya akuna"
+        public string parent_types; // "parent_types": "kaya akuna"
+        public string series; // "series": ""
+        public string extra; // "extra": "Aerodynamic Adjustable"
+        public string color; // "color": "Clear"
+        public string finish; // "finish": "High Gloss"
+        public UInt64 mint_limit; // "mint_limit": 0
     }
 
     private static Hashtable StoreNft = new Hashtable();
@@ -63,69 +80,43 @@ public static class TtrsStore
         return StoreNft.Contains(id) ? (Nft)StoreNft[id] : new Nft();
     }
 
-    private static void LoadStoreNftFromDataNode(DataNode storeNft, Action<Nft> callback)
+    private static void LoadStoreNftFromApiResponse(Dictionary<string, Nft> storeNft, Action<Nft> callback)
     {
         if (storeNft == null)
         {
             return;
         }
 
-        foreach (DataNode item in storeNft.Children)
+        foreach (var (id, item) in storeNft)
         {
-            var currentId = item.Name;
+            if (!StoreNft.Contains(id))
+            {
+                item.Postprocess(id);
+                StoreNft.Add(id, item);
+            }
 
-            var nft = GetNft(currentId);
-            var newNft = String.IsNullOrEmpty(nft.Id); // There's no such NFT in StoreNft yet.
-
-            nft.Id = currentId;
-            nft.Item = item.GetUInt32("item");
-            nft.Url = item.GetString("url");
-            nft.Img = item.GetString("img");
-            nft.NftType = item.GetString("type");
-            nft.Source = item.GetUInt32("source");
-            nft.SourceData = item.GetUInt32("source_data");
-            nft.Timestamp = item.GetDateTime("timestamp");
-            nft.Mint = item.GetUInt32("mint");
-
-            var itemInfo = item.GetNode("item_info");
-            
-            nft.NameEnglish = itemInfo.GetString("name_english");
-            nft.Make = itemInfo.GetString("make");
-            nft.Model = itemInfo.GetString("model");
-            nft.Part = itemInfo.GetString("part");
-            nft.Material = itemInfo.GetString("material");
-            nft.ImageUrl = itemInfo.GetString("image_url");
-            nft.DescriptionEnglish = itemInfo.GetString("description_english");
-            nft.DisplayTypeEnglish = itemInfo.GetString("display_type_english");
-            nft.ItemDefId = itemInfo.GetUInt32("itemdefid");
-            nft.Season = itemInfo.GetUInt32("season");
-            nft.Rarity = itemInfo.GetUInt32("rarity");
-            if (nft.Rarity == 5) // Fixing ttrs rarity gap.
-                nft.Rarity = 4;
-            nft.BodyPart = itemInfo.GetString("body_part");
-            nft.ModelAsset = itemInfo.GetString("model_asset");
-            nft.Type = itemInfo.GetString("type");
-            nft.ParentTypes = itemInfo.GetString("parent_types");
-            nft.Series = itemInfo.GetString("series");
-            nft.Extra = itemInfo.GetString("extra");
-            nft.Color = itemInfo.GetString("color");
-            nft.Finish = itemInfo.GetString("finish");
-            nft.MintLimit = itemInfo.GetUInt32("mint_limit");
-
-            if(newNft)
-                StoreNft.Add(currentId, nft);
-
-            callback(nft);
+            callback(item);
         }
     }
 
     public static IEnumerator LoadStoreNft(string[] ids, Action<Nft> onItemLoadedCallback, Action onAllItemsLoadedCallback)
     {
         var url = "https://www.22series.com/api/store/nft";
-        var storeNft = Cache.GetDataNode("ttrs-store-nft", Cache.FileType.JSON, 60 * 24);
+
+        var cacheContents = Cache.GetAsString("ttrs-store-nft", Cache.FileType.JSON, 60 * 24);
+        Dictionary<string, Nft>? storeNft = null;
+        try
+        {
+            storeNft = JsonConvert.DeserializeObject<Dictionary<string, Nft>?>(cacheContents);
+        }
+        catch
+        {
+            Log.Write("Cache is corrupted, probably old version");
+        }
+
         if (storeNft != null)
         {
-            LoadStoreNftFromDataNode(storeNft, onItemLoadedCallback);
+            LoadStoreNftFromApiResponse(storeNft, onItemLoadedCallback);
 
             // Checking, that cache contains all needed NFTs.
             string[] missingIds = ids;
@@ -154,7 +145,7 @@ public static class TtrsStore
                 idList += ",\"" + ids[i] + "\"";
         }
 
-        yield return WebClient.RESTRequest(url, "{\"ids\":[" + idList + "]}", (error, msg) =>
+        yield return WebClient.RESTRequest<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", true, (error, msg) =>
         {
             Log.Write("LoadStoreNft() error: " + error);
         },
@@ -162,14 +153,14 @@ public static class TtrsStore
         {
             if (response != null)
             {
-                LoadStoreNftFromDataNode(response, onItemLoadedCallback);
+                LoadStoreNftFromApiResponse(response, onItemLoadedCallback);
 
                 if (storeNft != null)
                 {
                     // Cache already exists, need to add new nfts to existing cache.
-                    foreach (var node in response.Children)
+                    foreach (var item in response)
                     {
-                        storeNft.AddNode(node);
+                        storeNft.Add(item.Key, item.Value);
                     }
                 }
                 else
@@ -177,7 +168,7 @@ public static class TtrsStore
                     storeNft = response;
                 }
                 if (storeNft != null)
-                    Cache.Add("ttrs-store-nft", Cache.FileType.JSON, DataFormats.SaveToString(DataFormat.JSON, storeNft));
+                    Cache.Add("ttrs-store-nft", Cache.FileType.JSON, JsonConvert.SerializeObject(storeNft, Formatting.Indented));
             }
             onAllItemsLoadedCallback();
         });
@@ -185,41 +176,41 @@ public static class TtrsStore
 
     private static string NftToString(Nft nft)
     {
-        return "Item #: " + nft.Item + "\n" +
-            "URL: " + nft.Url + "\n" +
-            "Image: " + nft.Img + "\n" +
-            "Type: " + nft.Type + "\n" +
-            "Source: " + nft.Source + "\n" +
-            "Source Data: " + nft.SourceData + "\n" +
-            "Timestamp: " + nft.Timestamp + "\n" +
-            "Mint: " + nft.Mint + "\n" +
-            "Name (English): " + nft.NameEnglish + "\n" +
-            "Make: " + nft.Make + "\n" +
-            "Model: " + nft.Model + "\n" +
-            "Part: " + nft.Part + "\n" +
-            "Material: " + nft.Material + "\n" +
-            "ImageUrl: " + nft.ImageUrl + "\n" +
-            "Description (English): " + nft.DescriptionEnglish + "\n" +
-            "Display Type (English): " + nft.DisplayTypeEnglish + "\n" +
-            "ItemDefId: " + nft.ItemDefId + "\n" +
-            "Season: " + nft.Season + "\n" +
-            "Rarity: " + nft.Rarity + "\n" +
-            "BodyPart: " + nft.BodyPart + "\n" +
-            "ModelAsset: " + nft.ModelAsset + "\n" +
-            "Type: " + nft.Type + "\n" +
-            "Parent Types: " + nft.ParentTypes + "\n" +
-            "Series: " + nft.Series + "\n" +
-            "Extra: " + nft.Extra + "\n" +
-            "Color: " + nft.Color + "\n" +
-            "Finish: " + nft.Finish + "\n" +
-            "MintLimit: " + nft.MintLimit;
+        return "Item #: " + nft.item + "\n" +
+            "URL: " + nft.url + "\n" +
+            "Image: " + nft.img + "\n" +
+            "Type: " + nft.item_info.type + "\n" +
+            "Source: " + nft.source + "\n" +
+            "Source Data: " + nft.source_data + "\n" +
+            "Timestamp: " + nft.timestamp + "\n" +
+            "Mint: " + nft.mint + "\n" +
+            "Name (English): " + nft.item_info.name_english + "\n" +
+            "Make: " + nft.item_info.make + "\n" +
+            "Model: " + nft.item_info.model + "\n" +
+            "Part: " + nft.item_info.part + "\n" +
+            "Material: " + nft.item_info.material + "\n" +
+            "ImageUrl: " + nft.item_info.image_url + "\n" +
+            "Description (English): " + nft.item_info.description_english + "\n" +
+            "Display Type (English): " + nft.item_info.display_type_english + "\n" +
+            "ItemDefId: " + nft.item_info.itemdefid + "\n" +
+            "Season: " + nft.item_info.season + "\n" +
+            "Rarity: " + nft.item_info.rarity + "\n" +
+            "BodyPart: " + nft.item_info.body_part + "\n" +
+            "ModelAsset: " + nft.item_info.model_asset + "\n" +
+            "Type: " + nft.item_info.type + "\n" +
+            "Parent Types: " + nft.item_info.parent_types + "\n" +
+            "Series: " + nft.item_info.series + "\n" +
+            "Extra: " + nft.item_info.extra + "\n" +
+            "Color: " + nft.item_info.color + "\n" +
+            "Finish: " + nft.item_info.finish + "\n" +
+            "MintLimit: " + nft.item_info.mint_limit;
     }
 
     public static void LogStoreNft()
     {
-        for (int i = 0; i < StoreNft.Count; i++)
+        foreach (DictionaryEntry entry in StoreNft)
         {
-            Log.Write(NftToString((Nft)StoreNft[i]));
+            Log.Write(NftToString((Nft)entry.Value));
         }
     }
 }
