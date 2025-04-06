@@ -56,6 +56,13 @@ namespace Phantasma.SDK
             public T result;
             public JsonRpcError error;
         }
+        public class JsonRpcResponse
+        {
+            public string jsonrpc;
+            public string id;
+            public object result;
+            public JsonRpcError error;
+        }
 
         public static IEnumerator RPCRequest<T>(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
                                             Action<T> callback, params object[] parameters)
@@ -96,8 +103,33 @@ namespace Phantasma.SDK
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                Log.Write($"RPC error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
+                // Try extracting error details
+                int? errorCode = null;
+                string? errorMessage = null;
+                try
+                {
+                    var stringResponse = request.downloadHandler.text;
+                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
+                    errorCode = rpcResponse?.error?.code;
+                    errorMessage = rpcResponse?.error?.message;
+                }
+                catch
+                {
+                    // No parsable response body is available.
+                }
+
+                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
+                if(errorCode != null)
+                {
+                    error += "\nError code: " + errorCode.ToString();
+                }
+                if(errorMessage != null)
+                {
+                    error += "\nError message: " + errorMessage.ToString();
+                }
+
+                Log.Write($"RPC error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -179,8 +211,33 @@ namespace Phantasma.SDK
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                Log.Write($"REST error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
+                // Try extracting error details
+                int? errorCode = null;
+                string? errorMessage = null;
+                try
+                {
+                    var stringResponse = request.downloadHandler.text;
+                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
+                    errorCode = rpcResponse?.error?.code;
+                    errorMessage = rpcResponse?.error?.message;
+                }
+                catch
+                {
+                    // No parsable response body is available.
+                }
+
+                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
+                if(errorCode != null)
+                {
+                    error += "\nError code: " + errorCode.ToString();
+                }
+                if(errorMessage != null)
+                {
+                    error += "\nError message: " + errorMessage.ToString();
+                }
+
+                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -221,8 +278,33 @@ namespace Phantasma.SDK
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                Log.Write($"REST error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
+                // Try extracting error details
+                int? errorCode = null;
+                string? errorMessage = null;
+                try
+                {
+                    var stringResponse = request.downloadHandler.text;
+                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
+                    errorCode = rpcResponse?.error?.code;
+                    errorMessage = rpcResponse?.error?.message;
+                }
+                catch
+                {
+                    // No parsable response body is available.
+                }
+
+                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
+                if(errorCode != null)
+                {
+                    error += "\nError code: " + errorCode.ToString();
+                }
+                if(errorMessage != null)
+                {
+                    error += "\nError message: " + errorMessage.ToString();
+                }
+
+                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -264,8 +346,33 @@ namespace Phantasma.SDK
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                Log.Write($"REST error [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
+                // Try extracting error details
+                int? errorCode = null;
+                string? errorMessage = null;
+                try
+                {
+                    var stringResponse = request.downloadHandler.text;
+                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
+                    errorCode = rpcResponse?.error?.code;
+                    errorMessage = rpcResponse?.error?.message;
+                }
+                catch
+                {
+                    // No parsable response body is available.
+                }
+
+                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
+                if(errorCode != null)
+                {
+                    error += "\nError code: " + errorCode.ToString();
+                }
+                if(errorMessage != null)
+                {
+                    error += "\nError message: " + errorMessage.ToString();
+                }
+
+                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -310,8 +417,33 @@ namespace Phantasma.SDK
             // if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             if (request.result == UnityWebRequest.Result.ConnectionError)
             {
-                Log.Write($"Ping error\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.error}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}");
+                // Try extracting error details
+                int? errorCode = null;
+                string? errorMessage = null;
+                try
+                {
+                    var stringResponse = request.downloadHandler.text;
+                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
+                    errorCode = rpcResponse?.error?.code;
+                    errorMessage = rpcResponse?.error?.message;
+                }
+                catch
+                {
+                    // No parsable response body is available.
+                }
+
+                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
+                if(errorCode != null)
+                {
+                    error += "\nError code: " + errorCode.ToString();
+                }
+                if(errorMessage != null)
+                {
+                    error += "\nError message: " + errorMessage.ToString();
+                }
+
+                Log.Write($"Ping error error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
