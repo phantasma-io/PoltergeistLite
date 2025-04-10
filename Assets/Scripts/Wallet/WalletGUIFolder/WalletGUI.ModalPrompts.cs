@@ -203,10 +203,10 @@ namespace Poltergeist
                     }
                     else
                     {
-                        if(error != "Transaction failed")
-                        {
-                            message = "Transaction failed";
-                        }
+                        //if(error != "Transaction failed")
+                        //{
+                        //    message = "Transaction failed";
+                        //}
                     }
                 }
             }

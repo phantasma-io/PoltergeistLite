@@ -133,7 +133,16 @@ namespace Phantasma.Core.Domain
 
         public bool HasSignatures => Signatures != null && Signatures.Length > 0;
 
-        public void Sign(IKeyPair keypair, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
+        public static byte[] GetMessageHash(byte[] message)
+        {
+            var digest = new Org.BouncyCastle.Crypto.Digests.Sha256Digest();
+            digest.BlockUpdate(message, 0, message.Length);
+            byte[] hash = new byte[digest.GetDigestSize()];
+            digest.DoFinal(hash, 0);
+            return hash;
+        }
+
+        public Hash Sign(IKeyPair keypair, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
             Throw.If(keypair == null, "invalid keypair");
 
@@ -150,6 +159,8 @@ namespace Phantasma.Core.Domain
 
             sigs.Add(sig);
             this.Signatures = sigs.ToArray();
+
+            return new Hash(GetMessageHash(msg));
         }
 
         public bool IsSignedBy(Address address)
