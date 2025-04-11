@@ -277,7 +277,7 @@ namespace Poltergeist
                 curY += Units(3);
             }
 
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Phantasma staking info", () =>
+            DoButton(settings.devMode, new Rect(posX, curY, Units(16), Units(2)), "Phantasma staking info", () =>
             {
                 byte[] scriptMasterClaimDate;
                 byte[] scriptMasterCount;
@@ -374,7 +374,7 @@ namespace Poltergeist
             });
             curY += Units(3);
 
-            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Phantasma address info", () =>
+            DoButton(settings.devMode, new Rect(posX, curY, Units(16), Units(2)), "Phantasma address info", () =>
             {
                 ShowModal("Address", "Enter an address", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result, input) =>
                 {

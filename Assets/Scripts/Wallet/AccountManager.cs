@@ -639,7 +639,7 @@ namespace Poltergeist
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), customKeys, Settings.nexusName, script, chain, phaGasPrice, phaGasLimit, payload, PoW, (hashText, encodedTx) =>
+                        StartCoroutine(phantasmaApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), customKeys, Settings.nexusName, script, chain, phaGasPrice, phaGasLimit, payload, PoW, (hashText, encodedTx, txHash) =>
                         {
                             if (Settings.devMode)
                             {
@@ -650,6 +650,13 @@ namespace Poltergeist
                                 try
                                 {
                                     var hash = Hash.Parse(hashText);
+
+                                    if(hash != txHash)
+                                    {
+                                        callback(hash,  $"Error: RPC returned different hash, expected {txHash}");
+                                        return;
+                                    }
+
                                     callback(hash, null);
 
                                 }catch (Exception e)

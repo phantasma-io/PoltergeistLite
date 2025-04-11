@@ -413,11 +413,11 @@ namespace Phantasma.SDK
         }
 
         //Allows to broadcast a signed operation on the network, but it&apos;s required to build it manually.
-        public IEnumerator SendRawTransaction(string txData, Action<string, string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator SendRawTransaction(string txData, Hash txHash, Action<string, string, Hash> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
             yield return WebClient.RPCRequest<string>(Host, "sendRawTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
             {
-                callback(result, txData);
+                callback(result, txData, txHash);
             }, txData);
         }
 
@@ -485,7 +485,7 @@ namespace Phantasma.SDK
             }, hashText, blockIndex, Convert.ToBase64String(blockContent));
         }
 
-        public IEnumerator SignAndSendTransactionWithPayload(PhantasmaKeys keys, IKeyPair otherKeys, string nexus, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, ProofOfWork PoW, Action<string, string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
+        public IEnumerator SignAndSendTransactionWithPayload(PhantasmaKeys keys, IKeyPair otherKeys, string nexus, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, ProofOfWork PoW, Action<string, string, Hash> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
             Log.Write("Sending transaction...");
 
@@ -496,13 +496,13 @@ namespace Phantasma.SDK
                 tx.Mine(PoW);
             }
 
-            tx.Sign(keys, null);
+            Hash txHash = tx.Sign(keys, null);
             if (otherKeys != null)
             {
                 tx.Sign(otherKeys, customSignFunction);
             }
 
-            yield return SendRawTransaction(Base16.Encode(tx.ToByteArray(true)), callback, errorHandlingCallback);
+            yield return SendRawTransaction(Base16.Encode(tx.ToByteArray(true)), txHash, callback, errorHandlingCallback);
         }
 
         public static bool IsValidPrivateKey(string key)

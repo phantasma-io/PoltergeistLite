@@ -161,6 +161,8 @@ namespace Poltergeist
 
         public void TxResultMessage(Hash hash, Phantasma.SDK.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
+            var printDetails = false;
+
             if(hash == Hash.Null && txResult == null && error == null)
             {
                 // User cancelled tx
@@ -203,10 +205,10 @@ namespace Poltergeist
                     }
                     else
                     {
-                        if(error != "Transaction failed")
-                        {
-                            message = "Transaction failed";
-                        }
+                        //if(error != "Transaction failed")
+                        //{
+                        //    message = "Transaction failed";
+                        //}
                     }
                 }
             }
@@ -220,11 +222,29 @@ namespace Poltergeist
                     message += "\nResult: " + txResult.Value.result;
                     message += "\nComment: " + txResult.Value.debugComment;
                 }
+
+                printDetails = true;
             }
 
             if(hash != Hash.Null)
             {
                 message += "\nTransaction hash:\n" + hash;
+            }
+
+            if (printDetails)
+            {
+                message += "<size=-5>\n";
+                message += $"\nWallet version: {UnityEngine.Application.version} built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC";
+                message += $"\nEnvironment: Nexus: {accountManager.Settings.nexusName}";
+                message += $"\nRPC: {accountManager.Settings.phantasmaRPCURL}";
+                message += $"\nFee price: {accountManager.Settings.feePrice}";
+                message += $"\nFee limit: {accountManager.Settings.feeLimit}";
+                if(accountManager.Settings.devMode)
+                {
+                    message += $"\nDeveloper mode: {accountManager.Settings.devMode}";
+                    message += $"\nNo validation mode: {accountManager.Settings.devMode_NoValidation}";
+                }
+                message += "</size>";
             }
 
             ShowModal(success ? "Success" : (timeout ? "Attention" : "Failure"),

@@ -4083,7 +4083,14 @@ namespace Poltergeist
                                         {
                                             PopState();
 
-                                            callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
+                                            if(hash == Hash.Null)
+                                            {
+                                                callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
+                                            }
+                                            else
+                                            {
+                                                callback(hash, null, "Unknown error. Details:\n" + error);
+                                            }
                                         }
                                     });
                                 }
