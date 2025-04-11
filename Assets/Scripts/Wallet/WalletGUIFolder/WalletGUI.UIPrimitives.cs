@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Phantasma.SDK;
 using UnityEngine;
 
 namespace Poltergeist
@@ -56,15 +57,16 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
-            int curY = Units(4);
+            float curY = Units(4);
 
             var rect = new Rect(Units(1), curY, modalRect.width - Units(2), modalRect.height - Units(2));
 
-            int captionHeight = Units(modalLineCount) + 4 * modalLineCount + Units(1) + 4;
+            // int captionHeight = Units(modalLineCount) + 4 * modalLineCount + Units(1) + 4;
+            var captionHeight = GUI.skin.label.CalcHeight(new GUIContent(modalCaption), rect.width);
 
             // Calculating, how much space caption can occupy vertically.
             // Substracting space for buttons: Units(8).
-            int captionAvailableHeight = (int)rect.height - Units(8);
+            float captionAvailableHeight = (int)rect.height - Units(8);
 
             if (modalState == ModalState.Input || modalState == ModalState.Password)
             {
@@ -73,7 +75,7 @@ namespace Poltergeist
             }
 
             // Calculating, how much space caption will occupy vertically.
-            int captionDisplayedHeight = Math.Min(captionAvailableHeight, captionHeight);
+            var captionDisplayedHeight = Math.Min(captionAvailableHeight, captionHeight);
 
             int captionWidth = (int)rect.width;
 
@@ -112,7 +114,7 @@ namespace Poltergeist
 
             curY += captionDisplayedHeight;
 
-            int hintY;
+            float hintY;
 
             if (VerticalLayout)
             {
@@ -242,7 +244,7 @@ namespace Poltergeist
                 var hintList = modalHints.Keys.ToList();
 
                 var prevHind = hintComboBox.SelectedItemIndex;
-                var hintIndex = hintComboBox.Show(new Rect(rect.width - hintWidth + 8, curY, hintWidth, Units(2)), hintList, (int)modalRect.height - (curY + Units(2)) - Border, out dropHeight, modalHintsLabel);
+                var hintIndex = hintComboBox.Show(new Rect(rect.width - hintWidth + 8, curY, hintWidth, Units(2)), hintList, (int)(modalRect.height - (curY + Units(2)) - Border), out dropHeight, modalHintsLabel);
                 if (prevHind != hintIndex && hintIndex >= 0)
                 {
                     var key = hintList[hintIndex];
