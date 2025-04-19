@@ -121,7 +121,18 @@ namespace Poltergeist
 
             var accountManager = AccountManager.Instance;
 
-            var contracts = DisasmUtils.ExtractContractNames(script).Where(x => !knownContracts.Contains(x));
+            IEnumerable<string> contracts;
+
+            try
+            {
+                contracts = DisasmUtils.ExtractContractNames(script).Where(x => !knownContracts.Contains(x));
+            }
+            catch (Exception e)
+            {
+                callback(null, e.ToString());
+                yield break;
+            }
+
             var contractsToLoad = contracts.Count();
             var contractsProcessed = 0;
             foreach(var contract in contracts)
@@ -157,7 +168,7 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                callback(null, e.Message);
+                callback(null, e.ToString());
                 yield break;
             }
 

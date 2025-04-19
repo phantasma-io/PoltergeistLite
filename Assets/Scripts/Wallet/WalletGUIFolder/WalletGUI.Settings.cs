@@ -408,8 +408,7 @@ namespace Poltergeist
                         var script = Base16.Decode(input, false);
                         if (script == null)
                         {
-                            ShowModal("Script description", $"Cannot parse script '{input}'",
-                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse script '{input}'");
                         }
                         else
                         {
@@ -417,23 +416,20 @@ namespace Poltergeist
                             {
                                 WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, true, (description, error) =>
                                 {
-                                    string message;
-                                    if (description == null)
+                                    if (!string.IsNullOrEmpty(error))
                                     {
-                                        message = "Error during script parsing.\nDetails: " + error;
+                                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + error);
                                     }
                                     else
                                     {
-                                        message = description;
+                                        ShowModal("Script description", description,
+                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                     }
-
-                                    ShowModal("Script description", message,
-                                        ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                 }));
                             }
                             catch (Exception e)
                             {
-                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.Message);
+                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.ToString());
                                 return;
                             }
                         }
@@ -452,8 +448,7 @@ namespace Poltergeist
 
                         if (tx == null)
                         {
-                            ShowModal("Tx description", $"Cannot parse transaction '{input}'",
-                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse transaction '{input}'");
                         }
                         else
                         {
@@ -461,42 +456,39 @@ namespace Poltergeist
                             {
                                 WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(tx.Script, true, (description, error) =>
                                 {
-                                    string message;
-                                    if (description == null)
+                                    if (!string.IsNullOrEmpty(error))
                                     {
-                                        message = "Error during script parsing.\nDetails: " + error;
+                                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during tx parsing.\nDetails: " + error);
                                     }
                                     else
                                     {
-                                        message = description;
-                                    }
-
-                                    string signatures = "";
-                                    if (tx.HasSignatures)
-                                    {
-                                        foreach (var s in tx.Signatures)
+                                        string signatures = "";
+                                        if (tx.HasSignatures)
                                         {
-                                            signatures += s.ToString() + "\n";
+                                            foreach (var s in tx.Signatures)
+                                            {
+                                                signatures += s.ToString() + "\n";
+                                            }
                                         }
+
+                                        var message = "Nexus name: " + tx.NexusName + "\n" +
+                                            "Chain name: " + tx.ChainName + "\n" +
+                                            "Expiration: " + tx.Expiration + "\n" +
+                                            "Payload: " + System.Text.Encoding.UTF8.GetString(tx.Payload) + "\n" +
+                                            "Hash: " + tx.Hash + "\n" +
+                                            "Signatures count: " + (tx.HasSignatures ? tx.Signatures.Length : "0") + "\n" +
+                                            "Signatures: " + signatures + "\n" +
+                                            "\n" +
+                                            description;
+
+                                        ShowModal("Tx description", message,
+                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                     }
-
-                                    message = "Nexus name: " + tx.NexusName + "\n" +
-                                        "Chain name: " + tx.ChainName + "\n" +
-                                        "Expiration: " + tx.Expiration + "\n" +
-                                        "Payload: " + System.Text.Encoding.UTF8.GetString(tx.Payload) + "\n" +
-                                        "Hash: " + tx.Hash + "\n" +
-                                        "Signatures count: " + (tx.HasSignatures ? tx.Signatures.Length : "0") + "\n" +
-                                        "Signatures: " + signatures + "\n" +
-                                        "\n" +
-                                        message;
-
-                                    ShowModal("Tx description", message,
-                                        ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                 }));
                             }
                             catch (Exception e)
                             {
-                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.Message);
+                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.ToString());
                                 return;
                             }
                         }
