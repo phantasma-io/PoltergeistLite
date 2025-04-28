@@ -444,7 +444,16 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        var tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+                        Phantasma.Core.Domain.Transaction tx = null;
+                        try
+                        {
+                            tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+                        }
+                        catch (Exception e)
+                        {
+                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse transaction '{input}'.\nDetails: " + e.ToString());
+                            return;
+                        }
 
                         if (tx == null)
                         {
