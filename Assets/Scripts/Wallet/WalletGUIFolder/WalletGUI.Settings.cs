@@ -163,7 +163,6 @@ namespace Poltergeist
             }
 
             bool hasCustomEndPoints = false;
-            bool hasCustomFee = false;
             bool hasCustomName = settings.nexusKind == NexusKind.Custom;
 
             switch (settings.nexusKind)
@@ -172,20 +171,17 @@ namespace Poltergeist
                 case NexusKind.Local_Net:
                     {
                         hasCustomEndPoints = true;
-                        hasCustomFee = true;
                         break;
                     }
 
                 case NexusKind.Test_Net:
                     {
-                        hasCustomFee = true;
                         break;
                     }
 
                 default:
                     {
                         hasCustomEndPoints = false;
-                        hasCustomFee = false;
                         hasCustomName = false;
                         break;
                     }
@@ -221,18 +217,15 @@ namespace Poltergeist
                 curY += Units(3);
             }
 
-            if (hasCustomFee)
-            {
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee price");
-                var fee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feePrice.ToString());
-                BigInteger.TryParse(fee, out settings.feePrice);
-                curY += Units(3);
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee price");
+            var fee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feePrice.ToString());
+            BigInteger.TryParse(fee, out settings.feePrice);
+            curY += Units(3);
 
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee limit");
-                var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feeLimit.ToString());
-                BigInteger.TryParse(limit, out settings.feeLimit);
-                curY += Units(3);
-            }
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee limit");
+            var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feeLimit.ToString());
+            BigInteger.TryParse(limit, out settings.feeLimit);
+            curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");
             logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), availableLogLevels.ToArray(), WalletGUI.Units(2) * 3, out dropHeight);
@@ -408,8 +401,7 @@ namespace Poltergeist
                         var script = Base16.Decode(input, false);
                         if (script == null)
                         {
-                            ShowModal("Script description", $"Cannot parse script '{input}'",
-                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse script '{input}'");
                         }
                         else
                         {
@@ -417,23 +409,20 @@ namespace Poltergeist
                             {
                                 WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, true, (description, error) =>
                                 {
-                                    string message;
-                                    if (description == null)
+                                    if (!string.IsNullOrEmpty(error))
                                     {
-                                        message = "Error during script parsing.\nDetails: " + error;
+                                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + error);
                                     }
                                     else
                                     {
-                                        message = description;
+                                        ShowModal("Script description", description,
+                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                     }
-
-                                    ShowModal("Script description", message,
-                                        ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                 }));
                             }
                             catch (Exception e)
                             {
-                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.Message);
+                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.ToString());
                                 return;
                             }
                         }
@@ -448,12 +437,20 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        var tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+                        Phantasma.Core.Domain.Transaction tx = null;
+                        try
+                        {
+                            tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+                        }
+                        catch (Exception e)
+                        {
+                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse transaction '{input}'.\nDetails: " + e.ToString());
+                            return;
+                        }
 
                         if (tx == null)
                         {
-                            ShowModal("Tx description", $"Cannot parse transaction '{input}'",
-                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse transaction '{input}'");
                         }
                         else
                         {
@@ -461,42 +458,39 @@ namespace Poltergeist
                             {
                                 WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(tx.Script, true, (description, error) =>
                                 {
-                                    string message;
-                                    if (description == null)
+                                    if (!string.IsNullOrEmpty(error))
                                     {
-                                        message = "Error during script parsing.\nDetails: " + error;
+                                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during tx parsing.\nDetails: " + error);
                                     }
                                     else
                                     {
-                                        message = description;
-                                    }
-
-                                    string signatures = "";
-                                    if (tx.HasSignatures)
-                                    {
-                                        foreach (var s in tx.Signatures)
+                                        string signatures = "";
+                                        if (tx.HasSignatures)
                                         {
-                                            signatures += s.ToString() + "\n";
+                                            foreach (var s in tx.Signatures)
+                                            {
+                                                signatures += s.ToString() + "\n";
+                                            }
                                         }
+
+                                        var message = "Nexus name: " + tx.NexusName + "\n" +
+                                            "Chain name: " + tx.ChainName + "\n" +
+                                            "Expiration: " + tx.Expiration + "\n" +
+                                            "Payload: " + System.Text.Encoding.UTF8.GetString(tx.Payload) + "\n" +
+                                            "Hash: " + tx.Hash + "\n" +
+                                            "Signatures count: " + (tx.HasSignatures ? tx.Signatures.Length : "0") + "\n" +
+                                            "Signatures: " + signatures + "\n" +
+                                            "\n" +
+                                            description;
+
+                                        ShowModal("Tx description", message,
+                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                     }
-
-                                    message = "Nexus name: " + tx.NexusName + "\n" +
-                                        "Chain name: " + tx.ChainName + "\n" +
-                                        "Expiration: " + tx.Expiration + "\n" +
-                                        "Payload: " + System.Text.Encoding.UTF8.GetString(tx.Payload) + "\n" +
-                                        "Hash: " + tx.Hash + "\n" +
-                                        "Signatures count: " + (tx.HasSignatures ? tx.Signatures.Length : "0") + "\n" +
-                                        "Signatures: " + signatures + "\n" +
-                                        "\n" +
-                                        message;
-
-                                    ShowModal("Tx description", message,
-                                        ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
                                 }));
                             }
                             catch (Exception e)
                             {
-                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.Message);
+                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.ToString());
                                 return;
                             }
                         }

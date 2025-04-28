@@ -45,6 +45,26 @@ namespace Poltergeist
         private Texture2D _promptPicture;
 
         
+        private string GetAdditionalDetails()
+        {
+            var accountManager = AccountManager.Instance;
+
+            var details = "<size=-5>\n";
+            details += $"\nWallet version: {UnityEngine.Application.version} built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC";
+            details += $"\nEnvironment: Nexus: {accountManager.Settings.nexusName}";
+            details += $"\nRPC: {accountManager.Settings.phantasmaRPCURL}";
+            details += $"\nFee price: {accountManager.Settings.feePrice}";
+            details += $"\nFee limit: {accountManager.Settings.feeLimit}";
+            if(accountManager.Settings.devMode)
+            {
+                details += $"\nDeveloper mode: {accountManager.Settings.devMode}";
+                details += $"\nNo validation mode: {accountManager.Settings.devMode_NoValidation}";
+            }
+            details += "</size>";
+
+            return details;
+        }
+
 
         private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "")
         {
@@ -121,6 +141,7 @@ namespace Poltergeist
                 case MessageKind.Error:
                     title = "Error";
                     options = ModalOkCopy;
+                    caption += GetAdditionalDetails();
                     Log.Write($"Error MessageBox: {caption}");
                     break;
 
@@ -233,18 +254,7 @@ namespace Poltergeist
 
             if (printDetails)
             {
-                message += "<size=-5>\n";
-                message += $"\nWallet version: {UnityEngine.Application.version} built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC";
-                message += $"\nEnvironment: Nexus: {accountManager.Settings.nexusName}";
-                message += $"\nRPC: {accountManager.Settings.phantasmaRPCURL}";
-                message += $"\nFee price: {accountManager.Settings.feePrice}";
-                message += $"\nFee limit: {accountManager.Settings.feeLimit}";
-                if(accountManager.Settings.devMode)
-                {
-                    message += $"\nDeveloper mode: {accountManager.Settings.devMode}";
-                    message += $"\nNo validation mode: {accountManager.Settings.devMode_NoValidation}";
-                }
-                message += "</size>";
+                message += GetAdditionalDetails();
             }
 
             ShowModal(success ? "Success" : (timeout ? "Attention" : "Failure"),
