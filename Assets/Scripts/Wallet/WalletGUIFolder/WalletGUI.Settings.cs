@@ -163,7 +163,6 @@ namespace Poltergeist
             }
 
             bool hasCustomEndPoints = false;
-            bool hasCustomFee = false;
             bool hasCustomName = settings.nexusKind == NexusKind.Custom;
 
             switch (settings.nexusKind)
@@ -172,20 +171,17 @@ namespace Poltergeist
                 case NexusKind.Local_Net:
                     {
                         hasCustomEndPoints = true;
-                        hasCustomFee = true;
                         break;
                     }
 
                 case NexusKind.Test_Net:
                     {
-                        hasCustomFee = true;
                         break;
                     }
 
                 default:
                     {
                         hasCustomEndPoints = false;
-                        hasCustomFee = false;
                         hasCustomName = false;
                         break;
                     }
@@ -221,18 +217,15 @@ namespace Poltergeist
                 curY += Units(3);
             }
 
-            if (hasCustomFee)
-            {
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee price");
-                var fee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feePrice.ToString());
-                BigInteger.TryParse(fee, out settings.feePrice);
-                curY += Units(3);
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee price");
+            var fee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feePrice.ToString());
+            BigInteger.TryParse(fee, out settings.feePrice);
+            curY += Units(3);
 
-                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee limit");
-                var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feeLimit.ToString());
-                BigInteger.TryParse(limit, out settings.feeLimit);
-                curY += Units(3);
-            }
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee limit");
+            var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feeLimit.ToString());
+            BigInteger.TryParse(limit, out settings.feeLimit);
+            curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");
             logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), availableLogLevels.ToArray(), WalletGUI.Units(2) * 3, out dropHeight);
