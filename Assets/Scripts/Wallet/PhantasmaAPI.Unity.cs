@@ -394,7 +394,7 @@ namespace Phantasma.SDK
         //Returns the address that owns a given name.
         public IEnumerator LookUpName(string name, Action<string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<string>(Host, "lookUpName", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<string>(Host, "lookUpName", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, name);
@@ -404,7 +404,7 @@ namespace Phantasma.SDK
         //This api call is paginated, multiple calls might be required to obtain a complete result 
         public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactions, uint, uint> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<PaginatedResult<AccountTransactions>>(Host, "getAddressTransactions", WebClient.NoTimeout, 0, errorHandlingCallback, (paginatedResult) =>
+            yield return WebClient.RPCRequest<PaginatedResult<AccountTransactions>>(Host, "getAddressTransactions", WebClient.DefaultTimeout, 0, errorHandlingCallback, (paginatedResult) =>
             {
                 var currentPage = paginatedResult.page;
                 var totalPages = paginatedResult.totalPages;
@@ -415,7 +415,7 @@ namespace Phantasma.SDK
         //Allows to broadcast a signed operation on the network, but it&apos;s required to build it manually.
         public IEnumerator SendRawTransaction(string txData, Hash txHash, Action<string, string, Hash> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<string>(Host, "sendRawTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<string>(Host, "sendRawTransaction", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result, txData, txHash);
             }, txData);
@@ -425,7 +425,7 @@ namespace Phantasma.SDK
         //Allows to invoke script based on network state, without state changes.
         public IEnumerator InvokeRawScript(string chainInput, string scriptData, Action<Script> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Script>(Host, "invokeRawScript", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<Script>(Host, "invokeRawScript", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, chainInput, scriptData);
@@ -435,7 +435,7 @@ namespace Phantasma.SDK
         //Returns information about a transaction by hash.
         public IEnumerator GetTransaction(string hashText, Action<Transaction?> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Transaction?>(Host, "getTransaction", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<Transaction?>(Host, "getTransaction", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, hashText);
@@ -462,7 +462,7 @@ namespace Phantasma.SDK
             }
             tokensLoadedSimultaneously++;
 
-            yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 // TODO remove later
                 if(string.IsNullOrEmpty(result.ID))
@@ -479,7 +479,7 @@ namespace Phantasma.SDK
         //Writes the contents of an incomplete archive.
         public IEnumerator WriteArchive(string hashText, int blockIndex, byte[] blockContent, Action<Boolean> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<string>(Host, "writeArchive", WebClient.NoTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<string>(Host, "writeArchive", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(Boolean.Parse(result));
             }, hashText, blockIndex, Convert.ToBase64String(blockContent));
