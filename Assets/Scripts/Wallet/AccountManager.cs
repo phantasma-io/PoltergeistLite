@@ -473,7 +473,7 @@ namespace Poltergeist
                 }
                 catch (Exception e)
                 {
-                    Log.WriteError("Error deserializing accounts: " + e);
+                    Log.WriteFatalError("Error deserializing accounts: " + e);
                 }
             }
 
@@ -661,7 +661,7 @@ namespace Poltergeist
 
                                 }catch (Exception e)
                                 {
-                                    Log.WriteError("Error parsing hash: " + e.Message);
+                                    Log.WriteWarning("Error parsing hash: " + e.Message);
                                     callback(Hash.Null,  $"Error: hashText={hashText}");
                                     return;
                                 }

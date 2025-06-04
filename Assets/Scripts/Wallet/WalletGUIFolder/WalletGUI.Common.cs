@@ -38,7 +38,8 @@ namespace Poltergeist
         ScanQR,
         Backup,
         Exit,
-        Fatal
+        Fatal,
+        Warn
     }
 
     public enum PromptResult

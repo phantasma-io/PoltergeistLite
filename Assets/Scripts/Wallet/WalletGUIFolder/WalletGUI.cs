@@ -29,6 +29,14 @@ namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
+        private static bool warnUser;
+        private static string userWarning;
+        public static void WarnUser(string message)
+        {
+            warnUser = true;
+            userWarning = message;
+        }
+
         public Font monoFont;
         public RawImage background;
         private Texture2D soulMasterLogo;
@@ -271,6 +279,10 @@ namespace Poltergeist
                 case GUIState.Fatal:
                     currentTitle = "Fatal Error";
                     break;
+                
+                case GUIState.Warn:
+                    currentTitle = "Warning";
+                    break;
 
                 case GUIState.Wallets:
                     currentTitle = "Wallet List";
@@ -443,7 +455,19 @@ namespace Poltergeist
                 modalRedirected = false;
             }
 
-            var state = stateStack.Pop();
+            GUIState state;
+            if (stateStack.Count > 0)
+            {
+                state = stateStack.Pop();
+            }
+            else
+            {
+                // We don't have any states left,
+                // most likely we have been interrupted during wallet initialization
+                // and now we should continue.
+                state = GUIState.Wallets;
+            }
+            
             SetState(state);
         }
 
@@ -753,6 +777,11 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
             }
 
+            if (warnUser)
+            {
+                SetState(GUIState.Warn);
+                return;
+            }
 
             if (AccountManager.Instance.ReportGetPeersFailure)
             {
@@ -886,6 +915,10 @@ namespace Poltergeist
 
                 case GUIState.Fatal:
                     DoFatalScreen();
+                    break;
+                
+                case GUIState.Warn:
+                    DoWarningScreen();
                     break;
             }
 
@@ -2095,6 +2128,26 @@ namespace Poltergeist
                 MessageBox(MessageKind.Default, "Error log copied to clipboard.");
             });
         }
+        
+        private void DoWarningScreen()
+        {
+            warnUser = false;
+            Log.WriteWarning(userWarning);
+
+            int curY;
+
+            curY = Units(5);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.width - (Border+curY)), userWarning);
+
+            var btnWidth = Units(12);
+            curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
+            DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)),
+                "Continue", () =>
+            {
+                PopState();
+                userWarning = "";
+            });
+        }
 
         private void DoBalanceScreen()
         {
@@ -2111,7 +2164,6 @@ namespace Poltergeist
             {
                 accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
             });
-            
             var endY = DoBottomMenu();
 
             if (accountManager.BalanceRefreshing)
@@ -2123,7 +2175,7 @@ namespace Poltergeist
             if (state == null)
             {
                 var message = "Temporary error, cannot display balances...";
-                if(accountManager.rpcAvailablePhantasma == 0)
+                if (accountManager.rpcAvailablePhantasma == 0)
                 {
                     message = $"Please check your internet connection. All Phantasma RPC servers are unavailable.";
                 }

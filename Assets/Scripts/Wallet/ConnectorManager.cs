@@ -56,11 +56,11 @@ namespace Poltergeist
             {
                 listener.Bind(localEndPoint);
                 listener.Listen(20);
-
             }
             catch (Exception e)
             {
-                Log.WriteError(e.ToString());
+                WalletGUI.WarnUser($"Cannot initialize Phantasma Link module, port {port} is occupied");
+                Log.WriteWarning("Cannot initialize Phantasma Link module, error details: " + e.ToString());
                 return;
             }
 
@@ -104,7 +104,7 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                Log.WriteError(e.ToString());
+                Log.WriteWarning(e.ToString());
             }
         }
 
@@ -153,7 +153,7 @@ namespace Poltergeist
             }
             catch (System.Exception e)
             {
-                Log.WriteError("Exception when accepting incoming connection: " + e);
+                Log.WriteWarning("Exception when accepting incoming connection: " + e);
                 return;
             }
 
@@ -163,7 +163,7 @@ namespace Poltergeist
             }
             catch (System.Exception e)
             {
-                Log.WriteError("Exception when starting new accept process: " + e);
+                Log.WriteWarning("Exception when starting new accept process: " + e);
             }
 
             try
@@ -363,18 +363,18 @@ namespace Poltergeist
                                             }
                                             else
                                             {
-                                                Log.WriteError("Not a valid websocket request");
+                                                Log.WriteWarning("Not a valid websocket request");
                                             }
                                         }
                                         else
                                         {
-                                            Log.WriteError("Failed parsing request method");
+                                            Log.WriteWarning("Failed parsing request method");
                                         }
 
                                     }
                                     else
                                     {
-                                        Log.WriteError("Failed parsing request data");
+                                        Log.WriteWarning("Failed parsing request data");
                                     }
 
                                     requestCount++;

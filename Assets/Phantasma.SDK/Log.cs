@@ -129,7 +129,7 @@ namespace Phantasma.SDK
             Write(message, level, UnityDebugLogMode.Warning);
         }
 
-        public static void WriteError(string message, Level level = Level.Logic)
+        public static void WriteFatalError(string message, Level level = Level.Logic)
         {
             Write(message, level, UnityDebugLogMode.Error);
         }
