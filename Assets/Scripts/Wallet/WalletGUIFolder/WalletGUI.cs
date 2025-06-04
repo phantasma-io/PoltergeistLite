@@ -2066,9 +2066,8 @@ namespace Poltergeist
             style.font = monoFont;
             style.alignment = TextAnchor.UpperLeft;
 
-            int curY;
+            float curY = windowRect.height / 2 - Units(6);
 
-            curY = Units(5);
             GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, Units(24)),
                 seedPhraseForDisplay,
                 style);
