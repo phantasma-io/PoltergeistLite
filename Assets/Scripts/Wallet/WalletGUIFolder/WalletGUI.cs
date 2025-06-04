@@ -29,6 +29,7 @@ namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
+        public Font monoFont;
         public RawImage background;
         private Texture2D soulMasterLogo;
 
@@ -107,7 +108,6 @@ namespace Poltergeist
             hintComboBox.ResetState();
             nexusComboBox.ResetState();
             mnemonicPhraseLengthComboBox.ResetState();
-            mnemonicPhraseVerificationModeComboBox.ResetState();
             passwordModeComboBox.ResetState();
             logLevelComboBox.ResetState();
             uiThemeComboBox.ResetState();
@@ -385,17 +385,6 @@ namespace Poltergeist
                             }
                         }
                         mnemonicPhraseLengthComboBox.SelectedItemIndex = mnemonicPhraseLengthIndex;
-
-                        mnemonicPhraseVerificationModeIndex = 0;
-                        for (int i = 0; i < availableMnemonicPhraseVerificationModes.Length; i++)
-                        {
-                            if (availableMnemonicPhraseVerificationModes[i] == accountManager.Settings.mnemonicPhraseVerificationMode)
-                            {
-                                mnemonicPhraseVerificationModeIndex = i;
-                                break;
-                            }
-                        }
-                        mnemonicPhraseVerificationModeComboBox.SelectedItemIndex = mnemonicPhraseVerificationModeIndex;
 
                         passwordModeIndex = 0;
                         for (int i = 0; i < availablePasswordModes.Length; i++)
@@ -1250,20 +1239,29 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            newWalletSeedPhrase = BIP39NBitcoin.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
-
-                            Animate(AnimationDirection.Down, true, () =>
+                            ShowModal("Attention!",
+                                "For your own safety, write down generated seed words on a piece of paper and store it safely and hidden.\n\nThese words serve as a back-up of your wallet.\n\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.",
+                                ModalState.Message, -1, -1, ModalConfirmCancel, 0,
+                                (result, _) =>
                             {
-                                newWalletCallback = new Action(() =>
+                                if (result == PromptResult.Success)
                                 {
-                                    DeriveAccountsFromSeed(newWalletSeedPhrase);
+                                    newWalletSeedPhrase = BIP39NBitcoin.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
 
-                                    PopState();
-                                });
+                                    Animate(AnimationDirection.Down, true, () =>
+                                    {
+                                        newWalletCallback = new Action(() =>
+                                        {
+                                            DeriveAccountsFromSeed(newWalletSeedPhrase);
 
-                                PushState(GUIState.Backup);
+                                            PopState();
+                                        });
+
+                                        PushState(GUIState.Backup);
+                                    });
+                                }
                             });
-                            
+                    
                             break;
                         }
 
@@ -1965,105 +1963,82 @@ namespace Poltergeist
             rnd.GetBytes(randomInt);
             return Convert.ToInt32(randomInt[0]);
         }
-        private void TrySeedVerification(int[] wordsOrder, Action<bool> callback)
+        private void TrySeedVerification(string []seed, Action<bool> callback)
         {
-            if (AccountManager.Instance.Settings.mnemonicPhraseVerificationMode == MnemonicPhraseVerificationMode.Full)
+            // Verifying 3 random words
+            int[] indices = Enumerable.Range(0, seed.Length)
+                          .OrderBy(_ => UnityEngine.Random.value)
+                          .Take(3)
+                          .OrderBy(i => i)
+                          .ToArray();
+            ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words {string.Join(", ", indices.Select(i => $"#{i + 1}"))}, using space to separate them:",
+                ModalState.Input, 5, -1, ModalConfirmCancel, 4, (result, input) =>
             {
-                ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words in the following order: {string.Join(" ", wordsOrder)}",
-                    ModalState.Input, 24 + 11, -1, ModalConfirmCancel, 4, (result, input) =>
+                if (result == PromptResult.Success)
                 {
-                    if (result == PromptResult.Success)
+                    try
                     {
-                        try
-                        {
-                            var wordsToVerify = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                            var wordsToVerifyOrdered = new string[wordsToVerify.Length];
-                            for (var i = 0; i < wordsOrder.Length; i++)
-                            {
-                                wordsToVerifyOrdered[wordsOrder[i] - 1] = wordsToVerify[i];
-                            }
+                        var wordsToVerify = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                            if (BIP39NBitcoin.MnemonicToPK(string.Join(" ", wordsToVerifyOrdered)).SequenceEqual(BIP39NBitcoin.MnemonicToPK(newWalletSeedPhrase)))
-                            {
-                                callback(true);
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
-                                {
-                                    TrySeedVerification(wordsOrder, callback);
-                                });
-                            }
-                        }
-                        catch (Exception e)
+                        if(seed[indices[0]] == wordsToVerify[0] &&
+                            seed[indices[1]] == wordsToVerify[1] &&
+                            seed[indices[2]] == wordsToVerify[2]
+                        )
                         {
-                            Log.WriteWarning("TrySeedVerification: Exception: " + e);
+                            callback(true);
+                        }
+                        else
+                        {
                             MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
                             {
-                                TrySeedVerification(wordsOrder, callback);
+                                TrySeedVerification(seed, callback);
                             });
                         }
                     }
-                });
-            }
-            else
-            {
-                ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words:",
-                    ModalState.Input, 24 + 11, -1, ModalConfirmCancel, 4, (result, input) =>
-                {
-                    if (result == PromptResult.Success)
+                    catch (Exception e)
                     {
-                        try
+                        Log.WriteWarning("TrySeedVerification: Exception: " + e);
+                        MessageBox(MessageKind.Error, "Seed phrase is incorrect!\n" + e.Message, () =>
                         {
-                            var wordsToVerify = input.Split(' ');
-
-                            if (BIP39NBitcoin.MnemonicToPK(string.Join(" ", wordsToVerify)).SequenceEqual(BIP39NBitcoin.MnemonicToPK(newWalletSeedPhrase)))
-                            {
-                                callback(true);
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
-                                {
-                                    TrySeedVerification(wordsOrder, callback);
-                                });
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            Log.WriteWarning("TrySeedVerification: Exception: " + e);
-                            MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
-                            {
-                                TrySeedVerification(wordsOrder, callback);
-                            });
-                        }
+                            TrySeedVerification(seed, callback);
+                        });
                     }
-                });
-            }
+                }
+            });
         }
 
         private string[] backupScreenOptions = new string[] { "Copy to clipboard", "Continue", "Cancel" };
         private void DoBackupScreen()
         {
+            string[] words = newWalletSeedPhrase.Split(' ');
+            var lines = new List<string>();
+
+            for (int i = 0; i < words.Length; i += 3)
+            {
+                lines.Add(string.Format("{0,2}. {1,-10}{2,2}. {3,-10}{4,2}. {5,-10}",
+                    i + 1, words[i],
+                    i + 2, words[i + 1],
+                    i + 3, words[i + 2]
+                ));
+            }
+
+            string seedPhraseForDisplay = string.Join("\n", lines);
+
+            if (monoFont == null)
+            {
+                // Load mono font for the first time
+                monoFont = Resources.Load<Font>("IosevkaFixed-Regular");
+            }
+            var style = new GUIStyle(GUI.skin.label);
+            style.font = monoFont;
+            style.alignment = TextAnchor.UpperLeft;
+
             int curY;
 
             curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, Units(6)), newWalletSeedPhrase);
-
-            curY += Units(11);
-            int warningHeight = Units(16);
-            int padding = 4;
-            var rect = new Rect(padding, curY, windowRect.width - padding * 2, warningHeight);
-
-            GUI.Box(rect, "");
-
-            rect.x += Border;
-            rect.y += 4;
-            rect.width -= Border * 3;
-
-            GUI.Label(rect, "WARNING");
-            rect.y += Border*2;
-            GUI.Label(rect, "For your own safety, write down these words on a piece of paper and store it safely and hidden.\nThese words serve as a back-up of your wallet.\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.");
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, Units(24)),
+                seedPhraseForDisplay,
+                style);
 
             DoButtonGrid<int>(true, backupScreenOptions.Length, Units(2), 0, out _, (index) =>
             {
@@ -2082,16 +2057,7 @@ namespace Poltergeist
 
                     case 1:
                         {
-                            int[] wordsOrder;
-                            if (AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
-                                wordsOrder = Enumerable.Range(1, 12).ToArray();
-                            else
-                                wordsOrder = Enumerable.Range(1, 24).ToArray();
-
-                            var rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
-                            wordsOrder = wordsOrder.OrderBy(x => GetNextInt32(rnd)).ToArray();
-
-                            TrySeedVerification(wordsOrder, (success) =>
+                            TrySeedVerification(words, (success) =>
                             {
                                 if (success)
                                 {

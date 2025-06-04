@@ -50,12 +50,6 @@ namespace Poltergeist
         Master_Password
     }
 
-    public enum MnemonicPhraseVerificationMode
-    {
-        Full,
-        Simplified
-    }
-
     public static class SettingsExtension
     {
         public static bool IsValidURL(this string url)
@@ -140,7 +134,6 @@ namespace Poltergeist
         public int nftSortDirection;
         public string lastVisitedFolder;
         public MnemonicPhraseLength mnemonicPhraseLength;
-        public MnemonicPhraseVerificationMode mnemonicPhraseVerificationMode;
         public PasswordMode passwordMode;
         public bool devMode;
         public bool devMode_NoValidation;
@@ -164,7 +157,6 @@ namespace Poltergeist
                 "NFT sort mode: " + this.nftSortMode + "\n" +
                 "NFT sort direction: " + this.nftSortDirection + "\n" +
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
-                "Mnemonic phrase verification mode: " + this.mnemonicPhraseVerificationMode + "\n" +
                 "Password mode: " + this.passwordMode + "\n" +
                 "Developer mode: " + this.devMode + "\n" + 
                 "Developer mode (no validation): " + this.devMode_NoValidation;
@@ -242,12 +234,6 @@ namespace Poltergeist
             if (!Enum.TryParse<MnemonicPhraseLength>(mnemonicPhraseLength, true, out this.mnemonicPhraseLength))
             {
                 this.mnemonicPhraseLength = MnemonicPhraseLength.Twelve_Words;
-            }
-
-            var mnemonicPhraseVerificationMode = PlayerPrefs.GetString(MnemonicPhraseVerificationModeTag, MnemonicPhraseVerificationMode.Full.ToString());
-            if (!Enum.TryParse<MnemonicPhraseVerificationMode>(mnemonicPhraseVerificationMode, true, out this.mnemonicPhraseVerificationMode))
-            {
-                this.mnemonicPhraseVerificationMode = MnemonicPhraseVerificationMode.Full;
             }
 
             var passwordMode = PlayerPrefs.GetString(PasswordModeTag, PasswordMode.Ask_Always.ToString());
@@ -401,7 +387,6 @@ namespace Poltergeist
             PlayerPrefs.SetString(LogLevelTag, this.logLevel.ToString());
             PlayerPrefs.SetInt(LogOverwriteModeTag, this.logOverwriteMode ? 1 : 0);
             PlayerPrefs.SetString(MnemonicPhraseLengthTag, this.mnemonicPhraseLength.ToString());
-            PlayerPrefs.SetString(MnemonicPhraseVerificationModeTag, this.mnemonicPhraseVerificationMode.ToString());
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
             PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
             PlayerPrefs.SetInt(DevNoValidationModeTag, this.devMode_NoValidation ? 1 : 0);
