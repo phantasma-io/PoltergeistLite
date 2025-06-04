@@ -49,8 +49,6 @@ namespace Poltergeist
             // Create a TCP/IP socket
             listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             listener.Blocking = true;
-            listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1);
-
 
             var localEndPoint = new IPEndPoint(IPAddress.Any, port);
 
