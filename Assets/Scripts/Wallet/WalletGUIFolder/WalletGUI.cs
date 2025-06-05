@@ -2310,7 +2310,7 @@ namespace Poltergeist
 
                                     var message = $"Do you want to stake {selectedAmount} SOUL?" + 
                                         $"\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
-                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours.";
+                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
                                     
                                     if(kcalClaimable > 0)
                                     {
@@ -2319,7 +2319,7 @@ namespace Poltergeist
 
                                     StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
                                     {
-                                        TxResultMessage(hash, txResult, error, "Your SOUL was staked!");
+                                        TxResultMessage(hash, txResult, error, "Your SOUL tokens were staked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                     });
                                 });
                             };
@@ -2349,7 +2349,7 @@ namespace Poltergeist
 
                                         if (amount > balance.Staked - 2 && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
                                         {
-                                            message += "\n\nYour account will also lose the current registed name.\nKeep 2 SOUL staked if you want to keep your registered name.";
+                                            message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
                                         }
 
                                         PromptBox(message, ModalYesNo, (result) =>
@@ -2371,7 +2371,7 @@ namespace Poltergeist
 
                                                         SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                         {
-                                                            TxResultMessage(hash, txResult, error, "Your SOUL was unstaked!");
+                                                            TxResultMessage(hash, txResult, error, "Your SOUL tokens were unstaked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                                         });
                                                     }
                                                 });
@@ -2419,10 +2419,8 @@ namespace Poltergeist
 
                                             SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                             {
-                                                TxResultMessage(hash, txResult, error, "You claimed some KCAL!");
+                                                TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                             });
-
-
                                         }
                                         else
                                         if (feeResult == PromptResult.Failure)
