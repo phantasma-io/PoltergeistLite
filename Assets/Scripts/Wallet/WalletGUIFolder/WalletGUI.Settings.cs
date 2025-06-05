@@ -584,6 +584,15 @@ namespace Poltergeist
             });
             curY += Units(3);
 
+            curY += Units(1);
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Reset notifications", () =>
+            {
+                accountManager.Settings.lastShownInformationScreen = 0;
+                accountManager.Settings.SaveOnExit(); // Required on Android
+                MessageBox(MessageKind.Default, "Startup notifications will be shown again on next wallet start.");
+            });
+            curY += Units(3);
+
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Reset settings", () =>
             {
                 PromptBox("All settings will be set to default values.\nMake sure you have backups of your private keys!", ModalConfirmCancel, (result) =>

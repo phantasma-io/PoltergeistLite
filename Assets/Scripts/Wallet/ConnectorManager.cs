@@ -59,7 +59,7 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                WalletGUI.WarnUser($"Cannot initialize Phantasma Link module, port {port} is occupied");
+                WalletGUI.MessageForUser($"Cannot initialize Phantasma Link module, port {port} is occupied");
                 Log.WriteWarning("Cannot initialize Phantasma Link module, error details: " + e.ToString());
                 return;
             }

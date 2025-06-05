@@ -29,12 +29,14 @@ namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
-        private static bool warnUser;
-        private static string userWarning;
-        public static void WarnUser(string message)
+        private static bool messageForUserPushed;
+        private static string messageForUser;
+        private static string messageForUserTitle;
+        public static void MessageForUser(string message, string title = "Warning")
         {
-            warnUser = true;
-            userWarning = message;
+            messageForUserPushed = true;
+            messageForUser = message;
+            messageForUserTitle = title;
         }
 
         public Font monoFont;
@@ -280,8 +282,8 @@ namespace Poltergeist
                     currentTitle = "Fatal Error";
                     break;
                 
-                case GUIState.Warn:
-                    currentTitle = "Warning";
+                case GUIState.MessageForUser:
+                    currentTitle = messageForUserTitle;
                     break;
 
                 case GUIState.Wallets:
@@ -777,9 +779,9 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
             }
 
-            if (warnUser)
+            if (messageForUserPushed)
             {
-                SetState(GUIState.Warn);
+                SetState(GUIState.MessageForUser);
                 return;
             }
 
@@ -917,8 +919,8 @@ namespace Poltergeist
                     DoFatalScreen();
                     break;
                 
-                case GUIState.Warn:
-                    DoWarningScreen();
+                case GUIState.MessageForUser:
+                    DoMessageForUserScreen();
                     break;
             }
 
@@ -2117,7 +2119,7 @@ namespace Poltergeist
             int curY;
 
             curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.width - (Border+curY)), fatalError);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), fatalError);
 
             var btnWidth = Units(12);
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
@@ -2128,15 +2130,15 @@ namespace Poltergeist
             });
         }
         
-        private void DoWarningScreen()
+        private void DoMessageForUserScreen()
         {
-            warnUser = false;
-            Log.WriteWarning(userWarning);
+            messageForUserPushed = false;
+            Log.WriteWarning(messageForUser);
 
             int curY;
 
             curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.width - (Border+curY)), userWarning);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), messageForUser);
 
             var btnWidth = Units(12);
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
@@ -2144,7 +2146,7 @@ namespace Poltergeist
                 "Continue", () =>
             {
                 PopState();
-                userWarning = "";
+                messageForUser = "";
             });
         }
 

@@ -114,6 +114,7 @@ namespace Poltergeist
 
         public const string DevModeTag = "developer.mode";
         public const string DevNoValidationModeTag = "developer.no.validation.mode";
+        public const string LastShownInformationScreenTag = "last.shown.information.screen";
 
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
@@ -137,6 +138,7 @@ namespace Poltergeist
         public PasswordMode passwordMode;
         public bool devMode;
         public bool devMode_NoValidation;
+        public int lastShownInformationScreen;
 
         public override string ToString()
         {
@@ -158,7 +160,7 @@ namespace Poltergeist
                 "NFT sort direction: " + this.nftSortDirection + "\n" +
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
                 "Password mode: " + this.passwordMode + "\n" +
-                "Developer mode: " + this.devMode + "\n" + 
+                "Developer mode: " + this.devMode + "\n" +
                 "Developer mode (no validation): " + this.devMode_NoValidation;
         }
 
@@ -244,6 +246,8 @@ namespace Poltergeist
 
             this.devMode = PlayerPrefs.GetInt(DevModeTag, 0) != 0;
             this.devMode_NoValidation = PlayerPrefs.GetInt(DevNoValidationModeTag, 0) != 0;
+
+            this.lastShownInformationScreen = PlayerPrefs.GetInt(LastShownInformationScreenTag, 0);
 
             Log.Write("Settings: Load: " + ToString());
         }
@@ -402,6 +406,7 @@ namespace Poltergeist
             PlayerPrefs.SetInt(NftSortDirectionTag, this.nftSortDirection);
             PlayerPrefs.SetString(PhantasmaRPCTag, this.phantasmaRPCURL);
             PlayerPrefs.SetString(LastVisitedFolderTag, this.lastVisitedFolder);
+            PlayerPrefs.SetInt(LastShownInformationScreenTag, this.lastShownInformationScreen);
             PlayerPrefs.Save();
 
             Log.Write("Settings: Save on exit: TTRS NFT sort mode: " + ttrsNftSortMode + "\n" +

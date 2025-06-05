@@ -459,7 +459,7 @@ namespace Poltergeist
                 var bytes = Base16.Decode(wallets);
                 try
                 {
-                    List<Account >accountsTemp = new List<Account>();
+                    List<Account> accountsTemp = new List<Account>();
                     var reader = new BinaryReader(new MemoryStream(bytes));
                     var size = reader.ReadVarInt();
                     for (int i = 0; i < (int)size; i++)
@@ -478,6 +478,29 @@ namespace Poltergeist
             }
 
             AccountsAreReadyToBeUsed = true;
+
+            if (Settings.lastShownInformationScreen == 0)
+            {
+                Settings.lastShownInformationScreen = 1;
+
+                WalletGUI.MessageForUser(@"A note for existing Poltergeist wallet users!
+ 
+If you already have a previous (older, not 'Light') version of Poltergeist installed on your device, then you will need to:
+
+1. Open your previous version of Poltergeist
+2. Export your wallets onto your clipboard:
+  * Press 'Manage' button available on main screen
+  * Press 'Export' button and enter password to encrypt exported accounts, press 'Confirm'
+3. Close old app
+4. Open the new version of Poltergeist Lite
+5. Import wallets data:
+  * Press 'Manage' on main screen and then press 'Import'. Paste exported accounts from clipboard and press 'Confirm'. You will need to enter password which you used in the previous step. You will be presented with a list of accounts being imported, press 'Confirm'
+ 
+Happy Poltergeisting!
+
+Regards,
+The Phoenix team", "Notice");
+            }
         }
 
         public void SaveAccounts()

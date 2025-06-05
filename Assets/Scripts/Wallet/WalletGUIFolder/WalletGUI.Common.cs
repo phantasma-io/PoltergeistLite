@@ -39,7 +39,7 @@ namespace Poltergeist
         Backup,
         Exit,
         Fatal,
-        Warn
+        MessageForUser
     }
 
     public enum PromptResult
