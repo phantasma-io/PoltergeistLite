@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Text.RegularExpressions;
+using Phantasma.SDK;
 using Poltergeist;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -35,7 +36,7 @@ public class UpdateChecker : MonoBehaviour
 
             if (www.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError(www.error);
+                Log.WriteWarning(www.error);
             }
             else
             {
@@ -61,13 +62,13 @@ public class UpdateChecker : MonoBehaviour
                             $"A new version {latestVersionNoPrefix} of the wallet is available (you have {currentVersion}). Please update the wallet.\n\n\n" +
                             $"{URL}", () =>
                             {
-                                Debug.Log("Close");
+                                Log.Write("Close");
                             });
                     }
                 }
                 else
                 {
-                    // Debug.LogError("Could not find version information.");
+                    Log.WriteWarning("Could not find version information.");
                 }
             }
         }

@@ -1429,7 +1429,10 @@ namespace Poltergeist
                         {
                             ShowModal("Wallets Export", 
                                 ((accountManagementSelectedList.Count() == 0) ? $"All {accountManager.Accounts.Count()} wallets will be exported.\n\n" : $"Selected {accountManagementSelectedList.Count()} wallets will be exported.\n\n") +
-                                "Do you want to protect exported data with a password?\nIf not, leave this field blank.", ModalState.Password, AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, ModalConfirmCancel, 1, (passResult, password) =>
+                                "Do you want to protect exported data with a password?\nIf not, leave this field blank.",
+                                 ModalState.Password,
+                                 -1, -1,
+                                 ModalConfirmCancel, 1, (passResult, password) =>
                             {
                                 var accountsExport = new AccountsExport();
 
