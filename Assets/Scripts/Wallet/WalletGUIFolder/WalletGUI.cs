@@ -2062,7 +2062,7 @@ namespace Poltergeist
             if (monoFont == null)
             {
                 // Load mono font for the first time
-                monoFont = Resources.Load<Font>("IosevkaFixed-Regular");
+                monoFont = Resources.Load<Font>("DejaVuSansMono");
             }
             var style = new GUIStyle(GUI.skin.label);
             style.font = monoFont;
