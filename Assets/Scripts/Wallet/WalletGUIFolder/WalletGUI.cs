@@ -29,6 +29,17 @@ namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
+        private static bool messageForUserPushed;
+        private static string messageForUser;
+        private static string messageForUserTitle;
+        public static void MessageForUser(string message, string title = "Warning")
+        {
+            messageForUserPushed = true;
+            messageForUser = message;
+            messageForUserTitle = title;
+        }
+
+        public Font monoFont;
         public RawImage background;
         private Texture2D soulMasterLogo;
 
@@ -107,7 +118,6 @@ namespace Poltergeist
             hintComboBox.ResetState();
             nexusComboBox.ResetState();
             mnemonicPhraseLengthComboBox.ResetState();
-            mnemonicPhraseVerificationModeComboBox.ResetState();
             passwordModeComboBox.ResetState();
             logLevelComboBox.ResetState();
             uiThemeComboBox.ResetState();
@@ -271,6 +281,10 @@ namespace Poltergeist
                 case GUIState.Fatal:
                     currentTitle = "Fatal Error";
                     break;
+                
+                case GUIState.MessageForUser:
+                    currentTitle = messageForUserTitle;
+                    break;
 
                 case GUIState.Wallets:
                     currentTitle = "Wallet List";
@@ -386,17 +400,6 @@ namespace Poltergeist
                         }
                         mnemonicPhraseLengthComboBox.SelectedItemIndex = mnemonicPhraseLengthIndex;
 
-                        mnemonicPhraseVerificationModeIndex = 0;
-                        for (int i = 0; i < availableMnemonicPhraseVerificationModes.Length; i++)
-                        {
-                            if (availableMnemonicPhraseVerificationModes[i] == accountManager.Settings.mnemonicPhraseVerificationMode)
-                            {
-                                mnemonicPhraseVerificationModeIndex = i;
-                                break;
-                            }
-                        }
-                        mnemonicPhraseVerificationModeComboBox.SelectedItemIndex = mnemonicPhraseVerificationModeIndex;
-
                         passwordModeIndex = 0;
                         for (int i = 0; i < availablePasswordModes.Length; i++)
                         {
@@ -454,7 +457,19 @@ namespace Poltergeist
                 modalRedirected = false;
             }
 
-            var state = stateStack.Pop();
+            GUIState state;
+            if (stateStack.Count > 0)
+            {
+                state = stateStack.Pop();
+            }
+            else
+            {
+                // We don't have any states left,
+                // most likely we have been interrupted during wallet initialization
+                // and now we should continue.
+                state = GUIState.Wallets;
+            }
+            
             SetState(state);
         }
 
@@ -764,6 +779,11 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
             }
 
+            if (messageForUserPushed)
+            {
+                SetState(GUIState.MessageForUser);
+                return;
+            }
 
             if (AccountManager.Instance.ReportGetPeersFailure)
             {
@@ -897,6 +917,10 @@ namespace Poltergeist
 
                 case GUIState.Fatal:
                     DoFatalScreen();
+                    break;
+                
+                case GUIState.MessageForUser:
+                    DoMessageForUserScreen();
                     break;
             }
 
@@ -1250,20 +1274,29 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            newWalletSeedPhrase = BIP39NBitcoin.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
-
-                            Animate(AnimationDirection.Down, true, () =>
+                            ShowModal("Attention!",
+                                "For your own safety, write down generated seed words on a piece of paper and store it safely and hidden.\n\nThese words serve as a back-up of your wallet.\n\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.",
+                                ModalState.Message, -1, -1, ModalConfirmCancel, 0,
+                                (result, _) =>
                             {
-                                newWalletCallback = new Action(() =>
+                                if (result == PromptResult.Success)
                                 {
-                                    DeriveAccountsFromSeed(newWalletSeedPhrase);
+                                    newWalletSeedPhrase = BIP39NBitcoin.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
 
-                                    PopState();
-                                });
+                                    Animate(AnimationDirection.Down, true, () =>
+                                    {
+                                        newWalletCallback = new Action(() =>
+                                        {
+                                            DeriveAccountsFromSeed(newWalletSeedPhrase);
 
-                                PushState(GUIState.Backup);
+                                            PopState();
+                                        });
+
+                                        PushState(GUIState.Backup);
+                                    });
+                                }
                             });
-                            
+                    
                             break;
                         }
 
@@ -1965,105 +1998,81 @@ namespace Poltergeist
             rnd.GetBytes(randomInt);
             return Convert.ToInt32(randomInt[0]);
         }
-        private void TrySeedVerification(int[] wordsOrder, Action<bool> callback)
+        private void TrySeedVerification(string []seed, Action<bool> callback)
         {
-            if (AccountManager.Instance.Settings.mnemonicPhraseVerificationMode == MnemonicPhraseVerificationMode.Full)
+            // Verifying 3 random words
+            int[] indices = Enumerable.Range(0, seed.Length)
+                          .OrderBy(_ => UnityEngine.Random.value)
+                          .Take(3)
+                          .OrderBy(i => i)
+                          .ToArray();
+            ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words {string.Join(", ", indices.Select(i => $"#{i + 1}"))}, using space to separate them:",
+                ModalState.Input, 5, -1, ModalConfirmCancel, 4, (result, input) =>
             {
-                ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words in the following order: {string.Join(" ", wordsOrder)}",
-                    ModalState.Input, 24 + 11, -1, ModalConfirmCancel, 4, (result, input) =>
+                if (result == PromptResult.Success)
                 {
-                    if (result == PromptResult.Success)
+                    try
                     {
-                        try
-                        {
-                            var wordsToVerify = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                            var wordsToVerifyOrdered = new string[wordsToVerify.Length];
-                            for (var i = 0; i < wordsOrder.Length; i++)
-                            {
-                                wordsToVerifyOrdered[wordsOrder[i] - 1] = wordsToVerify[i];
-                            }
+                        var wordsToVerify = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                            if (BIP39NBitcoin.MnemonicToPK(string.Join(" ", wordsToVerifyOrdered)).SequenceEqual(BIP39NBitcoin.MnemonicToPK(newWalletSeedPhrase)))
-                            {
-                                callback(true);
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
-                                {
-                                    TrySeedVerification(wordsOrder, callback);
-                                });
-                            }
-                        }
-                        catch (Exception e)
+                        if(seed[indices[0]] == wordsToVerify[0] &&
+                            seed[indices[1]] == wordsToVerify[1] &&
+                            seed[indices[2]] == wordsToVerify[2]
+                        )
                         {
-                            Log.WriteWarning("TrySeedVerification: Exception: " + e);
+                            callback(true);
+                        }
+                        else
+                        {
                             MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
                             {
-                                TrySeedVerification(wordsOrder, callback);
+                                TrySeedVerification(seed, callback);
                             });
                         }
                     }
-                });
-            }
-            else
-            {
-                ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words:",
-                    ModalState.Input, 24 + 11, -1, ModalConfirmCancel, 4, (result, input) =>
-                {
-                    if (result == PromptResult.Success)
+                    catch (Exception e)
                     {
-                        try
+                        Log.WriteWarning("TrySeedVerification: Exception: " + e);
+                        MessageBox(MessageKind.Error, "Seed phrase is incorrect!\n" + e.Message, () =>
                         {
-                            var wordsToVerify = input.Split(' ');
-
-                            if (BIP39NBitcoin.MnemonicToPK(string.Join(" ", wordsToVerify)).SequenceEqual(BIP39NBitcoin.MnemonicToPK(newWalletSeedPhrase)))
-                            {
-                                callback(true);
-                            }
-                            else
-                            {
-                                MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
-                                {
-                                    TrySeedVerification(wordsOrder, callback);
-                                });
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            Log.WriteWarning("TrySeedVerification: Exception: " + e);
-                            MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
-                            {
-                                TrySeedVerification(wordsOrder, callback);
-                            });
-                        }
+                            TrySeedVerification(seed, callback);
+                        });
                     }
-                });
-            }
+                }
+            });
         }
 
         private string[] backupScreenOptions = new string[] { "Copy to clipboard", "Continue", "Cancel" };
         private void DoBackupScreen()
         {
-            int curY;
+            string[] words = newWalletSeedPhrase.Split(' ');
+            var lines = new List<string>();
 
-            curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, Units(6)), newWalletSeedPhrase);
+            for (int i = 0; i < words.Length; i += 3)
+            {
+                lines.Add(string.Format("{0,2}. {1,-10}{2,2}. {3,-10}{4,2}. {5,-10}",
+                    i + 1, words[i],
+                    i + 2, words[i + 1],
+                    i + 3, words[i + 2]
+                ));
+            }
 
-            curY += Units(11);
-            int warningHeight = Units(16);
-            int padding = 4;
-            var rect = new Rect(padding, curY, windowRect.width - padding * 2, warningHeight);
+            string seedPhraseForDisplay = string.Join("\n", lines);
 
-            GUI.Box(rect, "");
+            if (monoFont == null)
+            {
+                // Load mono font for the first time
+                monoFont = Resources.Load<Font>("DejaVuSansMono");
+            }
+            var style = new GUIStyle(GUI.skin.label);
+            style.font = monoFont;
+            style.alignment = TextAnchor.UpperLeft;
 
-            rect.x += Border;
-            rect.y += 4;
-            rect.width -= Border * 3;
+            float curY = windowRect.height / 2 - Units(6);
 
-            GUI.Label(rect, "WARNING");
-            rect.y += Border*2;
-            GUI.Label(rect, "For your own safety, write down these words on a piece of paper and store it safely and hidden.\nThese words serve as a back-up of your wallet.\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.");
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, Units(24)),
+                seedPhraseForDisplay,
+                style);
 
             DoButtonGrid<int>(true, backupScreenOptions.Length, Units(2), 0, out _, (index) =>
             {
@@ -2082,16 +2091,7 @@ namespace Poltergeist
 
                     case 1:
                         {
-                            int[] wordsOrder;
-                            if (AccountManager.Instance.Settings.mnemonicPhraseLength == MnemonicPhraseLength.Twelve_Words)
-                                wordsOrder = Enumerable.Range(1, 12).ToArray();
-                            else
-                                wordsOrder = Enumerable.Range(1, 24).ToArray();
-
-                            var rnd = new System.Security.Cryptography.RNGCryptoServiceProvider();
-                            wordsOrder = wordsOrder.OrderBy(x => GetNextInt32(rnd)).ToArray();
-
-                            TrySeedVerification(wordsOrder, (success) =>
+                            TrySeedVerification(words, (success) =>
                             {
                                 if (success)
                                 {
@@ -2119,7 +2119,7 @@ namespace Poltergeist
             int curY;
 
             curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.width - (Border+curY)), fatalError);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), fatalError);
 
             var btnWidth = Units(12);
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
@@ -2127,6 +2127,26 @@ namespace Poltergeist
             {
                 GUIUtility.systemCopyBuffer = fatalError;
                 MessageBox(MessageKind.Default, "Error log copied to clipboard.");
+            });
+        }
+        
+        private void DoMessageForUserScreen()
+        {
+            messageForUserPushed = false;
+            Log.WriteWarning(messageForUser);
+
+            int curY;
+
+            curY = Units(5);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), messageForUser);
+
+            var btnWidth = Units(12);
+            curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
+            DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)),
+                "Continue", () =>
+            {
+                PopState();
+                messageForUser = "";
             });
         }
 
@@ -2145,7 +2165,6 @@ namespace Poltergeist
             {
                 accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
             });
-            
             var endY = DoBottomMenu();
 
             if (accountManager.BalanceRefreshing)
@@ -2157,7 +2176,7 @@ namespace Poltergeist
             if (state == null)
             {
                 var message = "Temporary error, cannot display balances...";
-                if(accountManager.rpcAvailablePhantasma == 0)
+                if (accountManager.rpcAvailablePhantasma == 0)
                 {
                     message = $"Please check your internet connection. All Phantasma RPC servers are unavailable.";
                 }
@@ -2291,7 +2310,7 @@ namespace Poltergeist
 
                                     var message = $"Do you want to stake {selectedAmount} SOUL?" + 
                                         $"\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
-                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL for next 24 hours.";
+                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
                                     
                                     if(kcalClaimable > 0)
                                     {
@@ -2300,7 +2319,7 @@ namespace Poltergeist
 
                                     StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
                                     {
-                                        TxResultMessage(hash, txResult, error, "Your SOUL was staked!");
+                                        TxResultMessage(hash, txResult, error, "Your SOUL tokens were staked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                     });
                                 });
                             };
@@ -2330,7 +2349,7 @@ namespace Poltergeist
 
                                         if (amount > balance.Staked - 2 && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
                                         {
-                                            message += "\n\nYour account will also lose the current registed name.\nKeep 2 SOUL staked if you want to keep your registered name.";
+                                            message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
                                         }
 
                                         PromptBox(message, ModalYesNo, (result) =>
@@ -2352,7 +2371,7 @@ namespace Poltergeist
 
                                                         SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                                         {
-                                                            TxResultMessage(hash, txResult, error, "Your SOUL was unstaked!");
+                                                            TxResultMessage(hash, txResult, error, "Your SOUL tokens were unstaked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                                         });
                                                     }
                                                 });
@@ -2400,10 +2419,8 @@ namespace Poltergeist
 
                                             SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                                             {
-                                                TxResultMessage(hash, txResult, error, "You claimed some KCAL!");
+                                                TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                             });
-
-
                                         }
                                         else
                                         if (feeResult == PromptResult.Failure)

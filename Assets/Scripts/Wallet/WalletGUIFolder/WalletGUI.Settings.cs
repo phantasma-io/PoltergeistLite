@@ -25,11 +25,6 @@ namespace Poltergeist
 
         private MnemonicPhraseLength[] availableMnemonicPhraseLengths = Enum.GetValues(typeof(MnemonicPhraseLength)).Cast<MnemonicPhraseLength>().ToArray();
 
-        private int mnemonicPhraseVerificationModeIndex;
-        private ComboBox mnemonicPhraseVerificationModeComboBox = new ComboBox();
-
-        private MnemonicPhraseVerificationMode[] availableMnemonicPhraseVerificationModes = Enum.GetValues(typeof(MnemonicPhraseVerificationMode)).Cast<MnemonicPhraseVerificationMode>().ToArray();
-
         private int passwordModeIndex;
         private ComboBox passwordModeComboBox = new ComboBox();
 
@@ -141,12 +136,6 @@ namespace Poltergeist
             var mnemonicPhraseLengthsList = availableMnemonicPhraseLengths.Select(x => x.ToString().Replace('_', ' ')).ToArray();
             mnemonicPhraseLengthIndex = mnemonicPhraseLengthComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), mnemonicPhraseLengthsList, 0, out dropHeight, null, 0);
             settings.mnemonicPhraseLength = availableMnemonicPhraseLengths[mnemonicPhraseLengthIndex];
-            curY += dropHeight + Units(1);
-
-            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Seed verification");
-            var mnemonicPhraseVerificationModesList = availableMnemonicPhraseVerificationModes.Select(x => x.ToString().Replace('_', ' ')).ToArray();
-            mnemonicPhraseVerificationModeIndex = mnemonicPhraseVerificationModeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), mnemonicPhraseVerificationModesList, 0, out dropHeight, null, 0);
-            settings.mnemonicPhraseVerificationMode = availableMnemonicPhraseVerificationModes[mnemonicPhraseVerificationModeIndex];
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Password mode");
@@ -592,6 +581,15 @@ namespace Poltergeist
                         MessageBox(MessageKind.Default, "Cache cleared.");
                     }
                 });
+            });
+            curY += Units(3);
+
+            curY += Units(1);
+            DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Reset notifications", () =>
+            {
+                accountManager.Settings.lastShownInformationScreen = 0;
+                accountManager.Settings.SaveOnExit(); // Required on Android
+                MessageBox(MessageKind.Default, "Startup notifications will be shown again on next wallet start.");
             });
             curY += Units(3);
 
