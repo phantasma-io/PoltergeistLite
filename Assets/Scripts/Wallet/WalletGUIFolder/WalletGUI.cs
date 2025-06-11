@@ -532,187 +532,194 @@ namespace Poltergeist
         }
         private void Update()
         {
-            // This allows to touch scroll on mobile devices.
-            if (Input.touchCount > 0)
+            try
             {
-                var touch = Input.touches[0];
-                if (touch.phase == TouchPhase.Moved)
+                // This allows to touch scroll on mobile devices.
+                if (Input.touchCount > 0)
                 {
-                    if(hintComboBox.DropDownIsOpened())
-                        hintComboBox.ListScroll.y += touch.deltaPosition.y;
-                    else if((guiState == GUIState.Wallets || guiState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
-                        accountScroll.y += touch.deltaPosition.y;
-                    else if ((guiState == GUIState.Balances || guiState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
-                        balanceScroll.y += touch.deltaPosition.y;
-                    else if (guiState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
-                        nftScroll.y += touch.deltaPosition.y;
-                    else if (guiState == GUIState.NftTransferList && !(modalState != ModalState.None && !modalRedirected))
-                        nftTransferListScroll.y += touch.deltaPosition.y;
-                    else if (guiState == GUIState.Settings && !(modalState != ModalState.None && !modalRedirected))
-                        settingsScroll.y += touch.deltaPosition.y;
-                }
-            }
-
-            /*if (Input.GetKeyDown(KeyCode.Z))
-            {
-                AccountState state = null;
-                state.address += "";
-            }*/
-
-            // This code is needed for Android to quit wallet on 'Back' double press.
-            if (Input.GetKeyDown(KeyCode.Escape))
-            {
-                escClickCounter++;
-                StartCoroutine(escClickTime());
-
-                if (escClickCounter > 1 && Application.platform == RuntimePlatform.Android)
-                {
-                    Application.Quit();
-                }
-            }
-
-            UpdatePrompt();
-
-            lock (_uiCallbacks)
-            {
-                if (_uiCallbacks.Count > 0)
-                {
-                    Action[] temp;
-                    lock (_uiCallbacks)
+                    var touch = Input.touches[0];
+                    if (touch.phase == TouchPhase.Moved)
                     {
-                        temp = _uiCallbacks.ToArray();
-                    }
-                    _uiCallbacks.Clear();
-
-                    foreach (var callback in temp)
-                    {
-                        callback.Invoke();
+                        if (hintComboBox.DropDownIsOpened())
+                            hintComboBox.ListScroll.y += touch.deltaPosition.y;
+                        else if ((guiState == GUIState.Wallets || guiState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
+                            accountScroll.y += touch.deltaPosition.y;
+                        else if ((guiState == GUIState.Balances || guiState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
+                            balanceScroll.y += touch.deltaPosition.y;
+                        else if (guiState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
+                            nftScroll.y += touch.deltaPosition.y;
+                        else if (guiState == GUIState.NftTransferList && !(modalState != ModalState.None && !modalRedirected))
+                            nftTransferListScroll.y += touch.deltaPosition.y;
+                        else if (guiState == GUIState.Settings && !(modalState != ModalState.None && !modalRedirected))
+                            settingsScroll.y += touch.deltaPosition.y;
                     }
                 }
-            }
 
-            if (Screen.width > Screen.height && Screen.width > MaxResolution)
-            {
-                virtualWidth = MaxResolution;
-                virtualHeight = (int)((MaxResolution * Screen.height) / (float)Screen.width);
-            }
-            else
-            if (Screen.height > MaxResolution)
-            {
-                virtualHeight = MaxResolution;
-                virtualWidth = (int)((MaxResolution * Screen.width) / (float)Screen.height);
-            }
-            else
-            {
-                virtualWidth = Screen.width;
-                virtualHeight = Screen.height;
-            }
-
-            if (this.guiState == GUIState.Loading && AccountManager.Instance.Ready && !HasAnimation)
-            {
-                Animate(AnimationDirection.Up, true, () =>
+                /*if (Input.GetKeyDown(KeyCode.Z))
                 {
-                    stateStack.Clear();
-                    PushState(GUIState.Wallets);
+                    AccountState state = null;
+                    state.address += "";
+                }*/
 
-                    if (AccountManager.Instance.Settings.nexusKind == NexusKind.Unknown || AccountManager.Instance.Settings.settingRequireReconfiguration)
+                // This code is needed for Android to quit wallet on 'Back' double press.
+                if (Input.GetKeyDown(KeyCode.Escape))
+                {
+                    escClickCounter++;
+                    StartCoroutine(escClickTime());
+
+                    if (escClickCounter > 1 && Application.platform == RuntimePlatform.Android)
                     {
-                        PushState(GUIState.Settings);
+                        Application.Quit();
                     }
-
-                    Animate(AnimationDirection.Down, false);
-                });
-            }
-
-            if (initialized && currentAnimation != AnimationDirection.None)
-            {
-                float animationDuration = 0.5f;
-                var delta = (Time.time - animationTime) / animationDuration;
-
-                bool finished = false;
-                if (delta >= 1)
-                {
-                    delta = 1;
-                    finished = true;
                 }
 
-                if (invertAnimation)
+                UpdatePrompt();
+
+                lock (_uiCallbacks)
                 {
-                    delta = 1 - delta;
+                    if (_uiCallbacks.Count > 0)
+                    {
+                        Action[] temp;
+                        lock (_uiCallbacks)
+                        {
+                            temp = _uiCallbacks.ToArray();
+                        }
+                        _uiCallbacks.Clear();
+
+                        foreach (var callback in temp)
+                        {
+                            callback.Invoke();
+                        }
+                    }
                 }
 
-                windowRect.x = defaultRect.x;
-                windowRect.y = defaultRect.y;
-
-                switch (currentAnimation)
+                if (Screen.width > Screen.height && Screen.width > MaxResolution)
                 {
-                    case AnimationDirection.Left:
-                        windowRect.x = Mathf.Lerp(-defaultRect.width, defaultRect.x, delta);
-                        break;
-
-                    case AnimationDirection.Right:
-                        windowRect.x = Mathf.Lerp(virtualWidth + defaultRect.width, defaultRect.x, delta);
-                        break;
-
-                    case AnimationDirection.Up:
-                        windowRect.y = Mathf.Lerp(-defaultRect.height, defaultRect.y, delta);
-                        break;
-
-                    case AnimationDirection.Down:
-                        windowRect.y = Mathf.Lerp(virtualHeight + defaultRect.height, defaultRect.y, delta);
-                        break;
+                    virtualWidth = MaxResolution;
+                    virtualHeight = (int)((MaxResolution * Screen.height) / (float)Screen.width);
                 }
-
-                if (finished)
+                else
+                if (Screen.height > MaxResolution)
                 {
-                    currentAnimation = AnimationDirection.None;
-
-                    var temp = animationCallback;
-                    animationCallback = null;
-                    temp?.Invoke();
-                }
-            }
-            else
-            {
-                if (!initialized)
-                {
-                    initialized = true;
-                }
-
-                if (fullScreen)
-                {
-                    windowRect.width = virtualWidth;
-                    windowRect.height = virtualHeight;
+                    virtualHeight = MaxResolution;
+                    virtualWidth = (int)((MaxResolution * Screen.width) / (float)Screen.height);
                 }
                 else
                 {
-                    windowRect.width = Mathf.Min(800, virtualWidth) - Border * 2;
-                    windowRect.height = Mathf.Min(800, virtualHeight) - Border * 2;
+                    virtualWidth = Screen.width;
+                    virtualHeight = Screen.height;
                 }
 
-                windowRect.x = (virtualWidth - windowRect.width) / 2;
-                windowRect.y = (virtualHeight - windowRect.height) / 2;
-
-                defaultRect = new Rect(windowRect);
-            }
-
-            if (modalResult != PromptResult.Waiting)
-            {
-                var temp = modalCallback;
-                var result = modalResult;
-                var success = modalResult == PromptResult.Success;
-                modalState = ModalState.None;
-                modalCallback = null;
-                modalResult = PromptResult.Waiting;
-
-                ResetAllCombos();
-
-                temp?.Invoke(result, success ? modalInput.Trim() : null);
-
-                if (modalState == ModalState.None)
+                if (this.guiState == GUIState.Loading && AccountManager.Instance.Ready && !HasAnimation)
                 {
-                    modalTime = Time.time;
+                    Animate(AnimationDirection.Up, true, () =>
+                    {
+                        stateStack.Clear();
+                        PushState(GUIState.Wallets);
+
+                        if (AccountManager.Instance.Settings.nexusKind == NexusKind.Unknown || AccountManager.Instance.Settings.settingRequireReconfiguration)
+                        {
+                            PushState(GUIState.Settings);
+                        }
+
+                        Animate(AnimationDirection.Down, false);
+                    });
                 }
+
+                if (initialized && currentAnimation != AnimationDirection.None)
+                {
+                    float animationDuration = 0.5f;
+                    var delta = (Time.time - animationTime) / animationDuration;
+
+                    bool finished = false;
+                    if (delta >= 1)
+                    {
+                        delta = 1;
+                        finished = true;
+                    }
+
+                    if (invertAnimation)
+                    {
+                        delta = 1 - delta;
+                    }
+
+                    windowRect.x = defaultRect.x;
+                    windowRect.y = defaultRect.y;
+
+                    switch (currentAnimation)
+                    {
+                        case AnimationDirection.Left:
+                            windowRect.x = Mathf.Lerp(-defaultRect.width, defaultRect.x, delta);
+                            break;
+
+                        case AnimationDirection.Right:
+                            windowRect.x = Mathf.Lerp(virtualWidth + defaultRect.width, defaultRect.x, delta);
+                            break;
+
+                        case AnimationDirection.Up:
+                            windowRect.y = Mathf.Lerp(-defaultRect.height, defaultRect.y, delta);
+                            break;
+
+                        case AnimationDirection.Down:
+                            windowRect.y = Mathf.Lerp(virtualHeight + defaultRect.height, defaultRect.y, delta);
+                            break;
+                    }
+
+                    if (finished)
+                    {
+                        currentAnimation = AnimationDirection.None;
+
+                        var temp = animationCallback;
+                        animationCallback = null;
+                        temp?.Invoke();
+                    }
+                }
+                else
+                {
+                    if (!initialized)
+                    {
+                        initialized = true;
+                    }
+
+                    if (fullScreen)
+                    {
+                        windowRect.width = virtualWidth;
+                        windowRect.height = virtualHeight;
+                    }
+                    else
+                    {
+                        windowRect.width = Mathf.Min(800, virtualWidth) - Border * 2;
+                        windowRect.height = Mathf.Min(800, virtualHeight) - Border * 2;
+                    }
+
+                    windowRect.x = (virtualWidth - windowRect.width) / 2;
+                    windowRect.y = (virtualHeight - windowRect.height) / 2;
+
+                    defaultRect = new Rect(windowRect);
+                }
+
+                if (modalResult != PromptResult.Waiting)
+                {
+                    var temp = modalCallback;
+                    var result = modalResult;
+                    var success = modalResult == PromptResult.Success;
+                    modalState = ModalState.None;
+                    modalCallback = null;
+                    modalResult = PromptResult.Waiting;
+
+                    ResetAllCombos();
+
+                    temp?.Invoke(result, success ? modalInput.Trim() : null);
+
+                    if (modalState == ModalState.None)
+                    {
+                        modalTime = Time.time;
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                WalletGUI.MessageForUser($"Unknown error: {e.ToString()}");
             }
         }
 
@@ -1736,7 +1743,6 @@ namespace Poltergeist
         {
             try
             {
-
                 DeriveAccountsFromSeed(mnemonicPhrase);
             }
             catch (Exception e)
