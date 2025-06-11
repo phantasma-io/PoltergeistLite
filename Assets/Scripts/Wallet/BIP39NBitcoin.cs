@@ -13,7 +13,7 @@ public static class BIP39NBitcoin
 
     public static byte[] MnemonicToPK(string mnemonicPhrase, uint pkIndex = 0)
     {
-        var mnemonic = new Mnemonic(mnemonicPhrase);
+        var mnemonic = new Mnemonic(mnemonicPhrase.ToLowerInvariant());
         var keyPathToDerive = KeyPath.Parse("m/44'/60'/0'/0");
         var pk = mnemonic.DeriveExtKey(null).Derive(keyPathToDerive);
         var keyNew = pk.Derive(pkIndex);
