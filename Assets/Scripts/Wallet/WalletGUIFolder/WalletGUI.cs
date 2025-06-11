@@ -1172,7 +1172,28 @@ namespace Poltergeist
 
         private void DeriveAccountFromSeed(string mnemonicPhrase, uint derivationIndex, uint overallDerivationCount)
         {
-            ImportWallet(BIP39NBitcoin.MnemonicToWif(mnemonicPhrase, derivationIndex), (int)derivationIndex, overallDerivationCount, null, false, (walletIndex) =>
+            var (wif, incorrectWord) = BIP39NBitcoin.MnemonicToWif(mnemonicPhrase, derivationIndex);
+
+            if (wif == null)
+            {
+                if (incorrectWord != null)
+                {
+                    MessageBox(MessageKind.Error, $"Seed phrase that you entered is incorrect.\nIncorrect word: '{incorrectWord}'.");
+                }
+                else
+                {
+                    MessageBox(MessageKind.Error, "Seed phrase that you entered is incorrect." +
+        "\nPlease check your spelling carefully, and try again." +
+        "\n" +
+        "\nEnsure that:" +
+        "\n* If copy / pasting - That you've selected the entire set of characters." +
+        "\n* If copy / pasting - That the characters have been copied into your clipboard correctly." +
+        "\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.");
+                }
+                return;
+            }
+
+            ImportWallet(wif, (int)derivationIndex, overallDerivationCount, null, false, (walletIndex) =>
             {
                 if (derivationIndex == overallDerivationCount - 1)
                 {
@@ -1348,7 +1369,7 @@ namespace Poltergeist
 "\nEnsure that:" +
 "\n* If copy / pasting - That you've selected the entire set of characters." +
 "\n* If copy / pasting - That the characters have been copied into your clipboard correctly." +
-"\n* If typing it -Take care to check that you're using English keyboard layout and the correct case for each letter.");
+"\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.");
                                     }
                                 }
                             });
