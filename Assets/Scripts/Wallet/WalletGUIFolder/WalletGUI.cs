@@ -1334,7 +1334,7 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    if (PhantasmaAPI.IsValidPrivateKey(key))
+                                    if (PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
                                     {
                                         PromptBox("Was this private key created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", ModalYesNo, (legacySeed) =>
                                         {
@@ -1342,7 +1342,7 @@ namespace Poltergeist
                                         });
                                     }
                                     else
-                                    if (key.Length == 64 || (key.Length == 66 && key.ToUpper().StartsWith("0X")))
+                                    if ((key.Length == 64 || (key.Length == 66 && key.ToUpper().StartsWith("0X"))) && !key.Contains(' '))
                                     {
                                         var priv = Base16.Decode(key);
                                         var tempKey = new PhantasmaKeys(priv);
