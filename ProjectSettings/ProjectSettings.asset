@@ -165,7 +165,7 @@ PlayerSettings:
   applicationIdentifier:
     Android: com.Phantasma.PoltergeistLite
     Standalone: com.Phantasma.PoltergeistLite
-    iPhone: info.phantasma.poltergeistLite
+    iPhone: io.phantasmaphoenix.poltergeistlite
   buildNumber:
     Bratwurst: 0
     Standalone: 0
@@ -550,6 +550,9 @@ PlayerSettings:
   - serializedVersion: 3
     m_BuildTarget: Android
     m_Formats: 01000000
+  - serializedVersion: 3
+    m_BuildTarget: iOS
+    m_Formats: 03000000
   playModeTestRunnerEnabled: 0
   runPlayModeTestAsEditModeTest: 0
   actionOnDotNetUnhandledException: 1
