@@ -2475,13 +2475,6 @@ namespace Poltergeist
                             secondaryEnabled = balance.Available > 0;
                             secondaryCallback = () =>
                             {
-                                // TODO remove later
-                                if (!accountManager.Settings.devMode)
-                                {
-                                    MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
-                                    return;
-                                }
-
                                 transferSymbol = balance.Symbol;
 
                                 // We should do this initialization here and not in PushState,
@@ -2548,7 +2541,10 @@ namespace Poltergeist
                 mainAction = "Send";
             }
 
-            DoButton(mainActionEnabled, new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
+            // TODO remove NFT check later
+            // NFT transfers are currently unavailable
+            Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var transferToken0);
+            DoButton(mainActionEnabled && !(!transferToken0.IsFungible() && !accountManager.Settings.devMode), new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
             {
                 if (mainAction == "Send")
                 {
@@ -2557,13 +2553,6 @@ namespace Poltergeist
                     Phantasma.SDK.Token transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
-
-                    // TODO remove later
-                    if (!transferToken.IsFungible() && !accountManager.Settings.devMode)
-                    {
-                        MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
-                        return;
-                    }
 
                     if (string.IsNullOrEmpty(transferToken.flags))
                     {
@@ -2699,9 +2688,9 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
 
             var nfts = accountManager.CurrentNfts;
-            if (accountManager.BalanceRefreshing)
+            if (accountManager.NftsRefreshing)
             {
-                DrawCenteredText((nfts != null) ? $"Fetching NFTs ({nfts.Count})..." : "Fetching NFTs...");
+                DrawCenteredText((nfts != null && nfts.Count > 0) ? $"Loading NFTs ({nfts.Count})..." : "Loading NFTs...");
                 return;
             }
 
@@ -2876,7 +2865,7 @@ namespace Poltergeist
                     }
                 }
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestamp.ToString("dd.MM.yy") : item.timestamp.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? DateTimeOffset.FromUnixTimeSeconds((long)item.timestamp).ToLocalTime().ToString("dd.MM.yy") : DateTimeOffset.FromUnixTimeSeconds((long)item.timestamp).ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
             }
             else if (transferSymbol == "GAME")
             {

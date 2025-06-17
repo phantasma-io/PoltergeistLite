@@ -9,7 +9,7 @@ public class UpdateChecker : MonoBehaviour
 {
     public string githubOwner = "phantasma-io"; // Your GitHub username
     public string githubRepo = "PoltergeistLite"; // Your repository name
-    public string currentVersion = "1.5.1"; // Current version of your game
+    public string currentVersion = "1.5.2"; // Current version of your game
 
     private const string GITHUB_RELEASES_URL = "https://github.com/";
     private static string URL = "";
@@ -20,9 +20,11 @@ public class UpdateChecker : MonoBehaviour
     // Start is called before the first frame update
     private void Start()
     {
+#if !UNITY_ANDROID && !UNITY_IOS
         URL = GITHUB_RELEASES_URL + githubOwner + "/" + githubRepo + "/releases/latest";
         currentVersion = Application.version;
         StartCoroutine(CheckForUpdates());
+#endif
     }
 
 
