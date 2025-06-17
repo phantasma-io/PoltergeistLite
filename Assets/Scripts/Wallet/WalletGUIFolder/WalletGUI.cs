@@ -2688,9 +2688,9 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
 
             var nfts = accountManager.CurrentNfts;
-            if (accountManager.BalanceRefreshing)
+            if (accountManager.NftsRefreshing)
             {
-                DrawCenteredText((nfts != null) ? $"Fetching NFTs ({nfts.Count})..." : "Fetching NFTs...");
+                DrawCenteredText((nfts != null && nfts.Count > 0) ? $"Loading NFTs ({nfts.Count})..." : "Loading NFTs...");
                 return;
             }
 

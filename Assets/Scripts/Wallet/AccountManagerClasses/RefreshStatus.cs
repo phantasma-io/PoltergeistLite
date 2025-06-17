@@ -11,6 +11,7 @@ namespace Poltergeist
         // History
         public bool HistoryRefreshing;
         public DateTime LastHistoryRefresh;
+        public bool NftsRefreshing;
 
         public override string ToString()
         {

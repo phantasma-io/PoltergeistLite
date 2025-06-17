@@ -65,6 +65,7 @@ namespace Poltergeist
         public string Status { get; private set; }
         public bool Ready => Status == "ok";
         public bool BalanceRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].BalanceRefreshing : false;
+        public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
         public Phantasma.SDK.PhantasmaAPI phantasmaApi { get; private set; }
@@ -929,6 +930,16 @@ The Phoenix team", "Notice");
 
         private void ReportWalletNft(PlatformKind platform, string symbol)
         {
+            lock (_refreshStatus)
+            {
+                if (_refreshStatus.ContainsKey(platform))
+                {
+                    var refreshStatus = _refreshStatus[platform];
+                    refreshStatus.NftsRefreshing = false;
+                    _refreshStatus[platform] = refreshStatus;
+                }
+            }
+
             if (_nfts.ContainsKey(platform) && _nfts[platform] != null)
             {
                 Log.Write($"Received {_nfts[platform].Count()} new {symbol} NFTs for {platform}");
@@ -1254,6 +1265,24 @@ The Phoenix team", "Notice");
         {
             var now = DateTime.UtcNow;
 
+            lock (_refreshStatus)
+            {
+                if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                {
+                    var refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+                    refreshStatus.NftsRefreshing = true;
+                    _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                }
+                else
+                {
+                    _refreshStatus.Add(PlatformKind.Phantasma,
+                        new RefreshStatus
+                        {
+                            NftsRefreshing = true
+                        });
+                }
+            }
+
             if (force)
             {
                 // On force refresh we clear NFT symbol's cache.
@@ -1303,6 +1332,7 @@ The Phoenix team", "Notice");
                                         }
 
                                         int loadedTokenCounter = 0;
+
                                         foreach (var id in balanceEntry.Ids)
                                         {
                                             // Checking if token is cached.
@@ -1330,14 +1360,18 @@ The Phoenix team", "Notice");
                                                     // We finished loading tokens.
                                                     // Saving them in cache.
                                                     Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
-                                                    
+
                                                     if (symbol != "TTRS")
                                                     {
                                                         // For all NFTs except TTRS all needed information
                                                         // is loaded by this moment.
                                                         nftDescriptionsAreFullyLoaded = true;
                                                     }
-
+                                                }
+                                                
+                                                if (loadedTokenCounter > 0)
+                                                {
+                                                    // We mark process as ready after first NFT loaded to make process async
                                                     ReportWalletNft(platform, symbol);
                                                 }
                                             }
@@ -1353,13 +1387,19 @@ The Phoenix team", "Notice");
                                                     _nfts[platform].Add(tokenData2);
 
                                                     loadedTokenCounter++;
+
+                                                    if (loadedTokenCounter > 0)
+                                                    {
+                                                        // We mark process as ready after first NFT loaded to make process async
+                                                        ReportWalletNft(platform, symbol);
+                                                    }
                                                 }
                                                 else
                                                 {
                                                     StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
                                                     {
                                                         tokenData2.ParseRoms(symbol);
-                                                        
+
                                                         // Downloading NFT images.
                                                         StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
 
@@ -1373,18 +1413,21 @@ The Phoenix team", "Notice");
                                                             // We finished loading tokens.
                                                             // Saving them in cache.
                                                             Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+                                                        }
 
+                                                        if (loadedTokenCounter > 0)
+                                                        {
+                                                            // We mark process as ready after first NFT loaded to make process async
                                                             ReportWalletNft(platform, symbol);
                                                         }
                                                     }, (error, msg) =>
                                                     {
-                                                        Log.Write(msg);
+                                                        loadedTokenCounter++;
+                                                        Log.Write($"NFT loading error for {symbol}/{id}: {msg}");
                                                     }));
                                                 }
                                             }
                                         }
-
-                                        ReportWalletNft(platform, symbol);
 
                                         if (balanceEntry.Ids.Length > 0)
                                         {
