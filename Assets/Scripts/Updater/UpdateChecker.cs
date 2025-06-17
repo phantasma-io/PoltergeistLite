@@ -20,9 +20,11 @@ public class UpdateChecker : MonoBehaviour
     // Start is called before the first frame update
     private void Start()
     {
+#if !UNITY_ANDROID && !UNITY_IOS
         URL = GITHUB_RELEASES_URL + githubOwner + "/" + githubRepo + "/releases/latest";
         currentVersion = Application.version;
         StartCoroutine(CheckForUpdates());
+#endif
     }
 
 
