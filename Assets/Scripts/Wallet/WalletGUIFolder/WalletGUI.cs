@@ -2475,13 +2475,6 @@ namespace Poltergeist
                             secondaryEnabled = balance.Available > 0;
                             secondaryCallback = () =>
                             {
-                                // TODO remove later
-                                if (!accountManager.Settings.devMode)
-                                {
-                                    MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
-                                    return;
-                                }
-
                                 transferSymbol = balance.Symbol;
 
                                 // We should do this initialization here and not in PushState,
@@ -2548,7 +2541,10 @@ namespace Poltergeist
                 mainAction = "Send";
             }
 
-            DoButton(mainActionEnabled, new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
+            // TODO remove NFT check later
+            // NFT transfers are currently unavailable
+            Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var transferToken0);
+            DoButton(mainActionEnabled && !(!transferToken0.IsFungible() && !accountManager.Settings.devMode), new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
             {
                 if (mainAction == "Send")
                 {
@@ -2557,13 +2553,6 @@ namespace Poltergeist
                     Phantasma.SDK.Token transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
-
-                    // TODO remove later
-                    if (!transferToken.IsFungible() && !accountManager.Settings.devMode)
-                    {
-                        MessageBox(MessageKind.Error, $"Operations with NFTs are not supported yet in this version.");
-                        return;
-                    }
 
                     if (string.IsNullOrEmpty(transferToken.flags))
                     {
