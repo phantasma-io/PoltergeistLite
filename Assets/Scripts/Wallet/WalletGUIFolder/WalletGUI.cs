@@ -2865,7 +2865,7 @@ namespace Poltergeist
                     }
                 }
 
-                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? item.timestamp.ToString("dd.MM.yy") : item.timestamp.ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
+                nftDescription = item.mint == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " + (VerticalLayout ? DateTimeOffset.FromUnixTimeSeconds((long)item.timestamp).ToLocalTime().ToString("dd.MM.yy") : DateTimeOffset.FromUnixTimeSeconds((long)item.timestamp).ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")) + (VerticalLayout ? " " : " / ") + nftType + rarity;
             }
             else if (transferSymbol == "GAME")
             {
