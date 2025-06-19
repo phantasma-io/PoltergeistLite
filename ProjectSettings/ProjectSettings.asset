@@ -95,8 +95,8 @@ PlayerSettings:
   forceSingleInstance: 0
   useFlipModelSwapchain: 1
   resizableWindow: 1
-  useMacAppStoreValidation: 0
-  macAppStoreCategory: public.app-category.games
+  useMacAppStoreValidation: 1
+  macAppStoreCategory: public.app-category.finance
   gpuSkinning: 0
   meshDeformation: 0
   xboxPIXTextureCapture: 0
@@ -164,7 +164,7 @@ PlayerSettings:
   androidMinAspectRatio: 1
   applicationIdentifier:
     Android: com.Phantasma.PoltergeistLite
-    Standalone: com.Phantasma.PoltergeistLite
+    Standalone: io.phantasmaphoenix.poltergeistlite
     iPhone: io.phantasmaphoenix.poltergeistlite
   buildNumber:
     Bratwurst: 0
