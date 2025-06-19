@@ -444,6 +444,11 @@ namespace Poltergeist
         {
             Settings.Load();
 
+            if (AccountManager.Instance.Settings.initialWindowWidth > 0 && AccountManager.Instance.Settings.initialWindowHeight > 0)
+            {
+                Screen.SetResolution(AccountManager.Instance.Settings.initialWindowWidth, AccountManager.Instance.Settings.initialWindowHeight, false);
+            }
+
             UpdateRPCURL();
 
             LoadNexus();

@@ -100,6 +100,8 @@ namespace Poltergeist
 
         public const string UiThemeNameTag = "ui.theme.name";
         public const string UiFramerateTag = "ui.framerate";
+        public const string InitialWindowWidthTag = "initial.window.width";
+        public const string InitialWindowHeightTag = "initial.window.height";
 
         public const string TtrsNftSortModeTag = "ttrs.nft.sort.mode";
         public const string NftSortModeTag = "nft.sort.mode";
@@ -130,6 +132,8 @@ namespace Poltergeist
         public bool logOverwriteMode;
         public string uiThemeName;
         public int uiFramerate;
+        public int initialWindowWidth;
+        public int initialWindowHeight;
         public int ttrsNftSortMode;
         public int nftSortMode;
         public int nftSortDirection;
@@ -220,6 +224,8 @@ namespace Poltergeist
 
             this.uiThemeName = PlayerPrefs.GetString(UiThemeNameTag, UiThemes.Default.ToString());
             this.uiFramerate = PlayerPrefs.GetInt(UiFramerateTag, -1);
+            this.initialWindowWidth = PlayerPrefs.GetInt(InitialWindowWidthTag, -1);
+            this.initialWindowHeight = PlayerPrefs.GetInt(InitialWindowHeightTag, -1);
 
             LoadLogSettings();
 
@@ -388,6 +394,8 @@ namespace Poltergeist
             PlayerPrefs.SetString(CurrencyTag, this.currency);
             PlayerPrefs.SetString(UiThemeNameTag, this.uiThemeName);
             PlayerPrefs.SetInt(UiFramerateTag, this.uiFramerate);
+            PlayerPrefs.SetInt(InitialWindowWidthTag, this.initialWindowWidth);
+            PlayerPrefs.SetInt(InitialWindowHeightTag, this.initialWindowHeight);
             PlayerPrefs.SetString(LogLevelTag, this.logLevel.ToString());
             PlayerPrefs.SetInt(LogOverwriteModeTag, this.logOverwriteMode ? 1 : 0);
             PlayerPrefs.SetString(MnemonicPhraseLengthTag, this.mnemonicPhraseLength.ToString());

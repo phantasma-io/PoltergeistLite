@@ -245,7 +245,30 @@ namespace Poltergeist
                     }
                 }
             }
+            curY += Units(3);
 
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial width");
+            var initialWindowWidth = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.initialWindowWidth.ToString());
+            if (int.TryParse(initialWindowWidth, out var initialWindowWidthInt))
+            {
+                settings.initialWindowWidth = initialWindowWidthInt;
+            }
+            else
+            {
+                settings.initialWindowWidth = -1;
+            }
+            curY += Units(3);
+
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial height");
+            var initialWindowHeight = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.initialWindowHeight.ToString());
+            if (int.TryParse(initialWindowHeight, out var initialWindowHeightInt))
+            {
+                settings.initialWindowHeight = initialWindowHeightInt;
+            }
+            else
+            {
+                settings.initialWindowHeight = -1;
+            }
             curY += Units(3);
 
             settings.devMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode, "");
@@ -784,6 +807,17 @@ namespace Poltergeist
             if (settings.feeLimit < 900)
             {
                 MessageBox(MessageKind.Error, "Invalid value for fee limit.\n" + settings.feeLimit);
+                return false;
+            }
+
+            if (settings.initialWindowWidth < -1)
+            {
+                MessageBox(MessageKind.Error, "Invalid value for initial width.\n" + settings.initialWindowWidth);
+                return false;
+            }
+            if (settings.initialWindowHeight < -1)
+            {
+                MessageBox(MessageKind.Error, "Invalid value for initial height.\n" + settings.initialWindowHeight);
                 return false;
             }
 
