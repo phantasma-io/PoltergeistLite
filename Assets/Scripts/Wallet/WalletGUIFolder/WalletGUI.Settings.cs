@@ -253,10 +253,6 @@ namespace Poltergeist
             {
                 settings.initialWindowWidth = initialWindowWidthInt;
             }
-            else
-            {
-                settings.initialWindowWidth = -1;
-            }
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial height");
@@ -264,10 +260,6 @@ namespace Poltergeist
             if (int.TryParse(initialWindowHeight, out var initialWindowHeightInt))
             {
                 settings.initialWindowHeight = initialWindowHeightInt;
-            }
-            else
-            {
-                settings.initialWindowHeight = -1;
             }
             curY += Units(3);
 
