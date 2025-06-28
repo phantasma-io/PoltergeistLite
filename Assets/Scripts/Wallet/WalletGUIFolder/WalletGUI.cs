@@ -21,6 +21,7 @@ using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.Cryptography.Extensions;
 
 namespace Poltergeist
 {
@@ -3547,7 +3548,7 @@ namespace Poltergeist
 
                                         var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
 
-                                        var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
+                                        var hash = Base16.Encode(messageBytes.Sha256());
                                         if (accountManager.Settings.devMode)
                                         {
                                             Log.Write($"Signed message: '{message}', hash: '{hash}'");
@@ -3626,7 +3627,7 @@ namespace Poltergeist
 
                                             if (accountManager.Settings.devMode)
                                             {
-                                                var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
+                                                var hash = Base16.Encode(messageBytes.Sha256());
                                                 Log.WriteRaw($"Verified message: '{message}'");
                                                 Log.WriteRaw("\n\n");
                                                 Log.Write($"Hash: '{hash}'");

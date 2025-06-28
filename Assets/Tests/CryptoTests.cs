@@ -9,6 +9,7 @@ using Poltergeist.Neo2.Core;
 using System;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography.Extensions;
 
 namespace Phantasma.Tests
 {
@@ -226,7 +227,7 @@ namespace Phantasma.Tests
 
             var msgBytes = Encoding.ASCII.GetBytes(message);
 
-            var hash = Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(msgBytes);
+            var hash = msgBytes.Sha256();
             Debug.Log("Message hash: " + Base16.Encode(hash));
 
             var signature = ECDsa.SignDeterministic(msgBytes, keys.PrivKey, curve);

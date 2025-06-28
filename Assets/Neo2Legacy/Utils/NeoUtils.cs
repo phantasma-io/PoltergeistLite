@@ -1,6 +1,6 @@
-using Phantasma.Core.Cryptography;
 using Phantasma.Core.Cryptography.Hashing;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Cryptography.Extensions;
 using Poltergeist.PhantasmaLegacy.Cryptography;
 using System;
 using System.Collections.Generic;
@@ -49,7 +49,7 @@ namespace Poltergeist.PhantasmaLegacy.Neo2
 
             if (buffer.Length < 4) return false;
 
-            byte[] checksum = buffer.Sha256(0, (uint)buffer.Length - 4).Sha256();
+            byte[] checksum = buffer.Sha256(0, buffer.Length - 4).Sha256();
             return buffer.Skip(buffer.Length - 4).SequenceEqual(checksum.Take(4));
         }
 
