@@ -15,7 +15,6 @@ using System.Threading;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using BigInteger = System.Numerics.BigInteger;
 using NBitcoin;
-using Poltergeist.Neo2.Core;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
@@ -3569,7 +3568,7 @@ namespace Poltergeist
                                         }
                                         else if (chain == "Neo Legacy")
                                         {
-                                            var keys = NeoKeys.FromWIF(wif);
+                                            var keys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
                                             signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256r1);
                                         }
                                         else
@@ -3648,7 +3647,7 @@ namespace Poltergeist
                                             }
                                             else if (chain == "Neo Legacy")
                                             {
-                                                var keys = NeoKeys.FromWIF(wif);
+                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
                                                 verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256r1);
                                             }
                                             else
@@ -4013,7 +4012,7 @@ namespace Poltergeist
                         }
                     }
                     else
-                    if (Poltergeist.PhantasmaLegacy.Neo2.NeoUtils.IsValidAddress(destAddress))
+                    if (PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoUtils.IsValidAddress(destAddress))
                     {
                         MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to Neo address not supported.");
                     }

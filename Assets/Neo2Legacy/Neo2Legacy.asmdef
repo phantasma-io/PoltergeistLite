@@ -1,8 +1,0 @@
-{
-    "name": "Neo2Legacy",
-    "allowUnsafeCode" : true,
-    "references": [
-        "Phantasma.SDK",
-        "PhantasmaLegacy"
-    ]
-}

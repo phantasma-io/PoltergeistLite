@@ -81,7 +81,7 @@ public class ProofOfAddressesVerifier
             errorMessage += "Ethereum address is incorrect: " + ethAddressFromPublicKey + "\n";
         }
 
-        var neo2AddressFromPublicKey = Poltergeist.Neo2.Core.NeoKeys.PublicKeyToN2Address(Neo2PublicKeyBytes);
+        var neo2AddressFromPublicKey = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.PublicKeyToN2Address(Neo2PublicKeyBytes);
         if (Neo2Address != neo2AddressFromPublicKey)
         {
             success = false;

@@ -6,7 +6,6 @@ using System;
 using System.IO;
 using System.Linq;
 using Phantasma.SDK;
-using Poltergeist.Neo2.Core;
 using System.Numerics;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using PhantasmaPhoenix.Cryptography;
@@ -1623,7 +1622,7 @@ The Phoenix team", "Notice");
             var phaKeys = PhantasmaKeys.FromWIF(wif);
             account.phaAddress = phaKeys.Address.ToString();
 
-            var neoKeys = NeoKeys.FromWIF(wif);
+            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
             account.neoAddress = neoKeys.Address.ToString();
             account.neoAddress = neoKeys.AddressN3.ToString();
 
@@ -1696,7 +1695,7 @@ The Phoenix team", "Notice");
             var phaKeys = PhantasmaKeys.FromWIF(wif);
             account.phaAddress = phaKeys.Address.ToString();
 
-            var neoKeys = NeoKeys.FromWIF(wif);
+            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
             account.neoAddress = neoKeys.Address.ToString();
 
             var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
@@ -2082,7 +2081,7 @@ The Phoenix team", "Notice");
 
         public void UpdateOpenAccount()
         {
-            NeoKeys neoKeys = NeoKeys.FromWIF(CurrentWif);
+            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(CurrentWif);
             var SelectedAccount = CurrentAccount;
             SelectedAccount.neoAddressN3 = neoKeys.AddressN3;
             SelectedAccount.neoAddress = neoKeys.Address;

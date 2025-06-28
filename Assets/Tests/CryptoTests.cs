@@ -5,7 +5,6 @@ using UnityEngine.TestTools;
 using NUnit.Framework;
 using System.Collections;
 using Poltergeist.PhantasmaLegacy.Ethereum;
-using Poltergeist.Neo2.Core;
 using System;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
@@ -195,7 +194,7 @@ namespace Phantasma.Tests
                             PubKeyUncompressed = ethKeys.UncompressedPublicKey;
                             break;
                         case ECDsaCurve.Secp256r1:
-                            var neoKeys = new NeoKeys(PrivKey);
+                            var neoKeys = new PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys(PrivKey);
 
                             PubKeyCompressed = neoKeys.CompressedPublicKey;
                             PubKeyUncompressed = neoKeys.PublicKey;

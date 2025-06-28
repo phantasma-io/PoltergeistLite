@@ -7,6 +7,7 @@
     "precompiledReferences": [
         "PhantasmaPhoenix.Core.dll",
         "PhantasmaPhoenix.Cryptography.dll",
+        "PhantasmaPhoenix.InteropChains.Legacy.dll",
         "PhantasmaPhoenix.Protocol.dll",
         "PhantasmaPhoenix.VM.dll",
         "Phantasma.Blockchain.dll",

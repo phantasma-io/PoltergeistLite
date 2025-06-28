@@ -10,7 +10,6 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Cryptography.Extensions;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.VM;
-using Poltergeist.Neo2.Core;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using UnityEngine.Device;
 
@@ -535,7 +534,7 @@ namespace Poltergeist
                                 }
                                 else
                                 {
-                                    var neoKeys = NeoKeys.FromWIF(wif);
+                                    var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
                                     var signatureBytes = ECDsa.Sign(msg, neoKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
