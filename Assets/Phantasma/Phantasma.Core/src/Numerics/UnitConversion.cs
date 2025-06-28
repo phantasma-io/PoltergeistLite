@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Globalization;
-using System.Linq;
 using System.Numerics;
 
 namespace Phantasma.Core.Numerics
@@ -10,9 +9,11 @@ namespace Phantasma.Core.Numerics
         private static readonly string s_NumberDecimalSeparator = ".";
         private static readonly NumberFormatInfo s_NumberFormatInfo = new() { NumberDecimalSeparator = s_NumberDecimalSeparator };
 
-        // TODO why not just BigInteger.Pow(10, units)???
         private static BigInteger GetMultiplier(int units)
         {
+#if NET7_0_OR_GREATER
+            return BigInteger.Pow(10, units);
+#else
             BigInteger unitMultiplier = 1;
             while (units > 0)
             {
@@ -21,21 +22,23 @@ namespace Phantasma.Core.Numerics
             }
 
             return unitMultiplier;
+#endif
         }
 
         public static string ToDecimalString(string amount, int tokenDecimals)
         {
-            if (amount == "0" || tokenDecimals == 0)
-                return amount;
+            if (string.IsNullOrEmpty(amount) || amount == "0" || tokenDecimals == 0)
+                return "0";
 
             if (amount.Length <= tokenDecimals)
             {
-                return "0" + s_NumberDecimalSeparator + amount.PadLeft(tokenDecimals, '0').TrimEnd('0');
+                var fraction = amount.PadLeft(tokenDecimals, '0').TrimEnd('0');
+                return "0" + s_NumberDecimalSeparator + (fraction.Length > 0 ? fraction : "0");
             }
 
-            var decimalPart = amount.Substring(amount.Length - tokenDecimals);
-            decimalPart = decimalPart.Any(x => x != '0') ? decimalPart.TrimEnd('0') : null;
-            return amount.Substring(0, amount.Length - tokenDecimals) + (decimalPart != null ? s_NumberDecimalSeparator + decimalPart : "");
+            var whole = amount.Substring(0, amount.Length - tokenDecimals);
+            var fractionPart = amount.Substring(amount.Length - tokenDecimals).TrimEnd('0');
+            return whole + (fractionPart.Length > 0 ? s_NumberDecimalSeparator + fractionPart : "");
         }
 
         public static decimal ToDecimal(string amount, int tokenDecimals)
@@ -75,12 +78,10 @@ namespace Phantasma.Core.Numerics
 
             //doing "value * BigInteger.Pow(10, decimalTo - decimalFrom)" would not work for negative exponents as it would always be 0;
             //separating the calculations in two steps leads to only returning 0 when the final value would be < 1
-            var fromFactor = BigInteger.Pow(10, decimalFrom);
-            var toFactor = BigInteger.Pow(10, decimalTo);
+            var fromFactor = GetMultiplier(decimalFrom);
+            var toFactor = GetMultiplier(decimalTo);
 
-            var output = value * toFactor / fromFactor;
-
-            return output;
+            return value * toFactor / fromFactor;
         }
 
         public static BigInteger GetUnitValue(int decimals)
