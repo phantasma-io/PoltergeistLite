@@ -201,9 +201,9 @@ namespace Phantasma.SDK
         public string chainName;
         public string ownerAddress;
         public string creatorAddress;
-        [JsonConverter(typeof(HexByteArrayConverter))]
+        [JsonConverter(typeof(HexByteArrayJsonConverter))]
         public byte[] ram;
-        [JsonConverter(typeof(HexByteArrayConverter))]
+        [JsonConverter(typeof(HexByteArrayJsonConverter))]
         public byte[] rom;
         public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
         public IRom parsedRom;
@@ -353,7 +353,7 @@ namespace Phantasma.SDK
         public uint size; //
         public uint time; //
         public string flags; //
-        [JsonConverter(typeof(HexByteArrayConverter))]
+        [JsonConverter(typeof(HexByteArrayJsonConverter))]
         public byte[] encryption; //
         public int blockCount; //
         public string[] metadata; //
