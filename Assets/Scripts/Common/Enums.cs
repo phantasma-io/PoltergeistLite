@@ -1,4 +1,4 @@
-namespace Phantasma.SDK
+namespace Poltergeist
 {
     public enum EPHANTASMA_SDK_ERROR_TYPE
     {

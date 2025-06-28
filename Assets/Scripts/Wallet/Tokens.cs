@@ -1,10 +1,10 @@
 using UnityEngine;
-using Phantasma.SDK;
 using Poltergeist;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PhantasmaIntegration;
 
 public static class Tokens
 {

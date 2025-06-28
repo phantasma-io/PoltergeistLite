@@ -5,7 +5,6 @@ using UnityEngine;
 using System;
 using System.IO;
 using System.Linq;
-using Phantasma.SDK;
 using System.Numerics;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
@@ -13,6 +12,7 @@ using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Core.Extensions;
 using Newtonsoft.Json.Linq;
+using PhantasmaIntegration;
 
 namespace Poltergeist
 {
@@ -65,7 +65,7 @@ namespace Poltergeist
         public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
-        public Phantasma.SDK.PhantasmaAPI phantasmaApi { get; private set; }
+        public PhantasmaAPI phantasmaApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -981,7 +981,7 @@ The Phoenix team", "Notice");
 
         private const int maxChecks = 12; // Timeout after 36 seconds
 
-        public void RequestConfirmation(string transactionHash, int checkCount, Action<Phantasma.SDK.Transaction?, string> callback)
+        public void RequestConfirmation(string transactionHash, int checkCount, Action<PhantasmaIntegration.Transaction?, string> callback)
         {
             switch (CurrentPlatform)
             {

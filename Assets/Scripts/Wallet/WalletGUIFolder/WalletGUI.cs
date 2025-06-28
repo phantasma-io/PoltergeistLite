@@ -5,8 +5,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-using Phantasma.SDK;
-
 using ZXing;
 using ZXing.QrCode;
 using System.Globalization;
@@ -19,6 +17,7 @@ using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Extensions;
+using PhantasmaIntegration;
 
 namespace Poltergeist
 {
@@ -2545,7 +2544,7 @@ namespace Poltergeist
                 {
                     transferSymbol = balance.Symbol;
                     var transferName = $"{transferSymbol} transfer";
-                    Phantasma.SDK.Token transferToken;
+                    PhantasmaIntegration.Token transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
@@ -3693,7 +3692,7 @@ namespace Poltergeist
                                                 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(Phantasma.SDK.WebClient.RESTPost<string>(url, jsonMessage, false, (error, msg) =>
+                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, false, (error, msg) =>
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },
@@ -3718,7 +3717,7 @@ namespace Poltergeist
             });
         }
 
-        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, PhantasmaIntegration.Transaction?, string> callback)
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
@@ -3974,7 +3973,7 @@ namespace Poltergeist
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";
-                Phantasma.SDK.Token transferToken;
+                PhantasmaIntegration.Token transferToken;
 
                 Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
@@ -4050,16 +4049,16 @@ namespace Poltergeist
             return posY;
         }
 
-        private Action<Hash, Phantasma.SDK.Transaction?, string> transactionCallback;
+        private Action<Hash, PhantasmaIntegration.Transaction?, string> transactionCallback;
 
-        private void InvokeTransactionCallback(Hash hash, Phantasma.SDK.Transaction? txResult, string error)
+        private void InvokeTransactionCallback(Hash hash, PhantasmaIntegration.Transaction? txResult, string error)
         {
             var temp = transactionCallback;
             transactionCallback = null;
             temp?.Invoke(hash, txResult, error);
         }
 
-        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, PhantasmaIntegration.Transaction?, string> callback)
         {
             if (script == null && transferRequest == null)
             {
@@ -4144,7 +4143,7 @@ namespace Poltergeist
             });
         }
 
-        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, PhantasmaIntegration.Transaction?, string> callback)
         {
             if (scripts.Count() == 0)
             {
@@ -4209,7 +4208,7 @@ namespace Poltergeist
             });
         }
 
-        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, PhantasmaIntegration.Transaction?, string> callback)
         {
             PushState(GUIState.Sending);
 
@@ -4245,7 +4244,7 @@ namespace Poltergeist
             });
         }
 
-        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, PhantasmaIntegration.Transaction?, string> callback)
         {
             transactionCallback = callback;
             transactionStillPending = true;

@@ -8,7 +8,6 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Security.Cryptography;
-using Phantasma.SDK;
 using PhantasmaPhoenix.Protocol;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;

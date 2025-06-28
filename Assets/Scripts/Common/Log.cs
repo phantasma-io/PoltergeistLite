@@ -5,7 +5,7 @@ using System.Threading;
 using UnityEngine;
 #endif
 
-namespace Phantasma.SDK
+namespace Poltergeist
 {
     public static class Log
     {

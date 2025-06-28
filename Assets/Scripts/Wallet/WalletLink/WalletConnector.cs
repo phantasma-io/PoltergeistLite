@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Phantasma.SDK;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Core.Extensions;
 using PhantasmaPhoenix.Cryptography;

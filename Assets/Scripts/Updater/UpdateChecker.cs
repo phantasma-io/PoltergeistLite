@@ -1,6 +1,5 @@
 using System.Collections;
 using System.Text.RegularExpressions;
-using Phantasma.SDK;
 using Poltergeist;
 using UnityEngine;
 using UnityEngine.Networking;

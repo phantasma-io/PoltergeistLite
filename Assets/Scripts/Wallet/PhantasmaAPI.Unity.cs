@@ -10,8 +10,9 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography.Extensions;
+using Poltergeist;
 
-namespace Phantasma.SDK
+namespace PhantasmaIntegration
 {
     public class PaginatedResult<T>
     {

@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
 
-namespace Phantasma.SDK
+namespace Poltergeist
 {
     public static class WebClient
     {

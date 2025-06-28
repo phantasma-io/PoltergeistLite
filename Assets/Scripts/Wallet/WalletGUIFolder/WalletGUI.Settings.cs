@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.Numerics;
 using UnityEngine;
-using Phantasma.SDK;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;

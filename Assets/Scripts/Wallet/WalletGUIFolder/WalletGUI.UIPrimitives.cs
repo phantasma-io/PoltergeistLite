@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Phantasma.SDK;
 using UnityEngine;
 
 namespace Poltergeist

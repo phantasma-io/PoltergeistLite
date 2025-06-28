@@ -1,10 +1,9 @@
-using Phantasma.SDK;
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Poltergeist;
 
 // Parsing and storing data received from TTRS store.
 public static class TtrsStore

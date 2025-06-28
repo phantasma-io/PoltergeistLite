@@ -1,8 +1,8 @@
 using UnityEngine;
 using UnityEngine.Networking;
-using Phantasma.SDK;
 using System.Collections;
 using System.Linq;
+using Poltergeist;
 
 // Storing NFT images.
 public static class NftImages

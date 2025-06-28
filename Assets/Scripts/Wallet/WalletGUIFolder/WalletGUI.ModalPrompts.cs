@@ -1,4 +1,3 @@
-using Phantasma.SDK;
 using PhantasmaPhoenix.Cryptography;
 using System;
 using System.Collections.Generic;
@@ -180,7 +179,7 @@ namespace Poltergeist
             return string.Join("\n", lines.Select((line, index) => index == 0 ? line : indent + line));
         }
 
-        public void TxResultMessage(Hash hash, Phantasma.SDK.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
+        public void TxResultMessage(Hash hash, PhantasmaIntegration.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
             var printDetails = false;
 
