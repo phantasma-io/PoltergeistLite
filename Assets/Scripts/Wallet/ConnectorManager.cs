@@ -449,11 +449,11 @@ namespace Poltergeist
             {
                 PhantasmaLink.Execute(str, (id, root, success) =>
                 {
-                    root.AddField("id", id);
-                    root.AddField("success", success);
+                    ((JObject)root)["id"] = id;
+                    ((JObject)root)["success"] = success;
 
-                    var json = JSONWriter.WriteToString(root);
-
+                    var json = root.ToString(Formatting.None);
+                    
                     try
                     {
                         IntentPluginManager.Instance.ReturnMessage(json);
