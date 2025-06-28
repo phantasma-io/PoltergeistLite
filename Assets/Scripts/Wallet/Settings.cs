@@ -3,6 +3,7 @@ using System;
 using UnityEngine;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using PhantasmaPhoenix.Cryptography;
 
 namespace Poltergeist
 {
@@ -35,12 +36,6 @@ namespace Poltergeist
     {
         Default,
         Phantasia
-    }
-
-    public enum MnemonicPhraseLength
-    {
-        Twelve_Words,
-        Twenty_Four_Words
     }
 
     public enum PasswordMode

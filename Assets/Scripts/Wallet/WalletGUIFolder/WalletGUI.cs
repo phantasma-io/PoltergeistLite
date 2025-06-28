@@ -1169,7 +1169,7 @@ namespace Poltergeist
 
         private void DeriveAccountFromSeed(string mnemonicPhrase, uint derivationIndex, uint overallDerivationCount)
         {
-            var (wif, incorrectWord) = BIP39NBitcoin.MnemonicToWif(mnemonicPhrase, derivationIndex);
+            var (wif, incorrectWord) = Mnemonics.MnemonicToWif(mnemonicPhrase, derivationIndex);
 
             if (wif == null)
             {
@@ -1306,7 +1306,7 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    newWalletSeedPhrase = BIP39NBitcoin.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
+                                    newWalletSeedPhrase = Mnemonics.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
 
                                     Animate(AnimationDirection.Down, true, () =>
                                     {
