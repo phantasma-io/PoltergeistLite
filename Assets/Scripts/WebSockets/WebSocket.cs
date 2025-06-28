@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using Phantasma.SDK;
 
-namespace LunarLabs.WebSockets
+namespace Poltergeist.WebSockets
 {
     internal enum WebSocketOpCode
     {

@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace LunarLabs.WebSockets
+namespace Poltergeist.WebSockets
 {
     internal class BinaryReaderWriter
     {

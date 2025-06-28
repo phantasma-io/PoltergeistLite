@@ -1,6 +1,6 @@
 using System;
 
-namespace LunarLabs.WebSockets
+namespace Poltergeist.WebSockets
 {
     internal class WebSocketFrame
     {

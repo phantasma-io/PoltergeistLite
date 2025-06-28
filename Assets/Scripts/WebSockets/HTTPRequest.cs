@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Net.Sockets;
-using System.Text;
 
-namespace LunarLabs.WebServer.HTTP
+namespace Poltergeist.WebServer.HTTP
 {
     public enum HTTPCode
     {
