@@ -4,8 +4,6 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Numerics;
 using Phantasma.Core.Domain;
 using Phantasma.Business.Blockchain.Storage;
 using Newtonsoft.Json;

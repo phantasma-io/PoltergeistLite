@@ -20,7 +20,6 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
-using Phantasma.Core.Numerics;
 using PhantasmaPhoenix.Cryptography.Extensions;
 
 namespace Poltergeist

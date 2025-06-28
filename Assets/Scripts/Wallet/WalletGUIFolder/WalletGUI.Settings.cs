@@ -3,9 +3,9 @@ using System.Linq;
 using System.Numerics;
 using UnityEngine;
 using Phantasma.SDK;
-using Phantasma.Core.Numerics;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Core;
 
 namespace Poltergeist
 {

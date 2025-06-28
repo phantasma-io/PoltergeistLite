@@ -1,4 +1,3 @@
-using Phantasma.Core.Numerics;
 using Phantasma.SDK;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography;
