@@ -1,4 +1,3 @@
-using Phantasma.Core.Cryptography.Hashing;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Cryptography.Extensions;
 using Poltergeist.PhantasmaLegacy.Cryptography;
