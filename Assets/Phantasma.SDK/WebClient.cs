@@ -1,11 +1,6 @@
 using System;
 using System.Collections;
-
-using UnityEngine;
 using UnityEngine.Networking;
-
-using LunarLabs.Parser;
-using LunarLabs.Parser.JSON;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
@@ -257,7 +252,7 @@ namespace Phantasma.SDK
             yield break;
         }
 
-        public static IEnumerator RESTRequest(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<DataNode> callback)
+        public static IEnumerator RESTGet<T>(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
 
@@ -278,47 +273,22 @@ namespace Phantasma.SDK
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                // Try extracting error details
-                int? errorCode = null;
-                string? errorMessage = null;
-                try
-                {
-                    var stringResponse = request.downloadHandler.text;
-                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
-                    errorCode = rpcResponse?.error?.code;
-                    errorMessage = rpcResponse?.error?.message;
-                }
-                catch
-                {
-                    // No parsable response body is available.
-                }
-
-                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
-                if(errorCode != null)
-                {
-                    error += "\nError code: " + errorCode.ToString();
-                }
-                if(errorMessage != null)
-                {
-                    error += "\nError message: " + errorMessage.ToString();
-                }
-
-                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
+                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec", Log.Level.Networking);
+                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, null);
             }
             else
             {
-                DataNode root = null;
+                T response = default;
                 try
                 {
                     Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                    root = JSONReader.ReadFromString(request.downloadHandler.text);
+                    response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
                 }
-                catch (Exception e)
+                catch(Exception e)
                 {
                     Log.Write(e.Message);
                 }
-                callback(root);
+                callback(response);
             }
 
             yield break;

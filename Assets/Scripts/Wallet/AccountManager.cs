@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using Phantasma.SDK;
 using Poltergeist.Neo2.Core;
-using LunarLabs.Parser;
 using System.Numerics;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using PhantasmaPhoenix.Cryptography;
@@ -15,6 +14,7 @@ using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Core.Extensions;
+using Newtonsoft.Json.Linq;
 
 namespace Poltergeist
 {
@@ -238,7 +238,7 @@ namespace Poltergeist
             rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
 
             StartCoroutine(
-                WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
+                WebClient.RESTGet<JToken>(url, WebClient.DefaultTimeout, (error, msg) =>
                 {
                     ReportGetPeersFailure = true;
                     Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + error);
@@ -247,14 +247,14 @@ namespace Poltergeist
                 {
                     if (response != null)
                     {
-                        rpcNumberPhantasma = response.ChildCount;
+                        rpcNumberPhantasma = response.Count();
 
                         if (String.IsNullOrEmpty(Settings.phantasmaRPCURL))
                         {
                             // If we have no previously used RPC, we select random one at first.
                             var index = ((int)(Time.realtimeSinceStartup * 1000)) % rpcNumberPhantasma;
-                            var node = response.GetNodeByIndex(index);
-                            var result = node.GetString("url") + "/rpc";
+                            var node = response[index];
+                            var result = node.Value<string>("url") + "/rpc";
                             Settings.phantasmaRPCURL = result;
                             Log.Write($"Changed Phantasma RPC url {index} => {result}");
                         }
@@ -262,9 +262,9 @@ namespace Poltergeist
                         UpdateAPIs();
 
                         // Benchmarking RPCs.
-                        foreach (var node in response.Children)
+                        foreach (var node in response.Children())
                         {
-                            var rpcUrl = node.GetString("url") + "/rpc";
+                            var rpcUrl = node.Value<string>("url") + "/rpc";
 
                             StartCoroutine(
                                 WebClient.Ping(rpcUrl, (error, msg) =>
