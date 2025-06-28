@@ -1,4 +1,3 @@
-using Phantasma.Core.Cryptography;
 using Phantasma.SDK;
 using PhantasmaPhoenix.Cryptography;
 using System;

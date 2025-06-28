@@ -4,8 +4,6 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Phantasma.Core.Domain;
-using Phantasma.Business.Blockchain.Storage;
 using Newtonsoft.Json;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography;
@@ -359,9 +357,9 @@ namespace Phantasma.SDK
         public byte[] encryption; //
         public int blockCount; //
         public string[] metadata; //
-        public IArchiveEncryption GetEncryption()
+        public PhantasmaPhoenix.Cryptography.Legacy.Storage.IArchiveEncryption GetEncryption()
         {
-            return ArchiveExtensions.ReadArchiveEncryption(encryption);
+            return PhantasmaPhoenix.Cryptography.Legacy.Storage.ArchiveExtensions.ReadArchiveEncryption(encryption);
         }
     }
 
