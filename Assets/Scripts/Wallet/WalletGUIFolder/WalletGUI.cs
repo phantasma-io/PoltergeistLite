@@ -12,7 +12,6 @@ using ZXing.QrCode;
 using System.Globalization;
 using System.Collections;
 using System.Threading;
-using Poltergeist.PhantasmaLegacy.Ethereum;
 using BigInteger = System.Numerics.BigInteger;
 using NBitcoin;
 using PhantasmaPhoenix.Cryptography;
@@ -2586,7 +2585,7 @@ namespace Poltergeist
                             return; // user canceled
                         }
 
-                        var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
+                        var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
 
                         if (Address.IsValidAddress(destAddress) && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
                         {
@@ -3347,8 +3346,8 @@ namespace Poltergeist
                                         {
                                             if (auth == PromptResult.Success)
                                             {
-                                                var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                                                var hexKey = PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(accountManager.CurrentWif);
+                                                var hexKey = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
 
                                                 ShowModal("Your private key (HEX)",
                                                     KeyPrepareForMessageBox(hexKey),
@@ -3563,7 +3562,7 @@ namespace Poltergeist
                                         }
                                         else if (chain == "Ethereum")
                                         {
-                                            var keys = EthereumKey.FromWIF(wif);
+                                            var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                             signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256k1);
                                         }
                                         else if (chain == "Neo Legacy")
@@ -3642,7 +3641,7 @@ namespace Poltergeist
                                             }
                                             else if (chain == "Ethereum")
                                             {
-                                                var keys = EthereumKey.FromWIF(wif);
+                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                                 verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256k1);
                                             }
                                             else if (chain == "Neo Legacy")
@@ -3998,7 +3997,7 @@ namespace Poltergeist
                         return; // user canceled
                     }
 
-                    var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
+                    var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
 
                     if (Address.IsValidAddress(destAddress) && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
                     {

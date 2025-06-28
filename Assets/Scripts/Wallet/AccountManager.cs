@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using Phantasma.SDK;
 using System.Numerics;
-using Poltergeist.PhantasmaLegacy.Ethereum;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
@@ -1085,7 +1084,7 @@ The Phoenix team", "Notice");
             lock (Tokens.__lockObj)
             {
                 var keys = PhantasmaKeys.FromWIF(wif);
-                var ethKeys = EthereumKey.FromWIF(wif);
+                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                 UpdateOpenAccount();
                 StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
                 {
@@ -1626,8 +1625,8 @@ The Phoenix team", "Notice");
             account.neoAddress = neoKeys.Address.ToString();
             account.neoAddress = neoKeys.AddressN3.ToString();
 
-            var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
-            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(EthereumKey.FromWIF(wif).Address);
+            var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
+            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address);
 
             if (!String.IsNullOrEmpty(password))
             {
@@ -1698,8 +1697,8 @@ The Phoenix team", "Notice");
             var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
             account.neoAddress = neoKeys.Address.ToString();
 
-            var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
-            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(EthereumKey.FromWIF(wif).Address);
+            var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
+            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address);
 
             Accounts[currentIndex] = account;
 

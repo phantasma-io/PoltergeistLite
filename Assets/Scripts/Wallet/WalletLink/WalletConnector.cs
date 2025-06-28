@@ -10,7 +10,6 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Cryptography.Extensions;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.VM;
-using Poltergeist.PhantasmaLegacy.Ethereum;
 using UnityEngine.Device;
 
 namespace Poltergeist
@@ -296,7 +295,7 @@ namespace Poltergeist
                                         break;
 
                                     case SignatureKind.ECDSA:
-                                        var ethKeys = EthereumKey.FromWIF(wif);
+                                        var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                         var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                         signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                         break;
@@ -369,7 +368,7 @@ namespace Poltergeist
                                 break;
 
                             case SignatureKind.ECDSA:
-                                var ethKeys = EthereumKey.FromWIF(wif);
+                                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                 var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                 signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 break;
@@ -527,7 +526,7 @@ namespace Poltergeist
 
                                 if ( targetPlatform == PlatformKind.Ethereum || targetPlatform == PlatformKind.BSC)
                                 {
-                                    var ethKeys = EthereumKey.FromWIF(wif);
+                                    var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                 
                                     var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
