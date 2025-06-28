@@ -1,10 +1,7 @@
 using System.Linq;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
 using Poltergeist.PhantasmaLegacy.Ethereum;
-using Phantasma.Core.Cryptography.EdDSA;
 using System.Text;
-using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.Cryptography;
 
 public class ProofOfAddressesVerifier
 {
@@ -40,7 +37,7 @@ public class ProofOfAddressesVerifier
         SignedMessageBytes = Encoding.ASCII.GetBytes(SignedMessage);
 
         PhaAddress = split[1].Substring(19);
-        PhaPublicKeyBytes = Address.FromText(PhaAddress).GetPublicKey();
+        PhaPublicKeyBytes = Address.Parse(PhaAddress).GetPublicKey();
         EthAddress = split[2].Substring(18);
         EthPublicKey = split[3].Substring(21);
         EthPublicKeyBytes = Base16.Decode(EthPublicKey);

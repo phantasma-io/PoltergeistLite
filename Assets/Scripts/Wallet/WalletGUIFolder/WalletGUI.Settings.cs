@@ -3,9 +3,9 @@ using System.Linq;
 using System.Numerics;
 using UnityEngine;
 using Phantasma.SDK;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Domain;
 using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Cryptography;
 
 namespace Poltergeist
 {
@@ -441,10 +441,10 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        Phantasma.Core.Domain.Transaction tx = null;
+                        PhantasmaPhoenix.Protocol.Transaction tx = null;
                         try
                         {
-                            tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+                            tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode(input, false));
                         }
                         catch (Exception e)
                         {

@@ -5,8 +5,6 @@ using System.Linq;
 using System.Numerics;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Numerics;
-using Phantasma.Core.Types;
-using Phantasma.Core.Utils;
 
 namespace Phantasma.Core.Domain
 {

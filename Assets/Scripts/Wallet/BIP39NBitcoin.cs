@@ -1,8 +1,8 @@
 using Org.BouncyCastle.Asn1.Sec;
 using NBitcoin;
 using System;
-using Phantasma.Core.Cryptography;
 using Phantasma.SDK;
+using PhantasmaPhoenix.Cryptography;
 
 public static class BIP39NBitcoin
 {

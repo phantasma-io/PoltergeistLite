@@ -1,6 +1,9 @@
 ﻿using System.IO;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Domain;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Cryptography.Extensions;
 
 namespace Phantasma.Business.Blockchain.Storage
 {

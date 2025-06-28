@@ -14,16 +14,13 @@ using System.Collections;
 using System.Threading;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using BigInteger = System.Numerics.BigInteger;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Domain;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Business.Blockchain;
-using Phantasma.Core.Types;
 using NBitcoin;
-using Phantasma.Core.Cryptography.EdDSA;
 using Poltergeist.Neo2.Core;
-using Phantasma.Core.Cryptography.ECDsa;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.Core;
+using Phantasma.Core.Numerics;
 
 namespace Poltergeist
 {
@@ -2390,7 +2387,7 @@ namespace Poltergeist
                                                 {
                                                     if (kcal == PromptResult.Success)
                                                     {
-                                                        var address = Address.FromText(state.address);
+                                                        var address = Address.Parse(state.address);
 
                                                         var sb = new ScriptBuilder();
                                                             
@@ -2429,7 +2426,7 @@ namespace Poltergeist
                                     {
                                         if (feeResult == PromptResult.Success)
                                         {
-                                            var address = Address.FromText(state.address);
+                                            var address = Address.Parse(state.address);
 
                                             var sb = new ScriptBuilder();
 
@@ -2627,7 +2624,7 @@ namespace Poltergeist
                     byte[] script;
                     try
                     {
-                        var address = Address.FromText(state.address);
+                        var address = Address.Parse(state.address);
 
                         var sb = new ScriptBuilder();
 
@@ -2658,7 +2655,7 @@ namespace Poltergeist
                                 byte[] script;
                                 try
                                 {
-                                    var target = Address.FromText(state.address);
+                                    var target = Address.Parse(state.address);
 
                                     var sb = new ScriptBuilder();
                                     sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
@@ -3409,7 +3406,7 @@ namespace Poltergeist
                                         {
                                             if (result == PromptResult.Success)
                                             {
-                                                var address = Address.FromText(accountManager.CurrentState.address);
+                                                var address = Address.Parse(accountManager.CurrentState.address);
 
                                                 var sb = new ScriptBuilder();
 
@@ -3470,7 +3467,7 @@ namespace Poltergeist
 
                                                     try
                                                     {
-                                                        var source = Address.FromText(accountManager.CurrentState.address);
+                                                        var source = Address.Parse(accountManager.CurrentState.address);
 
                                                         var sb = new ScriptBuilder();
                                                         sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
@@ -3744,7 +3741,7 @@ namespace Poltergeist
                             if (selectedAmount > balance.Available)
                                 selectedAmount = balance.Available;
 
-                            var address = Address.FromText(state.address);
+                            var address = Address.Parse(state.address);
 
                             var sb = new ScriptBuilder();
 
@@ -3948,7 +3945,7 @@ namespace Poltergeist
                         byte[] script;
                         try
                         {
-                            var target = Address.FromText(state.address);
+                            var target = Address.Parse(state.address);
 
                             var sb = new ScriptBuilder();
                             sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
@@ -4281,8 +4278,8 @@ namespace Poltergeist
                 return;
             }
 
-            var source = Address.FromText(state.address);
-            var destination = Address.FromText(destAddress);
+            var source = Address.Parse(state.address);
+            var destination = Address.Parse(destAddress);
 
             if (source == destination)
             {
@@ -4363,8 +4360,8 @@ namespace Poltergeist
                 return;
             }
 
-            var source = Address.FromText(state.address);
-            var destination = Address.FromText(destAddress);
+            var source = Address.Parse(state.address);
+            var destination = Address.Parse(destAddress);
 
             if (source == destination)
             {
@@ -4601,7 +4598,7 @@ namespace Poltergeist
 
                              try
                              {
-                                 var source = Address.FromText(state.address);
+                                 var source = Address.Parse(state.address);
 
                                  var decimals = Tokens.GetTokenDecimals(feeSymbol, accountManager.CurrentPlatform);
                                  var decimalsSwap = Tokens.GetTokenDecimals(swapSymbol, accountManager.CurrentPlatform);
@@ -4833,7 +4830,7 @@ namespace Poltergeist
 #region DAPP Interface
         public Address GetAddress()
         {
-            return Address.FromText(AccountManager.Instance.CurrentState.address);
+            return Address.Parse(AccountManager.Instance.CurrentState.address);
         }
 
         public Dictionary<string, decimal>  GetBalances(string chain)

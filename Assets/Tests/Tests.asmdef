@@ -5,6 +5,10 @@
         "PhantasmaLegacy"
     ],
     "precompiledReferences": [
+        "PhantasmaPhoenix.Core.dll",
+        "PhantasmaPhoenix.Cryptography.dll",
+        "PhantasmaPhoenix.Protocol.dll",
+        "PhantasmaPhoenix.VM.dll",
         "Phantasma.Blockchain.dll",
         "Phantasma.CodeGen.dll",
         "Phantasma.Core.dll",

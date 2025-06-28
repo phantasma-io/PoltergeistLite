@@ -29,8 +29,8 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum.Signer.Crypto
                 var seq = decoder.ReadObject() as DerSequence;
                 if (seq == null || seq.Count != 2)
                     throw new FormatException(InvalidDERSignature);
-                R = ((DerInteger) seq[0]).Value;
-                S = ((DerInteger) seq[1]).Value;
+                R = ((DerInteger)seq[0]).Value;
+                S = ((DerInteger)seq[1]).Value;
             }
             catch (Exception ex)
             {
@@ -87,11 +87,13 @@ namespace Poltergeist.PhantasmaLegacy.Ethereum.Signer.Crypto
         public byte[] ToDER()
         {
             // Usually 70-72 bytes.
-            var bos = new MemoryStream(72);
-            var seq = new DerSequenceGenerator(bos);
-            seq.AddObject(new DerInteger(R));
-            seq.AddObject(new DerInteger(S));
-            seq.Close();
+            using var bos = new MemoryStream(72);
+            using (var seq = new DerSequenceGenerator(bos))
+            {
+                seq.AddObject(new DerInteger(R));
+                seq.AddObject(new DerInteger(S));
+            }
+
             return bos.ToArray();
         }
     }

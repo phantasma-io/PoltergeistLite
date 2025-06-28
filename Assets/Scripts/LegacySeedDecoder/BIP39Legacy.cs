@@ -1,4 +1,4 @@
-using Phantasma.Core.Cryptography;
+using PhantasmaPhoenix.Cryptography;
 using System.Linq;
 
 public static class BIP39Legacy

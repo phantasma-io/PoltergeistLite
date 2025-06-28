@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using Phantasma.Core.Types;
 using Phantasma.SDK;
+using PhantasmaPhoenix.Core;
 
 namespace Poltergeist
 {

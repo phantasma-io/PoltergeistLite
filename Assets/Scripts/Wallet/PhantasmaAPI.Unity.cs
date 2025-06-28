@@ -8,8 +8,12 @@ using Phantasma.Core.Cryptography;
 using Phantasma.Core.Numerics;
 using Phantasma.Core.Domain;
 using Phantasma.Business.Blockchain.Storage;
-using Phantasma.Core.Types;
 using Newtonsoft.Json;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Cryptography.Extensions;
 
 namespace Phantasma.SDK
 {
@@ -489,14 +493,14 @@ namespace Phantasma.SDK
         {
             Log.Write("Sending transaction...");
 
-            var tx = new Phantasma.Core.Domain.Transaction(nexus, chain, script,  DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
+            var tx = new PhantasmaPhoenix.Protocol.Transaction(nexus, chain, script,  DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
 
-            if (PoW != ProofOfWork.None)
+            /*if (PoW != ProofOfWork.None)
             {
                 tx.Mine(PoW);
-            }
+            }*/
 
-            Hash txHash = tx.Sign(keys, null);
+            Hash txHash = tx.SignEx(keys, null);
             if (otherKeys != null)
             {
                 tx.Sign(otherKeys, customSignFunction);

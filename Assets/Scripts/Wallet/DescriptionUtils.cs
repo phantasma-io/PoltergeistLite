@@ -1,7 +1,8 @@
-using Phantasma.Business.VM.Utils;
 using Phantasma.Core.Numerics;
-using Phantasma.Core.Types;
 using Phantasma.SDK;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.VM;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -240,7 +241,7 @@ namespace Poltergeist
                             string from, to;
                             if (entry.Arguments[0].Type.ToString() == "Bytes")
                             {
-                                from = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                from = Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -248,7 +249,7 @@ namespace Poltergeist
                             }
                             if (entry.Arguments[1].Type.ToString() == "Bytes")
                             {
-                                to = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                to = Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -267,7 +268,7 @@ namespace Poltergeist
                             string address;
                             if (entry.Arguments[0].Type.ToString() == "Bytes")
                             {
-                                address = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                address = Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -320,7 +321,7 @@ namespace Poltergeist
                             string src, dst;
                             if (entry.Arguments[0].Type.ToString() == "Bytes")
                             {
-                                src = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                src = Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -328,7 +329,7 @@ namespace Poltergeist
                             }
                             if (entry.Arguments[1].Type.ToString() == "Bytes")
                             {
-                                dst = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                dst = Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Address)).ToString();
                             }
                             else
                             {

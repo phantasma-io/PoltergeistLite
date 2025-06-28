@@ -4,13 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using LunarLabs.Parser;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
-using Phantasma.Core.Domain;
 using Phantasma.Core.Numerics;
-using Phantasma.Core.Utils;
 using Phantasma.SDK;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Core.Extensions;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Cryptography.Extensions;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.VM;
 using Poltergeist.Neo2.Core;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using UnityEngine.Device;
@@ -52,7 +53,7 @@ namespace Poltergeist
             return targetPlatform;
         }
 
-        private void GetTransactionBySubject(string subject, int id, Action<Phantasma.Core.Domain.Transaction> callback)
+        private void GetTransactionBySubject(string subject, int id, Action<PhantasmaPhoenix.Protocol.Transaction> callback)
         {
             var script = new ScriptBuilder().CallContract("consensus", "GetTransaction",
                 AccountManager.Instance.CurrentAccount.phaAddress, subject).EndScript();
@@ -66,7 +67,7 @@ namespace Poltergeist
                 }
 
                 var bytes = Base16.Decode(result[0]);
-                var tx = Phantasma.Core.Domain.Transaction.Unserialize(bytes);
+                var tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(bytes);
 
                 callback(tx);
             });
@@ -284,7 +285,7 @@ namespace Poltergeist
 
                             if (success)
                             {
-                                Phantasma.Core.Cryptography.Signature signature;
+                                PhantasmaPhoenix.Cryptography.Signature signature;
 
                                 var msg = transaction.ToByteArray(false);
 
@@ -327,7 +328,7 @@ namespace Poltergeist
             });
         }
         
-        protected override void SignTransactionSignature(Phantasma.Core.Domain.Transaction transaction, string platform, SignatureKind kind, Action<Phantasma.Core.Cryptography.Signature, string> callback)
+        protected override void SignTransactionSignature(PhantasmaPhoenix.Protocol.Transaction transaction, string platform, SignatureKind kind, Action<PhantasmaPhoenix.Cryptography.Signature, string> callback)
         {
             var accountManager = AccountManager.Instance;
 
@@ -357,7 +358,7 @@ namespace Poltergeist
 
                     if (success)
                     {
-                        Phantasma.Core.Cryptography.Signature signature;
+                        PhantasmaPhoenix.Cryptography.Signature signature;
 
                         var msg = transaction.ToByteArray(false);
 
@@ -514,7 +515,7 @@ namespace Poltergeist
 
                         var msg = ByteArrayUtils.ConcatBytes(randomBytes, data);
 
-                        Phantasma.Core.Cryptography.Signature signature;
+                        PhantasmaPhoenix.Cryptography.Signature signature;
 
                         var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
                         var phantasmaKeys = PhantasmaKeys.FromWIF(wif);

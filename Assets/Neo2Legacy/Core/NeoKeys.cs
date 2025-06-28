@@ -2,9 +2,9 @@ using Poltergeist.PhantasmaLegacy.Cryptography;
 using Poltergeist.PhantasmaLegacy.Neo2;
 using System;
 using System.Linq;
-using Phantasma.Core.Cryptography.ECDsa;
 using Phantasma.Core.Cryptography;
 using Poltergeist.Neo2.Utils;
+using PhantasmaPhoenix.Cryptography;
 
 namespace Poltergeist.Neo2.Core
 {

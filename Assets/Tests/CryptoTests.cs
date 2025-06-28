@@ -5,12 +5,10 @@ using UnityEngine.TestTools;
 using NUnit.Framework;
 using System.Collections;
 using Poltergeist.PhantasmaLegacy.Ethereum;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
-using Phantasma.Core.Domain;
 using Poltergeist.Neo2.Core;
 using System;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Core;
 
 namespace Phantasma.Tests
 {

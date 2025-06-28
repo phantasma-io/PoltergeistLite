@@ -13,9 +13,11 @@ using Poltergeist.PhantasmaLegacy.Ethereum;
 using Phantasma.Core.Domain;
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Numerics;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Types;
-using Phantasma.Core.Utils;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Core.Extensions;
 
 namespace Poltergeist
 {
@@ -1921,7 +1923,7 @@ The Phoenix team", "Notice");
             byte[] scriptIsMaster;
             try
             {
-                var address = Address.FromText(addressString);
+                var address = Address.Parse(addressString);
 
                 {
                     var sb = new ScriptBuilder();

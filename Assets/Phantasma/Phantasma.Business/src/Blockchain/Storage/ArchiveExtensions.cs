@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using Phantasma.Core.Domain;
+using PhantasmaPhoenix.Core;
 
 namespace Phantasma.Business.Blockchain.Storage
 {

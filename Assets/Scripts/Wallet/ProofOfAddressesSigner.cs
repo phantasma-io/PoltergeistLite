@@ -1,9 +1,6 @@
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
 using Poltergeist.PhantasmaLegacy.Ethereum;
 using Poltergeist.Neo2.Core;
-using Phantasma.Core.Cryptography.EdDSA;
-using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.Cryptography;
 
 public class ProofOfAddressesSigner
 {

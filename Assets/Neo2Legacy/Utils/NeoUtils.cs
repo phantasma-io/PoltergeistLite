@@ -1,6 +1,6 @@
 using Phantasma.Core.Cryptography;
 using Phantasma.Core.Cryptography.Hashing;
-using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.Cryptography;
 using Poltergeist.PhantasmaLegacy.Cryptography;
 using System;
 using System.Collections.Generic;

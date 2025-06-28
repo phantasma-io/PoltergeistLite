@@ -1,4 +1,5 @@
-using Phantasma.Core.Cryptography;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography;
 
 namespace Phantasma.Core.Domain
 {

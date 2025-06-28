@@ -1,6 +1,5 @@
-﻿using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
-using Phantasma.Core.Numerics;
+﻿using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Cryptography.Extensions;
 using Poltergeist.PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions;
 using Poltergeist.PhantasmaLegacy.Ethereum.Util;
 using System;
