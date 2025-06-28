@@ -145,7 +145,7 @@ public static class TtrsStore
                 idList += ",\"" + ids[i] + "\"";
         }
 
-        yield return WebClient.RESTRequest<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", true, (error, msg) =>
+        yield return WebClient.RESTPost<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", true, (error, msg) =>
         {
             Log.Write("LoadStoreNft() error: " + error);
         },

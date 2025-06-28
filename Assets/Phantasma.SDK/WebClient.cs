@@ -294,7 +294,7 @@ namespace Phantasma.SDK
             yield break;
         }
 
-        public static IEnumerator RESTRequest<T>(string url, string serializedJson, bool deserializeResponse, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
+        public static IEnumerator RESTPost<T>(string url, string serializedJson, bool deserializeResponse, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
 
