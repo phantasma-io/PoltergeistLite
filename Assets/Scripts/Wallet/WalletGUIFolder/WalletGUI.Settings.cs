@@ -6,6 +6,7 @@ using Phantasma.SDK;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography.Legacy;
 
 namespace Poltergeist
 {
@@ -564,7 +565,7 @@ namespace Poltergeist
                             string wif;
                             try
                             {
-                                wif = BIP39Legacy.DecodeLegacySeedToWif(legacySeed, legacySeedPassword);
+                                wif = MnemonicsLegacy.DecodeLegacySeedToWif(legacySeed, legacySeedPassword);
                             }
                             catch (Exception e)
                             {
