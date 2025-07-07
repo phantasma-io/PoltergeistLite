@@ -1,4 +1,5 @@
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.RPC.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -179,7 +180,7 @@ namespace Poltergeist
             return string.Join("\n", lines.Select((line, index) => index == 0 ? line : indent + line));
         }
 
-        public void TxResultMessage(Hash hash, PhantasmaIntegration.Transaction? txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
+        public void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
             var printDetails = false;
 
@@ -239,8 +240,8 @@ namespace Poltergeist
 
                 if(txResult != null)
                 {
-                    message += "\nResult: " + txResult.Value.result;
-                    message += "\nComment: " + txResult.Value.debugComment;
+                    message += "\nResult: " + txResult.Result;
+                    message += "\nComment: " + txResult.DebugComment;
                 }
 
                 printDetails = true;

@@ -139,12 +139,12 @@ namespace Poltergeist
                 WalletGUI.Instance.StartCoroutine(
                     accountManager.phantasmaApi.GetContract(contract, (contractStruct) =>
                     {
-                        Log.Write($"Registering {contractStruct.methods.Length} methods for {contract}");
+                        Log.Write($"Registering {contractStruct.Methods.Length} methods for {contract}");
 
-                        foreach (var method in contractStruct.methods)
+                        foreach (var method in contractStruct.Methods)
                         {
-                            Log.Write($"Registering contract method {contract}.{method.name} with {method.parameters.Length} parameters");
-                            DescriptionUtils.RegisterContractMethod($"{contract}.{method.name}", method.parameters.Length);
+                            Log.Write($"Registering contract method {contract}.{method.Name} with {method.Parameters.Length} parameters");
+                            DescriptionUtils.RegisterContractMethod($"{contract}.{method.Name}", method.Parameters.Length);
                         }
 
                         contractsProcessed++;
