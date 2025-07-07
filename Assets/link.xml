@@ -1,0 +1,6 @@
+<linker>
+  <assembly fullname="PhantasmaPhoenix.RPC">
+    <namespace fullname="PhantasmaPhoenix.RPC.Models" preserve="all" />
+    <namespace fullname="PhantasmaPhoenix.RPC.Types" preserve="all" />
+  </assembly>
+</linker>
