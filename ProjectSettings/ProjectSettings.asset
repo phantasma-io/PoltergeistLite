@@ -168,12 +168,12 @@ PlayerSettings:
     iPhone: io.phantasmaphoenix.poltergeistlite
   buildNumber:
     Bratwurst: 0
-    Standalone: 0
+    Standalone: 2
     VisionOS: 0
     iPhone: 0
     tvOS: 0
   overrideDefaultApplicationIdentifier: 1
-  AndroidBundleVersionCode: 48
+  AndroidBundleVersionCode: 49
   AndroidMinSdkVersion: 23
   AndroidTargetSdkVersion: 35
   AndroidPreferredInstallLocation: 1
