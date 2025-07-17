@@ -1,30 +1,25 @@
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
-using Poltergeist.PhantasmaLegacy.Ethereum;
-using Poltergeist.Neo2.Core;
-using Phantasma.Core.Cryptography.EdDSA;
-using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.Cryptography;
 
 public class ProofOfAddressesSigner
 {
     private readonly PhantasmaKeys PhantasmaKeys;
-    private readonly EthereumKey EthKeys;
-    private readonly NeoKeys NeoKeys;
+    private readonly PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey EthKeys;
+    private readonly PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys NeoKeys;
 
     public ProofOfAddressesSigner(string wif)
     {
         PhantasmaKeys = PhantasmaKeys.FromWIF(wif);
-        EthKeys = EthereumKey.FromWIF(wif);
-        NeoKeys = NeoKeys.FromWIF(wif);
+        EthKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
+        NeoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
     }
 
     public string GenerateMessage()
     {
         var phaAddress = PhantasmaKeys.Address.ToString();
-        var ethAddress = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(EthereumKey.PublicKeyToAddress(EthKeys.UncompressedPublicKey, ECDsaCurve.Secp256k1));
+        var ethAddress = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.PublicKeyToAddress(EthKeys.UncompressedPublicKey, ECDsaCurve.Secp256k1));
         var ethPubKey = Base16.Encode(EthKeys.CompressedPublicKey);
 
-        var neo2Address = Poltergeist.Neo2.Core.NeoKeys.PublicKeyToN2Address(NeoKeys.PublicKey);
+        var neo2Address = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.PublicKeyToN2Address(NeoKeys.PublicKey);
         var neo2PubKey = Base16.Encode(NeoKeys.CompressedPublicKey);
 
 

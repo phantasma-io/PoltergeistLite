@@ -1,17 +1,17 @@
 using System.Linq;
 using System.Collections.Generic;
-using UnityEngine;
-using LunarLabs.WebSockets;
-using LunarLabs.Parser.JSON;
+using Poltergeist.WebServer.HTTP;
+using Poltergeist.WebSockets;
 using System;
 using System.Net.Sockets;
 using System.IO;
 using System.Net;
 using System.Text;
-using LunarLabs.WebServer.HTTP;
 using System.Security.Cryptography;
-using Phantasma.SDK;
-using Phantasma.Core.Domain;
+using PhantasmaPhoenix.Protocol;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using UnityEngine;
 
 namespace Poltergeist
 {
@@ -78,10 +78,12 @@ namespace Poltergeist
                         {
                             PhantasmaLink.Execute(str, (id, root, success) =>
                             {
-                                root.AddField("id", id);
-                                root.AddField("success", success);
+                                var obj = root as JObject ?? new JObject();
+                                obj["id"] = id;
+                                obj["success"] = success;
 
-                                var json = JSONWriter.WriteToString(root);
+                                var json = obj.ToString(Formatting.None);
+                                Log.Write("json: " + json);
 
                                 try
                                 {
@@ -446,11 +448,11 @@ namespace Poltergeist
             {
                 PhantasmaLink.Execute(str, (id, root, success) =>
                 {
-                    root.AddField("id", id);
-                    root.AddField("success", success);
+                    ((JObject)root)["id"] = id;
+                    ((JObject)root)["success"] = success;
 
-                    var json = JSONWriter.WriteToString(root);
-
+                    var json = root.ToString(Formatting.None);
+                    
                     try
                     {
                         IntentPluginManager.Instance.ReturnMessage(json);

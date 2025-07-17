@@ -1,19 +1,11 @@
 ﻿{
     "name": "Tests",
-    "references": [
-        "Neo2Legacy",
-        "PhantasmaLegacy"
-    ],
     "precompiledReferences": [
-        "Phantasma.Blockchain.dll",
-        "Phantasma.CodeGen.dll",
-        "Phantasma.Core.dll",
-        "Phantasma.Cryptography.dll",
-        "Phantasma.Domain.dll",
-        "Phantasma.Ethereum.dll",
-        "Phantasma.Numerics.dll",
-        "Phantasma.Storage.dll",
-        "Phantasma.VM.dll"
+        "PhantasmaPhoenix.Core.dll",
+        "PhantasmaPhoenix.Cryptography.dll",
+        "PhantasmaPhoenix.InteropChains.Legacy.dll",
+        "PhantasmaPhoenix.Protocol.dll",
+        "PhantasmaPhoenix.VM.dll"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

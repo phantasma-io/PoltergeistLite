@@ -3,16 +3,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using LunarLabs.Parser;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
-using Phantasma.Core.Domain;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Utils;
-using Phantasma.SDK;
-using Poltergeist.Neo2.Core;
-using Poltergeist.PhantasmaLegacy.Ethereum;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Core.Extensions;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Cryptography.Extensions;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.VM;
 using UnityEngine.Device;
 
 namespace Poltergeist
@@ -52,7 +48,7 @@ namespace Poltergeist
             return targetPlatform;
         }
 
-        private void GetTransactionBySubject(string subject, int id, Action<Phantasma.Core.Domain.Transaction> callback)
+        private void GetTransactionBySubject(string subject, int id, Action<PhantasmaPhoenix.Protocol.Transaction> callback)
         {
             var script = new ScriptBuilder().CallContract("consensus", "GetTransaction",
                 AccountManager.Instance.CurrentAccount.phaAddress, subject).EndScript();
@@ -66,7 +62,7 @@ namespace Poltergeist
                 }
 
                 var bytes = Base16.Decode(result[0]);
-                var tx = Phantasma.Core.Domain.Transaction.Unserialize(bytes);
+                var tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(bytes);
 
                 callback(tx);
             });
@@ -284,7 +280,7 @@ namespace Poltergeist
 
                             if (success)
                             {
-                                Phantasma.Core.Cryptography.Signature signature;
+                                PhantasmaPhoenix.Cryptography.Signature signature;
 
                                 var msg = transaction.ToByteArray(false);
 
@@ -298,7 +294,7 @@ namespace Poltergeist
                                         break;
 
                                     case SignatureKind.ECDSA:
-                                        var ethKeys = EthereumKey.FromWIF(wif);
+                                        var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                         var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                         signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                         break;
@@ -327,7 +323,7 @@ namespace Poltergeist
             });
         }
         
-        protected override void SignTransactionSignature(Phantasma.Core.Domain.Transaction transaction, string platform, SignatureKind kind, Action<Phantasma.Core.Cryptography.Signature, string> callback)
+        protected override void SignTransactionSignature(PhantasmaPhoenix.Protocol.Transaction transaction, string platform, SignatureKind kind, Action<PhantasmaPhoenix.Cryptography.Signature, string> callback)
         {
             var accountManager = AccountManager.Instance;
 
@@ -357,7 +353,7 @@ namespace Poltergeist
 
                     if (success)
                     {
-                        Phantasma.Core.Cryptography.Signature signature;
+                        PhantasmaPhoenix.Cryptography.Signature signature;
 
                         var msg = transaction.ToByteArray(false);
 
@@ -371,7 +367,7 @@ namespace Poltergeist
                                 break;
 
                             case SignatureKind.ECDSA:
-                                var ethKeys = EthereumKey.FromWIF(wif);
+                                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                 var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                 signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 break;
@@ -514,7 +510,7 @@ namespace Poltergeist
 
                         var msg = ByteArrayUtils.ConcatBytes(randomBytes, data);
 
-                        Phantasma.Core.Cryptography.Signature signature;
+                        PhantasmaPhoenix.Cryptography.Signature signature;
 
                         var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
                         var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
@@ -529,14 +525,14 @@ namespace Poltergeist
 
                                 if ( targetPlatform == PlatformKind.Ethereum || targetPlatform == PlatformKind.BSC)
                                 {
-                                    var ethKeys = EthereumKey.FromWIF(wif);
+                                    var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                 
                                     var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
                                 else
                                 {
-                                    var neoKeys = NeoKeys.FromWIF(wif);
+                                    var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
                                     var signatureBytes = ECDsa.Sign(msg, neoKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }

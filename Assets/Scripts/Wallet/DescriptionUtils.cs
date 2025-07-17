@@ -1,7 +1,6 @@
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Types;
-using Phantasma.SDK;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.VM;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -140,12 +139,12 @@ namespace Poltergeist
                 WalletGUI.Instance.StartCoroutine(
                     accountManager.phantasmaApi.GetContract(contract, (contractStruct) =>
                     {
-                        Log.Write($"Registering {contractStruct.methods.Length} methods for {contract}");
+                        Log.Write($"Registering {contractStruct.Methods.Length} methods for {contract}");
 
-                        foreach (var method in contractStruct.methods)
+                        foreach (var method in contractStruct.Methods)
                         {
-                            Log.Write($"Registering contract method {contract}.{method.name} with {method.parameters.Length} parameters");
-                            DescriptionUtils.RegisterContractMethod($"{contract}.{method.name}", method.parameters.Length);
+                            Log.Write($"Registering contract method {contract}.{method.Name} with {method.Parameters.Length} parameters");
+                            DescriptionUtils.RegisterContractMethod($"{contract}.{method.Name}", method.Parameters.Length);
                         }
 
                         contractsProcessed++;
@@ -240,7 +239,7 @@ namespace Poltergeist
                             string from, to;
                             if (entry.Arguments[0].Type.ToString() == "Bytes")
                             {
-                                from = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                from = Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -248,7 +247,7 @@ namespace Poltergeist
                             }
                             if (entry.Arguments[1].Type.ToString() == "Bytes")
                             {
-                                to = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                to = Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -267,7 +266,7 @@ namespace Poltergeist
                             string address;
                             if (entry.Arguments[0].Type.ToString() == "Bytes")
                             {
-                                address = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                address = Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -320,7 +319,7 @@ namespace Poltergeist
                             string src, dst;
                             if (entry.Arguments[0].Type.ToString() == "Bytes")
                             {
-                                src = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                src = Serialization.Unserialize(GetByteArrayArg(entry, 0), typeof(Address)).ToString();
                             }
                             else
                             {
@@ -328,7 +327,7 @@ namespace Poltergeist
                             }
                             if (entry.Arguments[1].Type.ToString() == "Bytes")
                             {
-                                dst = Phantasma.Core.Domain.Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Phantasma.Core.Cryptography.Address)).ToString();
+                                dst = Serialization.Unserialize(GetByteArrayArg(entry, 1), typeof(Address)).ToString();
                             }
                             else
                             {

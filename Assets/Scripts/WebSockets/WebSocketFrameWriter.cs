@@ -1,7 +1,7 @@
 using System.IO;
 using System;
 
-namespace LunarLabs.WebSockets
+namespace Poltergeist.WebSockets
 {
     // see http://tools.ietf.org/html/rfc6455 for specification
     // see fragmentation section for sending multi part messages

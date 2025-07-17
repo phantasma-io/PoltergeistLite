@@ -1,9 +1,10 @@
 using System;
 using System.IO;
 using UnityEngine;
-using Phantasma.SDK;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using PhantasmaIntegration;
+using Poltergeist;
 
 public static class Cache
 {

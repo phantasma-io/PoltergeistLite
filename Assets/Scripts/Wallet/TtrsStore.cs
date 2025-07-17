@@ -1,10 +1,9 @@
-using Phantasma.SDK;
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
+using Poltergeist;
 
 // Parsing and storing data received from TTRS store.
 public static class TtrsStore
@@ -145,7 +144,7 @@ public static class TtrsStore
                 idList += ",\"" + ids[i] + "\"";
         }
 
-        yield return WebClient.RESTRequest<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", true, (error, msg) =>
+        yield return WebClient.RESTPost<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", true, (error, msg) =>
         {
             Log.Write("LoadStoreNft() error: " + error);
         },

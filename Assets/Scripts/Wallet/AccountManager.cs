@@ -5,17 +5,15 @@ using UnityEngine;
 using System;
 using System.IO;
 using System.Linq;
-using Phantasma.SDK;
-using Poltergeist.Neo2.Core;
-using LunarLabs.Parser;
 using System.Numerics;
-using Poltergeist.PhantasmaLegacy.Ethereum;
-using Phantasma.Core.Domain;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Numerics;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Types;
-using Phantasma.Core.Utils;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Core.Extensions;
+using Newtonsoft.Json.Linq;
+using PhantasmaIntegration;
+using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist
 {
@@ -68,7 +66,7 @@ namespace Poltergeist
         public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
-        public Phantasma.SDK.PhantasmaAPI phantasmaApi { get; private set; }
+        public PhantasmaAPI phantasmaApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -239,7 +237,7 @@ namespace Poltergeist
             rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
 
             StartCoroutine(
-                WebClient.RESTRequest(url, WebClient.DefaultTimeout, (error, msg) =>
+                WebClient.RESTGet<JToken>(url, WebClient.DefaultTimeout, (error, msg) =>
                 {
                     ReportGetPeersFailure = true;
                     Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + error);
@@ -248,14 +246,14 @@ namespace Poltergeist
                 {
                     if (response != null)
                     {
-                        rpcNumberPhantasma = response.ChildCount;
+                        rpcNumberPhantasma = response.Count();
 
                         if (String.IsNullOrEmpty(Settings.phantasmaRPCURL))
                         {
                             // If we have no previously used RPC, we select random one at first.
                             var index = ((int)(Time.realtimeSinceStartup * 1000)) % rpcNumberPhantasma;
-                            var node = response.GetNodeByIndex(index);
-                            var result = node.GetString("url") + "/rpc";
+                            var node = response[index];
+                            var result = node.Value<string>("url") + "/rpc";
                             Settings.phantasmaRPCURL = result;
                             Log.Write($"Changed Phantasma RPC url {index} => {result}");
                         }
@@ -263,9 +261,9 @@ namespace Poltergeist
                         UpdateAPIs();
 
                         // Benchmarking RPCs.
-                        foreach (var node in response.Children)
+                        foreach (var node in response.Children())
                         {
-                            var rpcUrl = node.GetString("url") + "/rpc";
+                            var rpcUrl = node.Value<string>("url") + "/rpc";
 
                             StartCoroutine(
                                 WebClient.Ping(rpcUrl, (error, msg) =>
@@ -443,6 +441,11 @@ namespace Poltergeist
         void Start()
         {
             Settings.Load();
+
+            if (AccountManager.Instance.Settings.initialWindowWidth > 0 && AccountManager.Instance.Settings.initialWindowHeight > 0)
+            {
+                Screen.SetResolution(AccountManager.Instance.Settings.initialWindowWidth, AccountManager.Instance.Settings.initialWindowHeight, false);
+            }
 
             UpdateRPCURL();
 
@@ -724,8 +727,8 @@ The Phoenix team", "Notice");
                         Log.Write("InvokeScript: " + System.Text.Encoding.UTF8.GetString(script), Log.Level.Debug1);
                         StartCoroutine(phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), (x) =>
                         {
-                            Log.Write("InvokeScript result: " + x.result, Log.Level.Debug1);
-                            callback(x.results, null);
+                            Log.Write("InvokeScript result: " + x.Result, Log.Level.Debug1);
+                            callback(x.Results, null);
                         }, (error, log) =>
                         {
                             if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
@@ -751,8 +754,8 @@ The Phoenix team", "Notice");
             Log.Write("InvokeScriptPhantasma: " + System.Text.Encoding.UTF8.GetString(script), Log.Level.Debug1);
             StartCoroutine(phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), (x) =>
             {
-                Log.Write("InvokeScriptPhantasma result: " + x.result, Log.Level.Debug1);
-                callback(Base16.Decode(x.result), null);
+                Log.Write("InvokeScriptPhantasma result: " + x.Result, Log.Level.Debug1);
+                callback(Base16.Decode(x.Result), null);
             }, (error, log) =>
             {
                 if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
@@ -979,20 +982,20 @@ The Phoenix team", "Notice");
 
         private const int maxChecks = 12; // Timeout after 36 seconds
 
-        public void RequestConfirmation(string transactionHash, int checkCount, Action<Phantasma.SDK.Transaction?, string> callback)
+        public void RequestConfirmation(string transactionHash, int checkCount, Action<TransactionResult, string> callback)
         {
             switch (CurrentPlatform)
             {
                 case PlatformKind.Phantasma:
                     StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (txResult) =>
                     {
-                        if (txResult.Value.state == ExecutionState.Running)
+                        if (txResult.State == ExecutionState.Running)
                         {
                             callback(txResult, "pending");
                         }
-                        else if (txResult.Value.state == ExecutionState.Break || txResult.Value.state == ExecutionState.Fault)
+                        else if (txResult.State == ExecutionState.Break || txResult.State == ExecutionState.Fault)
                         {
-                            if(string.IsNullOrEmpty(txResult.Value.debugComment) && checkCount <= 6)
+                            if(string.IsNullOrEmpty(txResult.DebugComment) && checkCount <= 6)
                             {
                                 // We wait a bit for additional information about failure to become available
                                 callback(txResult, "pending");
@@ -1082,52 +1085,52 @@ The Phoenix team", "Notice");
             lock (Tokens.__lockObj)
             {
                 var keys = PhantasmaKeys.FromWIF(wif);
-                var ethKeys = EthereumKey.FromWIF(wif);
+                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                 UpdateOpenAccount();
                 StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
                 {
                     var balanceMap = new Dictionary<string, Balance>();
 
-                    foreach (var entry in acc.balances)
+                    foreach (var entry in acc.Balances)
                     {
 
-                        var token = Tokens.GetToken(entry.symbol, PlatformKind.Phantasma);
+                        var token = Tokens.GetToken(entry.Symbol, PlatformKind.Phantasma);
                         if (token != null)
-                            balanceMap[entry.symbol] = new Balance()
+                            balanceMap[entry.Symbol] = new Balance()
                             {
-                                Symbol = entry.symbol,
-                                Available = AmountFromString(entry.amount, token.decimals),
+                                Symbol = entry.Symbol,
+                                Available = AmountFromString(entry.Amount, token.decimals),
                                 Staked = 0,
                                 Claimable = 0,
-                                Chain = entry.chain,
+                                Chain = entry.Chain,
                                 Decimals = token.decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible(),
-                                Ids = entry.ids
+                                Ids = entry.Ids
                             };
                         else
-                            balanceMap[entry.symbol] = new Balance()
+                            balanceMap[entry.Symbol] = new Balance()
                             {
-                                Symbol = entry.symbol,
-                                Available = AmountFromString(entry.amount, 8),
+                                Symbol = entry.Symbol,
+                                Available = AmountFromString(entry.Amount, 8),
                                 Staked = 0,
                                 Claimable = 0,
-                                Chain = entry.chain,
+                                Chain = entry.Chain,
                                 Decimals = 8,
                                 Burnable = true,
                                 Fungible = true,
-                                Ids = entry.ids
+                                Ids = entry.Ids
                             };
 
 
                     }
 
-                    var stakedAmount = AmountFromString(acc.stakes.amount,
+                    var stakedAmount = AmountFromString(acc.Stakes.Amount,
                         Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
-                    var claimableAmount = AmountFromString(acc.stakes.unclaimed,
+                    var claimableAmount = AmountFromString(acc.Stakes.Unclaimed,
                         Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma));
 
-                    var stakeTimestamp = new Timestamp(acc.stakes.time);
+                    var stakeTimestamp = new Timestamp(acc.Stakes.Time);
 
                     if (stakedAmount > 0)
                     {
@@ -1191,8 +1194,8 @@ The Phoenix team", "Notice");
                     var state = new AccountState()
                     {
                         platform = PlatformKind.Phantasma,
-                        address = acc.address,
-                        name = acc.name,
+                        address = acc.Address,
+                        name = acc.Name,
                         balances = balanceMap.Values.ToArray(),
                         flags = AccountFlags.None
                     };
@@ -1202,17 +1205,17 @@ The Phoenix team", "Notice");
                         state.flags |= AccountFlags.Master;
                     }
 
-                    if (acc.validator.Equals("Primary") || acc.validator.Equals("Secondary"))
+                    if (acc.Validator.Equals("Primary") || acc.Validator.Equals("Secondary"))
                     {
                         state.flags |= AccountFlags.Validator;
                     }
 
                     state.stakeTime = stakeTimestamp;
 
-                    state.usedStorage = acc.storage.used;
-                    state.availableStorage = acc.storage.available;
-                    state.archives = acc.storage.archives;
-                    state.avatarData = acc.storage.avatar;
+                    state.usedStorage = acc.Storage.Used;
+                    state.availableStorage = acc.Storage.Available;
+                    state.archives = acc.Storage.Archives;
+                    state.avatarData = acc.Storage.Avatar;
 
                     ReportWalletBalance(PlatformKind.Phantasma, state);
                 },
@@ -1514,13 +1517,13 @@ The Phoenix team", "Notice");
             {
                 var history = new List<HistoryEntry>();
 
-                foreach (var tx in x.txs)
+                foreach (var tx in x.Txs)
                 {
                     history.Add(new HistoryEntry()
                     {
-                        hash = tx.hash,
-                        date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.timestamp).ToLocalTime(),
-                        url = GetPhantasmaTransactionURL(tx.hash)
+                        hash = tx.Hash,
+                        date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.Timestamp).ToLocalTime(),
+                        url = GetPhantasmaTransactionURL(tx.Hash)
                     });
                 }
 
@@ -1619,12 +1622,12 @@ The Phoenix team", "Notice");
             var phaKeys = PhantasmaKeys.FromWIF(wif);
             account.phaAddress = phaKeys.Address.ToString();
 
-            var neoKeys = NeoKeys.FromWIF(wif);
+            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
             account.neoAddress = neoKeys.Address.ToString();
             account.neoAddress = neoKeys.AddressN3.ToString();
 
-            var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
-            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(EthereumKey.FromWIF(wif).Address);
+            var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
+            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address);
 
             if (!String.IsNullOrEmpty(password))
             {
@@ -1692,11 +1695,11 @@ The Phoenix team", "Notice");
             var phaKeys = PhantasmaKeys.FromWIF(wif);
             account.phaAddress = phaKeys.Address.ToString();
 
-            var neoKeys = NeoKeys.FromWIF(wif);
+            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
             account.neoAddress = neoKeys.Address.ToString();
 
-            var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
-            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(EthereumKey.FromWIF(wif).Address);
+            var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
+            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address);
 
             Accounts[currentIndex] = account;
 
@@ -1916,7 +1919,7 @@ The Phoenix team", "Notice");
             byte[] scriptIsMaster;
             try
             {
-                var address = Address.FromText(addressString);
+                var address = Address.Parse(addressString);
 
                 {
                     var sb = new ScriptBuilder();
@@ -2078,7 +2081,7 @@ The Phoenix team", "Notice");
 
         public void UpdateOpenAccount()
         {
-            NeoKeys neoKeys = NeoKeys.FromWIF(CurrentWif);
+            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(CurrentWif);
             var SelectedAccount = CurrentAccount;
             SelectedAccount.neoAddressN3 = neoKeys.AddressN3;
             SelectedAccount.neoAddress = neoKeys.Address;

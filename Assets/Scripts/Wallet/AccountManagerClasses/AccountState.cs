@@ -1,6 +1,7 @@
 using System.Collections.Generic;
-using Phantasma.Core.Types;
-using Phantasma.SDK;
+using PhantasmaIntegration;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist
 {
@@ -13,7 +14,7 @@ namespace Poltergeist
         public AccountFlags flags;
         public Timestamp stakeTime;
 
-        public Archive[] archives;
+        public ArchiveResult[] archives;
         public string avatarData;
         public uint availableStorage;
         public uint usedStorage;

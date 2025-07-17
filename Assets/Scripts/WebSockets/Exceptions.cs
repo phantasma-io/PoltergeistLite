@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace LunarLabs.WebServer.Websockets
+namespace Poltergeist.WebServer.Websockets
 {
     public class EntityTooLargeException : Exception
     {

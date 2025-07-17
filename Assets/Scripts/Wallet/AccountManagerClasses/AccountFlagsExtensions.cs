@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Phantasma.SDK;
+using PhantasmaIntegration;
 
 namespace Poltergeist
 {

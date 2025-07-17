@@ -1,11 +1,10 @@
-using LunarLabs.Parser;
 using UnityEngine;
-using Phantasma.SDK;
 using Poltergeist;
 using System.Collections.Generic;
 using System.Linq;
-using System;
-using Phantasma.Core.Domain;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using PhantasmaIntegration;
 
 public static class Tokens
 {
@@ -42,18 +41,18 @@ public static class Tokens
             return;
         }
 
-        var tokenApiSymbols = LunarLabs.Parser.JSON.JSONReader.ReadFromString(resource.text);
+        var tokenApiSymbols = JsonConvert.DeserializeObject<JArray>(resource.text);
 
-        if (tokenApiSymbols == null || tokenApiSymbols.Children == null)
+        if (tokenApiSymbols == null)
         {
             Log.WriteWarning("Cannot load CoinGecko symbols - file is corrupted.");
             return;
         }
 
-        foreach (var tokenApiSymbol in tokenApiSymbols.Children)
+        foreach (var tokenApiSymbol in tokenApiSymbols)
         {
-            var symbol = tokenApiSymbol.GetString("symbol");
-            var apiSymbol = tokenApiSymbol.GetString("apiSymbol");
+            var symbol = tokenApiSymbol.Value<string>("symbol");
+            var apiSymbol = tokenApiSymbol.Value<string>("apiSymbol");
             var tokens = Tokens.GetTokens(symbol);
             if (tokens.Length > 0)
             {

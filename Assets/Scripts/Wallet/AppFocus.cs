@@ -1,6 +1,6 @@
-using Phantasma.SDK;
 using System;
 using System.Runtime.InteropServices;
+using Poltergeist;
 using UnityEngine;
 
 // class to set app focus on demand

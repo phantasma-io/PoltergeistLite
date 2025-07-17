@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace LunarLabs.WebSockets
+namespace Poltergeist.WebSockets
 {
     /// <summary>
     /// This buffer pool is instance thread safe

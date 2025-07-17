@@ -2,10 +2,10 @@ using System;
 using System.Linq;
 using System.Numerics;
 using UnityEngine;
-using Phantasma.SDK;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Core.Domain;
-using Phantasma.Core.Numerics;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography.Legacy;
 
 namespace Poltergeist
 {
@@ -245,7 +245,22 @@ namespace Poltergeist
                     }
                 }
             }
+            curY += Units(3);
 
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial width");
+            var initialWindowWidth = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.initialWindowWidth.ToString());
+            if (int.TryParse(initialWindowWidth, out var initialWindowWidthInt))
+            {
+                settings.initialWindowWidth = initialWindowWidthInt;
+            }
+            curY += Units(3);
+
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial height");
+            var initialWindowHeight = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.initialWindowHeight.ToString());
+            if (int.TryParse(initialWindowHeight, out var initialWindowHeightInt))
+            {
+                settings.initialWindowHeight = initialWindowHeightInt;
+            }
             curY += Units(3);
 
             settings.devMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode, "");
@@ -426,10 +441,10 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        Phantasma.Core.Domain.Transaction tx = null;
+                        PhantasmaPhoenix.Protocol.Transaction tx = null;
                         try
                         {
-                            tx = Phantasma.Core.Domain.Transaction.Unserialize(Base16.Decode(input, false));
+                            tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode(input, false));
                         }
                         catch (Exception e)
                         {
@@ -549,7 +564,7 @@ namespace Poltergeist
                             string wif;
                             try
                             {
-                                wif = BIP39Legacy.DecodeLegacySeedToWif(legacySeed, legacySeedPassword);
+                                wif = MnemonicsLegacy.DecodeLegacySeedToWif(legacySeed, legacySeedPassword);
                             }
                             catch (Exception e)
                             {
@@ -784,6 +799,17 @@ namespace Poltergeist
             if (settings.feeLimit < 900)
             {
                 MessageBox(MessageKind.Error, "Invalid value for fee limit.\n" + settings.feeLimit);
+                return false;
+            }
+
+            if (settings.initialWindowWidth < -1)
+            {
+                MessageBox(MessageKind.Error, "Invalid value for initial width.\n" + settings.initialWindowWidth);
+                return false;
+            }
+            if (settings.initialWindowHeight < -1)
+            {
+                MessageBox(MessageKind.Error, "Invalid value for initial height.\n" + settings.initialWindowHeight);
                 return false;
             }
 

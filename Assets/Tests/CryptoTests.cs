@@ -4,13 +4,10 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using NUnit.Framework;
 using System.Collections;
-using Poltergeist.PhantasmaLegacy.Ethereum;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Cryptography.ECDsa;
-using Phantasma.Core.Domain;
-using Poltergeist.Neo2.Core;
 using System;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography.Extensions;
 
 namespace Phantasma.Tests
 {
@@ -29,16 +26,16 @@ namespace Phantasma.Tests
             var wif = "Kyry8sMHFzx5DfubcqyGMQByaHQBtdyALBjAqcx9Lx1YtSZjy2vZ";
             var pkHex = "4ed773e5c8edc0487acef0011bc9ae8228287d4843f9d8477ff77c401ac59a49";
 
-            var keyFromWif = EthereumKey.FromWIF(wif);
+            var keyFromWif = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
 
             Assert.AreEqual(keyFromWif.PublicKey, keyFromWif.CompressedPublicKey);
 
             var pkBytesFromHex = Base16.Decode(pkHex);
             Assert.AreEqual(pkBytesFromHex.Length, 32);
 
-            var keyFromHex = new EthereumKey(pkBytesFromHex);
+            var keyFromHex = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey(pkBytesFromHex);
 
-            var pkBytesFromWif = EthereumKey.FromWIFToBytes(wif);
+            var pkBytesFromWif = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIFToBytes(wif);
             Assert.AreEqual(pkBytesFromWif, pkBytesFromHex);
             Assert.AreEqual(pkBytesFromWif, keyFromWif.PrivateKey);
             Assert.AreEqual(pkBytesFromWif, keyFromHex.PrivateKey);
@@ -66,7 +63,7 @@ namespace Phantasma.Tests
             var phantasmaKeys = new PhantasmaKeys(privBytes);
 
             var wif = phantasmaKeys.ToWIF();
-            var ethKeys = EthereumKey.FromWIF(wif);
+            var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
             Debug.Log("Eth address: " + ethKeys);
 
             var ethPublicKeyCompressed = ECDsa.GetPublicKey(privBytes, true, ECDsaCurve.Secp256k1);
@@ -131,7 +128,7 @@ namespace Phantasma.Tests
             var phantasmaKeys = new PhantasmaKeys(privBytes);
 
             var wif = phantasmaKeys.ToWIF();
-            var ethKeys = EthereumKey.FromWIF(wif);
+            var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
             Debug.Log("Eth address: " + ethKeys);
 
             var ethPublicKeyCompressed = ECDsa.GetPublicKey(privBytes, true, ECDsaCurve.Secp256k1);
@@ -190,13 +187,13 @@ namespace Phantasma.Tests
                             var phantasmaKeys = new PhantasmaKeys(PrivKey);
 
                             var wif = phantasmaKeys.ToWIF();
-                            var ethKeys = EthereumKey.FromWIF(wif);
+                            var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
 
                             PubKeyCompressed = ethKeys.CompressedPublicKey;
                             PubKeyUncompressed = ethKeys.UncompressedPublicKey;
                             break;
                         case ECDsaCurve.Secp256r1:
-                            var neoKeys = new NeoKeys(PrivKey);
+                            var neoKeys = new PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys(PrivKey);
 
                             PubKeyCompressed = neoKeys.CompressedPublicKey;
                             PubKeyUncompressed = neoKeys.PublicKey;
@@ -228,7 +225,7 @@ namespace Phantasma.Tests
 
             var msgBytes = Encoding.ASCII.GetBytes(message);
 
-            var hash = Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(msgBytes);
+            var hash = msgBytes.Sha256();
             Debug.Log("Message hash: " + Base16.Encode(hash));
 
             var signature = ECDsa.SignDeterministic(msgBytes, keys.PrivKey, curve);

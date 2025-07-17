@@ -1,8 +1,7 @@
 using System;
 using System.IO;
-using JetBrains.Annotations;
-using Phantasma.Core.Domain;
-using Phantasma.Core.Utils;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Core.Extensions;
 
 namespace Poltergeist
 {

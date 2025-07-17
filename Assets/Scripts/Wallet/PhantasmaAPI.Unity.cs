@@ -4,126 +4,18 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Domain;
-using Phantasma.Business.Blockchain.Storage;
-using Phantasma.Core.Types;
 using Newtonsoft.Json;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Cryptography.Extensions;
+using Poltergeist;
+using PhantasmaPhoenix.RPC.Types;
+using PhantasmaPhoenix.RPC.Models;
 
-namespace Phantasma.SDK
+namespace PhantasmaIntegration
 {
-    public class PaginatedResult<T>
-    {
-        public uint page { get; set; }
-        public uint pageSize { get; set; }
-        public uint total { get; set; }
-        public uint totalPages { get; set; }
-
-        public T result { get; set; }
-    }
-
-    public struct Balance
-    {
-        public string chain; //
-        public string amount; //
-        public string symbol; //
-        public uint decimals; //
-        public string[] ids; //
-    }
-
-    public struct Interop
-    {
-        public string local; //
-        public string external; //
-    }
-
-    public struct Platform
-    {
-        public string platform; //
-        public string chain; //
-        public string fuel; //
-        public string[] tokens; //
-        public Interop[] interop; //
-    }
-
-    public struct Stakes
-    {
-        public string amount; //
-        public uint time; //
-        public string unclaimed; //
-    }
-
-    public struct Storage
-    {
-        public uint available;
-        public uint used; //
-        public string avatar; //
-        public Archive[] archives; //
-    }
-
-    public struct Account
-    {
-        public string address; //
-        public string name; //
-        public Stakes stakes; //
-        public Storage storage; //
-        public string relay; //
-        public string validator; //
-        public Balance[] balances; //
-    }
-
-    public struct ContractParameter
-    {
-        public string name;
-        public string type;
-    }
-
-    public struct ContractMethod
-    {
-        public string name;
-        public string returnType;
-        public ContractParameter[] parameters;
-    }
-
-    public struct Contract
-    {
-        public string address; //
-        public string name; //
-        public string script; //
-        public ContractMethod[] methods;
-    }
-
-    public struct Event
-    {
-        public string address; //
-        public string kind; //
-        public string contract; //
-        public string data; //
-    }
-
-    public struct Transaction
-    {
-        public string hash; //
-        public string chainAddress; //
-        public uint timestamp; //
-        public int confirmations; //
-        public int blockHeight; //
-        public string blockHash; //
-        public string script; //
-        public Event[] events; //
-        public string result; //
-        public string fee; //
-        public ExecutionState state;
-        public string debugComment;
-    }
-
-    public struct AccountTransactions
-    {
-        public string address; //
-        public Transaction[] txs; //
-    }
-
     public class TokenPlatform
     {
         public string platform;
@@ -183,11 +75,6 @@ namespace Phantasma.SDK
         }
     }
 
-    public struct TokenProperty
-    {
-        public string Key;
-        public string Value;
-    }
     public enum TokenStatus
     {
         Active,
@@ -201,14 +88,14 @@ namespace Phantasma.SDK
         public string chainName;
         public string ownerAddress;
         public string creatorAddress;
-        [JsonConverter(typeof(HexByteArrayConverter))]
+        [JsonConverter(typeof(HexByteArrayJsonConverter))]
         public byte[] ram;
-        [JsonConverter(typeof(HexByteArrayConverter))]
+        [JsonConverter(typeof(HexByteArrayJsonConverter))]
         public byte[] rom;
         public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
         public IRom parsedRom;
-        public TokenProperty[] infusion;
-        public List<TokenProperty> properties;
+        public TokenPropertyResult[] infusion;
+        public List<TokenPropertyResult> properties;
 
         public void ParseRoms(string symbol)
         {
@@ -332,37 +219,6 @@ namespace Phantasma.SDK
         }
     }
 
-    public struct Oracle
-    {
-        public string url; //
-        public string content; //
-    }
-
-    public struct Script
-    {
-        public Event[] events; //
-        public string result; //
-        public string[] results; //
-        public Oracle[] oracles; //
-    }
-
-    public struct Archive
-    {
-        public string hash; //
-        public string name; //
-        public uint size; //
-        public uint time; //
-        public string flags; //
-        [JsonConverter(typeof(HexByteArrayConverter))]
-        public byte[] encryption; //
-        public int blockCount; //
-        public string[] metadata; //
-        public IArchiveEncryption GetEncryption()
-        {
-            return ArchiveExtensions.ReadArchiveEncryption(encryption);
-        }
-    }
-
     public class PhantasmaAPI
     {
         public readonly string Host;
@@ -374,17 +230,17 @@ namespace Phantasma.SDK
 
 
         //Returns the account name and balance of given address.
-        public IEnumerator GetAccount(string addressText, Action<Account> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetAccount(string addressText, Action<AccountResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Account>(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (account) =>
+            yield return WebClient.RPCRequest<AccountResult>(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (account) =>
             {
                 callback(account);
             }, addressText);
         }
 
-        public IEnumerator GetContract(string contractName, Action<Contract> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetContract(string contractName, Action<ContractResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Contract>(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<ContractResult>(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, DomainSettings.RootChainName, contractName);
@@ -402,13 +258,13 @@ namespace Phantasma.SDK
 
         //Returns last X transactions of given address.
         //This api call is paginated, multiple calls might be required to obtain a complete result 
-        public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactions, uint, uint> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetAddressTransactions(string addressText, uint page, uint pageSize, Action<AccountTransactionsResult, uint, uint> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<PaginatedResult<AccountTransactions>>(Host, "getAddressTransactions", WebClient.DefaultTimeout, 0, errorHandlingCallback, (paginatedResult) =>
+            yield return WebClient.RPCRequest<PaginatedResult<AccountTransactionsResult>>(Host, "getAddressTransactions", WebClient.DefaultTimeout, 0, errorHandlingCallback, (paginatedResult) =>
             {
-                var currentPage = paginatedResult.page;
-                var totalPages = paginatedResult.totalPages;
-                callback(paginatedResult.result, currentPage, totalPages);
+                var currentPage = paginatedResult.Page;
+                var totalPages = paginatedResult.TotalPages;
+                callback(paginatedResult.Result, currentPage, totalPages);
             }, addressText, page, pageSize);
         }
 
@@ -423,9 +279,9 @@ namespace Phantasma.SDK
 
 
         //Allows to invoke script based on network state, without state changes.
-        public IEnumerator InvokeRawScript(string chainInput, string scriptData, Action<Script> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator InvokeRawScript(string chainInput, string scriptData, Action<ScriptResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Script>(Host, "invokeRawScript", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<ScriptResult>(Host, "invokeRawScript", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, chainInput, scriptData);
@@ -433,9 +289,9 @@ namespace Phantasma.SDK
 
 
         //Returns information about a transaction by hash.
-        public IEnumerator GetTransaction(string hashText, Action<Transaction?> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetTransaction(string hashText, Action<TransactionResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Transaction?>(Host, "getTransaction", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<TransactionResult>(Host, "getTransaction", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 callback(result);
             }, hashText);
@@ -487,16 +343,16 @@ namespace Phantasma.SDK
 
         public IEnumerator SignAndSendTransactionWithPayload(PhantasmaKeys keys, IKeyPair otherKeys, string nexus, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, ProofOfWork PoW, Action<string, string, Hash> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
-            Log.Write("Sending transaction...");
+            Log.Write("Sending transaction... script size: " + script.Length);
 
-            var tx = new Phantasma.Core.Domain.Transaction(nexus, chain, script,  DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
+            var tx = new PhantasmaPhoenix.Protocol.Transaction(nexus, chain, script,  DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
 
-            if (PoW != ProofOfWork.None)
+            /*if (PoW != ProofOfWork.None)
             {
                 tx.Mine(PoW);
-            }
+            }*/
 
-            Hash txHash = tx.Sign(keys, null);
+            Hash txHash = tx.SignEx(keys, null);
             if (otherKeys != null)
             {
                 tx.Sign(otherKeys, customSignFunction);

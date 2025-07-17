@@ -5,25 +5,20 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-using Phantasma.SDK;
-
 using ZXing;
 using ZXing.QrCode;
 using System.Globalization;
 using System.Collections;
 using System.Threading;
-using Poltergeist.PhantasmaLegacy.Ethereum;
 using BigInteger = System.Numerics.BigInteger;
-using Phantasma.Core.Cryptography;
-using Phantasma.Core.Numerics;
-using Phantasma.Core.Domain;
-using Phantasma.Business.VM.Utils;
-using Phantasma.Business.Blockchain;
-using Phantasma.Core.Types;
 using NBitcoin;
-using Phantasma.Core.Cryptography.EdDSA;
-using Poltergeist.Neo2.Core;
-using Phantasma.Core.Cryptography.ECDsa;
+using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.VM;
+using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Cryptography.Extensions;
+using PhantasmaIntegration;
+using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist
 {
@@ -1172,7 +1167,7 @@ namespace Poltergeist
 
         private void DeriveAccountFromSeed(string mnemonicPhrase, uint derivationIndex, uint overallDerivationCount)
         {
-            var (wif, incorrectWord) = BIP39NBitcoin.MnemonicToWif(mnemonicPhrase, derivationIndex);
+            var (wif, incorrectWord) = Mnemonics.MnemonicToWif(mnemonicPhrase, derivationIndex);
 
             if (wif == null)
             {
@@ -1309,7 +1304,7 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    newWalletSeedPhrase = BIP39NBitcoin.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
+                                    newWalletSeedPhrase = Mnemonics.GenerateMnemonic(AccountManager.Instance.Settings.mnemonicPhraseLength);
 
                                     Animate(AnimationDirection.Down, true, () =>
                                     {
@@ -2390,7 +2385,7 @@ namespace Poltergeist
                                                 {
                                                     if (kcal == PromptResult.Success)
                                                     {
-                                                        var address = Address.FromText(state.address);
+                                                        var address = Address.Parse(state.address);
 
                                                         var sb = new ScriptBuilder();
                                                             
@@ -2429,7 +2424,7 @@ namespace Poltergeist
                                     {
                                         if (feeResult == PromptResult.Success)
                                         {
-                                            var address = Address.FromText(state.address);
+                                            var address = Address.Parse(state.address);
 
                                             var sb = new ScriptBuilder();
 
@@ -2550,7 +2545,7 @@ namespace Poltergeist
                 {
                     transferSymbol = balance.Symbol;
                     var transferName = $"{transferSymbol} transfer";
-                    Phantasma.SDK.Token transferToken;
+                    PhantasmaIntegration.Token transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
@@ -2590,7 +2585,7 @@ namespace Poltergeist
                             return; // user canceled
                         }
 
-                        var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
+                        var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
 
                         if (Address.IsValidAddress(destAddress) && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
                         {
@@ -2627,7 +2622,7 @@ namespace Poltergeist
                     byte[] script;
                     try
                     {
-                        var address = Address.FromText(state.address);
+                        var address = Address.Parse(state.address);
 
                         var sb = new ScriptBuilder();
 
@@ -2658,7 +2653,7 @@ namespace Poltergeist
                                 byte[] script;
                                 try
                                 {
-                                    var target = Address.FromText(state.address);
+                                    var target = Address.Parse(state.address);
 
                                     var sb = new ScriptBuilder();
                                     sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
@@ -3351,8 +3346,8 @@ namespace Poltergeist
                                         {
                                             if (auth == PromptResult.Success)
                                             {
-                                                var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                                                var hexKey = PhantasmaLegacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(accountManager.CurrentWif);
+                                                var hexKey = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
 
                                                 ShowModal("Your private key (HEX)",
                                                     KeyPrepareForMessageBox(hexKey),
@@ -3409,7 +3404,7 @@ namespace Poltergeist
                                         {
                                             if (result == PromptResult.Success)
                                             {
-                                                var address = Address.FromText(accountManager.CurrentState.address);
+                                                var address = Address.Parse(accountManager.CurrentState.address);
 
                                                 var sb = new ScriptBuilder();
 
@@ -3470,7 +3465,7 @@ namespace Poltergeist
 
                                                     try
                                                     {
-                                                        var source = Address.FromText(accountManager.CurrentState.address);
+                                                        var source = Address.Parse(accountManager.CurrentState.address);
 
                                                         var sb = new ScriptBuilder();
                                                         sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
@@ -3550,7 +3545,7 @@ namespace Poltergeist
 
                                         var messageBytes = System.Text.Encoding.ASCII.GetBytes(message);
 
-                                        var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
+                                        var hash = Base16.Encode(messageBytes.Sha256());
                                         if (accountManager.Settings.devMode)
                                         {
                                             Log.Write($"Signed message: '{message}', hash: '{hash}'");
@@ -3567,12 +3562,12 @@ namespace Poltergeist
                                         }
                                         else if (chain == "Ethereum")
                                         {
-                                            var keys = EthereumKey.FromWIF(wif);
+                                            var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                             signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256k1);
                                         }
                                         else if (chain == "Neo Legacy")
                                         {
-                                            var keys = NeoKeys.FromWIF(wif);
+                                            var keys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
                                             signatureBytes = ECDsa.SignDeterministic(messageBytes, keys.PrivateKey, ECDsaCurve.Secp256r1);
                                         }
                                         else
@@ -3629,7 +3624,7 @@ namespace Poltergeist
 
                                             if (accountManager.Settings.devMode)
                                             {
-                                                var hash = Base16.Encode(Phantasma.Core.Cryptography.Hashing.SHA256.ComputeHash(messageBytes));
+                                                var hash = Base16.Encode(messageBytes.Sha256());
                                                 Log.WriteRaw($"Verified message: '{message}'");
                                                 Log.WriteRaw("\n\n");
                                                 Log.Write($"Hash: '{hash}'");
@@ -3646,12 +3641,12 @@ namespace Poltergeist
                                             }
                                             else if (chain == "Ethereum")
                                             {
-                                                var keys = EthereumKey.FromWIF(wif);
+                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                                                 verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256k1);
                                             }
                                             else if (chain == "Neo Legacy")
                                             {
-                                                var keys = NeoKeys.FromWIF(wif);
+                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
                                                 verificationResult = ECDsa.Verify(messageBytes, signatureBytes, keys.PublicKey, ECDsaCurve.Secp256r1);
                                             }
                                             else
@@ -3698,7 +3693,7 @@ namespace Poltergeist
                                                 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(Phantasma.SDK.WebClient.RESTRequest<string>(url, jsonMessage, false, (error, msg) =>
+                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, false, (error, msg) =>
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },
@@ -3723,7 +3718,7 @@ namespace Poltergeist
             });
         }
 
-        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, TransactionResult, string> callback)
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
@@ -3744,7 +3739,7 @@ namespace Poltergeist
                             if (selectedAmount > balance.Available)
                                 selectedAmount = balance.Available;
 
-                            var address = Address.FromText(state.address);
+                            var address = Address.Parse(state.address);
 
                             var sb = new ScriptBuilder();
 
@@ -3948,7 +3943,7 @@ namespace Poltergeist
                         byte[] script;
                         try
                         {
-                            var target = Address.FromText(state.address);
+                            var target = Address.Parse(state.address);
 
                             var sb = new ScriptBuilder();
                             sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
@@ -3979,7 +3974,7 @@ namespace Poltergeist
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";
-                Phantasma.SDK.Token transferToken;
+                PhantasmaIntegration.Token transferToken;
 
                 Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
@@ -4002,7 +3997,7 @@ namespace Poltergeist
                         return; // user canceled
                     }
 
-                    var ethereumAddressUtil = new Poltergeist.PhantasmaLegacy.Ethereum.Util.AddressUtil();
+                    var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
 
                     if (Address.IsValidAddress(destAddress) && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
                     {
@@ -4016,7 +4011,7 @@ namespace Poltergeist
                         }
                     }
                     else
-                    if (Poltergeist.PhantasmaLegacy.Neo2.NeoUtils.IsValidAddress(destAddress))
+                    if (PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoUtils.IsValidAddress(destAddress))
                     {
                         MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to Neo address not supported.");
                     }
@@ -4055,16 +4050,16 @@ namespace Poltergeist
             return posY;
         }
 
-        private Action<Hash, Phantasma.SDK.Transaction?, string> transactionCallback;
+        private Action<Hash, TransactionResult, string> transactionCallback;
 
-        private void InvokeTransactionCallback(Hash hash, Phantasma.SDK.Transaction? txResult, string error)
+        private void InvokeTransactionCallback(Hash hash, TransactionResult txResult, string error)
         {
             var temp = transactionCallback;
             transactionCallback = null;
             temp?.Invoke(hash, txResult, error);
         }
 
-        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
         {
             if (script == null && transferRequest == null)
             {
@@ -4149,7 +4144,7 @@ namespace Poltergeist
             });
         }
 
-        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
         {
             if (scripts.Count() == 0)
             {
@@ -4214,7 +4209,7 @@ namespace Poltergeist
             });
         }
 
-        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
         {
             PushState(GUIState.Sending);
 
@@ -4250,7 +4245,7 @@ namespace Poltergeist
             });
         }
 
-        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, Phantasma.SDK.Transaction?, string> callback)
+        private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
         {
             transactionCallback = callback;
             transactionStillPending = true;
@@ -4281,8 +4276,8 @@ namespace Poltergeist
                 return;
             }
 
-            var source = Address.FromText(state.address);
-            var destination = Address.FromText(destAddress);
+            var source = Address.Parse(state.address);
+            var destination = Address.Parse(destAddress);
 
             if (source == destination)
             {
@@ -4363,8 +4358,8 @@ namespace Poltergeist
                 return;
             }
 
-            var source = Address.FromText(state.address);
-            var destination = Address.FromText(destAddress);
+            var source = Address.Parse(state.address);
+            var destination = Address.Parse(destAddress);
 
             if (source == destination)
             {
@@ -4601,7 +4596,7 @@ namespace Poltergeist
 
                              try
                              {
-                                 var source = Address.FromText(state.address);
+                                 var source = Address.Parse(state.address);
 
                                  var decimals = Tokens.GetTokenDecimals(feeSymbol, accountManager.CurrentPlatform);
                                  var decimalsSwap = Tokens.GetTokenDecimals(swapSymbol, accountManager.CurrentPlatform);
@@ -4833,7 +4828,7 @@ namespace Poltergeist
 #region DAPP Interface
         public Address GetAddress()
         {
-            return Address.FromText(AccountManager.Instance.CurrentState.address);
+            return Address.Parse(AccountManager.Instance.CurrentState.address);
         }
 
         public Dictionary<string, decimal>  GetBalances(string chain)
