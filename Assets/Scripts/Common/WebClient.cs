@@ -127,34 +127,12 @@ namespace Poltergeist
             else
             {
                 Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                JsonRpcResponse<T> rpcResponse = null;
 
                 try
                 {
                     var stringResponse = request.downloadHandler.text;
 
-                    try
-                    {
-                        rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
-                    }
-                    catch
-                    {
-                        if (method.ToUpper() == "GETNFT" && parameters.Length > 0 && ((string)parameters[0]).ToUpper() == "GAME")
-                        {
-                            Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse GAME NFT, trying workaround. JSON: " + stringResponse, Log.Level.Logic);
-                            // TODO remove later: Temporary HACK for binary data inside JSON
-                            var cutFrom = stringResponse.IndexOf(",{\"Key\":\"OriginalMetadata\"", StringComparison.InvariantCultureIgnoreCase);
-                            if (cutFrom > 0)
-                            {
-                                stringResponse = stringResponse.Substring(0, cutFrom) + "]}";
-                                rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
-                            }
-                        }
-                        else
-                        {
-                            throw;
-                        }
-                    }
+                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse<T>>(stringResponse);
                     if (rpcResponse != null && rpcResponse.result != null && rpcResponse.error == null)
                     {
                         callback?.Invoke(rpcResponse.result);
