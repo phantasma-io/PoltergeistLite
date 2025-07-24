@@ -3693,7 +3693,7 @@ namespace Poltergeist
                                                 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, false, (error, msg) =>
+                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, (error, msg) =>
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },

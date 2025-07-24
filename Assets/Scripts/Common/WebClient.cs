@@ -2,8 +2,8 @@ using System;
 using System.Collections;
 using UnityEngine.Networking;
 using System.Text;
-using System.Threading;
 using Newtonsoft.Json;
+using UnityEngine;
 
 namespace Poltergeist
 {
@@ -51,12 +51,33 @@ namespace Poltergeist
             public T result;
             public JsonRpcError error;
         }
-        public class JsonRpcResponse
+        
+        private static string FormatError(UnityWebRequest request, string url, JsonRpcError parsedError = null)
         {
-            public string jsonrpc;
-            public string id;
-            public object result;
-            public JsonRpcError error;
+            var sb = new StringBuilder();
+            sb.AppendLine(request.error ?? "Unknown error");
+            sb.AppendLine($"URL: {url}");
+            sb.AppendLine($"Is connection error: {request.result == UnityWebRequest.Result.ConnectionError}");
+            sb.AppendLine($"Is protocol error: {request.result == UnityWebRequest.Result.ProtocolError}");
+            sb.AppendLine($"Is data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}");
+            sb.AppendLine($"Response code: {request.responseCode}");
+
+            if (parsedError != null)
+            {
+                sb.AppendLine($"Error code: {parsedError.code}");
+                sb.AppendLine($"Error message: {parsedError.message}");
+            }
+
+            return sb.ToString();
+        }
+
+        private static JsonRpcError TryParseJsonRpcError(string json)
+        {
+            try
+            {
+                return JsonConvert.DeserializeObject<JsonRpcResponse<object>>(json)?.error;
+            }
+            catch { return null; }
         }
 
         public static IEnumerator RPCRequest<T>(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
@@ -75,22 +96,22 @@ namespace Poltergeist
             for (; ; )
             {
                 request = new UnityWebRequest(url, "POST");
-                request.uploadHandler = (UploadHandler)new UploadHandlerRaw(bodyRaw);
-                request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+                request.uploadHandler = new UploadHandlerRaw(bodyRaw);
+                request.downloadHandler = new DownloadHandlerBuffer();
                 request.SetRequestHeader("Content-Type", "application/json");
                 if (timeout > 0)
                     request.timeout = timeout;
 
                 yield return request.SendWebRequest();
 
-                if (request.error == null || retriesOnNetworkError == 0)
+                if (request.result == UnityWebRequest.Result.Success || retriesOnNetworkError == 0)
                 {
                     // success
                     break;
                 }
 
                 Log.Write($"RPC network error [{requestNumber}], {retriesOnNetworkError} retries left.", Log.Level.Networking);
-                Thread.Sleep(1000);
+                yield return new WaitForSeconds(1f);
                 retriesOnNetworkError--;
             }
 
@@ -98,33 +119,10 @@ namespace Poltergeist
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                // Try extracting error details
-                int? errorCode = null;
-                string? errorMessage = null;
-                try
-                {
-                    var stringResponse = request.downloadHandler.text;
-                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
-                    errorCode = rpcResponse?.error?.code;
-                    errorMessage = rpcResponse?.error?.message;
-                }
-                catch
-                {
-                    // No parsable response body is available.
-                }
-
-                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
-                if(errorCode != null)
-                {
-                    error += "\nError code: " + errorCode.ToString();
-                }
-                if(errorMessage != null)
-                {
-                    error += "\nError message: " + errorMessage.ToString();
-                }
-
-                Log.Write($"RPC error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
+                var parsedRpcError = TryParseJsonRpcError(request.downloadHandler.text);
+                var error = FormatError(request, url, parsedRpcError);
+                Log.Write($"RPC error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{error}", Log.Level.Networking);
+                errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -185,73 +183,6 @@ namespace Poltergeist
             yield break;
         }
 
-        public static IEnumerator RESTRequestT<T>(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
-        {
-            UnityWebRequest request;
-
-            var requestNumber = GetNextRequestNumber();
-            Log.Write($"REST request [{requestNumber}]\nurl: {url}", Log.Level.Networking);
-
-            request = new UnityWebRequest(url, "GET");
-            request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
-
-            DateTime startTime = DateTime.Now;
-
-            if (timeout > 0)
-                request.timeout = timeout;
-            
-            yield return request.SendWebRequest();
-            
-            TimeSpan responseTime = DateTime.Now - startTime;
-
-            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
-            {
-                // Try extracting error details
-                int? errorCode = null;
-                string? errorMessage = null;
-                try
-                {
-                    var stringResponse = request.downloadHandler.text;
-                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
-                    errorCode = rpcResponse?.error?.code;
-                    errorMessage = rpcResponse?.error?.message;
-                }
-                catch
-                {
-                    // No parsable response body is available.
-                }
-
-                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
-                if(errorCode != null)
-                {
-                    error += "\nError code: " + errorCode.ToString();
-                }
-                if(errorMessage != null)
-                {
-                    error += "\nError message: " + errorMessage.ToString();
-                }
-
-                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
-            }
-            else
-            {
-                T response = default;
-                try
-                {
-                    Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                    response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
-                }
-                catch (Exception e)
-                {
-                    Log.Write(e.Message);
-                }
-                callback(response);
-            }
-
-            yield break;
-        }
-
         public static IEnumerator RESTGet<T>(string url, int timeout, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
@@ -260,7 +191,7 @@ namespace Poltergeist
             Log.Write($"REST request [{requestNumber}]\nurl: {url}", Log.Level.Networking);
 
             request = new UnityWebRequest(url, "GET");
-            request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+            request.downloadHandler = new DownloadHandlerBuffer();
 
             DateTime startTime = DateTime.Now;
 
@@ -273,8 +204,9 @@ namespace Poltergeist
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec", Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, null);
+                var error = FormatError(request, url);
+                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{error}", Log.Level.Networking);
+                errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -294,7 +226,7 @@ namespace Poltergeist
             yield break;
         }
 
-        public static IEnumerator RESTPost<T>(string url, string serializedJson, bool deserializeResponse, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
+        public static IEnumerator RESTPost<T>(string url, string serializedJson, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback, Action<T> callback)
         {
             UnityWebRequest request;
 
@@ -306,8 +238,8 @@ namespace Poltergeist
             request = new UnityWebRequest(url, "POST");
 
             byte[] data = Encoding.UTF8.GetBytes(serializedJson);
-            request.uploadHandler = (UploadHandler)new UploadHandlerRaw(data);
-            request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+            request.uploadHandler = new UploadHandlerRaw(data);
+            request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
 
             DateTime startTime = DateTime.Now;
@@ -316,33 +248,9 @@ namespace Poltergeist
 
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             {
-                // Try extracting error details
-                int? errorCode = null;
-                string? errorMessage = null;
-                try
-                {
-                    var stringResponse = request.downloadHandler.text;
-                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
-                    errorCode = rpcResponse?.error?.code;
-                    errorMessage = rpcResponse?.error?.message;
-                }
-                catch
-                {
-                    // No parsable response body is available.
-                }
-
-                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
-                if(errorCode != null)
-                {
-                    error += "\nError code: " + errorCode.ToString();
-                }
-                if(errorMessage != null)
-                {
-                    error += "\nError message: " + errorMessage.ToString();
-                }
-
-                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
+                var error = FormatError(request, url);
+                Log.Write($"REST error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{error}", Log.Level.Networking);
+                errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
@@ -351,13 +259,13 @@ namespace Poltergeist
                 T response = default;
                 try
                 {
-                    if(deserializeResponse)
+                    if (typeof(T) == typeof(string))
                     {
-                        response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
+                        response = (T)(object)request.downloadHandler.text;
                     }
                     else
                     {
-                        response = (T)(object)request.downloadHandler.text;
+                        response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
                     }
                 }
                 catch(Exception e)
@@ -377,7 +285,7 @@ namespace Poltergeist
             Log.Write($"Ping url: {url}", Log.Level.Networking);
 
             request = new UnityWebRequest(url, "GET");
-            request.downloadHandler = (DownloadHandler)new DownloadHandlerBuffer();
+            request.downloadHandler = new DownloadHandlerBuffer();
 
             DateTime startTime = DateTime.Now;
             yield return request.SendWebRequest();
@@ -387,33 +295,9 @@ namespace Poltergeist
             // if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
             if (request.result == UnityWebRequest.Result.ConnectionError)
             {
-                // Try extracting error details
-                int? errorCode = null;
-                string? errorMessage = null;
-                try
-                {
-                    var stringResponse = request.downloadHandler.text;
-                    var rpcResponse = JsonConvert.DeserializeObject<JsonRpcResponse>(stringResponse);
-                    errorCode = rpcResponse?.error?.code;
-                    errorMessage = rpcResponse?.error?.message;
-                }
-                catch
-                {
-                    // No parsable response body is available.
-                }
-
-                var error = request.error + $"\nURL: {url}\nIs connection error: {request.result == UnityWebRequest.Result.ConnectionError}\nIs protocol error: {request.result == UnityWebRequest.Result.ProtocolError}\nIs data processing error: {request.result == UnityWebRequest.Result.DataProcessingError}\nResponse code: {request.responseCode}";
-                if(errorCode != null)
-                {
-                    error += "\nError code: " + errorCode.ToString();
-                }
-                if(errorMessage != null)
-                {
-                    error += "\nError message: " + errorMessage.ToString();
-                }
-
-                Log.Write($"Ping error error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n" + error, Log.Level.Networking);
-                if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
+                var error = FormatError(request, url);
+                Log.Write($"Ping error error\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{error}", Log.Level.Networking);
+                errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
