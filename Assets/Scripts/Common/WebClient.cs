@@ -30,13 +30,14 @@ namespace Poltergeist
         {
             public string jsonrpc = "2.0";
             public string method;
-            public string id = "1";
+            public string id;
             public object[] @params;
 
-            public JsonRpcRequest(string method, object[] parameters)
+            public JsonRpcRequest(string method, object[] parameters, string id)
             {
                 this.method = method;
                 this.@params = parameters;
+                this.id = id;
             }
         }
         public class JsonRpcError
@@ -80,12 +81,23 @@ namespace Poltergeist
             catch { return null; }
         }
 
+        private static T ParseResponse<T>(string response)
+        {
+            if (typeof(T) == typeof(string))
+            {
+                return (T)(object)response;
+            }
+
+            return JsonConvert.DeserializeObject<T>(response);
+        }
+
         public static IEnumerator RPCRequest<T>(string url, string method, int timeout, int retriesOnNetworkError, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback,
                                             Action<T> callback, params object[] parameters)
         {
-            var json = JsonConvert.SerializeObject(new JsonRpcRequest(method, parameters));
+            var requestNumber = GetNextRequestNumber().ToString();
+            var rpcRequest = new JsonRpcRequest(method, parameters, requestNumber);
+            var json = JsonConvert.SerializeObject(rpcRequest);
 
-            var requestNumber = GetNextRequestNumber();
             Log.Write($"RPC request [{requestNumber}]\nurl: {url}\njson: {json}", Log.Level.Networking);
 
             byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
@@ -142,7 +154,7 @@ namespace Poltergeist
                         if (rpcResponse?.error != null)
                         {
                             Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nError node found: {rpcResponse.error.message}", Log.Level.Networking);
-                            if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, rpcResponse.error.message);
+                            errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.API_ERROR, rpcResponse.error.message);
                         }
                         else
                         {
@@ -153,7 +165,7 @@ namespace Poltergeist
                 catch (Exception e)
                 {
                     Log.Write($"RPC response [{requestNumber}]\nurl: {url}\nFailed to parse JSON: " + e.ToString(), Log.Level.Networking);
-                    if (errorHandlingCallback != null) errorHandlingCallback(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse RPC response: \"" + e.Message + "\"");
+                    errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON, "Failed to parse RPC response: \"" + e.Message + "\"");
                     yield break;
                 }
             }
@@ -192,7 +204,7 @@ namespace Poltergeist
                 try
                 {
                     Log.Write($"REST response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
-                    response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
+                    response = ParseResponse<T>(request.downloadHandler.text);
                 }
                 catch(Exception e)
                 {
@@ -237,14 +249,7 @@ namespace Poltergeist
                 T response = default;
                 try
                 {
-                    if (typeof(T) == typeof(string))
-                    {
-                        response = (T)(object)request.downloadHandler.text;
-                    }
-                    else
-                    {
-                        response = JsonConvert.DeserializeObject<T>(request.downloadHandler.text);
-                    }
+                    response = ParseResponse<T>(request.downloadHandler.text);
                 }
                 catch(Exception e)
                 {
@@ -260,7 +265,8 @@ namespace Poltergeist
         {
             UnityWebRequest request;
 
-            Log.Write($"Ping url: {url}", Log.Level.Networking);
+            var requestNumber = GetNextRequestNumber();
+            Log.Write($"Ping url [{requestNumber}]: {url}", Log.Level.Networking);
 
             request = new UnityWebRequest(url, "GET");
             request.downloadHandler = new DownloadHandlerBuffer();
@@ -274,12 +280,12 @@ namespace Poltergeist
             if (request.result == UnityWebRequest.Result.ConnectionError)
             {
                 var error = FormatError(request, url);
-                Log.Write($"Ping error error\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{error}", Log.Level.Networking);
+                Log.Write($"Ping error error [{requestNumber}]\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{error}", Log.Level.Networking);
                 errorHandlingCallback?.Invoke(EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR, error);
             }
             else
             {
-                Log.Write($"Ping response\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
+                Log.Write($"Ping response [{requestNumber}]\nurl: {url}\nResponse time: {responseTime.Seconds}.{responseTime.Milliseconds} sec\n{request.downloadHandler.text}", Log.Level.Networking);
                 callback(responseTime);
             }
 
