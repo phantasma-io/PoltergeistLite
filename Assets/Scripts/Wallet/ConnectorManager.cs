@@ -3,6 +3,7 @@ using UnityEngine;
 using PhantasmaPhoenix.Link;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {

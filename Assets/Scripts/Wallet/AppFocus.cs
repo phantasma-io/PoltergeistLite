@@ -1,6 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
-using Poltergeist;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using UnityEngine;
 
 // class to set app focus on demand
