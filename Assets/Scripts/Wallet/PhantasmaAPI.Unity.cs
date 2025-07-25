@@ -17,17 +17,6 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace PhantasmaIntegration
 {
-    public class TokenPlatform
-    {
-        public string platform;
-        public string hash;
-
-        public override string ToString()
-        {
-            return $"Platform {platform}, hash {hash}";
-        }
-    }
-
     public class Token
     {
         public string symbol; //
@@ -41,9 +30,6 @@ namespace PhantasmaIntegration
         public string owner;
         public string flags; //
         public string script;
-        public TokenPlatform[] external;
-        // TODO check if needed after refactoring
-        public bool mainnetToken = true;
 
         public bool IsBurnable()
         {
@@ -56,23 +42,6 @@ namespace PhantasmaIntegration
         public bool IsTransferable()
         {
             return flags.Contains(TokenFlags.Transferable.ToString());
-        }
-        public bool IsSwappable()
-        {
-            return flags.Contains(TokenFlags.Swappable.ToString());
-        }
-
-        public override string ToString()
-        {
-            var platforms = "";
-            if (external != null)
-            {
-                foreach (var platform in external)
-                {
-                    platforms += "\t" + platform.ToString() + "\n";
-                }
-            }
-            return $"Symbol {symbol} ({name}), decimals {decimals}, supplies {currentSupply}/{maxSupply}/{burnedSupply}, flags '{flags}', coinGeckoId '{apiSymbol}', mainnetToken '{mainnetToken}'. Platforms:\n{platforms}";
         }
     }
 

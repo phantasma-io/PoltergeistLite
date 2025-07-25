@@ -20,12 +20,12 @@ namespace Poltergeist
 
         public static PlatformKind GetTransferTargets(this PlatformKind kind, Token token)
         {
-            if (!token.IsSwappable())
+            // if (!token.IsSwappable())
             {
                 return kind;
             }
 
-            PlatformKind targets;
+            /*PlatformKind targets;
 
             switch (kind)
             {
@@ -53,7 +53,7 @@ namespace Poltergeist
 
                 default:
                     return PlatformKind.None;
-            }
+            }*/
         }
         public static bool ValidateTransferTarget(this PlatformKind kind, Token token, PlatformKind targetKind)
         {

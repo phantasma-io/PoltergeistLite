@@ -92,15 +92,16 @@ public static class Tokens
     public static Token GetToken(string symbol, PlatformKind platform)
     {
         return SupportedTokens.Where(x => x.symbol.ToUpper() == symbol.ToUpper() &&
-            ((platform == PlatformKind.Phantasma && x.mainnetToken == true) ||
-            (platform != PlatformKind.Phantasma && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))))
+            ((platform == PlatformKind.Phantasma) /*||
+            (platform != PlatformKind.Phantasma && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))*/))
             .SingleOrDefault();
     }
     public static bool HasSwappableToken(string symbol, PlatformKind platform)
     {
-        return SupportedTokens.Any(x => x.symbol.ToUpper() == symbol.ToUpper() &&
-            ((platform == PlatformKind.Phantasma && x.IsSwappable() && x.mainnetToken == true) ||
-            (platform != PlatformKind.Phantasma && x.IsSwappable() && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))));
+        return false;
+        /*return SupportedTokens.Any(x => x.symbol.ToUpper() == symbol.ToUpper() &&
+            ((platform == PlatformKind.Phantasma && x.IsSwappable()) ||
+            (platform != PlatformKind.Phantasma && x.IsSwappable() && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))));*/
     }
     public static bool GetToken(string symbol, PlatformKind platform, out Token token)
     {
@@ -119,8 +120,8 @@ public static class Tokens
     }
     public static Token[] GetTokens(PlatformKind platform)
     {
-        return SupportedTokens.Where(x => (platform == PlatformKind.Phantasma && x.mainnetToken == true) ||
-            (platform != PlatformKind.Phantasma && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper())))
+        return SupportedTokens.Where(x => platform == PlatformKind.Phantasma /*||
+            (platform != PlatformKind.Phantasma && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))*/)
             .ToArray();
     }
     public static Token[] GetTokensForCoingecko()
@@ -140,7 +141,7 @@ public static class Tokens
     }
     public static string GetTokenHash(string symbol, PlatformKind platform)
     {
-        var token = GetToken(symbol, platform);
+        /*var token = GetToken(symbol, platform);
         if (token != default(Token))
         {
             if (token.external == null)
@@ -152,19 +153,19 @@ public static class Tokens
                 hash = hash.Substring(2);
 
             return hash;
-        }
+        }*/
 
         return null;
     }
     public static string GetTokenHash(Token token, PlatformKind platform)
     {
-        if (token != default(Token))
+        /*if (token != default(Token))
         {
             if (token.external == null)
                 return null;
 
             return token.external.Where(x => x.platform.ToUpper() == platform.ToString().ToUpper()).SingleOrDefault()?.hash;
-        }
+        }*/
 
         return null;
     }
@@ -174,7 +175,7 @@ public static class Tokens
         var tokens = "";
         foreach (var token in SupportedTokens)
         {
-            tokens += token.ToString() + "\n";
+            tokens += $"Symbol {token.symbol} ({token.name}), decimals {token.decimals}, supplies {token.currentSupply}/{token.maxSupply}/{token.burnedSupply}, flags '{token.flags}', coinGeckoId '{token.apiSymbol}'\n";
         }
         Log.Write("Supported tokens:\n" + tokens);
     }
