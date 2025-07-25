@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.phantasmaphoenix.core": "https://github.com/phantasma-io/Phantasma-UnitySDK.git?path=PhantasmaPhoenix.Unity.Core",
     "com.unity.ide.visualstudio": "2.0.23",
     "com.unity.multiplayer.center": "1.0.0",
     "com.unity.test-framework": "1.5.1",

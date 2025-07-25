@@ -8,6 +8,7 @@ using PhantasmaPhoenix.Core.Extensions;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Cryptography.Extensions;
 using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using UnityEngine.Device;
 

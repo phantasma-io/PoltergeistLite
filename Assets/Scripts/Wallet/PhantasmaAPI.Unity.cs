@@ -10,9 +10,10 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography.Extensions;
-using Poltergeist;
 using PhantasmaPhoenix.RPC.Types;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace PhantasmaIntegration
 {

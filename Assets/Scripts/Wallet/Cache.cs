@@ -4,7 +4,7 @@ using UnityEngine;
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using PhantasmaIntegration;
-using Poltergeist;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 public static class Cache
 {

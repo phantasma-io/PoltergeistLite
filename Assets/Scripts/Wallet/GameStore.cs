@@ -3,7 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using Poltergeist;
+using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 // Parsing and storing data received from GAME store.
 public static class GameStore

@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {

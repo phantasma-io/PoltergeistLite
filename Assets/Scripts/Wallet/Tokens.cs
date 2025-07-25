@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PhantasmaIntegration;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 public static class Tokens
 {

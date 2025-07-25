@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Text.RegularExpressions;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist;
 using UnityEngine;
 using UnityEngine.Networking;

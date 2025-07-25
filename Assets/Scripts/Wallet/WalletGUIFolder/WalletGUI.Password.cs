@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {

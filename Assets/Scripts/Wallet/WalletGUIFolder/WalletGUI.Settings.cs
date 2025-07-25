@@ -6,6 +6,7 @@ using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Legacy;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {

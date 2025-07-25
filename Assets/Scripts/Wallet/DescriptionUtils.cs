@@ -1,5 +1,6 @@
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using System;
 using System.Collections;

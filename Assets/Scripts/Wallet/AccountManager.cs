@@ -14,6 +14,8 @@ using PhantasmaPhoenix.Core.Extensions;
 using Newtonsoft.Json.Linq;
 using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {
@@ -66,7 +68,7 @@ namespace Poltergeist
         public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
-        public PhantasmaAPI phantasmaApi { get; private set; }
+        public PhantasmaIntegration.PhantasmaAPI phantasmaApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -598,7 +600,7 @@ The Phoenix team", "Notice");
         public void UpdateAPIs(bool possibleNexusChange = false)
         {
             Log.Write("reinit APIs => " + Settings.phantasmaRPCURL);
-            phantasmaApi = new PhantasmaAPI(Settings.phantasmaRPCURL);
+            phantasmaApi = new PhantasmaIntegration.PhantasmaAPI(Settings.phantasmaRPCURL);
 
             if (possibleNexusChange)
             {

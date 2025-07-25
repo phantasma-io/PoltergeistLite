@@ -19,6 +19,8 @@ using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Extensions;
 using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core.Logging;
+using PhantasmaPhoenix.Unity.Core;
 
 namespace Poltergeist
 {
@@ -1329,7 +1331,7 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    if (PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
+                                    if (PhantasmaIntegration.PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
                                     {
                                         PromptBox("Was this private key created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", ModalYesNo, (legacySeed) =>
                                         {
