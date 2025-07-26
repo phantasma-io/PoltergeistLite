@@ -9,9 +9,27 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 
 public static class Tokens
 {
-    public static List<Token> SupportedTokens = new List<Token>();
+    public static List<Token> SupportedTokens = new();
     public static object __lockObj = new object();
 
+    // Key: symbol, Value: coingeckoApiSymbol
+    public static Dictionary<string, string> CoingeckoApiSymbols = new();
+    public static void AddCGSymbol(string tokenSymbol, string cgSymbol)
+    {
+        CoingeckoApiSymbols[tokenSymbol] = cgSymbol;
+    }
+    public static void AddCGSymbol(Token token, string cgSymbol)
+    {
+        AddCGSymbol(token.symbol, cgSymbol);
+    }
+    public static string GetCGSymbol(Token token)
+    {
+        return CoingeckoApiSymbols.TryGetValue(token.symbol, out var result) ? result : "";
+    }
+    public static bool HasCGSymbol(Token token)
+    {
+        return GetCGSymbol(token) != "";
+    }
 
     public static void Reset()
     {
@@ -31,7 +49,7 @@ public static class Tokens
     public static void LoadCoinGeckoSymbols()
     {
         // First we init all fungible token API IDs with default values.
-        SupportedTokens.ForEach(x => { if (string.IsNullOrEmpty(x.apiSymbol) && x.IsFungible()) { x.apiSymbol = x.symbol.ToLower(); } });
+        SupportedTokens.ForEach(x => { if (!HasCGSymbol(x) && x.IsFungible()) { AddCGSymbol(x, x.symbol.ToLower()); } });
 
         // Then apply IDs from config.
         var resource = Resources.Load<TextAsset>("Tokens.CoinGecko");
@@ -54,21 +72,7 @@ public static class Tokens
         {
             var symbol = tokenApiSymbol.Value<string>("symbol");
             var apiSymbol = tokenApiSymbol.Value<string>("apiSymbol");
-            var tokens = Tokens.GetTokens(symbol);
-            if (tokens.Length > 0)
-            {
-                for (var i = 0; i < tokens.Length; i++)
-                {
-                    if (apiSymbol == "-") // Means token has no CoinGecko API ID.
-                        tokens[i].apiSymbol = "";
-                    else
-                        tokens[i].apiSymbol = apiSymbol;
-                }
-            }
-            else
-            {
-                Log.WriteWarning($"CoinGecko symbols: Token '{symbol}' not found.");
-            }
+            AddCGSymbol(symbol, apiSymbol == "-" ? "" : apiSymbol);
         }
     }
     public static void Init(Token[] mainnetTokens)
@@ -126,7 +130,7 @@ public static class Tokens
     }
     public static Token[] GetTokensForCoingecko()
     {
-        return SupportedTokens.Where(x => string.IsNullOrEmpty(x.apiSymbol) == false)
+        return SupportedTokens.Where(x => HasCGSymbol(x))
             .ToArray();
     }
     public static int GetTokenDecimals(string symbol, PlatformKind platform)
@@ -175,7 +179,7 @@ public static class Tokens
         var tokens = "";
         foreach (var token in SupportedTokens)
         {
-            tokens += $"Symbol {token.symbol} ({token.name}), decimals {token.decimals}, supplies {token.currentSupply}/{token.maxSupply}/{token.burnedSupply}, flags '{token.flags}', coinGeckoId '{token.apiSymbol}'\n";
+            tokens += $"Symbol {token.symbol} ({token.name}), decimals {token.decimals}, supplies {token.currentSupply}/{token.maxSupply}/{token.burnedSupply}, flags '{token.flags}', coinGeckoId '{GetCGSymbol(token)}'\n";
         }
         Log.Write("Supported tokens:\n" + tokens);
     }

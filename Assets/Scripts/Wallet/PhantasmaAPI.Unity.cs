@@ -20,7 +20,6 @@ namespace PhantasmaIntegration
     public class Token
     {
         public string symbol; //
-        public string apiSymbol; // API symbols may differ.
         public string name; //
         public int decimals; //
         public string currentSupply; //

@@ -127,10 +127,10 @@ namespace Poltergeist
             }
         }
 
-        private IEnumerator FetchTokenPrices(IEnumerable<Token> symbols, string currency)
+        private IEnumerator FetchTokenPrices(IEnumerable<Token> tokens, string currency)
         {
             var separator = "%2C";
-            var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, symbols.Where(x => !String.IsNullOrEmpty(x.apiSymbol)).Select(x => x.apiSymbol).Distinct().ToList()) + "&vs_currencies=" + currency;
+            var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, tokens.Where(x => Tokens.HasCGSymbol(x)).Select(x => Tokens.GetCGSymbol(x)).Distinct().ToList()) + "&vs_currencies=" + currency;
             return WebClient.RESTGet<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, (error, msg) =>
             {
 
@@ -139,18 +139,19 @@ namespace Poltergeist
             {
                 try
                 {
-                    foreach (var symbol in symbols)
+                    foreach (var token in tokens)
                     {
-                        var node = response.Where(x => x.Key.ToUpperInvariant() == symbol.apiSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                        var cgSymbol = Tokens.GetCGSymbol(token);
+                        var node = response.Where(x => x.Key.ToUpperInvariant() == cgSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
                         if (node != default)
                         {
                             var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
 
-                            SetTokenPrice(symbol.symbol, price);
+                            SetTokenPrice(token.symbol, price);
                         }
                         else
                         {
-                            Log.Write($"Cannot get price for '{symbol.apiSymbol}'.");
+                            Log.Write($"Cannot get price for '{cgSymbol}'.");
                         }
                     }
 
