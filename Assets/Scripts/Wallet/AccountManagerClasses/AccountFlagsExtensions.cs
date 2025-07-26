@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PhantasmaIntegration;
+using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist
 {
@@ -18,7 +19,7 @@ namespace Poltergeist
             return list;
         }
 
-        public static PlatformKind GetTransferTargets(this PlatformKind kind, Token token)
+        public static PlatformKind GetTransferTargets(this PlatformKind kind, TokenResult token)
         {
             // if (!token.IsSwappable())
             {
@@ -55,7 +56,7 @@ namespace Poltergeist
                     return PlatformKind.None;
             }*/
         }
-        public static bool ValidateTransferTarget(this PlatformKind kind, Token token, PlatformKind targetKind)
+        public static bool ValidateTransferTarget(this PlatformKind kind, TokenResult token, PlatformKind targetKind)
         {
             var targets = kind.GetTransferTargets(token);
             return targets.HasFlag(targetKind);

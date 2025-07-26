@@ -2547,11 +2547,11 @@ namespace Poltergeist
                 {
                     transferSymbol = balance.Symbol;
                     var transferName = $"{transferSymbol} transfer";
-                    PhantasmaIntegration.Token transferToken;
+                    TokenResult transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
-                    if (string.IsNullOrEmpty(transferToken.flags))
+                    if (string.IsNullOrEmpty(transferToken.Flags))
                     {
                         MessageBox(MessageKind.Error, $"Operations with token {transferSymbol} are not supported yet in this version.");
                         return;
@@ -2910,7 +2910,7 @@ namespace Poltergeist
                         if (Tokens.GetToken(symbol, accountManager.CurrentPlatform, out var token))
                         {
                             if (token.IsFungible())
-                                fungibleInfusions.Add(symbol, UnitConversion.ToDecimal(amountOrId, token.decimals));
+                                fungibleInfusions.Add(symbol, UnitConversion.ToDecimal(amountOrId, token.Decimals));
                             else
                             {
                                 if (nftInfusions.ContainsKey(symbol))
@@ -3976,11 +3976,11 @@ namespace Poltergeist
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";
-                PhantasmaIntegration.Token transferToken;
+                TokenResult transferToken;
 
                 Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
-                if (string.IsNullOrEmpty(transferToken.flags))
+                if (string.IsNullOrEmpty(transferToken.Flags))
                 {
                     MessageBox(MessageKind.Error, $"Operations with token {transferSymbol} are not supported yet in this version.");
                     return;

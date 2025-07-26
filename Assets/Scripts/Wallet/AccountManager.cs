@@ -127,7 +127,7 @@ namespace Poltergeist
             }
         }
 
-        private IEnumerator FetchTokenPrices(IEnumerable<Token> tokens, string currency)
+        private IEnumerator FetchTokenPrices(IEnumerable<TokenResult> tokens, string currency)
         {
             var separator = "%2C";
             var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, tokens.Where(x => Tokens.HasCGSymbol(x)).Select(x => Tokens.GetCGSymbol(x)).Distinct().ToList()) + "&vs_currencies=" + currency;
@@ -147,7 +147,7 @@ namespace Poltergeist
                         {
                             var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
 
-                            SetTokenPrice(token.symbol, price);
+                            SetTokenPrice(token.Symbol, price);
                         }
                         else
                         {
@@ -528,7 +528,7 @@ The Phoenix team", "Notice");
             PlayerPrefs.Save();
         }
 
-        private IEnumerator GetTokens(Action<Token[]> callback)
+        private IEnumerator GetTokens(Action<TokenResult[]> callback)
         {
             while (!Ready)
             {
@@ -1102,11 +1102,11 @@ The Phoenix team", "Notice");
                             balanceMap[entry.Symbol] = new Balance()
                             {
                                 Symbol = entry.Symbol,
-                                Available = AmountFromString(entry.Amount, token.decimals),
+                                Available = AmountFromString(entry.Amount, token.Decimals),
                                 Staked = 0,
                                 Claimable = 0,
                                 Chain = entry.Chain,
-                                Decimals = token.decimals,
+                                Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible(),
                                 Ids = entry.Ids
@@ -1153,7 +1153,7 @@ The Phoenix team", "Notice");
                                 Available = 0,
                                 Staked = stakedAmount,
                                 Claimable = 0,
-                                Decimals = token.decimals,
+                                Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible()
                             };
@@ -1179,7 +1179,7 @@ The Phoenix team", "Notice");
                                 Available = 0,
                                 Staked = 0,
                                 Claimable = claimableAmount,
-                                Decimals = token.decimals,
+                                Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible()
                             };

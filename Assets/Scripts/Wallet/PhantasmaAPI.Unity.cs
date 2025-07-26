@@ -17,33 +17,6 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace PhantasmaIntegration
 {
-    public class Token
-    {
-        public string symbol; //
-        public string name; //
-        public int decimals; //
-        public string currentSupply; //
-        public string maxSupply; //
-        public string burnedSupply;
-        public string address;
-        public string owner;
-        public string flags; //
-        public string script;
-
-        public bool IsBurnable()
-        {
-            return flags.Contains(TokenFlags.Burnable.ToString());
-        }
-        public bool IsFungible()
-        {
-            return flags.Contains(TokenFlags.Fungible.ToString());
-        }
-        public bool IsTransferable()
-        {
-            return flags.Contains(TokenFlags.Transferable.ToString());
-        }
-    }
-
     public enum TokenStatus
     {
         Active,
@@ -268,9 +241,9 @@ namespace PhantasmaIntegration
 
 
         //Returns an array of tokens deployed in Phantasma.
-        public IEnumerator GetTokens(Action<Token[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetTokens(Action<TokenResult[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
-            yield return WebClient.RPCRequest<Token[]>(Host, "getTokens", 10, 5, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<TokenResult[]>(Host, "getTokens", 10, 5, errorHandlingCallback, (result) =>
             {
                 callback(result);
             });
