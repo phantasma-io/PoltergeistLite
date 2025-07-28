@@ -2045,33 +2045,33 @@ The Phoenix team", "Notice");
                                                                 {
                                                                     InvokeScriptPhantasma("main", scriptIsMaster, (isMasterResult, isMasterInvokeError) =>
                                                                     {
-                                                                    if (!string.IsNullOrEmpty(isMasterInvokeError))
-                                                                    {
-                                                                        callback(null, "Script invocation error!\n\n" + isMasterInvokeError);
-                                                                        return;
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
-                                                                        var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
-                                                                        var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
-                                                                        var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
-                                                                        var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
-                                                                        var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;
-                                                                        var timeBeforeUnstake = timeBeforeUnstakeResult != null ? VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber() : -1;
-                                                                        var masterDate = masterDateResult != null ? VMObject.FromBytes(masterDateResult).AsTimestamp() : 0;
-                                                                        var isMaster = isMasterResult != null ? VMObject.FromBytes(isMasterResult).AsBool() : false;
+                                                                        if (!string.IsNullOrEmpty(isMasterInvokeError))
+                                                                        {
+                                                                            callback(null, "Script invocation error!\n\n" + isMasterInvokeError);
+                                                                            return;
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
+                                                                            var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
+                                                                            var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
+                                                                            var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
+                                                                            var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
+                                                                            var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;
+                                                                            var timeBeforeUnstake = timeBeforeUnstakeResult != null ? VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber() : -1;
+                                                                            var masterDate = masterDateResult != null ? VMObject.FromBytes(masterDateResult).AsTimestamp() : 0;
+                                                                            var isMaster = isMasterResult != null ? VMObject.FromBytes(isMasterResult).AsBool() : false;
 
-                                                                        callback($"{addressString} account information:\n\n" +
-                                                                            $"Unclaimed: {unclaimed} KCAL\n" +
-                                                                            $"Stake: {stake} SOUL\n" +
-                                                                            $"Is SM: {isMaster}\n" +
-                                                                            $"SM since: {masterDate}\n" +
-                                                                            $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
-                                                                            $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
-                                                                            $"Storage stake: {storageStake} SOUL\n" +
-                                                                            $"Voting power: {votingPower}" +
-                                                                            (account != null ? $"\n\nNeo legacy address: {((Account)account).neoAddress}\nN3 address: {((Account)account).neoAddressN3}\nEth/BSC address: {((Account)account).ethAddress}" : ""), null);
+                                                                            callback($"{addressString} account information:\n\n" +
+                                                                                $"Unclaimed: {unclaimed} KCAL\n" +
+                                                                                $"Stake: {stake} SOUL\n" +
+                                                                                $"Is SM: {isMaster}\n" +
+                                                                                $"SM since: {masterDate}\n" +
+                                                                                $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
+                                                                                $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
+                                                                                $"Storage stake: {storageStake} SOUL\n" +
+                                                                                $"Voting power: {votingPower}" +
+                                                                                (account != null ? $"\n\nNeo legacy address: {((Account)account).neoAddress}\nN3 address: {((Account)account).neoAddressN3}\nEth/BSC address: {((Account)account).ethAddress}" : ""), null);
                                                                         }
                                                                     });
                                                                 }
