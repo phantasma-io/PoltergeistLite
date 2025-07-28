@@ -45,6 +45,7 @@ namespace Poltergeist
 
         private Dictionary<PlatformKind, AccountState> _states = new Dictionary<PlatformKind, AccountState>();
         private Dictionary<PlatformKind, List<TokenData>> _nfts = new Dictionary<PlatformKind, List<TokenData>>();
+        private Dictionary<PlatformKind, Dictionary<string, IRom>> _roms = new();
         private Dictionary<PlatformKind, HistoryEntry[]> _history = new Dictionary<PlatformKind, HistoryEntry[]>();
         public Dictionary<PlatformKind, RefreshStatus> _refreshStatus = new Dictionary<PlatformKind, RefreshStatus>();
 
@@ -1329,7 +1330,10 @@ The Phoenix team", "Notice");
 
                                         // Initializing NFT dictionary if needed.
                                         if (!_nfts.ContainsKey(platform))
+                                        {
                                             _nfts.Add(platform, new List<TokenData>());
+                                            _roms.Add(platform, new ());
+                                        }
 
                                         var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
                                         if(cache == null)
@@ -1354,7 +1358,7 @@ The Phoenix team", "Notice");
                                                 // Checking if token already loaded to dictionary.
                                                 if (!_nfts[platform].Exists(x => x.ID == tokenId))
                                                 {
-                                                    tokenData.Value.ParseRoms(symbol);
+                                                    _roms[platform][tokenId] = tokenData.Value.ParseRom(symbol);
                                                     _nfts[platform].Add(tokenData.Value);
 
                                                     // Downloading NFT images.
@@ -1404,7 +1408,7 @@ The Phoenix team", "Notice");
                                                 {
                                                     StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
                                                     {
-                                                        tokenData2.ParseRoms(symbol);
+                                                        _roms[platform][id] = tokenData2.ParseRom(symbol);
 
                                                         // Downloading NFT images.
                                                         StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
@@ -1881,21 +1885,21 @@ The Phoenix team", "Notice");
                 {
                     case NftSortMode.Name:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).parsedRom.GetName()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNftRom(x.ID).GetName()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).parsedRom.GetName()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNftRom(x.ID).GetName()).ToList();
                         break;
                     case NftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).mint).ThenBy(x => GetNft(x.ID).parsedRom.GetDate()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).mint).ThenBy(x => GetNftRom(x.ID).GetDate()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).mint).ThenByDescending(x => GetNft(x.ID).parsedRom.GetDate()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).mint).ThenByDescending(x => GetNftRom(x.ID).GetDate()).ToList();
                         break;
                     case NftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).parsedRom.GetDate()).ThenBy(x => GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNftRom(x.ID).GetDate()).ThenBy(x => GetNft(x.ID).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).parsedRom.GetDate()).ThenByDescending(x => GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNftRom(x.ID).GetDate()).ThenByDescending(x => GetNft(x.ID).mint).ToList();
                         break;
                 }
 
@@ -1908,6 +1912,11 @@ The Phoenix team", "Notice");
         public TokenData GetNft(string id)
         {
             return _nfts[CurrentPlatform].Where(x => x.ID == id).FirstOrDefault();
+        }
+        
+        public IRom GetNftRom(string id)
+        {
+            return _roms[CurrentPlatform][id];
         }
 
         public void GetPhantasmaAddressInfo(string addressString, Account? account, Action<string, string> callback)

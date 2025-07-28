@@ -2748,14 +2748,15 @@ namespace Poltergeist
                     else
                     {
                         var item = accountManager.GetNft(x.ID);
+                        var rom = accountManager.GetNftRom(x.ID);
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.parsedRom.GetName().ToUpper().Contains(nftFilterName.ToUpper())) &&
+                        if ((String.IsNullOrEmpty(nftFilterName) || rom.GetName().ToUpper().Contains(nftFilterName.ToUpper())) &&
                             (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddMonths(-1)) >= 0)
+                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(rom.GetDate(), DateTime.Now.AddMinutes(-15)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(rom.GetDate(), DateTime.Now.AddHours(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(rom.GetDate(), DateTime.Now.AddDays(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(rom.GetDate(), DateTime.Now.AddDays(-7)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(rom.GetDate(), DateTime.Now.AddMonths(-1)) >= 0)
                             ))
                         {
                             nftFilteredList.Add(x);
@@ -2880,13 +2881,14 @@ namespace Poltergeist
             else
             {
                 var item = accountManager.GetNft(entryId);
+                var rom = accountManager.GetNftRom(entryId);
 
                 imageUrl = item.GetPropertyValue("ImageURL");
 
                 DateTime nftDate = new DateTime();
-                if (item.parsedRom != null)
+                if (rom != null)
                 {
-                    nftDate = item.parsedRom.GetDate();
+                    nftDate = rom.GetDate();
                 }
 
                 nftName = item.GetPropertyValue("Name");

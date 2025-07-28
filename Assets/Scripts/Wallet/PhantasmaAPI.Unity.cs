@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Newtonsoft.Json;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
@@ -17,53 +16,6 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace PhantasmaIntegration
 {
-    public enum TokenStatus
-    {
-        Active,
-        Infused
-    }
-    public struct TokenData
-    {
-        public string ID;
-        public string series;
-        public uint? mint; // Nullable to fix crash on incorrect API response parsing
-        public string chainName;
-        public string ownerAddress;
-        public string creatorAddress;
-        [JsonConverter(typeof(HexByteArrayJsonConverter))]
-        public byte[] ram;
-        [JsonConverter(typeof(HexByteArrayJsonConverter))]
-        public byte[] rom;
-        public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
-        public IRom parsedRom;
-        public TokenPropertyResult[] infusion;
-        public List<TokenPropertyResult> properties;
-
-        public void ParseRoms(string symbol)
-        {
-            // Pasring ROM
-            switch (symbol)
-            {
-                case "CROWN":
-                    parsedRom = new CrownRom(rom, ID);
-                    break;
-                default:
-                    parsedRom = new CustomRom(rom);
-                    break;
-            }
-        }
-
-        public string GetPropertyValue(string key)
-        {
-            if (properties != null)
-            {
-                return properties.Where(x => x.Key.ToUpperInvariant() == key.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
-            }
-
-            return null;
-        }
-    }
-
     public interface IRom
     {
         string GetName();
@@ -80,7 +32,7 @@ namespace PhantasmaIntegration
         {
             this.tokenId = tokenId;
 
-            if(rom == null || rom.Length == 0)
+            if (rom == null || rom.Length == 0)
             {
                 Log.Write($"CROWN's ROM is null or empty");
                 return;
@@ -111,7 +63,7 @@ namespace PhantasmaIntegration
 
         public CustomRom(byte[] romBytes)
         {
-            if(romBytes == null || romBytes.Length == 0)
+            if (romBytes == null || romBytes.Length == 0)
             {
                 Log.Write($"Custom ROM is null or empty");
                 return;
@@ -160,6 +112,52 @@ namespace PhantasmaIntegration
             return new DateTime();
         }
     }
+
+    public static class TokenDataExtensions
+    {
+        public static IRom ParseRom(this TokenData tokenData, string symbol)
+        {
+            switch (symbol)
+            {
+                case "CROWN":
+                    return new CrownRom(Base16.Decode(tokenData.rom), tokenData.ID);
+                default:
+                    return new CustomRom(Base16.Decode(tokenData.rom));
+            }
+        }
+
+        public static string GetPropertyValue(this TokenData tokenData, string key)
+        {
+            if (tokenData.properties != null)
+            {
+                return tokenData.properties.Where(x => x.Key.ToUpperInvariant() == key.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+            }
+
+            return null;
+        }
+    }
+
+    public enum TokenStatus
+    {
+        Active,
+        Infused
+    }
+    public struct TokenData
+    {
+        public string ID;
+        public string series;
+        public uint? mint; // Nullable to fix crash on incorrect API response parsing
+        public string chainName;
+        public string ownerAddress;
+        public string creatorAddress;
+        public string ram;
+        public string rom;
+        public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
+        public TokenPropertyResult[] infusion;
+        public TokenPropertyResult[] properties;
+    }
+
+
 
     public class PhantasmaAPI
     {
@@ -263,7 +261,7 @@ namespace PhantasmaIntegration
             yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 // TODO remove later
-                if(string.IsNullOrEmpty(result.ID))
+                if (string.IsNullOrEmpty(result.ID))
                 {
                     result.ID = IDtext;
                 }
@@ -287,7 +285,7 @@ namespace PhantasmaIntegration
         {
             Log.Write("Sending transaction... script size: " + script.Length);
 
-            var tx = new PhantasmaPhoenix.Protocol.Transaction(nexus, chain, script,  DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
+            var tx = new PhantasmaPhoenix.Protocol.Transaction(nexus, chain, script, DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
 
             /*if (PoW != ProofOfWork.None)
             {
