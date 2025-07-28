@@ -3,8 +3,8 @@ using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
 using System.Collections.Generic;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using PhantasmaPhoenix.RPC.Models;
 
 public static class Cache
 {
@@ -208,7 +208,7 @@ public static class Cache
         UpdateRegistry(CacheId, DateTime.Now, 0, WalletName);
     }
 
-    public static void SaveTokenDatas(string CacheId, FileType FileType, TokenData[] CacheContents, string WalletAddress = "", string WalletName = "")
+    public static void SaveTokenDatas(string CacheId, FileType FileType, TokenDataResult[] CacheContents, string WalletAddress = "", string WalletName = "")
     {
         if (!String.IsNullOrEmpty(WalletAddress))
             CacheId = CacheId + "." + WalletAddress;
@@ -272,17 +272,17 @@ public static class Cache
         return texture;
     }
 
-    public static TokenData[] GetTokenCache(string CacheId, FileType FileType, int CacheLifetimeInMinutes, string WalletAddress = "")
+    public static TokenDataResult[] GetTokenCache(string CacheId, FileType FileType, int CacheLifetimeInMinutes, string WalletAddress = "")
     {
         var cacheContents = GetAsString(CacheId, FileType, CacheLifetimeInMinutes, WalletAddress);
 
         if (String.IsNullOrEmpty(cacheContents))
             return null;
 
-        TokenData[] cache = new TokenData[]{};
+        TokenDataResult[] cache = new TokenDataResult[]{};
         try
         {
-            cache = JsonConvert.DeserializeObject<TokenData[]>(cacheContents);
+            cache = JsonConvert.DeserializeObject<TokenDataResult[]>(cacheContents);
         }
         catch
         {
@@ -291,12 +291,12 @@ public static class Cache
 
         if(cache == null)
         {
-            cache = new TokenData[]{};
+            cache = new TokenDataResult[]{};
         }
 
         return cache;
     }
-    public static TokenData? FindTokenData(TokenData[] cache, string id)
+    public static TokenDataResult? FindTokenData(TokenDataResult[] cache, string id)
     {
         if(cache == null)
         {
@@ -305,7 +305,7 @@ public static class Cache
 
         foreach (var cachedToken in cache)
         {
-            if (cachedToken.ID == id)
+            if (cachedToken.Id == id)
             {
                 return cachedToken;
             }

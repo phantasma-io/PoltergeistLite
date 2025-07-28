@@ -94,7 +94,7 @@ namespace Poltergeist
         private int nftPageNumber = 0;
         private int nftCount = 0;
         private int nftPageCount = 0;
-        private List<TokenData> nftFilteredList = new List<TokenData>(); // List of displayed NFT items (after applying filters).
+        private List<TokenDataResult> nftFilteredList = new List<TokenDataResult>(); // List of displayed NFT items (after applying filters).
         private List<string> nftTransferList = new List<string>(); // List of NFT items, selected by user.
 
         private List<string> accountManagementSelectedList = new List<string>();
@@ -1867,13 +1867,13 @@ namespace Poltergeist
                                     if (nftFilteredList.Count > 0)
                                     {
                                         // If filter is applied, select button selects only filtered items.
-                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.ID)) nftTransferList.Add(x.ID); });
+                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.Id)) nftTransferList.Add(x.Id); });
                                     }
                                     else
                                     {
                                         // If no filter is applied, select button selects all items.
                                         nftTransferList.Clear();
-                                        accountManager.CurrentNfts.ForEach((x) => { nftTransferList.Add(x.ID); });
+                                        accountManager.CurrentNfts.ForEach((x) => { nftTransferList.Add(x.Id); });
                                     }
                                 });
 
@@ -1885,13 +1885,13 @@ namespace Poltergeist
                                     if (nftFilteredList.Count > 0)
                                     {
                                         // If filter is applied, invert button processes only filtered items.
-                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.ID)) nftTransferList.Add(x.ID); else nftTransferList.Remove(x.ID); });
+                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.Id)) nftTransferList.Add(x.Id); else nftTransferList.Remove(x.Id); });
                                     }
                                     else
                                     {
                                         // If no filter is applied, invert button processes all items.
                                         var nftTransferListCopy = new List<string>();
-                                        accountManager.CurrentNfts.ForEach((x) => { if (!nftTransferList.Exists(y => y == x.ID)) { nftTransferListCopy.Add(x.ID); } });
+                                        accountManager.CurrentNfts.ForEach((x) => { if (!nftTransferList.Exists(y => y == x.Id)) { nftTransferListCopy.Add(x.Id); } });
                                         nftTransferList = nftTransferListCopy;
                                     }
                                 });
@@ -2713,7 +2713,7 @@ namespace Poltergeist
                 nfts.ForEach((x) => {
                     if (transferSymbol == "TTRS")
                     {
-                        var item = TtrsStore.GetNft(x.ID);
+                        var item = TtrsStore.GetNft(x.Id);
 
                         if ((String.IsNullOrEmpty(nftFilterName) || item.item_info.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
                             (nftFilterType == "All" || item.item_info.display_type_english == nftFilterType) &&
@@ -2731,7 +2731,7 @@ namespace Poltergeist
                     }
                     else if (transferSymbol == "GAME")
                     {
-                        var item = GameStore.GetNft(x.ID);
+                        var item = GameStore.GetNft(x.Id);
 
                         if ((String.IsNullOrEmpty(nftFilterName) || (item.meta?.name_english.ToUpper().Contains(nftFilterName.ToUpper()) ?? false)) &&
                             (nftFilterMinted == (int)nftMinted.All ||
@@ -2747,8 +2747,8 @@ namespace Poltergeist
                     }
                     else
                     {
-                        var item = accountManager.GetNft(x.ID);
-                        var rom = accountManager.GetNftRom(x.ID);
+                        var item = accountManager.GetNft(x.Id);
+                        var rom = accountManager.GetNftRom(x.Id);
 
                         if ((String.IsNullOrEmpty(nftFilterName) || rom.GetName().ToUpper().Contains(nftFilterName.ToUpper())) &&
                             (nftFilterMinted == (int)nftMinted.All ||
@@ -2779,7 +2779,7 @@ namespace Poltergeist
             var nftPage = new List<string>();
             for(int i = nftPageSize * nftPageNumber; i < Math.Min(nftPageSize * (nftPageNumber + 1), nfts.Count); i++)
             {
-                nftPage.Add(nfts[i].ID);
+                nftPage.Add(nfts[i].Id);
             }
             var nftOnPageCount = DoScrollArea<string>(ref nftScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftPage,
                 DoNftEntry);
@@ -2894,20 +2894,20 @@ namespace Poltergeist
                 nftName = item.GetPropertyValue("Name");
                 nftDescription = item.GetPropertyValue("Description");
 
-                nftDescription = (item.mint ?? 0) == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
+                nftDescription = item.Mint == "0" ? "" : (VerticalLayout ? "#" : "Mint #") + item.Mint + " " +
                     (nftDate == DateTime.MinValue ? "" : (VerticalLayout ? nftDate.ToString("dd.MM.yy") : nftDate.ToString("dd.MM.yyyy HH:mm:ss"))) +
                     (String.IsNullOrEmpty(nftDescription) ? "" : ((VerticalLayout ? " " : " / ") + nftDescription));
 
-                if (item.infusion != null && item.infusion.Length > 0)
+                if (item.Infusion != null && item.Infusion.Length > 0)
                 {
                     infusionDescription = VerticalLayout ? "" : "Infusions: ";
 
                     var fungibleInfusions = new Dictionary<string, decimal>();
                     var nftInfusions = new Dictionary<string, int>();
-                    for (var i = 0; i < item.infusion.Length; i++)
+                    for (var i = 0; i < item.Infusion.Length; i++)
                     {
-                        var symbol = item.infusion[i].Key;
-                        var amountOrId = item.infusion[i].Value;
+                        var symbol = item.Infusion[i].Key;
+                        var amountOrId = item.Infusion[i].Value;
 
                         if (Tokens.GetToken(symbol, accountManager.CurrentPlatform, out var token))
                         {
@@ -3102,7 +3102,7 @@ namespace Poltergeist
 
             // We have to remake whole list to have correct order of selected items.
             var nftTransferListCopy = new List<string>();
-            accountManager.CurrentNfts.ForEach((x) => { if (nftTransferList.Exists(y => y == x.ID)) { nftTransferListCopy.Add(x.ID); } });
+            accountManager.CurrentNfts.ForEach((x) => { if (nftTransferList.Exists(y => y == x.Id)) { nftTransferListCopy.Add(x.Id); } });
             nftTransferList = nftTransferListCopy;
 
             // We can modify nftTransferList while enumerating,
@@ -4439,7 +4439,7 @@ namespace Poltergeist
                             var nfts = accountManager.CurrentNfts;
                             foreach (var nft in nftTransferList)
                             {
-                                nfts.Remove(nfts.Find(x => x.ID == nft));
+                                nfts.Remove(nfts.Find(x => x.Id == nft));
                             }
 
                             // Returning to NFT's first screen.

@@ -115,49 +115,27 @@ namespace PhantasmaIntegration
 
     public static class TokenDataExtensions
     {
-        public static IRom ParseRom(this TokenData tokenData, string symbol)
+        public static IRom ParseRom(this TokenDataResult tokenData, string symbol)
         {
             switch (symbol)
             {
                 case "CROWN":
-                    return new CrownRom(Base16.Decode(tokenData.rom), tokenData.ID);
+                    return new CrownRom(Base16.Decode(tokenData.Rom), tokenData.Id);
                 default:
-                    return new CustomRom(Base16.Decode(tokenData.rom));
+                    return new CustomRom(Base16.Decode(tokenData.Rom));
             }
         }
 
-        public static string GetPropertyValue(this TokenData tokenData, string key)
+        public static string GetPropertyValue(this TokenDataResult tokenData, string key)
         {
-            if (tokenData.properties != null)
+            if (tokenData.Properties != null)
             {
-                return tokenData.properties.Where(x => x.Key.ToUpperInvariant() == key.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                return tokenData.Properties.Where(x => x.Key.ToUpperInvariant() == key.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
             }
 
             return null;
         }
     }
-
-    public enum TokenStatus
-    {
-        Active,
-        Infused
-    }
-    public struct TokenData
-    {
-        public string ID;
-        public string series;
-        public uint? mint; // Nullable to fix crash on incorrect API response parsing
-        public string chainName;
-        public string ownerAddress;
-        public string creatorAddress;
-        public string ram;
-        public string rom;
-        public TokenStatus? status; // Nullable to fix crash on incorrect API response parsing
-        public TokenPropertyResult[] infusion;
-        public TokenPropertyResult[] properties;
-    }
-
-
 
     public class PhantasmaAPI
     {
@@ -250,7 +228,7 @@ namespace PhantasmaIntegration
         private int tokensLoadedSimultaneously = 0;
 
         //Returns data of a non-fungible token, in hexadecimal format.
-        public IEnumerator GetNFT(string symbol, string IDtext, Action<TokenData> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
+        public IEnumerator GetNFT(string symbol, string IDtext, Action<TokenDataResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
         {
             while (tokensLoadedSimultaneously > 5)
             {
@@ -258,12 +236,12 @@ namespace PhantasmaIntegration
             }
             tokensLoadedSimultaneously++;
 
-            yield return WebClient.RPCRequest<TokenData>(Host, "getNFT", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
+            yield return WebClient.RPCRequest<TokenDataResult>(Host, "getNFT", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
             {
                 // TODO remove later
-                if (string.IsNullOrEmpty(result.ID))
+                if (string.IsNullOrEmpty(result.Id))
                 {
-                    result.ID = IDtext;
+                    result.Id = IDtext;
                 }
 
                 callback(result);
