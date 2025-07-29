@@ -17,10 +17,10 @@ using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Extensions;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.NFT.Extensions;
 
 namespace Poltergeist
 {

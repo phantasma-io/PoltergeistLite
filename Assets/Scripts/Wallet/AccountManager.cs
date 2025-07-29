@@ -12,10 +12,11 @@ using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Core.Extensions;
 using Newtonsoft.Json.Linq;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using PhantasmaPhoenix.NFT;
+using PhantasmaPhoenix.NFT.Extensions;
 
 namespace Poltergeist
 {
