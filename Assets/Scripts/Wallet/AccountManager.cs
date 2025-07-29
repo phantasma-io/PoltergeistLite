@@ -673,7 +673,7 @@ The Phoenix team", "Notice");
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaPglApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx, txHash) =>
+                        StartCoroutine(phantasmaApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx, txHash) =>
                         {
                             if (Settings.devMode)
                             {
@@ -782,7 +782,7 @@ The Phoenix team", "Notice");
                 case PlatformKind.Phantasma:
                     {
                         Log.Write("WriteArchive: " + hash, Log.Level.Debug1);
-                        StartCoroutine(phantasmaPglApi.WriteArchive(hash.ToString(), blockIndex, data, (result) =>
+                        StartCoroutine(phantasmaApi.WriteArchive(hash.ToString(), blockIndex, data, (result) =>
                         {
                             Log.Write("WriteArchive result: " + result, Log.Level.Debug1);
                             callback(result, null);
@@ -1420,7 +1420,7 @@ The Phoenix team", "Notice");
                                                 }
                                                 else
                                                 {
-                                                    StartCoroutine(phantasmaPglApi.GetNFT(symbol, id, (tokenData2) =>
+                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, true, (tokenData2) =>
                                                     {
                                                         var rom = tokenData2.ParseRom(symbol);
                                                         _roms[platform][id] = rom;
@@ -1544,7 +1544,7 @@ The Phoenix team", "Notice");
             var wif = this.CurrentWif;
 
             var keys = PhantasmaKeys.FromWIF(wif);
-            StartCoroutine(phantasmaPglApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
+            StartCoroutine(phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
             {
                 var history = new List<HistoryEntry>();
 
