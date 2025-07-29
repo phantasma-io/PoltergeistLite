@@ -18,12 +18,16 @@ namespace PhantasmaIntegration
 {
     public interface IRom
     {
+        bool IsEmpty();
+        (bool, string) HasParsingError();
         string GetName();
         string GetDescription();
         DateTime GetDate();
     }
     public class CrownRom : IRom
     {
+        private bool isEmpty;
+        private string parsingError;
         public string tokenId;
         public Address staker;
         public Timestamp date;
@@ -34,18 +38,28 @@ namespace PhantasmaIntegration
 
             if (rom == null || rom.Length == 0)
             {
-                Log.Write($"CROWN's ROM is null or empty");
+                isEmpty = true;
                 return;
             }
 
-            using (var stream = new System.IO.MemoryStream(rom))
+            try
             {
-                using (var reader = new System.IO.BinaryReader(stream))
+                using (var stream = new System.IO.MemoryStream(rom))
                 {
-                    UnserializeData(reader);
+                    using (var reader = new System.IO.BinaryReader(stream))
+                    {
+                        UnserializeData(reader);
+                    }
                 }
             }
+            catch (Exception e)
+            {
+                parsingError = $"Cannot parse ROM '{System.Text.Encoding.ASCII.GetString(rom)}/{BitConverter.ToString(rom)}': {e.Message}";
+            }
         }
+
+        public bool IsEmpty() => isEmpty;
+        public (bool, string) HasParsingError() => (!string.IsNullOrEmpty(parsingError), parsingError);
 
         public string GetName() => "CROWN #" + tokenId;
         public string GetDescription() => "";
@@ -59,13 +73,15 @@ namespace PhantasmaIntegration
     }
     public class CustomRom : IRom
     {
-        Dictionary<VMObject, VMObject> fields = new Dictionary<VMObject, VMObject>();
+        private bool isEmpty;
+        private string parsingError;
+        private Dictionary<VMObject, VMObject> fields = new Dictionary<VMObject, VMObject>();
 
         public CustomRom(byte[] romBytes)
         {
             if (romBytes == null || romBytes.Length == 0)
             {
-                Log.Write($"Custom ROM is null or empty");
+                isEmpty = true;
                 return;
             }
 
@@ -78,14 +94,17 @@ namespace PhantasmaIntegration
                 }
                 else
                 {
-                    Log.Write($"Cannot parse ROM.");
+                    parsingError = $"Cannot parse ROM '{System.Text.Encoding.ASCII.GetString(romBytes)}/{BitConverter.ToString(romBytes)}': Unsupported ROM type '{rom.Type}'";
                 }
             }
             catch (Exception e)
             {
-                Log.Write($"ROM parsing error: {e.ToString()}, ROM: {System.Text.Encoding.ASCII.GetString(romBytes)}/{BitConverter.ToString(romBytes)}");
+                parsingError = $"Cannot parse ROM '{System.Text.Encoding.ASCII.GetString(romBytes)}/{BitConverter.ToString(romBytes)}': {e.Message}";
             }
         }
+
+        public bool IsEmpty() => isEmpty;
+        public (bool, string) HasParsingError() => (!string.IsNullOrEmpty(parsingError), parsingError);
 
         public string GetName()
         {

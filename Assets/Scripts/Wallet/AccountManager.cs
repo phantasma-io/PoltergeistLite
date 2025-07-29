@@ -1358,7 +1358,18 @@ The Phoenix team", "Notice");
                                                 // Checking if token already loaded to dictionary.
                                                 if (!_nfts[platform].Exists(x => x.Id == tokenId))
                                                 {
-                                                    _roms[platform][tokenId] = tokenData.ParseRom(symbol);
+                                                    var rom = tokenData.ParseRom(symbol);
+                                                    _roms[platform][tokenId] = rom;
+                                                    var (hasError, error) = rom.HasParsingError();
+                                                    if (rom.IsEmpty())
+                                                    {
+                                                        Log.Write($"ROM is null or empty");
+                                                    }
+                                                    else if(hasError)
+                                                    {
+                                                        Log.Write(error);
+                                                    }
+
                                                     _nfts[platform].Add(tokenData);
 
                                                     // Downloading NFT images.
@@ -1408,7 +1419,17 @@ The Phoenix team", "Notice");
                                                 {
                                                     StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
                                                     {
-                                                        _roms[platform][id] = tokenData2.ParseRom(symbol);
+                                                        var rom = tokenData2.ParseRom(symbol);
+                                                        _roms[platform][id] = rom;
+                                                        var (hasError, error) = rom.HasParsingError();
+                                                        if (rom.IsEmpty())
+                                                        {
+                                                            Log.Write($"ROM is null or empty");
+                                                        }
+                                                        else if(hasError)
+                                                        {
+                                                            Log.Write(error);
+                                                        }
 
                                                         // Downloading NFT images.
                                                         StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
