@@ -4108,7 +4108,7 @@ namespace Poltergeist
                                 {
                                     PushState(GUIState.Sending);
 
-                                    accountManager.SignAndSendTransaction(chain, script, transferRequest, phaGasPrice, phaGasLimit, payload, PoW, null, (hash, error) =>
+                                    accountManager.SignAndSendTransaction(chain, script, payload, (hash, error) =>
                                     {
                                         if (string.IsNullOrEmpty(error))
                                         {
@@ -4217,7 +4217,7 @@ namespace Poltergeist
         {
             PushState(GUIState.Sending);
 
-            accountManager.SignAndSendTransaction(chain, scripts[0], null, gasPrice, gasLimit, payload, PoW, null, (hash, error) =>
+            accountManager.SignAndSendTransaction(chain, scripts[0], payload, (hash, error) =>
             {
                 if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                 {

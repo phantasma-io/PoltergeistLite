@@ -662,7 +662,7 @@ The Phoenix team", "Notice");
             return UnitConversion.ToDecimal(str, decimals);
         }
 
-        public void SignAndSendTransaction(string chain, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, ProofOfWork PoW, IKeyPair customKeys, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
+        public void SignAndSendTransaction(string chain, byte[] script, byte[] payload, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
             if (payload == null)
             {
@@ -673,7 +673,7 @@ The Phoenix team", "Notice");
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaPglApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), customKeys, Settings.nexusName, script, chain, phaGasPrice, phaGasLimit, payload, PoW, (hashText, encodedTx, txHash) =>
+                        StartCoroutine(phantasmaPglApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx, txHash) =>
                         {
                             if (Settings.devMode)
                             {

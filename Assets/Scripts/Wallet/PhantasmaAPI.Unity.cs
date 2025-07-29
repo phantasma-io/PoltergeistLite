@@ -89,22 +89,13 @@ namespace PhantasmaIntegration
             }, hashText, blockIndex, Convert.ToBase64String(blockContent));
         }
 
-        public IEnumerator SignAndSendTransactionWithPayload(PhantasmaKeys keys, IKeyPair otherKeys, string nexus, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, ProofOfWork PoW, Action<string, string, Hash> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
+        public IEnumerator SignAndSendTransactionWithPayload(IKeyPair keys, string nexus, byte[] script, string chain, byte[] payload, Action<string, string, Hash> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
             Log.Write("Sending transaction... script size: " + script.Length);
 
             var tx = new PhantasmaPhoenix.Protocol.Transaction(nexus, chain, script, DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
 
-            /*if (PoW != ProofOfWork.None)
-            {
-                tx.Mine(PoW);
-            }*/
-
-            Hash txHash = tx.SignEx(keys, null);
-            if (otherKeys != null)
-            {
-                tx.Sign(otherKeys, customSignFunction);
-            }
+            Hash txHash = tx.SignEx(keys, customSignFunction);
 
             yield return SendRawTransaction(Base16.Encode(tx.ToByteArray(true)), txHash, callback, errorHandlingCallback);
         }
