@@ -95,7 +95,7 @@ namespace PhantasmaIntegration
 
             var tx = new PhantasmaPhoenix.Protocol.Transaction(nexus, chain, script, DateTime.UtcNow + TimeSpan.FromMinutes(20), payload);
 
-            Hash txHash = tx.SignEx(keys, customSignFunction);
+            Hash txHash = tx.Sign(keys, customSignFunction);
 
             yield return SendRawTransaction(Base16.Encode(tx.ToByteArray(true)), txHash, callback, errorHandlingCallback);
         }
