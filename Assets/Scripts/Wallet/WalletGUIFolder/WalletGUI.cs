@@ -1331,7 +1331,7 @@ namespace Poltergeist
                             {
                                 if (result == PromptResult.Success)
                                 {
-                                    if (PhantasmaIntegration.PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
+                                    if (PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
                                     {
                                         PromptBox("Was this private key created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", ModalYesNo, (legacySeed) =>
                                         {

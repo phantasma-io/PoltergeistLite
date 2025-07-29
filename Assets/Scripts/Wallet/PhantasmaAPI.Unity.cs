@@ -16,8 +16,6 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace PhantasmaIntegration
 {
-    
-
     public class PhantasmaAPI
     {
         public readonly string Host;
@@ -25,34 +23,6 @@ namespace PhantasmaIntegration
         public PhantasmaAPI(string host)
         {
             this.Host = host;
-        }
-
-
-        //Returns the account name and balance of given address.
-        public IEnumerator GetAccount(string addressText, Action<AccountResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest<AccountResult>(Host, "getAccount", WebClient.DefaultTimeout, 0, errorHandlingCallback, (account) =>
-            {
-                callback(account);
-            }, addressText);
-        }
-
-        public IEnumerator GetContract(string contractName, Action<ContractResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest<ContractResult>(Host, "getContract", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
-            {
-                callback(result);
-            }, DomainSettings.RootChainName, contractName);
-        }
-
-
-        //Returns the address that owns a given name.
-        public IEnumerator LookUpName(string name, Action<string> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest<string>(Host, "lookUpName", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
-            {
-                callback(result);
-            }, name);
         }
 
         //Returns last X transactions of given address.
@@ -75,27 +45,6 @@ namespace PhantasmaIntegration
                 callback(result, txData, txHash);
             }, txData);
         }
-
-
-        //Allows to invoke script based on network state, without state changes.
-        public IEnumerator InvokeRawScript(string chainInput, string scriptData, Action<ScriptResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest<ScriptResult>(Host, "invokeRawScript", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
-            {
-                callback(result);
-            }, chainInput, scriptData);
-        }
-
-
-        //Returns information about a transaction by hash.
-        public IEnumerator GetTransaction(string hashText, Action<TransactionResult> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
-        {
-            yield return WebClient.RPCRequest<TransactionResult>(Host, "getTransaction", WebClient.DefaultTimeout, 0, errorHandlingCallback, (result) =>
-            {
-                callback(result);
-            }, hashText);
-        }
-
 
         //Returns an array of tokens deployed in Phantasma.
         public IEnumerator GetTokens(Action<TokenResult[]> callback, Action<EPHANTASMA_SDK_ERROR_TYPE, string> errorHandlingCallback = null)
@@ -158,17 +107,6 @@ namespace PhantasmaIntegration
             }
 
             yield return SendRawTransaction(Base16.Encode(tx.ToByteArray(true)), txHash, callback, errorHandlingCallback);
-        }
-
-        public static bool IsValidPrivateKey(string key)
-        {
-            return (key.StartsWith("L", false, CultureInfo.InvariantCulture) ||
-                    key.StartsWith("K", false, CultureInfo.InvariantCulture)) && key.Length == 52;
-        }
-
-        public static bool IsValidAddress(string address)
-        {
-            return address.StartsWith("P", false, CultureInfo.InvariantCulture) && address.Length == 45;
         }
     }
 }

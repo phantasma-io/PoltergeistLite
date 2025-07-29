@@ -70,7 +70,8 @@ namespace Poltergeist
         public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
-        public PhantasmaIntegration.PhantasmaAPI phantasmaApi { get; private set; }
+        public PhantasmaAPI phantasmaApi { get; private set; }
+        public PhantasmaIntegration.PhantasmaAPI phantasmaPglApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -534,7 +535,7 @@ The Phoenix team", "Notice");
         {
             while (!Ready)
             {
-                var coroutine = StartCoroutine(phantasmaApi.GetTokens((tokens) =>
+                var coroutine = StartCoroutine(phantasmaPglApi.GetTokens((tokens) =>
                 {
                     callback(tokens);
                 }, (error, msg) =>
@@ -603,7 +604,8 @@ The Phoenix team", "Notice");
         public void UpdateAPIs(bool possibleNexusChange = false)
         {
             Log.Write("reinit APIs => " + Settings.phantasmaRPCURL);
-            phantasmaApi = new PhantasmaIntegration.PhantasmaAPI(Settings.phantasmaRPCURL);
+            phantasmaApi = new PhantasmaAPI(Settings.phantasmaRPCURL);
+            phantasmaPglApi = new PhantasmaIntegration.PhantasmaAPI(Settings.phantasmaRPCURL);
 
             if (possibleNexusChange)
             {
@@ -671,7 +673,7 @@ The Phoenix team", "Notice");
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), customKeys, Settings.nexusName, script, chain, phaGasPrice, phaGasLimit, payload, PoW, (hashText, encodedTx, txHash) =>
+                        StartCoroutine(phantasmaPglApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), customKeys, Settings.nexusName, script, chain, phaGasPrice, phaGasLimit, payload, PoW, (hashText, encodedTx, txHash) =>
                         {
                             if (Settings.devMode)
                             {
@@ -780,7 +782,7 @@ The Phoenix team", "Notice");
                 case PlatformKind.Phantasma:
                     {
                         Log.Write("WriteArchive: " + hash, Log.Level.Debug1);
-                        StartCoroutine(phantasmaApi.WriteArchive(hash.ToString(), blockIndex, data, (result) =>
+                        StartCoroutine(phantasmaPglApi.WriteArchive(hash.ToString(), blockIndex, data, (result) =>
                         {
                             Log.Write("WriteArchive result: " + result, Log.Level.Debug1);
                             callback(result, null);
@@ -1418,7 +1420,7 @@ The Phoenix team", "Notice");
                                                 }
                                                 else
                                                 {
-                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
+                                                    StartCoroutine(phantasmaPglApi.GetNFT(symbol, id, (tokenData2) =>
                                                     {
                                                         var rom = tokenData2.ParseRom(symbol);
                                                         _roms[platform][id] = rom;
@@ -1542,7 +1544,7 @@ The Phoenix team", "Notice");
             var wif = this.CurrentWif;
 
             var keys = PhantasmaKeys.FromWIF(wif);
-            StartCoroutine(phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
+            StartCoroutine(phantasmaPglApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
             {
                 var history = new List<HistoryEntry>();
 
