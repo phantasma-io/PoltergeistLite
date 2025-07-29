@@ -71,7 +71,6 @@ namespace Poltergeist
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
         public PhantasmaAPI phantasmaApi { get; private set; }
-        public PhantasmaIntegration.PhantasmaAPI phantasmaPglApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -535,7 +534,7 @@ The Phoenix team", "Notice");
         {
             while (!Ready)
             {
-                var coroutine = StartCoroutine(phantasmaPglApi.GetTokens((tokens) =>
+                var coroutine = StartCoroutine(phantasmaApi.GetTokens((tokens) =>
                 {
                     callback(tokens);
                 }, (error, msg) =>
@@ -556,7 +555,7 @@ The Phoenix team", "Notice");
                     }
 
                     Log.WriteWarning("Tokens initialization error: " + msg);
-                }));
+                }, 10, 5));
 
                 yield return coroutine;
             }
@@ -605,7 +604,6 @@ The Phoenix team", "Notice");
         {
             Log.Write("reinit APIs => " + Settings.phantasmaRPCURL);
             phantasmaApi = new PhantasmaAPI(Settings.phantasmaRPCURL);
-            phantasmaPglApi = new PhantasmaIntegration.PhantasmaAPI(Settings.phantasmaRPCURL);
 
             if (possibleNexusChange)
             {

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist

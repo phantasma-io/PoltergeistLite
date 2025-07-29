@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.RPC.Models;
 

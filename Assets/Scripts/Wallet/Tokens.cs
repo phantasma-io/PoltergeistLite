@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.RPC.Models;
 

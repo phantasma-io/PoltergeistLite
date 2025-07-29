@@ -1,11 +1,11 @@
 {
   "dependencies": {
     "com.phantasmaphoenix.core": {
-      "version": "https://github.com/phantasma-io/Phantasma-UnitySDK.git?path=PhantasmaPhoenix.Unity.Core#fd742222ee73caf99dd4cf3b3508b1fc554d592b",
+      "version": "https://github.com/phantasma-io/Phantasma-UnitySDK.git?path=PhantasmaPhoenix.Unity.Core#168a787fffbfe8b0b5558571466c02f39e601234",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "fd742222ee73caf99dd4cf3b3508b1fc554d592b"
+      "hash": "168a787fffbfe8b0b5558571466c02f39e601234"
     },
     "com.unity.ext.nunit": {
       "version": "2.0.5",
