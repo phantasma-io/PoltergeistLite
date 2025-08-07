@@ -133,7 +133,7 @@ public static class Tokens
         return SupportedTokens.Where(x => HasCGSymbol(x))
             .ToArray();
     }
-    public static int GetTokenDecimals(string symbol, PlatformKind platform)
+    public static uint GetTokenDecimals(string symbol, PlatformKind platform)
     {
         var token = GetToken(symbol, platform);
         if (token != default(TokenResult))
@@ -141,7 +141,7 @@ public static class Tokens
             return token.Decimals;
         }
 
-        return -1;
+        throw new System.Exception($"Cannot load token decimals for {symbol}");
     }
     public static string GetTokenHash(string symbol, PlatformKind platform)
     {

@@ -645,7 +645,7 @@ The Phoenix team", "Notice");
 
         }
 
-        public decimal AmountFromString(string str, int decimals)
+        public decimal AmountFromString(string str, uint decimals)
         {
             if (string.IsNullOrEmpty(str))
             {
