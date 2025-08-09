@@ -671,7 +671,7 @@ The Phoenix team", "Notice");
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx, txHash) =>
+                        StartCoroutine(phantasmaApi.SignAndSendTransaction(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx) =>
                         {
                             if (Settings.devMode)
                             {
@@ -681,15 +681,7 @@ The Phoenix team", "Notice");
                             {
                                 try
                                 {
-                                    var hash = Hash.Parse(hashText);
-
-                                    if(hash != txHash)
-                                    {
-                                        callback(hash,  $"Error: RPC returned different hash, expected {txHash}");
-                                        return;
-                                    }
-
-                                    callback(hash, null);
+                                    callback(Hash.Parse(hashText), null);
 
                                 }catch (Exception e)
                                 {
