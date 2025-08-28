@@ -21,6 +21,10 @@ using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.NFT.Extensions;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
+using PhantasmaPhoenix.Protocol.Carbon;
+using System.IO;
+using PhantasmaPhoenix.Core.Extensions;
 
 namespace Poltergeist
 {
@@ -4147,6 +4151,71 @@ namespace Poltergeist
                 }
             });
         }
+        
+        public void SendCarbonTransaction(string description, byte[] tx, Action<Hash, TransactionResult, string> callback)
+        {
+            if (tx == null)
+            {
+                MessageBox(MessageKind.Error, "Null transaction", () =>
+                {
+                    callback(Hash.Null, null, "Null transaction");
+                });
+            }
+
+            var accountManager = AccountManager.Instance;
+            RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
+            {
+                if (auth == PromptResult.Success)
+                {
+                    Animate(AnimationDirection.Right, true, () =>
+                    {
+                        Animate(AnimationDirection.Left, false, () =>
+                        {
+                            PromptBox($"Preparing transaction...\n{description}", ModalSendCancel, (result) =>
+                            {
+                                if (result == PromptResult.Success)
+                                {
+                                    PushState(GUIState.Sending);
+
+                                    accountManager.SignAndSendCarbonTransaction(tx, (hash, error) =>
+                                    {
+                                        if (string.IsNullOrEmpty(error))
+                                        {
+                                            ShowConfirmationScreen(hash, true, callback);
+                                        }
+                                        else
+                                        {
+                                            PopState();
+
+                                            if(hash == Hash.Null)
+                                            {
+                                                callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
+                                            }
+                                            else
+                                            {
+                                                callback(hash, null, "Unknown error. Details:\n" + error);
+                                            }
+                                        }
+                                    });
+                                }
+                                else
+                                {
+                                    callback(Hash.Null, null, null); // User cancelled tx
+                                };
+                            });
+                        });
+                    });
+                }
+                else
+                if (auth == PromptResult.Failure)
+                {
+                    MessageBox(MessageKind.Error, $"Authorization failed.", () =>
+                    {
+                        callback(Hash.Null, null, "Authorization failed.");
+                    });
+                }
+            });
+        }
 
         public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
         {
@@ -4268,7 +4337,7 @@ namespace Poltergeist
             }
         }
 
-#region transfers
+        #region transfers
         private void ContinuePhantasmaTransfer(string transferName, string symbol, string destAddress)
         {
             var accountManager = AccountManager.Instance;
@@ -4305,35 +4374,93 @@ namespace Poltergeist
 
                         byte[] script;
 
-                        try
+                        var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
+                        var bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
+
+                        if (accountManager.Settings.preferScriptlessTxes)
                         {
-                            var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-
-                            var sb = new ScriptBuilder();
-                            sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-
-                            if (symbol == "KCAL" && amount == balance)
+                            try
                             {
-                                sb.TransferBalance(symbol, source, destination);
+                                var tokenCarbonId = Tokens.GetTokenCarbonId(symbol, accountManager.CurrentPlatform);
+
+                                var tx = new TxMsg
+                                {
+                                    type = TxTypes.TransferFungible,
+                                    expiry = DateTimeOffset.UtcNow.AddSeconds(30).ToUnixTimeMilliseconds(),
+                                    maxGas = (ulong)accountManager.Settings.scriptlessMaxGas,
+                                    maxData = (ulong)accountManager.Settings.scriptlessMaxData,
+                                    gasFrom = new Bytes32(source.GetPublicKey()),
+                                    payload = new SmallString(accountManager.WalletIdentifier),
+                                    msg = new TxMsgTransferFungible
+                                    {
+                                        to = new Bytes32(destination.GetPublicKey()),
+                                        tokenId = tokenCarbonId,
+                                        amount = (ulong)bigIntAmount
+                                    }
+                                };
+
+                                var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
+
+                                var signedTxMsg = new SignedTxMsg
+                                {
+                                    msg = tx,
+                                    witnesses = new Witness[] {new Witness
+                                {
+                                    address = new Bytes32(source.GetPublicKey()),
+                                    signature = new Bytes64(Ed25519.Sign(CarbonBlob.Serialize(tx), PhantasmaKeys.FromWIF(wif).PrivateKey))
+                                }}
+                                };
+
+                                script = CarbonBlob.Serialize(signedTxMsg);
+
+                                Log.Write("Carbon tx: " + script.ToHex());
                             }
-                            else
+                            catch (Exception e)
                             {
-                                sb.TransferTokens(symbol, source, destination, UnitConversion.ToBigInteger(amount, decimals));
+                                MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                                return;
                             }
-
-                            sb.SpendGas(source);
-                            script = sb.EndScript();
                         }
-                        catch (Exception e)
+                        else
                         {
-                            MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                            return;
+                            try
+                            {
+                                var sb = new ScriptBuilder();
+                                sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+
+                                if (symbol == "KCAL" && amount == balance)
+                                {
+                                    sb.TransferBalance(symbol, source, destination);
+                                }
+                                else
+                                {
+                                    sb.TransferTokens(symbol, source, destination, bigIntAmount);
+                                }
+
+                                sb.SpendGas(source);
+                                script = sb.EndScript();
+                            }
+                            catch (Exception e)
+                            {
+                                MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                                return;
+                            }
                         }
 
-                        SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                        if (accountManager.Settings.preferScriptlessTxes)
                         {
-                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                        });
+                            SendCarbonTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, (hash, txResult, error) =>
+                            {
+                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            });
+                        }
+                        else
+                        {
+                            SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                            {
+                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            });
+                        }
                     }
                     else
                     if (feeResult == PromptResult.Failure)

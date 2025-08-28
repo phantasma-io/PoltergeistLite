@@ -143,6 +143,16 @@ public static class Tokens
 
         throw new System.Exception($"Cannot load token decimals for {symbol}");
     }
+    public static ulong GetTokenCarbonId(string symbol, PlatformKind platform)
+    {
+        var token = GetToken(symbol, platform);
+        if (token != default(TokenResult))
+        {
+            return token.CarbonId;
+        }
+
+        throw new System.Exception($"Cannot load token carbon ID for {symbol}");
+    }
     public static string GetTokenHash(string symbol, PlatformKind platform)
     {
         /*var token = GetToken(symbol, platform);

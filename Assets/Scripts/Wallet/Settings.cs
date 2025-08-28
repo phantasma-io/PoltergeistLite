@@ -54,13 +54,13 @@ namespace Poltergeist
                 return false;
             }
 
-            if(!Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            if (!Uri.IsWellFormedUriString(url, UriKind.Absolute))
             {
                 return false;
             }
 
             Uri uriResult;
-            if(!Uri.TryCreate(url, UriKind.Absolute, out uriResult)
+            if (!Uri.TryCreate(url, UriKind.Absolute, out uriResult)
                 && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
             {
                 return false;
@@ -112,6 +112,9 @@ namespace Poltergeist
         public const string DevModeTag = "developer.mode";
         public const string DevNoValidationModeTag = "developer.no.validation.mode";
         public const string LastShownInformationScreenTag = "last.shown.information.screen";
+        public const string PreferScriptlessTxesTag = "prefer.scriptless.txes";
+        public const string ScriptlessMaxGasTag = "scriptless.max.gas";
+        public const string ScriptlessMaxDataTag = "scriptless.max.data";
 
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
@@ -138,6 +141,9 @@ namespace Poltergeist
         public bool devMode;
         public bool devMode_NoValidation;
         public int lastShownInformationScreen;
+        public bool preferScriptlessTxes;
+        public BigInteger scriptlessMaxGas;
+        public BigInteger scriptlessMaxData;
 
         public override string ToString()
         {
@@ -160,7 +166,10 @@ namespace Poltergeist
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
                 "Password mode: " + this.passwordMode + "\n" +
                 "Developer mode: " + this.devMode + "\n" +
-                "Developer mode (no validation): " + this.devMode_NoValidation;
+                "Developer mode (no validation): " + this.devMode_NoValidation +
+                "Prefer scriptless txes: " + this.preferScriptlessTxes + "\n" +
+                "Scriptless max gas: " + this.scriptlessMaxGas + "\n" +
+                "Scriptless max data: " + this.scriptlessMaxData;
         }
 
         public void LoadLogSettings()
@@ -249,6 +258,18 @@ namespace Poltergeist
             this.devMode_NoValidation = PlayerPrefs.GetInt(DevNoValidationModeTag, 0) != 0;
 
             this.lastShownInformationScreen = PlayerPrefs.GetInt(LastShownInformationScreenTag, 0);
+
+            this.preferScriptlessTxes = PlayerPrefs.GetInt(PreferScriptlessTxesTag, 0) != 0;
+
+            var defaultMaxGas = 100000;
+            if (!BigInteger.TryParse(PlayerPrefs.GetString(ScriptlessMaxGasTag, defaultMaxGas.ToString()), out scriptlessMaxGas))
+            {
+            }
+
+            var defaultMaxData = 1000;
+            if (!BigInteger.TryParse(PlayerPrefs.GetString(ScriptlessMaxDataTag, defaultMaxData.ToString()), out scriptlessMaxData))
+            {
+            }
 
             Log.Write("Settings: Load: " + ToString());
         }
@@ -397,6 +418,10 @@ namespace Poltergeist
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
             PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
             PlayerPrefs.SetInt(DevNoValidationModeTag, this.devMode_NoValidation ? 1 : 0);
+
+            PlayerPrefs.SetInt(PreferScriptlessTxesTag, this.preferScriptlessTxes ? 1 : 0);
+            PlayerPrefs.SetString(ScriptlessMaxGasTag, this.scriptlessMaxGas.ToString());
+            PlayerPrefs.SetString(ScriptlessMaxDataTag, this.scriptlessMaxData.ToString());
             PlayerPrefs.Save();
 
             Log.Write("Settings: Save: " + ToString());

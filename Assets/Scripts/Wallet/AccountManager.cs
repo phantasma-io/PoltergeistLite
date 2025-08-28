@@ -71,6 +71,7 @@ namespace Poltergeist
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
         public PhantasmaAPI phantasmaApi { get; private set; }
+        public CarbonTxSupport.PhantasmaCarbonAPI phantasmaCarbonApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -604,6 +605,7 @@ The Phoenix team", "Notice");
         {
             Log.Write("reinit APIs => " + Settings.phantasmaRPCURL);
             phantasmaApi = new PhantasmaAPI(Settings.phantasmaRPCURL);
+            phantasmaCarbonApi = new CarbonTxSupport.PhantasmaCarbonAPI(Settings.phantasmaRPCURL);
 
             if (possibleNexusChange)
             {
@@ -702,6 +704,54 @@ The Phoenix team", "Notice");
                             }
                             callback(Hash.Null, msg);
                         }, customSignFunction));
+                        break;
+                    }
+
+                default:
+                    {
+                        callback(Hash.Null, "not implemented for " + CurrentPlatform);
+                        break;
+                    }
+            }
+        }
+
+        public void SignAndSendCarbonTransaction(byte[] tx, Action<Hash, string> callback)
+        {
+            switch (CurrentPlatform)
+            {
+                case PlatformKind.Phantasma:
+                    {
+                        StartCoroutine(phantasmaCarbonApi.SignAndSendCarbonTransaction(tx, (hashText, encodedTx) =>
+                        {
+                            if (Settings.devMode)
+                            {
+                                Log.Write($"SignAndSendCarbonTransaction(): Encoded tx: {encodedTx}");
+                            }
+                            if ( !string.IsNullOrEmpty(hashText) )
+                            {
+                                try
+                                {
+                                    callback(Hash.Parse(hashText), null);
+
+                                }catch (Exception e)
+                                {
+                                    Log.WriteWarning("Error parsing hash: " + e.Message);
+                                    callback(Hash.Null,  $"Error: hashText={hashText}");
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                callback(Hash.Null, "Failed to send transaction");
+                            }
+                        }, (error, msg) =>
+                        {
+                            if(error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                            {
+                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                            }
+                            callback(Hash.Null, msg);
+                        }));
                         break;
                     }
 

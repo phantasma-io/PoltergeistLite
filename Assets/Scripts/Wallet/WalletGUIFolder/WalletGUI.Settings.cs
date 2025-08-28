@@ -268,10 +268,24 @@ namespace Poltergeist
             GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Developer mode");
             curY += Units(3);
 
-            if(settings.devMode)
+            if (settings.devMode)
             {
                 settings.devMode_NoValidation = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode_NoValidation, "");
                 GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "No validation mode");
+                curY += Units(3);
+
+                settings.preferScriptlessTxes = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.preferScriptlessTxes, "");
+                GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Use scriptless txes");
+                curY += Units(3);
+
+                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max gas");
+                var scriptlessMaxGas = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxGas.ToString());
+                BigInteger.TryParse(scriptlessMaxGas, out settings.scriptlessMaxGas);
+                curY += Units(3);
+                
+                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max data");
+                var scriptlessMaxData = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxData.ToString());
+                BigInteger.TryParse(scriptlessMaxData, out settings.scriptlessMaxData);
                 curY += Units(3);
             }
 
