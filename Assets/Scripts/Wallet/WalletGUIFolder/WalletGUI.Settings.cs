@@ -417,7 +417,7 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        var script = Base16.Decode(input, false);
+                        var script = Base16.Decode(input.CleanHex(), false);
                         if (script == null)
                         {
                             WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse script '{input}'");
@@ -459,7 +459,7 @@ namespace Poltergeist
                         PhantasmaPhoenix.Protocol.Transaction tx = null;
                         try
                         {
-                            tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode(input, false));
+                            tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode(input.CleanHex(), false));
                         }
                         catch (Exception e)
                         {
