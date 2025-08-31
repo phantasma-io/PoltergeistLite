@@ -261,7 +261,7 @@ namespace Poltergeist
 
             this.preferScriptlessTxes = PlayerPrefs.GetInt(PreferScriptlessTxesTag, 0) != 0;
 
-            var defaultMaxGas = 100000;
+            var defaultMaxGas = 10000000;
             if (!BigInteger.TryParse(PlayerPrefs.GetString(ScriptlessMaxGasTag, defaultMaxGas.ToString()), out scriptlessMaxGas))
             {
             }
