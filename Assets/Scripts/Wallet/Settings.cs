@@ -324,7 +324,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Test_Net:
-                            _return_value = "https://test-explorer.phantasma.info/";
+                            _return_value = "https://testnet-explorer.phantasma.info/";
                             break;
 
                         case NexusKind.Local_Net:
