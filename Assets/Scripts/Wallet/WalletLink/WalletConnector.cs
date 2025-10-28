@@ -522,6 +522,8 @@ namespace Poltergeist
                                     AppFocus.Instance.EndFocus();
 
                                     callback(hash, error);
+
+                                    WalletGUI.Instance.TxResultMessage(hash, txResult, error, $"The transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                 });
                             }
                             else
