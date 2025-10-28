@@ -8,6 +8,8 @@ using PhantasmaPhoenix.Core.Extensions;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Cryptography.Extensions;
 using PhantasmaPhoenix.Protocol;
+using PhantasmaPhoenix.Protocol.Carbon;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using UnityEngine.Device;
@@ -405,10 +407,10 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
-            if(accountManager.Settings.devMode)
+            if (accountManager.Settings.devMode)
             {
-                Log.Write($"WalletConnector: SignTransaction(): Script description: Platform: {platform}\n"+
-                    $"SignatureKind: {kind}\n"+
+                Log.Write($"WalletConnector: SignTransaction(): Script description: Platform: {platform}\n" +
+                    $"SignatureKind: {kind}\n" +
                     $"Chain: {chain}\n" +
                     $"Script: {Base16.Encode(script)}\n" +
                     $"Payload: '{(payload == null ? "" : Encoding.UTF8.GetString(payload))}'\n" +
@@ -436,7 +438,8 @@ namespace Poltergeist
             {
                 try
                 {
-                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, accountManager.Settings.devMode, (description, error) => {
+                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, accountManager.Settings.devMode, (description, error) =>
+                    {
 
                         if (description == null)
                         {
@@ -467,7 +470,69 @@ namespace Poltergeist
                         });
                     }));
                 }
-                catch( Exception e )
+                catch (Exception e)
+                {
+                    WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
+                    callback(Hash.Null, "description parsing error");
+                    return;
+                }
+            });
+        }
+        
+        protected override void SignCarbonTransactionAndBroadcast(byte[] txBytes, Action<Hash, string> callback)
+        {
+            var accountManager = AccountManager.Instance;
+
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                callback(Hash.Null, "not logged in");
+                return;
+            }
+
+            var nexus = accountManager.Settings.nexusName;
+            var account = accountManager.CurrentAccount;
+
+            WalletGUI.Instance.CallOnUIThread(() =>
+            {
+                try
+                {
+                    var txMsg = CarbonBlob.New<TxMsg>(txBytes);
+                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetCarbonDescription(txMsg, accountManager.Settings.devMode, (description, error) =>
+                    {
+
+                        if (description == null)
+                        {
+                            Log.Write("Error during description parsing.\nDetails: " + error);
+                            //description = "Could not decode transaction contents. (Not an error)";
+                        }
+                        else
+                        {
+                            Log.Write("Script description: " + description);
+                        }
+
+                        WalletGUI.Instance.Prompt(
+                            $"Allow dapp to send a transaction on your behalf?\n\nCurrent nexus: {nexus}, chain: main\n\n"
+                            + description, (success) =>
+                        {
+                            if (success)
+                            {
+                                WalletGUI.Instance.SendCarbonTransaction(description, txMsg, (hash, txResult, error) =>
+                                {
+                                    AppFocus.Instance.EndFocus();
+
+                                    callback(hash, error);
+                                });
+                            }
+                            else
+                            {
+                                AppFocus.Instance.EndFocus();
+                                callback(Hash.Null, "user rejected");
+                            }
+                        });
+                    }));
+                }
+                catch (Exception e)
                 {
                     WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
                     callback(Hash.Null, "description parsing error");

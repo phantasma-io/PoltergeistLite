@@ -17,6 +17,7 @@ using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.NFT;
 using PhantasmaPhoenix.NFT.Extensions;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 
 namespace Poltergeist
 {
@@ -71,7 +72,6 @@ namespace Poltergeist
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
 
         public PhantasmaAPI phantasmaApi { get; private set; }
-        public CarbonTxSupport.PhantasmaCarbonAPI phantasmaCarbonApi { get; private set; }
 
         public static PlatformKind[] AvailablePlatforms { get; private set; }
         public static PlatformKind MergeAvailablePlatforms()
@@ -605,7 +605,6 @@ The Phoenix team", "Notice");
         {
             Log.Write("reinit APIs => " + Settings.phantasmaRPCURL);
             phantasmaApi = new PhantasmaAPI(Settings.phantasmaRPCURL);
-            phantasmaCarbonApi = new CarbonTxSupport.PhantasmaCarbonAPI(Settings.phantasmaRPCURL);
 
             if (possibleNexusChange)
             {
@@ -715,13 +714,13 @@ The Phoenix team", "Notice");
             }
         }
 
-        public void SignAndSendCarbonTransaction(byte[] tx, Action<Hash, string> callback)
+        public void SignAndSendCarbonTransaction(TxMsg tx, Action<Hash, string> callback)
         {
             switch (CurrentPlatform)
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaCarbonApi.SignAndSendCarbonTransaction(tx, (hashText, encodedTx) =>
+                        StartCoroutine(phantasmaApi.SignAndSendCarbonTransaction(PhantasmaKeys.FromWIF(CurrentWif), tx, (hashText, encodedTx) =>
                         {
                             if (Settings.devMode)
                             {

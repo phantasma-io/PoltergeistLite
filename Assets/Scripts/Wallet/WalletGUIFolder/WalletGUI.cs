@@ -4152,16 +4152,8 @@ namespace Poltergeist
             });
         }
         
-        public void SendCarbonTransaction(string description, byte[] tx, Action<Hash, TransactionResult, string> callback)
+        public void SendCarbonTransaction(string description, TxMsg tx, Action<Hash, TransactionResult, string> callback)
         {
-            if (tx == null)
-            {
-                MessageBox(MessageKind.Error, "Null transaction", () =>
-                {
-                    callback(Hash.Null, null, "Null transaction");
-                });
-            }
-
             var accountManager = AccountManager.Instance;
             RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
             {
@@ -4372,7 +4364,8 @@ namespace Poltergeist
                         if (amount > balance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
                             amount = balance;
 
-                        byte[] script;
+                        byte[] txBytes = null;
+                        TxMsg? txMsg = null;
 
                         var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
                         var bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
@@ -4383,7 +4376,7 @@ namespace Poltergeist
                             {
                                 var tokenCarbonId = Tokens.GetTokenCarbonId(symbol, accountManager.CurrentPlatform);
 
-                                var tx = new TxMsg
+                                txMsg = new TxMsg
                                 {
                                     type = TxTypes.TransferFungible,
                                     expiry = DateTimeOffset.UtcNow.AddSeconds(30).ToUnixTimeMilliseconds(),
@@ -4398,22 +4391,6 @@ namespace Poltergeist
                                         amount = (ulong)bigIntAmount
                                     }
                                 };
-
-                                var wif = AccountManager.Instance.CurrentAccount.GetWif(AccountManager.Instance.CurrentPasswordHash);
-
-                                var signedTxMsg = new SignedTxMsg
-                                {
-                                    msg = tx,
-                                    witnesses = new Witness[] {new Witness
-                                {
-                                    address = new Bytes32(source.GetPublicKey()),
-                                    signature = new Bytes64(Ed25519.Sign(CarbonBlob.Serialize(tx), PhantasmaKeys.FromWIF(wif).PrivateKey))
-                                }}
-                                };
-
-                                script = CarbonBlob.Serialize(signedTxMsg);
-
-                                Log.Write("Carbon tx: " + script.ToHex());
                             }
                             catch (Exception e)
                             {
@@ -4438,7 +4415,7 @@ namespace Poltergeist
                                 }
 
                                 sb.SpendGas(source);
-                                script = sb.EndScript();
+                                txBytes = sb.EndScript();
                             }
                             catch (Exception e)
                             {
@@ -4449,14 +4426,14 @@ namespace Poltergeist
 
                         if (accountManager.Settings.preferScriptlessTxes)
                         {
-                            SendCarbonTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, (hash, txResult, error) =>
+                            SendCarbonTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txMsg.Value, (hash, txResult, error) =>
                             {
                                 TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                             });
                         }
                         else
                         {
-                            SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                            SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txBytes, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                             {
                                 TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                             });
