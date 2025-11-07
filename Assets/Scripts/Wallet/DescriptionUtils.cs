@@ -739,7 +739,7 @@ namespace Poltergeist
                                     sb.AppendLine();
                                     sb.AppendLine($"METADATA:");
                                     var metadata = CarbonBlob.New<VmDynamicStruct>(tokenInfo.metadata);
-                                    foreach(var f in metadata.fields)
+                                    foreach (var f in metadata.fields)
                                     {
                                         var value = VmDynamicVariableToString(f.value);
                                         if (value.Length > 100)
@@ -754,7 +754,13 @@ namespace Poltergeist
                                 }
                             case TokenContract_Methods.CreateTokenSeries:
                                 {
-                                    sb.AppendLine("Token module: CreateTokenSeries");
+                                    // Skipping 8 bytes of token ID
+                                    var seriesInfo = CarbonBlob.New<SeriesInfo>(call.args, 8);
+
+                                    sb.AppendLine($"\u2605 Create series");
+                                    sb.AppendLine($"Max mint: {seriesInfo.maxMint}");
+                                    sb.AppendLine($"Max supply: {seriesInfo.maxSupply}");
+
                                     break;
                                 }
                             case TokenContract_Methods.MintNonFungible:
@@ -812,7 +818,11 @@ namespace Poltergeist
                     }
                 case TxTypes.MintFungible:
                     {
-                        sb.AppendLine("Token module: MintFungible");
+                        var mint = (TxMsgMintFungible)txMsg.msg;
+
+                        sb.AppendLine($"\u2605 Fungible token mint");
+                        sb.AppendLine($"To address: {Address.FromBytes(mint.to.bytes)}");
+                        sb.AppendLine($"Amount: {mint.amount}");
                         break;
                     }
                 case TxTypes.Phantasma:
@@ -827,7 +837,10 @@ namespace Poltergeist
                     }
                 case TxTypes.MintNonFungible:
                     {
-                        sb.AppendLine("Token module: MintNonFungible");
+                        var mint = (TxMsgMintNonFungible)txMsg.msg;
+
+                        sb.AppendLine($"\u2605 NFT mint");
+                        sb.AppendLine($"To address: {Address.FromBytes(mint.to.bytes)}");
                         break;
                     }
                 case TxTypes.TransferFungible_GasPayer:
