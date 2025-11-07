@@ -118,6 +118,7 @@ public static class NftImages
 
     public static IEnumerator DownloadImage(string symbol, string url, string nftId)
     {
+        // Log.Write("NFT image loading: URL: " + url);
         if (string.IsNullOrEmpty(url))
         {
             yield break;
@@ -169,10 +170,18 @@ public static class NftImages
         {
             fullUrl = "https://gateway.ipfs.io/ipfs/" + fullUrl.Substring("ipfs://".Length);
         }
+        if (!fullUrl.Contains("://"))
+        {
+            Log.WriteWarning("NFT image loading: URL does not contain schema, defaulting to https://" + fullUrl);
+            fullUrl = "https://" + fullUrl;
+        }
         Log.Write("NFT image loading: Full URL: " + fullUrl);
 
         UnityWebRequest request = UnityWebRequestTexture.GetTexture(fullUrl);
+        // Log.Write("NFT image loading: Sending request...");
         yield return request.SendWebRequest();
+        // var downloadedBytes = request.downloadHandler?.data?.Length ?? 0;
+        // Log.Write($"NFT image loading: Request finished. result={request.result}, status={request.responseCode}, bytes={downloadedBytes}, error={request.error}");
         if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
         {
             Log.Write(request.error);
@@ -199,8 +208,14 @@ public static class NftImages
 
             if (!ValidateLoadedTexture(ref image.Texture, true))
             {
-                Log.Write("NFT image loading: Invalid image.");
+                var invalidWidth = image.Texture ? image.Texture.width : 0;
+                var invalidHeight = image.Texture ? image.Texture.height : 0;
+                Log.Write($"NFT image loading: Invalid image. Size={invalidWidth}x{invalidHeight}");
                 image.Texture = null;
+            }
+            else
+            {
+                // Log.Write($"NFT image loading: Texture validated. Size={image.Texture.width}x{image.Texture.height}");
             }
 
             lock (Images)
