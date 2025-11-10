@@ -90,6 +90,8 @@ namespace Poltergeist
         public static readonly int SoulMasterStakeAmount = 50000;
 
         private DateTime _lastPriceUpdate = DateTime.MinValue;
+        private bool tokensReinitInProgress;
+        private bool refreshBalancesAfterTokenReload;
 
         private void Awake()
         {
@@ -533,7 +535,7 @@ The Phoenix team", "Notice");
 
         private IEnumerator GetTokens(Action<TokenResult[]> callback)
         {
-            while (!Ready)
+            do
             {
                 var coroutine = StartCoroutine(phantasmaApi.GetTokens((tokens) =>
                 {
@@ -560,18 +562,52 @@ The Phoenix team", "Notice");
 
                 yield return coroutine;
             }
+            while (!Ready);
         }
 
         private void TokensReinit()
         {
-            StartCoroutine(GetTokens((tokens) =>
+            if (tokensReinitInProgress)
+                return;
+
+            StartCoroutine(TokensReinitRoutine());
+        }
+
+        private IEnumerator TokensReinitRoutine()
+        {
+            tokensReinitInProgress = true;
+            yield return StartCoroutine(GetTokens((tokens) =>
             {
-                Tokens.Init(tokens);
+                lock (Tokens.__lockObj)
+                {
+                    Tokens.Init(tokens);
+                }
 
                 CurrentTokenCurrency = "";
 
                 Status = "ok";
             }));
+            tokensReinitInProgress = false;
+
+            if (refreshBalancesAfterTokenReload)
+            {
+                refreshBalancesAfterTokenReload = false;
+                if (HasSelection)
+                {
+                    RefreshBalances(false);
+                }
+            }
+        }
+
+        public void RequestTokensReload()
+        {
+            ScheduleBalanceRefreshAfterTokens();
+            TokensReinit();
+        }
+
+        private void ScheduleBalanceRefreshAfterTokens()
+        {
+            refreshBalancesAfterTokenReload = true;
         }
 
         public void RefreshTokenPrices()
@@ -1137,6 +1173,7 @@ The Phoenix team", "Notice");
                 StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
                 {
                     var balanceMap = new Dictionary<string, Balance>();
+                    HashSet<string> missingTokens = null;
 
                     foreach (var entry in acc.Balances)
                     {
@@ -1156,6 +1193,9 @@ The Phoenix team", "Notice");
                                 Ids = entry.Ids
                             };
                         else
+                        {
+                            missingTokens ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            missingTokens.Add(entry.Symbol);
                             balanceMap[entry.Symbol] = new Balance()
                             {
                                 Symbol = entry.Symbol,
@@ -1168,6 +1208,7 @@ The Phoenix team", "Notice");
                                 Fungible = true,
                                 Ids = entry.Ids
                             };
+                        }
 
 
                     }
@@ -1265,6 +1306,13 @@ The Phoenix team", "Notice");
                     state.avatarData = acc.Storage.Avatar;
 
                     ReportWalletBalance(PlatformKind.Phantasma, state);
+
+                    if (missingTokens != null && missingTokens.Count > 0)
+                    {
+                        Log.WriteWarning($"RefreshBalances: detected unknown tokens ({string.Join(", ", missingTokens)}) - reloading token list.");
+                        ScheduleBalanceRefreshAfterTokens();
+                        TokensReinit();
+                    }
                 },
                 (error, msg) =>
                 {
