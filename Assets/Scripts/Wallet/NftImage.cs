@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Collections;
@@ -160,73 +161,105 @@ public static class NftImages
 
         imagesLoadedSimultaneously++;
 
-        var fullUrl = url;
-        if(!fullUrl.Contains("/"))
+        try
         {
-            // This is a pure IPFS hash.
-            fullUrl = "https://gateway.ipfs.io/ipfs/" + fullUrl;
-        }
-        else if (fullUrl.StartsWith("ipfs://"))
-        {
-            fullUrl = "https://gateway.ipfs.io/ipfs/" + fullUrl.Substring("ipfs://".Length);
-        }
-        if (!fullUrl.Contains("://"))
-        {
-            Log.WriteWarning("NFT image loading: URL does not contain schema, defaulting to https://" + fullUrl);
-            fullUrl = "https://" + fullUrl;
-        }
-        Log.Write("NFT image loading: Full URL: " + fullUrl);
-
-        UnityWebRequest request = UnityWebRequestTexture.GetTexture(fullUrl);
-        // Log.Write("NFT image loading: Sending request...");
-        yield return request.SendWebRequest();
-        // var downloadedBytes = request.downloadHandler?.data?.Length ?? 0;
-        // Log.Write($"NFT image loading: Request finished. result={request.result}, status={request.responseCode}, bytes={downloadedBytes}, error={request.error}");
-        if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
-        {
-            Log.Write(request.error);
-
-            var image = new Image();
-            image.Url = url;
-            image.Texture = null;
-            image.Symbol = symbol.ToLower();
-            image.NftId = nftId;
-
-            lock (Images)
+            var fullUrl = url;
+            if (!fullUrl.Contains("/"))
             {
-                if (!CheckIfImageLoaded(image.Url))
-                    Images.Add(image.Url, image);
+                // This is a pure IPFS hash.
+                fullUrl = "https://gateway.ipfs.io/ipfs/" + fullUrl;
             }
-        }
-        else
-        {
-            var image = new Image();
-            image.Url = url;
-            image.Texture = ((DownloadHandlerTexture)request.downloadHandler).texture;
-            image.Symbol = symbol.ToLower();
-            image.NftId = nftId;
-
-            if (!ValidateLoadedTexture(ref image.Texture, true))
+            else if (fullUrl.StartsWith("ipfs://"))
             {
-                var invalidWidth = image.Texture ? image.Texture.width : 0;
-                var invalidHeight = image.Texture ? image.Texture.height : 0;
-                Log.Write($"NFT image loading: Invalid image. Size={invalidWidth}x{invalidHeight}");
+                fullUrl = "https://gateway.ipfs.io/ipfs/" + fullUrl.Substring("ipfs://".Length);
+            }
+            if (!fullUrl.Contains("://"))
+            {
+                Log.WriteWarning("NFT image loading: URL does not contain schema, defaulting to https://" + fullUrl);
+                fullUrl = "https://" + fullUrl;
+            }
+
+            var normalizedUrl = NormalizeImageUrl(fullUrl);
+            if (string.IsNullOrEmpty(normalizedUrl))
+            {
+                Log.WriteWarning($"NFT image loading: Invalid URL '{fullUrl}'. Skipping download.");
+                yield break;
+            }
+
+            Log.Write("NFT image loading: Full URL: " + normalizedUrl);
+
+            UnityWebRequest request;
+            try
+            {
+                request = UnityWebRequestTexture.GetTexture(normalizedUrl);
+            }
+            catch (Exception e) when (e is UriFormatException || e is ArgumentException)
+            {
+                Log.WriteWarning($"NFT image loading: Failed to build request for '{normalizedUrl}': {e.Message}");
+                yield break;
+            }
+            // Log.Write("NFT image loading: Sending request...");
+            yield return request.SendWebRequest();
+            // var downloadedBytes = request.downloadHandler?.data?.Length ?? 0;
+            // Log.Write($"NFT image loading: Request finished. result={request.result}, status={request.responseCode}, bytes={downloadedBytes}, error={request.error}");
+            if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
+            {
+                Log.Write(request.error);
+
+                var image = new Image();
+                image.Url = url;
                 image.Texture = null;
+                image.Symbol = symbol.ToLower();
+                image.NftId = nftId;
+
+                lock (Images)
+                {
+                    if (!CheckIfImageLoaded(image.Url))
+                        Images.Add(image.Url, image);
+                }
             }
             else
             {
-                // Log.Write($"NFT image loading: Texture validated. Size={image.Texture.width}x{image.Texture.height}");
-            }
+                var image = new Image();
+                image.Url = url;
+                image.Texture = ((DownloadHandlerTexture)request.downloadHandler).texture;
+                image.Symbol = symbol.ToLower();
+                image.NftId = nftId;
 
-            lock (Images)
-            {
-                if (!CheckIfImageLoaded(image.Url))
-                    Images.Add(image.Url, image);
-            }
+                if (!ValidateLoadedTexture(ref image.Texture, true))
+                {
+                    var invalidWidth = image.Texture ? image.Texture.width : 0;
+                    var invalidHeight = image.Texture ? image.Texture.height : 0;
+                    Log.Write($"NFT image loading: Invalid image. Size={invalidWidth}x{invalidHeight}");
+                    image.Texture = null;
+                }
+                else
+                {
+                    // Log.Write($"NFT image loading: Texture validated. Size={image.Texture.width}x{image.Texture.height}");
+                }
 
-            if(image.Texture)
-                Cache.AddTexture($"{symbol.ToLower()}-image-{nftId}", image.Texture);
+                lock (Images)
+                {
+                    if (!CheckIfImageLoaded(image.Url))
+                        Images.Add(image.Url, image);
+                }
+
+                if (image.Texture)
+                    Cache.AddTexture($"{symbol.ToLower()}-image-{nftId}", image.Texture);
+            }
         }
-        imagesLoadedSimultaneously--;
+        finally
+        {
+            imagesLoadedSimultaneously--;
+        }
+    }
+
+    private static string NormalizeImageUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return string.Empty;
+
+        var trimmed = url.Trim();
+        return Uri.TryCreate(trimmed, UriKind.Absolute, out _) ? trimmed : string.Empty;
     }
 }
