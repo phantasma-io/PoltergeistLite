@@ -942,6 +942,7 @@ The Phoenix team", "Notice");
 
             _states.Clear();
             _nfts.Clear();
+            _roms.Clear();
             TtrsStore.Clear();
             GameStore.Clear();
             NftImages.Clear();
