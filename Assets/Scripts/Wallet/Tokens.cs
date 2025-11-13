@@ -148,7 +148,7 @@ public static class Tokens
         var token = GetToken(symbol, platform);
         if (token != default(TokenResult))
         {
-            return token.CarbonId;
+            return ulong.Parse(token.CarbonId);
         }
 
         throw new System.Exception($"Cannot load token carbon ID for {symbol}");
