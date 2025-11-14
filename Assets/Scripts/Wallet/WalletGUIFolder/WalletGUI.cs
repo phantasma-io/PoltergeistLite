@@ -3086,13 +3086,26 @@ namespace Poltergeist
             }
             GUI.enabled = true;
 
-            DoButton(!DrawNftToolsAreActive(), btnRect, "View", () =>
+            var hasNftExplorerUrl = !string.IsNullOrWhiteSpace(accountManager.Settings.phantasmaNftExplorer);
+            var canShowViewButton = transferSymbol == "TTRS" || hasNftExplorerUrl;
+            if (canShowViewButton)
             {
-                if (transferSymbol == "TTRS")
-                    Application.OpenURL("https://www.22series.com/part_info?id=" + entryId);
-                else
-                    Application.OpenURL(accountManager.GetPhantasmaNftURL(transferSymbol, entryId));
-            });
+                DoButton(!DrawNftToolsAreActive(), btnRect, "View", () =>
+                {
+                    if (transferSymbol == "TTRS")
+                    {
+                        Application.OpenURL("https://www.22series.com/part_info?id=" + entryId);
+                    }
+                    else
+                    {
+                        var explorerUrl = accountManager.GetPhantasmaNftURL(transferSymbol, entryId);
+                        if (!string.IsNullOrEmpty(explorerUrl))
+                        {
+                            Application.OpenURL(explorerUrl);
+                        }
+                    }
+                });
+            }
         }
 
         private void DoNftTransferListScreen()

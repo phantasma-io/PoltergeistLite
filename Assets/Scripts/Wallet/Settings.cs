@@ -81,7 +81,7 @@ namespace Poltergeist
     {
         public const string PhantasmaRPCTag = "settings.phantasma.rpc.url";
         public const string PhantasmaExplorerTag = "settings.phantasma.explorer.url";
-        public const string PhantasmaNftExplorerTag = "settings.phantasma.nft.explorer.url";
+        public const string PhantasmaNftExplorerTag = "settings.phantasma.nft.explorer.url.v2";
         public const string PhantasmaPoaUrlTag = "settings.phantasma.poa.url";
         public const string NexusNameTag = "settings.nexus.name";
 
@@ -276,7 +276,7 @@ namespace Poltergeist
 
         public string GetDefaultValue(string tag)
         {
-            string _return_value;
+            string _return_value = String.Empty;
 
             switch (tag)
             {
@@ -341,19 +341,19 @@ namespace Poltergeist
                     switch (nexusKind)
                     {
                         case NexusKind.Main_Net:
-                            _return_value = "https://ghostmarket.io/asset/pha";
+                            // _return_value = "https://ghostmarket.io/asset/pha";
                             break;
 
                         case NexusKind.Test_Net:
-                            _return_value = "https://testnet.ghostmarket.io/asset/phat";
+                            // _return_value = "https://testnet.ghostmarket.io/asset/phat";
                             break;
 
                         case NexusKind.Local_Net:
-                            _return_value = "https://dev.ghostmarket.io/asset/pha";
+                            // _return_value = "https://dev.ghostmarket.io/asset/pha";
                             break;
 
                         default:
-                            _return_value = "https://ghostmarket.io/asset/pha";
+                            // _return_value = "https://ghostmarket.io/asset/pha";
                             break;
                     }
                     break;

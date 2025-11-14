@@ -1712,6 +1712,11 @@ The Phoenix team", "Notice");
         public string GetPhantasmaNftURL(string symbol, string tokenId)
         {
             var url = Settings.phantasmaNftExplorer;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return string.Empty;
+            }
+
             if (!url.EndsWith("/"))
             {
                 url += "/";
