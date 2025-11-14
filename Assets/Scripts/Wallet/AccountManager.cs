@@ -1005,6 +1005,18 @@ The Phoenix team", "Notice");
                 if (state != null)
                 {
                     Log.Write("Received new state for " + platform);
+
+                    if (_states.TryGetValue(platform, out var previousState) && previousState?.dappTokens != null)
+                    {
+                        foreach (var entry in previousState.dappTokens)
+                        {
+                            if (!state.dappTokens.ContainsKey(entry.Key))
+                            {
+                                state.dappTokens[entry.Key] = entry.Value;
+                            }
+                        }
+                    }
+
                     _states[platform] = state;
                 }
             
