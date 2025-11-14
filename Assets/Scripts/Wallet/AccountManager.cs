@@ -1134,9 +1134,22 @@ The Phoenix team", "Notice");
 
         public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null)
         {
+            if (!HasSelection)
+            {
+                Log.WriteWarning("RefreshBalances: skipped because no account is selected.");
+                return;
+            }
+
+            var currentAccount = CurrentAccount;
+            if (currentAccount.passwordProtected && string.IsNullOrEmpty(CurrentPasswordHash))
+            {
+                Log.WriteWarning("RefreshBalances: skipped because current account is locked.");
+                return;
+            }
+
             List<PlatformKind> platformsList;
             if(platforms == PlatformKind.None)
-                platformsList = CurrentAccount.platforms.Split();
+                platformsList = currentAccount.platforms.Split();
             else
                 platformsList = platforms.Split();
 
