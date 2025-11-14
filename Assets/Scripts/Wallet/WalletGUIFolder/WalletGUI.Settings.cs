@@ -799,7 +799,7 @@ namespace Poltergeist
                 return false;
             }
 
-            if (!settings.phantasmaNftExplorer.IsValidURL())
+            if (!string.IsNullOrEmpty(settings.phantasmaNftExplorer) && !settings.phantasmaNftExplorer.IsValidURL())
             {
                 MessageBox(MessageKind.Error, "Invalid URL for Phantasma NFT Explorer URL.\n" + settings.phantasmaNftExplorer);
                 return false;
