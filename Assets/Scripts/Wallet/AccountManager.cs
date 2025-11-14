@@ -583,6 +583,11 @@ The Phoenix team", "Notice");
                     Tokens.Init(tokens);
                 }
 
+                if (ResourceManager.Instance != null)
+                {
+                    ResourceManager.Instance.UnloadTokens();
+                }
+
                 CurrentTokenCurrency = "";
 
                 Status = "ok";

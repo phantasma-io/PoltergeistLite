@@ -33,6 +33,7 @@ public static class Tokens
 
     public static void Reset()
     {
+        TokenIconCache.Reset();
         SupportedTokens.Clear();
     }
     
@@ -80,6 +81,7 @@ public static class Tokens
             Tokens.Reset();
 
             Tokens.AddTokens(mainnetTokens);
+            TokenIconCache.RebuildFromTokens(mainnetTokens);
 
             Tokens.LoadCoinGeckoSymbols();
 
