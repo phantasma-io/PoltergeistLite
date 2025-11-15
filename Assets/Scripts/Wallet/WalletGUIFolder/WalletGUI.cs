@@ -2486,32 +2486,47 @@ namespace Poltergeist
 
                 default:
                 {
-                    if (Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token)) 
+                    var hasTokenInfo = Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token) && token != null;
+                    var isFungible = balance.Fungible;
+                    if (hasTokenInfo)
                     {
-                        if (!token.IsFungible())
+                        try
                         {
-                            // It's an NFT. We add additional button to get to NFTs view mode.
-                            secondaryAction = "View";
-                            secondaryEnabled = balance.Available > 0;
-                            secondaryCallback = () =>
+                            if (token.Flags != null)
                             {
-                                transferSymbol = balance.Symbol;
-
-                                // We should do this initialization here and not in PushState,
-                                // to allow "Back" button to work properly.
-                                nftScroll = Vector2.zero;
-                                nftTransferList.Clear();
-                                nftFilterName = "";
-                                nftFilterTypeIndex = 0;
-                                nftFilterType = "All";
-                                nftFilterRarity = 0;
-                                nftFilterMinted = 0;
-                                accountManager.RefreshNft(false, transferSymbol);
-
-                                PushState(GUIState.NftView);
-                                return;
-                            };
+                                isFungible = token.IsFungible();
+                            }
                         }
+                        catch
+                        {
+                            // fall back to balance data when token metadata not ready yet
+                            isFungible = balance.Fungible;
+                        }
+                    }
+
+                    if (!isFungible)
+                    {
+                        // It's an NFT. We add additional button to get to NFTs view mode.
+                        secondaryAction = "View";
+                        secondaryEnabled = balance.Available > 0;
+                        secondaryCallback = () =>
+                        {
+                            transferSymbol = balance.Symbol;
+
+                            // We should do this initialization here and not in PushState,
+                            // to allow "Back" button to work properly.
+                            nftScroll = Vector2.zero;
+                            nftTransferList.Clear();
+                            nftFilterName = "";
+                            nftFilterTypeIndex = 0;
+                            nftFilterType = "All";
+                            nftFilterRarity = 0;
+                            nftFilterMinted = 0;
+                            accountManager.RefreshNft(false, transferSymbol);
+
+                            PushState(GUIState.NftView);
+                            return;
+                        };
                     }
                     break;
                 }
