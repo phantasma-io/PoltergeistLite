@@ -12,6 +12,7 @@ namespace Poltergeist
         Unknown,
         Main_Net,
         Test_Net,
+        Dev_Net,
         Local_Net,
         Custom
     }
@@ -195,7 +196,7 @@ namespace Poltergeist
             }
 
             this.phantasmaRPCURL = PlayerPrefs.GetString(PhantasmaRPCTag, GetDefaultValue(PhantasmaRPCTag));
-            if (this.nexusKind == NexusKind.Main_Net || this.nexusKind == NexusKind.Test_Net)
+            if (this.nexusKind == NexusKind.Main_Net || this.nexusKind == NexusKind.Test_Net || this.nexusKind == NexusKind.Dev_Net)
             {
                 // For mainnet/testnet we always load defaults for hidden settings,
                 // to avoid dealing with "stuck" values from old PG version that had different defaults.
@@ -305,6 +306,10 @@ namespace Poltergeist
                         case NexusKind.Test_Net:
                             _return_value = "https://testnet.phantasma.info/rpc";
                             break;
+                        
+                        case NexusKind.Dev_Net:
+                            _return_value = "https://devnet.phantasma.info/rpc";
+                            break;
 
                         case NexusKind.Local_Net:
                             _return_value = "http://localhost:5172/rpc";
@@ -325,6 +330,10 @@ namespace Poltergeist
 
                         case NexusKind.Test_Net:
                             _return_value = "https://testnet-explorer.phantasma.info/";
+                            break;
+
+                        case NexusKind.Dev_Net:
+                            _return_value = "https://devnet-explorer.phantasma.info/";
                             break;
 
                         case NexusKind.Local_Net:
@@ -379,6 +388,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Test_Net:
+                        case NexusKind.Dev_Net:
                             _return_value = "testnet";
                             break;
 

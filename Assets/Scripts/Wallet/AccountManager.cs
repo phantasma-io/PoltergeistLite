@@ -225,6 +225,12 @@ namespace Poltergeist
 
         public void UpdateRPCURL()
         {
+            if (Settings.nexusKind == NexusKind.Dev_Net)
+            {
+                rpcAvailablePhantasma = 1;
+                return;
+            }
+
             if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net)
             {
                 rpcAvailablePhantasma = 1;
