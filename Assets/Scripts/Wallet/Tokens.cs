@@ -35,6 +35,7 @@ public static class Tokens
     {
         TokenIconCache.Reset();
         SupportedTokens.Clear();
+        CoingeckoApiSymbols.Clear();
     }
     
     public static void AddTokens(TokenResult[] tokens)
@@ -49,10 +50,6 @@ public static class Tokens
     
     public static void LoadCoinGeckoSymbols()
     {
-        // First we init all fungible token API IDs with default values.
-        SupportedTokens.ForEach(x => { if (!HasCGSymbol(x) && x.IsFungible()) { AddCGSymbol(x, x.Symbol.ToLower()); } });
-
-        // Then apply IDs from config.
         var resource = Resources.Load<TextAsset>("Tokens.CoinGecko");
 
         if (resource == null || string.IsNullOrEmpty(resource.text))
