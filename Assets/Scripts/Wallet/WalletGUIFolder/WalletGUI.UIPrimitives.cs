@@ -427,14 +427,17 @@ namespace Poltergeist
         {
             var style = GUI.skin.label;
             var tempAlign = style.alignment;
+            var tempRichText = style.richText;
 
             style.fontSize -= VerticalLayout ? 2: 4;
             style.alignment = TextAnchor.MiddleCenter;
+            style.richText = true;
 
             GUI.Label(new Rect(0, curY, windowRect.width, height), caption);
 
             style.fontSize += VerticalLayout ? 2 : 4;
             style.alignment = tempAlign;
+            style.richText = tempRichText;
         }
 
         private void DoBackButton()

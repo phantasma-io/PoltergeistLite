@@ -810,6 +810,19 @@ namespace Poltergeist
             AccountManager.Instance.Settings.SaveOnExit();
         }
 
+        private string GetNetworkBadge()
+        {
+            var settings = AccountManager.Instance.Settings;
+            return settings.nexusKind switch
+            {
+                NexusKind.Test_Net => "<color=#FF8A00>[TESTNET]</color>",
+                NexusKind.Dev_Net => "<color=#FFD247>[DEVNET]</color>",
+                NexusKind.Local_Net => "<color=#4CAF50>[LOCALNET]</color>",
+                NexusKind.Custom => "<color=#FF6F6F>[CUSTOM]</color>",
+                _ => string.Empty
+            };
+        }
+
         private void DoMainWindow(int windowID)
         {
             GUI.Box(new Rect(8, 8, windowRect.width - 16, Units(2)), WalletTitle);
@@ -855,6 +868,12 @@ namespace Poltergeist
                             }
                         }
                         break;
+                }
+
+                var networkBadge = GetNetworkBadge();
+                if (!string.IsNullOrEmpty(networkBadge))
+                {
+                    tempTitle = $"{tempTitle} {networkBadge}";
                 }
 
                 DrawHorizontalCenteredText(curY - 4, Units(2) + (VerticalLayout ? 4 : 0), tempTitle);
