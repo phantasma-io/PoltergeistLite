@@ -4416,8 +4416,16 @@ namespace Poltergeist
 
                         var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
                         var bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
+                        var useScriptlessTxes = accountManager.Settings.preferScriptlessTxes;
 
-                        if (accountManager.Settings.preferScriptlessTxes)
+                        if (useScriptlessTxes && (bigIntAmount < 0 || bigIntAmount > ulong.MaxValue))
+                        {
+                            Log.WriteWarning($"Scriptless transfer blocked for {symbol}: amount {bigIntAmount} exceeds UInt64 range.");
+                            MessageBox(MessageKind.Error, "Scriptless transactions currently can't transfer this amount.\nPlease switch to Standard transactions in Settings and try again.");
+                            return;
+                        }
+
+                        if (useScriptlessTxes)
                         {
                             try
                             {
@@ -4471,7 +4479,7 @@ namespace Poltergeist
                             }
                         }
 
-                        if (accountManager.Settings.preferScriptlessTxes)
+                        if (useScriptlessTxes)
                         {
                             SendCarbonTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txMsg.Value, (hash, txResult, error) =>
                             {
