@@ -744,7 +744,7 @@ namespace Poltergeist
                                         var value = VmDynamicVariableToString(f.value);
                                         if (value.Length > 100)
                                         {
-                                            value = $"{value.Substring(0, 100)}... [Value is too long: {value.Length}]";
+                                            value = $"{value.Substring(0, 100)}... [Cannot display whole value, too long: {value.Length}]";
                                         }
                                         sb.AppendLine();
                                         sb.AppendLine($"\u2022 {f.name.data}: {value}");
