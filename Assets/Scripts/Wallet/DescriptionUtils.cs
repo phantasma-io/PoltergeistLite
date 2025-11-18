@@ -1,5 +1,11 @@
 using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Core.Extensions;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Protocol.Carbon;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain.Modules;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain.Vm;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using System;
 using System.Collections;
@@ -30,7 +36,7 @@ namespace Poltergeist
         private static bool CompareCalls(DisasmMethodCall call1, DisasmMethodCall call2, params int[] argNumbersToCompare)
         {
             // Compare contract and method names.
-            if (GetCallFullName(call1) != GetCallFullName(call2) )
+            if (GetCallFullName(call1) != GetCallFullName(call2))
                 return false;
 
             for (int i = 0; i < argNumbersToCompare.Length; i++)
@@ -49,7 +55,7 @@ namespace Poltergeist
             {
                 return call.Arguments[argumentNumber].AsString();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 throw new Exception($"{GetCallFullName(call)}: Error: Cannot get description for argument #{argumentNumber + 1} [String]: {e.Message}");
             }
@@ -112,7 +118,7 @@ namespace Poltergeist
         {
             Debug.Log("disam methods: " + string.Join(", ", methodTable.Keys));
 
-            if(knownContracts == null)
+            if (knownContracts == null)
             {
                 // Collecting known contract names
                 knownContracts = methodTable.Keys.Select(x => x.IndexOf(".") > 0 ? x.Substring(0, x.IndexOf(".")) : x).Distinct().ToList();
@@ -134,7 +140,7 @@ namespace Poltergeist
 
             var contractsToLoad = contracts.Count();
             var contractsProcessed = 0;
-            foreach(var contract in contracts)
+            foreach (var contract in contracts)
             {
                 WalletGUI.Instance.StartCoroutine(
                     accountManager.phantasmaApi.GetContract(contract, (contractStruct) =>
@@ -226,7 +232,7 @@ namespace Poltergeist
                 // Put it to log so that developer can easily check what PG is receiving.
                 var unprocessedMethodCall = "Unprocessed method call: " + entry.ToString();
                 Log.Write(unprocessedMethodCall);
-                if(devMode)
+                if (devMode)
                 {
                     sb.AppendLine(unprocessedMethodCall);
                     sb.AppendLine();
@@ -338,7 +344,7 @@ namespace Poltergeist
 
                             var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
 
-                            var total = UnitConversion.ToDecimal(amount, token.decimals);
+                            var total = UnitConversion.ToDecimal(amount, token.Decimals);
 
                             sb.AppendLine($"\u2605 Transfer {total} {symbol} from {src} to {dst}.");
                             break;
@@ -353,13 +359,13 @@ namespace Poltergeist
                             break;
                         }
                     case "market.CancelSale":
-                            {
-                                var symbol = GetStringArg(entry, 0);
-                                var nftNumber = GetStringArg(entry, 1);
+                        {
+                            var symbol = GetStringArg(entry, 0);
+                            var nftNumber = GetStringArg(entry, 1);
 
-                                sb.AppendLine($"\u2605 Cancel sale of {symbol} NFT #{ShortenTokenId(nftNumber)}.");
-                                break;
-                            }
+                            sb.AppendLine($"\u2605 Cancel sale of {symbol} NFT #{ShortenTokenId(nftNumber)}.");
+                            break;
+                        }
                     case "market.SellToken":
                         {
                             var dst = GetStringArg(entry, 0);
@@ -369,7 +375,7 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(priceSymbol, PlatformKind.Phantasma);
 
-                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.decimals);
+                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
 
                             var untilDate = GetTimestampArg(entry, 5);
 
@@ -411,8 +417,8 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(priceSymbol, PlatformKind.Phantasma);
 
-                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.decimals);
-                            var endPrice = UnitConversion.ToDecimal(GetNumberArg(entry, 5), priceToken.decimals);
+                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
+                            var endPrice = UnitConversion.ToDecimal(GetNumberArg(entry, 5), priceToken.Decimals);
 
                             var startDate = GetTimestampArg(entry, 6);
                             var untilDate = GetTimestampArg(entry, 7);
@@ -430,8 +436,8 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(priceSymbol, PlatformKind.Phantasma);
 
-                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.decimals);
-                            var endPrice = UnitConversion.ToDecimal(GetNumberArg(entry, 5), priceToken.decimals);
+                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
+                            var endPrice = UnitConversion.ToDecimal(GetNumberArg(entry, 5), priceToken.Decimals);
 
                             var startDate = GetTimestampArg(entry, 6);
                             var untilDate = GetTimestampArg(entry, 7);
@@ -494,7 +500,7 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(tokenSymbol, PlatformKind.Phantasma);
 
-                            var purchase = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.decimals);
+                            var purchase = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
 
                             sb.AppendLine($"\u2605 Participate to sale {saleHash} with {purchase} {tokenSymbol}.");
                             break;
@@ -517,20 +523,20 @@ namespace Poltergeist
 
                             var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
 
-                            var total = UnitConversion.ToDecimal(amount, token.decimals);
+                            var total = UnitConversion.ToDecimal(amount, token.Decimals);
 
                             sb.AppendLine($"\u2605 Burn {total} {symbol} from {address}.");
                             break;
                         }
                     case "Runtime.BurnToken":
-                            {
-                                var address = GetStringArg(entry, 0);
-                                var symbol = GetStringArg(entry, 1);
-                                var nftNumber = GetStringArg(entry, 2);
+                        {
+                            var address = GetStringArg(entry, 0);
+                            var symbol = GetStringArg(entry, 1);
+                            var nftNumber = GetStringArg(entry, 2);
 
-                                sb.AppendLine($"\u2605 Burn {symbol} NFT #{ShortenTokenId(nftNumber)} from {address}.");
-                                break;
-                            }
+                            sb.AppendLine($"\u2605 Burn {symbol} NFT #{ShortenTokenId(nftNumber)} from {address}.");
+                            break;
+                        }
                     case "Runtime.InfuseToken":
                         {
                             var address = GetStringArg(entry, 0);
@@ -542,7 +548,7 @@ namespace Poltergeist
 
                             var infuseToken = Tokens.GetToken(infuseSymbol, PlatformKind.Phantasma);
 
-                            sb.AppendLine($"\u2605 Infuse {targetSymbol} NFT #{ShortenTokenId(tokenID)} with " + (infuseToken.IsFungible() ? $"{UnitConversion.ToDecimal(amount, infuseToken.decimals)} {infuseSymbol}." : $"{infuseSymbol} NFT #{ShortenTokenId(amountString)}."));
+                            sb.AppendLine($"\u2605 Infuse {targetSymbol} NFT #{ShortenTokenId(tokenID)} with " + (infuseToken.IsFungible() ? $"{UnitConversion.ToDecimal(amount, infuseToken.Decimals)} {infuseSymbol}." : $"{infuseSymbol} NFT #{ShortenTokenId(amountString)}."));
                             break;
                         }
                     case "Nexus.CreateToken":
@@ -560,41 +566,41 @@ namespace Poltergeist
                         }
 
                     case "Nexus.CreateOrganization":
-                    {
-                        var address = GetStringArg(entry, 0);
-                        var id = GetStringArg(entry, 1);
-                        var name = GetStringArg(entry, 2);
-                        var _script = GetByteArrayArg(entry, 3);
-                        sb.AppendLine($"\u2605 {address} -> Create Organization '{id}' with name '{name}', with script: {_script}.");
-                        break;
-                    }
-                    
+                        {
+                            var address = GetStringArg(entry, 0);
+                            var id = GetStringArg(entry, 1);
+                            var name = GetStringArg(entry, 2);
+                            var _script = GetByteArrayArg(entry, 3);
+                            sb.AppendLine($"\u2605 {address} -> Create Organization '{id}' with name '{name}', with script: {_script}.");
+                            break;
+                        }
+
                     case "Organization.AddMember":
-                    {
-                        var address = GetStringArg(entry, 0);
-                        var org_id = GetStringArg(entry, 1);
-                        var target = GetStringArg(entry, 2);
-                        sb.AppendLine($"\u2605 {address} -> Adding {target} to Organization '{org_id}'.");
-                        break;
-                    }
-                    
+                        {
+                            var address = GetStringArg(entry, 0);
+                            var org_id = GetStringArg(entry, 1);
+                            var target = GetStringArg(entry, 2);
+                            sb.AppendLine($"\u2605 {address} -> Adding {target} to Organization '{org_id}'.");
+                            break;
+                        }
+
                     case "Organization.RemoveMember":
-                    {
-                        var address = GetStringArg(entry, 0);
-                        var org_id = GetStringArg(entry, 1);
-                        var target = GetStringArg(entry, 2);
-                        sb.AppendLine($"\u2605 {address} -> Removing {target} from Organization '{org_id}'.");
-                        break;
-                    }
+                        {
+                            var address = GetStringArg(entry, 0);
+                            var org_id = GetStringArg(entry, 1);
+                            var target = GetStringArg(entry, 2);
+                            sb.AppendLine($"\u2605 {address} -> Removing {target} from Organization '{org_id}'.");
+                            break;
+                        }
 
                     case "GHOST.getLockedContent":
-                            {
-                                var nftSymbol = GetStringArg(entry, 0);
-                                var nftID = GetStringArg(entry, 1);
+                        {
+                            var nftSymbol = GetStringArg(entry, 0);
+                            var nftID = GetStringArg(entry, 1);
 
-                                sb.AppendLine($"\u2605 Get locked content for {nftSymbol} #{ShortenTokenId(nftID)}.");
-                                break;
-                            }
+                            sb.AppendLine($"\u2605 Get locked content for {nftSymbol} #{ShortenTokenId(nftID)}.");
+                            break;
+                        }
 
                     case "GHOST.mintToken":
                         {
@@ -608,7 +614,7 @@ namespace Poltergeist
                             var name = GetStringArg(entry, 7);
                             var description = GetStringArg(entry, 8);
                             var type = GetStringArg(entry, 9);
-                            var imageURL = GetStringArg(entry,10);
+                            var imageURL = GetStringArg(entry, 10);
                             var infoURL = GetStringArg(entry, 11);
                             var attributeType1 = GetStringArg(entry, 12);
                             var attributeValue1 = GetStringArg(entry, 13);
@@ -635,14 +641,14 @@ namespace Poltergeist
                             if (infusedAmount > 0)
                             {
                                 var infusedToken = Tokens.GetToken(infusedAsset, PlatformKind.Phantasma);
-                                var infusedAmountWithDecimals = infusedToken.IsFungible() ? UnitConversion.ToDecimal(infusedAmount, infusedToken.decimals) : 0;
+                                var infusedAmountWithDecimals = infusedToken.IsFungible() ? UnitConversion.ToDecimal(infusedAmount, infusedToken.Decimals) : 0;
 
                                 sb.AppendLine($"\u2605 Infuse {numOfNfts}x {mintTicker} with {(infusedAmountWithDecimals > 0 ? infusedAmountWithDecimals.ToString() : infusedAmount.ToString())} {infusedAsset} each.");
                             }
                             if (listPrice > 0)
                             {
                                 var listPriceToken = Tokens.GetToken(listPriceCurrency, PlatformKind.Phantasma);
-                                var listPriceWithDecimals = (listPrice > 0) ? UnitConversion.ToDecimal(listPrice, listPriceToken.decimals) : 0;
+                                var listPriceWithDecimals = (listPrice > 0) ? UnitConversion.ToDecimal(listPrice, listPriceToken.Decimals) : 0;
 
                                 sb.AppendLine($"\u2605 Sell {numOfNfts}x {mintTicker}, for {listPriceWithDecimals} {listPriceCurrency}, offer valid until {listLastEndDate}.");
                             }
@@ -666,6 +672,194 @@ namespace Poltergeist
 
                 sb.AppendLine();
             }
+
+            if (sb.Length > 0)
+            {
+                callback(sb.ToString(), null);
+                yield break;
+            }
+
+            callback(null, "Unknown transaction content.");
+        }
+
+        // TODO move to SDK, also we have 1 copy of this method in RPC
+        private static string VmDynamicVariableToString(VmDynamicVariable v)
+        {
+            switch(v.type)
+            {
+                case VmType.String:
+                    return v.GetString();
+                case VmType.Int8:
+                    return v.GetInt8().ToString();
+                case VmType.Int16:
+                    return v.GetUInt16().ToString();
+                case VmType.Int32:
+                    return v.GetUInt32().ToString();
+                case VmType.Int64:
+                    return v.GetUInt64().ToString();
+                case VmType.Int256:
+                    return v.GetUInt256().ToString();
+                case VmType.Bytes:
+                    return v.GetBytes().ToHex();
+                case VmType.Bytes16:
+                    return v.data == null ? "" : ((Bytes16)v.data).bytes.ToHex();
+                case VmType.Bytes32:
+                    return v.data == null ? "" : ((Bytes32)v.data).bytes.ToHex();
+                case VmType.Bytes64:
+                    return v.data == null ? "" : ((Bytes64)v.data).bytes.ToHex();
+                default:
+                    return $"(unsupported VmDynamicVariable type {v.type})";
+            }
+        }
+
+        public static void FromTxMsgCall(TxMsgCall call, ref StringBuilder sb)
+        {
+            switch ((ModuleId)call.moduleId)
+            {
+                case ModuleId.Governance:
+                    {
+                        sb.AppendLine("Governance module: Unknown call");
+                        break;
+                    }
+                case ModuleId.Token:
+                    {
+                        switch ((TokenContract_Methods)call.methodId)
+                        {
+                            case TokenContract_Methods.CreateToken:
+                                {
+                                    var tokenInfo = CarbonBlob.New<TokenInfo>(call.args);
+                                    sb.AppendLine($"\u2605 Create token with symbol {tokenInfo.symbol.data}");
+
+                                    sb.AppendLine();
+                                    sb.AppendLine($"Owner: {Address.FromBytes(tokenInfo.owner.bytes)}");
+                                    sb.AppendLine($"Max supply: {tokenInfo.maxSupply}");
+                                    sb.AppendLine($"Decimals: {tokenInfo.decimals}");
+                                    sb.AppendLine($"Is NFT: {tokenInfo.flags == PhantasmaPhoenix.Protocol.Carbon.Blockchain.Modules.TokenFlags.NonFungible}");
+
+                                    sb.AppendLine();
+                                    sb.AppendLine($"METADATA:");
+                                    var metadata = CarbonBlob.New<VmDynamicStruct>(tokenInfo.metadata);
+                                    foreach (var f in metadata.fields)
+                                    {
+                                        var value = VmDynamicVariableToString(f.value);
+                                        if (value.Length > 100)
+                                        {
+                                            value = $"{value.Substring(0, 100)}... [Cannot display whole value, too long: {value.Length}]";
+                                        }
+                                        sb.AppendLine();
+                                        sb.AppendLine($"\u2022 {f.name.data}: {value}");
+                                    }
+
+                                    break;
+                                }
+                            case TokenContract_Methods.CreateTokenSeries:
+                                {
+                                    // Skipping 8 bytes of token ID
+                                    var seriesInfo = CarbonBlob.New<SeriesInfo>(call.args, 8);
+
+                                    sb.AppendLine($"\u2605 Create series");
+                                    sb.AppendLine($"Max mint: {seriesInfo.maxMint}");
+                                    sb.AppendLine($"Max supply: {seriesInfo.maxSupply}");
+
+                                    break;
+                                }
+                            case TokenContract_Methods.MintNonFungible:
+                                {
+                                    sb.AppendLine("Token module: MintNonFungible");
+                                    break;
+                                }
+                            case TokenContract_Methods.MintFungible:
+                                {
+                                    sb.AppendLine("Token module: MintFungible");
+                                    break;
+                                }
+                            case TokenContract_Methods.TransferFungible:
+                                {
+                                    var transfer = CarbonBlob.New<TxMsgTransferFungible>(call.args);
+                                    sb.AppendLine("Token module: TransferFungible: tokenId: " + transfer.tokenId + " amount: " + transfer.amount);
+                                    break;
+                                }
+                            default:
+                                sb.AppendLine($"Token module: {(TokenContract_Methods)call.methodId}");
+                                break;
+                        }
+                        break;
+                    }
+                default:
+                    sb.AppendLine($"Unknown module {call.moduleId} call");
+                    break;
+            }
+        }
+
+        public static void FromTxMsgCall_Multi(TxMsgCall_Multi call, ref StringBuilder sb)
+        {
+            foreach (var c in call.calls)
+            {
+                FromTxMsgCall(c, ref sb);
+            }
+            return;
+        }
+
+        public static IEnumerator GetCarbonDescription(TxMsg txMsg, bool devMode, Action<string, string> callback)
+        {
+            var sb = new StringBuilder();
+
+            switch (txMsg.type)
+            {
+                case TxTypes.Call:
+                    {
+                        FromTxMsgCall((TxMsgCall)txMsg.msg, ref sb);
+                        break;
+                    }
+                case TxTypes.Call_Multi:
+                    {
+                        FromTxMsgCall_Multi((TxMsgCall_Multi)txMsg.msg, ref sb);
+                        break;
+                    }
+                case TxTypes.MintFungible:
+                    {
+                        var mint = (TxMsgMintFungible)txMsg.msg;
+
+                        sb.AppendLine($"\u2605 Fungible token mint");
+                        sb.AppendLine($"To address: {Address.FromBytes(mint.to.bytes)}");
+                        sb.AppendLine($"Amount: {mint.amount}");
+                        break;
+                    }
+                case TxTypes.Phantasma:
+                    sb.AppendLine("Script tx: Unknown");
+                    // var txMsgPhantasma = (TxMsgPhantasma)txMsg.msg;
+                    // TODO describe txMsgPhantasma.script;
+                    break;
+                case TxTypes.TransferFungible:
+                    {
+                        sb.AppendLine("Token module: TransferFungible");
+                        break;
+                    }
+                case TxTypes.MintNonFungible:
+                    {
+                        var mint = (TxMsgMintNonFungible)txMsg.msg;
+
+                        sb.AppendLine($"\u2605 NFT mint");
+                        sb.AppendLine($"To address: {Address.FromBytes(mint.to.bytes)}");
+                        break;
+                    }
+                case TxTypes.TransferFungible_GasPayer:
+                case TxTypes.TransferNonFungible_Single:
+                case TxTypes.TransferNonFungible_Single_GasPayer:
+                case TxTypes.TransferNonFungible_Multi:
+                case TxTypes.TransferNonFungible_Multi_GasPayer:
+                case TxTypes.BurnFungible:
+                case TxTypes.BurnFungible_GasPayer:
+                case TxTypes.BurnNonFungible:
+                case TxTypes.BurnNonFungible_GasPayer:
+                case TxTypes.Trade:
+                    sb.AppendLine($"Call: {txMsg.type}");
+                    break;
+                default:
+                    sb.AppendLine($"Unknown call: {txMsg.type}");
+                    break;
+            }
+
 
             if (sb.Length > 0)
             {

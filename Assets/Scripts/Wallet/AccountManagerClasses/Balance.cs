@@ -7,7 +7,7 @@ namespace Poltergeist
         public decimal Staked;
         public decimal Claimable;
         public string Chain;
-        public int Decimals;
+        public uint Decimals;
         public bool Burnable;
         public bool Fungible;
         public string PendingPlatform;

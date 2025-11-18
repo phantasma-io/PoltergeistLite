@@ -1,5 +1,6 @@
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;

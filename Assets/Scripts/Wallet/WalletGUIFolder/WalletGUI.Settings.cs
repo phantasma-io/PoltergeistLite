@@ -6,6 +6,7 @@ using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Legacy;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {
@@ -79,6 +80,7 @@ namespace Poltergeist
                     elementsNumber = 23;
                     break;
                 case NexusKind.Test_Net:
+                case NexusKind.Dev_Net:
                     elementsNumber = VerticalLayout ? 27 : 26;
                     break;
                 case NexusKind.Local_Net:
@@ -164,6 +166,7 @@ namespace Poltergeist
                     }
 
                 case NexusKind.Test_Net:
+                case NexusKind.Dev_Net:
                     {
                         break;
                     }
@@ -267,10 +270,24 @@ namespace Poltergeist
             GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Developer mode");
             curY += Units(3);
 
-            if(settings.devMode)
+            if (settings.devMode)
             {
                 settings.devMode_NoValidation = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode_NoValidation, "");
                 GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "No validation mode");
+                curY += Units(3);
+
+                settings.preferScriptlessTxes = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.preferScriptlessTxes, "");
+                GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Use scriptless txes");
+                curY += Units(3);
+
+                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max gas");
+                var scriptlessMaxGas = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxGas.ToString());
+                BigInteger.TryParse(scriptlessMaxGas, out settings.scriptlessMaxGas);
+                curY += Units(3);
+                
+                GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max data");
+                var scriptlessMaxData = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxData.ToString());
+                BigInteger.TryParse(scriptlessMaxData, out settings.scriptlessMaxData);
                 curY += Units(3);
             }
 
@@ -402,7 +419,7 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        var script = Base16.Decode(input, false);
+                        var script = Base16.Decode(input.CleanHex(), false);
                         if (script == null)
                         {
                             WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse script '{input}'");
@@ -444,7 +461,7 @@ namespace Poltergeist
                         PhantasmaPhoenix.Protocol.Transaction tx = null;
                         try
                         {
-                            tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode(input, false));
+                            tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode(input.CleanHex(), false));
                         }
                         catch (Exception e)
                         {
@@ -784,7 +801,7 @@ namespace Poltergeist
                 return false;
             }
 
-            if (!settings.phantasmaNftExplorer.IsValidURL())
+            if (!string.IsNullOrEmpty(settings.phantasmaNftExplorer) && !settings.phantasmaNftExplorer.IsValidURL())
             {
                 MessageBox(MessageKind.Error, "Invalid URL for Phantasma NFT Explorer URL.\n" + settings.phantasmaNftExplorer);
                 return false;
@@ -823,6 +840,7 @@ namespace Poltergeist
             accountManager.UpdateAPIs(true);
             accountManager.RefreshTokenPrices();
             accountManager.Settings.Save();
+            accountManager.RequestTokensReload();
             accountManager.Settings.settingRequireReconfiguration = false;
             return true;
         }

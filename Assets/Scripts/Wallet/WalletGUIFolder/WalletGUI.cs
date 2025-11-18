@@ -17,8 +17,14 @@ using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Extensions;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core.Logging;
+using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.NFT.Extensions;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
+using PhantasmaPhoenix.Protocol.Carbon;
+using System.IO;
+using PhantasmaPhoenix.Core.Extensions;
 
 namespace Poltergeist
 {
@@ -92,7 +98,7 @@ namespace Poltergeist
         private int nftPageNumber = 0;
         private int nftCount = 0;
         private int nftPageCount = 0;
-        private List<TokenData> nftFilteredList = new List<TokenData>(); // List of displayed NFT items (after applying filters).
+        private List<TokenDataResult> nftFilteredList = new List<TokenDataResult>(); // List of displayed NFT items (after applying filters).
         private List<string> nftTransferList = new List<string>(); // List of NFT items, selected by user.
 
         private List<string> accountManagementSelectedList = new List<string>();
@@ -804,6 +810,19 @@ namespace Poltergeist
             AccountManager.Instance.Settings.SaveOnExit();
         }
 
+        private string GetNetworkBadge()
+        {
+            var settings = AccountManager.Instance.Settings;
+            return settings.nexusKind switch
+            {
+                NexusKind.Test_Net => "<color=#FF8A00>[TESTNET]</color>",
+                NexusKind.Dev_Net => "<color=#FFD247>[DEVNET]</color>",
+                NexusKind.Local_Net => "<color=#4CAF50>[LOCALNET]</color>",
+                NexusKind.Custom => "<color=#FF6F6F>[CUSTOM]</color>",
+                _ => string.Empty
+            };
+        }
+
         private void DoMainWindow(int windowID)
         {
             GUI.Box(new Rect(8, 8, windowRect.width - 16, Units(2)), WalletTitle);
@@ -849,6 +868,12 @@ namespace Poltergeist
                             }
                         }
                         break;
+                }
+
+                var networkBadge = GetNetworkBadge();
+                if (!string.IsNullOrEmpty(networkBadge))
+                {
+                    tempTitle = $"{tempTitle} {networkBadge}";
                 }
 
                 DrawHorizontalCenteredText(curY - 4, Units(2) + (VerticalLayout ? 4 : 0), tempTitle);
@@ -1865,13 +1890,13 @@ namespace Poltergeist
                                     if (nftFilteredList.Count > 0)
                                     {
                                         // If filter is applied, select button selects only filtered items.
-                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.ID)) nftTransferList.Add(x.ID); });
+                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.Id)) nftTransferList.Add(x.Id); });
                                     }
                                     else
                                     {
                                         // If no filter is applied, select button selects all items.
                                         nftTransferList.Clear();
-                                        accountManager.CurrentNfts.ForEach((x) => { nftTransferList.Add(x.ID); });
+                                        accountManager.CurrentNfts.ForEach((x) => { nftTransferList.Add(x.Id); });
                                     }
                                 });
 
@@ -1883,13 +1908,13 @@ namespace Poltergeist
                                     if (nftFilteredList.Count > 0)
                                     {
                                         // If filter is applied, invert button processes only filtered items.
-                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.ID)) nftTransferList.Add(x.ID); else nftTransferList.Remove(x.ID); });
+                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.Id)) nftTransferList.Add(x.Id); else nftTransferList.Remove(x.Id); });
                                     }
                                     else
                                     {
                                         // If no filter is applied, invert button processes all items.
                                         var nftTransferListCopy = new List<string>();
-                                        accountManager.CurrentNfts.ForEach((x) => { if (!nftTransferList.Exists(y => y == x.ID)) { nftTransferListCopy.Add(x.ID); } });
+                                        accountManager.CurrentNfts.ForEach((x) => { if (!nftTransferList.Exists(y => y == x.Id)) { nftTransferListCopy.Add(x.Id); } });
                                         nftTransferList = nftTransferListCopy;
                                     }
                                 });
@@ -2461,32 +2486,47 @@ namespace Poltergeist
 
                 default:
                 {
-                    if (Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token)) 
+                    var hasTokenInfo = Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token) && token != null;
+                    var isFungible = balance.Fungible;
+                    if (hasTokenInfo)
                     {
-                        if (!token.IsFungible())
+                        try
                         {
-                            // It's an NFT. We add additional button to get to NFTs view mode.
-                            secondaryAction = "View";
-                            secondaryEnabled = balance.Available > 0;
-                            secondaryCallback = () =>
+                            if (token.Flags != null)
                             {
-                                transferSymbol = balance.Symbol;
-
-                                // We should do this initialization here and not in PushState,
-                                // to allow "Back" button to work properly.
-                                nftScroll = Vector2.zero;
-                                nftTransferList.Clear();
-                                nftFilterName = "";
-                                nftFilterTypeIndex = 0;
-                                nftFilterType = "All";
-                                nftFilterRarity = 0;
-                                nftFilterMinted = 0;
-                                accountManager.RefreshNft(false, transferSymbol);
-
-                                PushState(GUIState.NftView);
-                                return;
-                            };
+                                isFungible = token.IsFungible();
+                            }
                         }
+                        catch
+                        {
+                            // fall back to balance data when token metadata not ready yet
+                            isFungible = balance.Fungible;
+                        }
+                    }
+
+                    if (!isFungible)
+                    {
+                        // It's an NFT. We add additional button to get to NFTs view mode.
+                        secondaryAction = "View";
+                        secondaryEnabled = balance.Available > 0;
+                        secondaryCallback = () =>
+                        {
+                            transferSymbol = balance.Symbol;
+
+                            // We should do this initialization here and not in PushState,
+                            // to allow "Back" button to work properly.
+                            nftScroll = Vector2.zero;
+                            nftTransferList.Clear();
+                            nftFilterName = "";
+                            nftFilterTypeIndex = 0;
+                            nftFilterType = "All";
+                            nftFilterRarity = 0;
+                            nftFilterMinted = 0;
+                            accountManager.RefreshNft(false, transferSymbol);
+
+                            PushState(GUIState.NftView);
+                            return;
+                        };
                     }
                     break;
                 }
@@ -2545,11 +2585,11 @@ namespace Poltergeist
                 {
                     transferSymbol = balance.Symbol;
                     var transferName = $"{transferSymbol} transfer";
-                    PhantasmaIntegration.Token transferToken;
+                    TokenResult transferToken;
 
                     Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
-                    if (string.IsNullOrEmpty(transferToken.flags))
+                    if (string.IsNullOrEmpty(transferToken.Flags))
                     {
                         MessageBox(MessageKind.Error, $"Operations with token {transferSymbol} are not supported yet in this version.");
                         return;
@@ -2711,7 +2751,7 @@ namespace Poltergeist
                 nfts.ForEach((x) => {
                     if (transferSymbol == "TTRS")
                     {
-                        var item = TtrsStore.GetNft(x.ID);
+                        var item = TtrsStore.GetNft(x.Id);
 
                         if ((String.IsNullOrEmpty(nftFilterName) || item.item_info.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
                             (nftFilterType == "All" || item.item_info.display_type_english == nftFilterType) &&
@@ -2729,7 +2769,7 @@ namespace Poltergeist
                     }
                     else if (transferSymbol == "GAME")
                     {
-                        var item = GameStore.GetNft(x.ID);
+                        var item = GameStore.GetNft(x.Id);
 
                         if ((String.IsNullOrEmpty(nftFilterName) || (item.meta?.name_english.ToUpper().Contains(nftFilterName.ToUpper()) ?? false)) &&
                             (nftFilterMinted == (int)nftMinted.All ||
@@ -2745,15 +2785,16 @@ namespace Poltergeist
                     }
                     else
                     {
-                        var item = accountManager.GetNft(x.ID);
+                        var item = accountManager.GetNft(x.Id);
+                        var rom = accountManager.GetNftRom(x.Id);
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.parsedRom.GetName().ToUpper().Contains(nftFilterName.ToUpper())) &&
+                        if ((String.IsNullOrEmpty(nftFilterName) || rom.GetName().ToUpper().Contains(nftFilterName.ToUpper())) &&
                             (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.parsedRom.GetDate(), DateTime.Now.AddMonths(-1)) >= 0)
+                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(rom.GetDate(), DateTime.Now.AddMinutes(-15)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(rom.GetDate(), DateTime.Now.AddHours(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(rom.GetDate(), DateTime.Now.AddDays(-1)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(rom.GetDate(), DateTime.Now.AddDays(-7)) >= 0) ||
+                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(rom.GetDate(), DateTime.Now.AddMonths(-1)) >= 0)
                             ))
                         {
                             nftFilteredList.Add(x);
@@ -2776,7 +2817,7 @@ namespace Poltergeist
             var nftPage = new List<string>();
             for(int i = nftPageSize * nftPageNumber; i < Math.Min(nftPageSize * (nftPageNumber + 1), nfts.Count); i++)
             {
-                nftPage.Add(nfts[i].ID);
+                nftPage.Add(nfts[i].Id);
             }
             var nftOnPageCount = DoScrollArea<string>(ref nftScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftPage,
                 DoNftEntry);
@@ -2878,37 +2919,38 @@ namespace Poltergeist
             else
             {
                 var item = accountManager.GetNft(entryId);
+                var rom = accountManager.GetNftRom(entryId);
 
                 imageUrl = item.GetPropertyValue("ImageURL");
 
                 DateTime nftDate = new DateTime();
-                if (item.parsedRom != null)
+                if (rom != null)
                 {
-                    nftDate = item.parsedRom.GetDate();
+                    nftDate = rom.GetDate();
                 }
 
                 nftName = item.GetPropertyValue("Name");
                 nftDescription = item.GetPropertyValue("Description");
 
-                nftDescription = (item.mint ?? 0) == 0 ? "" : (VerticalLayout ? "#" : "Mint #") + item.mint + " " +
+                nftDescription = item.Mint == "0" ? "" : (VerticalLayout ? "#" : "Mint #") + item.Mint + " " +
                     (nftDate == DateTime.MinValue ? "" : (VerticalLayout ? nftDate.ToString("dd.MM.yy") : nftDate.ToString("dd.MM.yyyy HH:mm:ss"))) +
                     (String.IsNullOrEmpty(nftDescription) ? "" : ((VerticalLayout ? " " : " / ") + nftDescription));
 
-                if (item.infusion != null && item.infusion.Length > 0)
+                if (item.Infusion != null && item.Infusion.Length > 0)
                 {
                     infusionDescription = VerticalLayout ? "" : "Infusions: ";
 
                     var fungibleInfusions = new Dictionary<string, decimal>();
                     var nftInfusions = new Dictionary<string, int>();
-                    for (var i = 0; i < item.infusion.Length; i++)
+                    for (var i = 0; i < item.Infusion.Length; i++)
                     {
-                        var symbol = item.infusion[i].Key;
-                        var amountOrId = item.infusion[i].Value;
+                        var symbol = item.Infusion[i].Key;
+                        var amountOrId = item.Infusion[i].Value;
 
                         if (Tokens.GetToken(symbol, accountManager.CurrentPlatform, out var token))
                         {
                             if (token.IsFungible())
-                                fungibleInfusions.Add(symbol, UnitConversion.ToDecimal(amountOrId, token.decimals));
+                                fungibleInfusions.Add(symbol, UnitConversion.ToDecimal(amountOrId, token.Decimals));
                             else
                             {
                                 if (nftInfusions.ContainsKey(symbol))
@@ -3078,13 +3120,26 @@ namespace Poltergeist
             }
             GUI.enabled = true;
 
-            DoButton(!DrawNftToolsAreActive(), btnRect, "View", () =>
+            var hasNftExplorerUrl = !string.IsNullOrWhiteSpace(accountManager.Settings.phantasmaNftExplorer);
+            var canShowViewButton = transferSymbol == "TTRS" || hasNftExplorerUrl;
+            if (canShowViewButton)
             {
-                if (transferSymbol == "TTRS")
-                    Application.OpenURL("https://www.22series.com/part_info?id=" + entryId);
-                else
-                    Application.OpenURL(accountManager.GetPhantasmaNftURL(transferSymbol, entryId));
-            });
+                DoButton(!DrawNftToolsAreActive(), btnRect, "View", () =>
+                {
+                    if (transferSymbol == "TTRS")
+                    {
+                        Application.OpenURL("https://www.22series.com/part_info?id=" + entryId);
+                    }
+                    else
+                    {
+                        var explorerUrl = accountManager.GetPhantasmaNftURL(transferSymbol, entryId);
+                        if (!string.IsNullOrEmpty(explorerUrl))
+                        {
+                            Application.OpenURL(explorerUrl);
+                        }
+                    }
+                });
+            }
         }
 
         private void DoNftTransferListScreen()
@@ -3098,7 +3153,7 @@ namespace Poltergeist
 
             // We have to remake whole list to have correct order of selected items.
             var nftTransferListCopy = new List<string>();
-            accountManager.CurrentNfts.ForEach((x) => { if (nftTransferList.Exists(y => y == x.ID)) { nftTransferListCopy.Add(x.ID); } });
+            accountManager.CurrentNfts.ForEach((x) => { if (nftTransferList.Exists(y => y == x.Id)) { nftTransferListCopy.Add(x.Id); } });
             nftTransferList = nftTransferListCopy;
 
             // We can modify nftTransferList while enumerating,
@@ -3693,7 +3748,7 @@ namespace Poltergeist
                                                 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, false, (error, msg) =>
+                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, (error, msg) =>
                                                 {
                                                     MessageBox(MessageKind.Error, "Error occured. Please try later.");
                                                 },
@@ -3974,11 +4029,11 @@ namespace Poltergeist
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";
-                PhantasmaIntegration.Token transferToken;
+                TokenResult transferToken;
 
                 Tokens.GetToken(transferSymbol, accountManager.CurrentPlatform, out transferToken);
 
-                if (string.IsNullOrEmpty(transferToken.flags))
+                if (string.IsNullOrEmpty(transferToken.Flags))
                 {
                     MessageBox(MessageKind.Error, $"Operations with token {transferSymbol} are not supported yet in this version.");
                     return;
@@ -4104,7 +4159,64 @@ namespace Poltergeist
                                 {
                                     PushState(GUIState.Sending);
 
-                                    accountManager.SignAndSendTransaction(chain, script, transferRequest, phaGasPrice, phaGasLimit, payload, PoW, null, (hash, error) =>
+                                    accountManager.SignAndSendTransaction(chain, script, payload, (hash, error) =>
+                                    {
+                                        if (string.IsNullOrEmpty(error))
+                                        {
+                                            ShowConfirmationScreen(hash, true, callback);
+                                        }
+                                        else
+                                        {
+                                            PopState();
+
+                                            if(hash == Hash.Null)
+                                            {
+                                                callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
+                                            }
+                                            else
+                                            {
+                                                callback(hash, null, "Unknown error. Details:\n" + error);
+                                            }
+                                        }
+                                    });
+                                }
+                                else
+                                {
+                                    callback(Hash.Null, null, null); // User cancelled tx
+                                };
+                            });
+                        });
+                    });
+                }
+                else
+                if (auth == PromptResult.Failure)
+                {
+                    MessageBox(MessageKind.Error, $"Authorization failed.", () =>
+                    {
+                        callback(Hash.Null, null, "Authorization failed.");
+                    });
+                }
+            });
+        }
+        
+        public void SendCarbonTransaction(string description, TxMsg tx, Action<Hash, TransactionResult, string> callback)
+        {
+            var accountManager = AccountManager.Instance;
+            RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
+            {
+                if (auth == PromptResult.Success)
+                {
+                    Animate(AnimationDirection.Right, true, () =>
+                    {
+                        Animate(AnimationDirection.Left, false, () =>
+                        {
+                            PromptBox($"Preparing transaction...\n{description}", ModalSendCancel, (result) =>
+                            {
+                                if (result == PromptResult.Success)
+                                {
+                                    PushState(GUIState.Sending);
+
+                                    accountManager.SignAndSendCarbonTransaction(tx, (hash, error) =>
                                     {
                                         if (string.IsNullOrEmpty(error))
                                         {
@@ -4213,7 +4325,7 @@ namespace Poltergeist
         {
             PushState(GUIState.Sending);
 
-            accountManager.SignAndSendTransaction(chain, scripts[0], null, gasPrice, gasLimit, payload, PoW, null, (hash, error) =>
+            accountManager.SignAndSendTransaction(chain, scripts[0], payload, (hash, error) =>
             {
                 if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                 {
@@ -4264,7 +4376,7 @@ namespace Poltergeist
             }
         }
 
-#region transfers
+        #region transfers
         private void ContinuePhantasmaTransfer(string transferName, string symbol, string destAddress)
         {
             var accountManager = AccountManager.Instance;
@@ -4299,37 +4411,88 @@ namespace Poltergeist
                         if (amount > balance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
                             amount = balance;
 
-                        byte[] script;
+                        byte[] txBytes = null;
+                        TxMsg? txMsg = null;
 
-                        try
+                        var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
+                        var bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
+                        var useScriptlessTxes = accountManager.Settings.preferScriptlessTxes;
+
+                        if (useScriptlessTxes && (bigIntAmount < 0 || bigIntAmount > ulong.MaxValue))
                         {
-                            var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-
-                            var sb = new ScriptBuilder();
-                            sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-
-                            if (symbol == "KCAL" && amount == balance)
-                            {
-                                sb.TransferBalance(symbol, source, destination);
-                            }
-                            else
-                            {
-                                sb.TransferTokens(symbol, source, destination, UnitConversion.ToBigInteger(amount, decimals));
-                            }
-
-                            sb.SpendGas(source);
-                            script = sb.EndScript();
-                        }
-                        catch (Exception e)
-                        {
-                            MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                            Log.WriteWarning($"Scriptless transfer blocked for {symbol}: amount {bigIntAmount} exceeds UInt64 range.");
+                            MessageBox(MessageKind.Error, "Scriptless transactions currently can't transfer this amount.\nPlease switch to Standard transactions in Settings and try again.");
                             return;
                         }
 
-                        SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                        if (useScriptlessTxes)
                         {
-                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                        });
+                            try
+                            {
+                                var tokenCarbonId = Tokens.GetTokenCarbonId(symbol, accountManager.CurrentPlatform);
+
+                                txMsg = new TxMsg
+                                {
+                                    type = TxTypes.TransferFungible,
+                                    expiry = DateTimeOffset.UtcNow.AddSeconds(30).ToUnixTimeMilliseconds(),
+                                    maxGas = (ulong)accountManager.Settings.scriptlessMaxGas,
+                                    maxData = (ulong)accountManager.Settings.scriptlessMaxData,
+                                    gasFrom = new Bytes32(source.GetPublicKey()),
+                                    payload = new SmallString(accountManager.WalletIdentifier),
+                                    msg = new TxMsgTransferFungible
+                                    {
+                                        to = new Bytes32(destination.GetPublicKey()),
+                                        tokenId = tokenCarbonId,
+                                        amount = (ulong)bigIntAmount
+                                    }
+                                };
+                            }
+                            catch (Exception e)
+                            {
+                                MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var sb = new ScriptBuilder();
+                                sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+
+                                if (symbol == "KCAL" && amount == balance)
+                                {
+                                    sb.TransferBalance(symbol, source, destination);
+                                }
+                                else
+                                {
+                                    sb.TransferTokens(symbol, source, destination, bigIntAmount);
+                                }
+
+                                sb.SpendGas(source);
+                                txBytes = sb.EndScript();
+                            }
+                            catch (Exception e)
+                            {
+                                MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                                return;
+                            }
+                        }
+
+                        if (useScriptlessTxes)
+                        {
+                            SendCarbonTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txMsg.Value, (hash, txResult, error) =>
+                            {
+                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            });
+                        }
+                        else
+                        {
+                            SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txBytes, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                            {
+                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            });
+                        }
                     }
                     else
                     if (feeResult == PromptResult.Failure)
@@ -4435,7 +4598,7 @@ namespace Poltergeist
                             var nfts = accountManager.CurrentNfts;
                             foreach (var nft in nftTransferList)
                             {
-                                nfts.Remove(nfts.Find(x => x.ID == nft));
+                                nfts.Remove(nfts.Find(x => x.Id == nft));
                             }
 
                             // Returning to NFT's first screen.

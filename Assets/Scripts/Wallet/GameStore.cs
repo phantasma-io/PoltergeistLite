@@ -3,7 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using Poltergeist;
+using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 // Parsing and storing data received from GAME store.
 public static class GameStore
@@ -171,7 +172,7 @@ public static class GameStore
                 idList += "," + ids[i];
         }
 
-        yield return WebClient.RESTRequestT<GameNftApiResponse>(url + idList, 0, (error, msg) =>
+        yield return WebClient.RESTGet<GameNftApiResponse>(url + idList, 0, (error, msg) =>
         {
             Log.Write("LoadStoreNft() error: " + error);
         },

@@ -1,9 +1,10 @@
 {
   "dependencies": {
-    "com.unity.ide.visualstudio": "2.0.23",
+    "com.phantasmaphoenix.core": "https://github.com/phantasma-io/Phantasma-UnitySDK.git?path=PhantasmaPhoenix.Unity.Core#746107b46acc0a61729755d1f7a341343aeff44d",
+    "com.unity.ide.visualstudio": "2.0.25",
     "com.unity.multiplayer.center": "1.0.0",
-    "com.unity.test-framework": "1.5.1",
-    "com.unity.toolchain.linux-x86_64": "2.0.10",
+    "com.unity.test-framework": "1.6.0",
+    "com.unity.toolchain.linux-x86_64": "2.0.11",
     "com.unity.ugui": "2.0.0",
     "com.unity.modules.accessibility": "1.0.0",
     "com.unity.modules.ai": "1.0.0",

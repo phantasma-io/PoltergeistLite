@@ -3,6 +3,7 @@ using UnityEngine;
 using System.Numerics;
 using System.Text.RegularExpressions;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist
 {
@@ -11,6 +12,7 @@ namespace Poltergeist
         Unknown,
         Main_Net,
         Test_Net,
+        Dev_Net,
         Local_Net,
         Custom
     }
@@ -53,13 +55,13 @@ namespace Poltergeist
                 return false;
             }
 
-            if(!Uri.IsWellFormedUriString(url, UriKind.Absolute))
+            if (!Uri.IsWellFormedUriString(url, UriKind.Absolute))
             {
                 return false;
             }
 
             Uri uriResult;
-            if(!Uri.TryCreate(url, UriKind.Absolute, out uriResult)
+            if (!Uri.TryCreate(url, UriKind.Absolute, out uriResult)
                 && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps))
             {
                 return false;
@@ -80,7 +82,7 @@ namespace Poltergeist
     {
         public const string PhantasmaRPCTag = "settings.phantasma.rpc.url";
         public const string PhantasmaExplorerTag = "settings.phantasma.explorer.url";
-        public const string PhantasmaNftExplorerTag = "settings.phantasma.nft.explorer.url";
+        public const string PhantasmaNftExplorerTag = "settings.phantasma.nft.explorer.url.v2";
         public const string PhantasmaPoaUrlTag = "settings.phantasma.poa.url";
         public const string NexusNameTag = "settings.nexus.name";
 
@@ -111,6 +113,9 @@ namespace Poltergeist
         public const string DevModeTag = "developer.mode";
         public const string DevNoValidationModeTag = "developer.no.validation.mode";
         public const string LastShownInformationScreenTag = "last.shown.information.screen";
+        public const string PreferScriptlessTxesTag = "prefer.scriptless.txes";
+        public const string ScriptlessMaxGasTag = "scriptless.max.gas";
+        public const string ScriptlessMaxDataTag = "scriptless.max.data";
 
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
@@ -137,6 +142,9 @@ namespace Poltergeist
         public bool devMode;
         public bool devMode_NoValidation;
         public int lastShownInformationScreen;
+        public bool preferScriptlessTxes;
+        public BigInteger scriptlessMaxGas;
+        public BigInteger scriptlessMaxData;
 
         public override string ToString()
         {
@@ -159,7 +167,10 @@ namespace Poltergeist
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
                 "Password mode: " + this.passwordMode + "\n" +
                 "Developer mode: " + this.devMode + "\n" +
-                "Developer mode (no validation): " + this.devMode_NoValidation;
+                "Developer mode (no validation): " + this.devMode_NoValidation +
+                "Prefer scriptless txes: " + this.preferScriptlessTxes + "\n" +
+                "Scriptless max gas: " + this.scriptlessMaxGas + "\n" +
+                "Scriptless max data: " + this.scriptlessMaxData;
         }
 
         public void LoadLogSettings()
@@ -185,7 +196,7 @@ namespace Poltergeist
             }
 
             this.phantasmaRPCURL = PlayerPrefs.GetString(PhantasmaRPCTag, GetDefaultValue(PhantasmaRPCTag));
-            if (this.nexusKind == NexusKind.Main_Net || this.nexusKind == NexusKind.Test_Net)
+            if (this.nexusKind == NexusKind.Main_Net || this.nexusKind == NexusKind.Test_Net || this.nexusKind == NexusKind.Dev_Net)
             {
                 // For mainnet/testnet we always load defaults for hidden settings,
                 // to avoid dealing with "stuck" values from old PG version that had different defaults.
@@ -249,12 +260,24 @@ namespace Poltergeist
 
             this.lastShownInformationScreen = PlayerPrefs.GetInt(LastShownInformationScreenTag, 0);
 
+            this.preferScriptlessTxes = PlayerPrefs.GetInt(PreferScriptlessTxesTag, 0) != 0;
+
+            var defaultMaxGas = 10000000;
+            if (!BigInteger.TryParse(PlayerPrefs.GetString(ScriptlessMaxGasTag, defaultMaxGas.ToString()), out scriptlessMaxGas))
+            {
+            }
+
+            var defaultMaxData = 1000;
+            if (!BigInteger.TryParse(PlayerPrefs.GetString(ScriptlessMaxDataTag, defaultMaxData.ToString()), out scriptlessMaxData))
+            {
+            }
+
             Log.Write("Settings: Load: " + ToString());
         }
 
         public string GetDefaultValue(string tag)
         {
-            string _return_value;
+            string _return_value = String.Empty;
 
             switch (tag)
             {
@@ -283,6 +306,10 @@ namespace Poltergeist
                         case NexusKind.Test_Net:
                             _return_value = "https://testnet.phantasma.info/rpc";
                             break;
+                        
+                        case NexusKind.Dev_Net:
+                            _return_value = "https://devnet.phantasma.info/rpc";
+                            break;
 
                         case NexusKind.Local_Net:
                             _return_value = "http://localhost:5172/rpc";
@@ -302,7 +329,11 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Test_Net:
-                            _return_value = "https://test-explorer.phantasma.info/";
+                            _return_value = "https://testnet-explorer.phantasma.info/";
+                            break;
+
+                        case NexusKind.Dev_Net:
+                            _return_value = "https://devnet-explorer.phantasma.info/";
                             break;
 
                         case NexusKind.Local_Net:
@@ -319,19 +350,19 @@ namespace Poltergeist
                     switch (nexusKind)
                     {
                         case NexusKind.Main_Net:
-                            _return_value = "https://ghostmarket.io/asset/pha";
+                            // _return_value = "https://ghostmarket.io/asset/pha";
                             break;
 
                         case NexusKind.Test_Net:
-                            _return_value = "https://testnet.ghostmarket.io/asset/phat";
+                            // _return_value = "https://testnet.ghostmarket.io/asset/phat";
                             break;
 
                         case NexusKind.Local_Net:
-                            _return_value = "https://dev.ghostmarket.io/asset/pha";
+                            // _return_value = "https://dev.ghostmarket.io/asset/pha";
                             break;
 
                         default:
-                            _return_value = "https://ghostmarket.io/asset/pha";
+                            // _return_value = "https://ghostmarket.io/asset/pha";
                             break;
                     }
                     break;
@@ -357,6 +388,7 @@ namespace Poltergeist
                             break;
 
                         case NexusKind.Test_Net:
+                        case NexusKind.Dev_Net:
                             _return_value = "testnet";
                             break;
 
@@ -396,6 +428,10 @@ namespace Poltergeist
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
             PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
             PlayerPrefs.SetInt(DevNoValidationModeTag, this.devMode_NoValidation ? 1 : 0);
+
+            PlayerPrefs.SetInt(PreferScriptlessTxesTag, this.preferScriptlessTxes ? 1 : 0);
+            PlayerPrefs.SetString(ScriptlessMaxGasTag, this.scriptlessMaxGas.ToString());
+            PlayerPrefs.SetString(ScriptlessMaxDataTag, this.scriptlessMaxData.ToString());
             PlayerPrefs.Save();
 
             Log.Write("Settings: Save: " + ToString());

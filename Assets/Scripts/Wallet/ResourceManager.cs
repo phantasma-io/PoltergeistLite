@@ -39,9 +39,17 @@ public class ResourceManager : MonoBehaviour
     //https://github.com/CityOfZion/neon-wallet/tree/dev/app/assets/nep5/png
     public Texture GetToken(string symbol, PlatformKind platform)
     {
-        if (_symbols.ContainsKey(symbol))
+        symbol ??= string.Empty;
+
+        if (!string.IsNullOrEmpty(symbol) && _symbols.TryGetValue(symbol, out var cachedTexture) && cachedTexture != null)
         {
-            return _symbols[symbol];
+            return cachedTexture;
+        }
+
+        if (TokenIconCache.TryGetTexture(symbol, out var rpcTexture) && rpcTexture != null)
+        {
+            _symbols[symbol] = rpcTexture;
+            return rpcTexture;
         }
 
         var texture = Resources.Load<Texture>($"Skins/{AccountManager.Instance.Settings.uiThemeName}/Tokens/" + symbol);

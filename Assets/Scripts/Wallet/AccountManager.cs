@@ -12,8 +12,12 @@ using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Core.Extensions;
 using Newtonsoft.Json.Linq;
-using PhantasmaIntegration;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core;
+using PhantasmaPhoenix.Unity.Core.Logging;
+using PhantasmaPhoenix.NFT;
+using PhantasmaPhoenix.NFT.Extensions;
+using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 
 namespace Poltergeist
 {
@@ -42,13 +46,14 @@ namespace Poltergeist
         public bool HasSelection => _selectedAccountIndex >= 0 && _selectedAccountIndex < Accounts.Count();
 
         private Dictionary<PlatformKind, AccountState> _states = new Dictionary<PlatformKind, AccountState>();
-        private Dictionary<PlatformKind, List<TokenData>> _nfts = new Dictionary<PlatformKind, List<TokenData>>();
+        private Dictionary<PlatformKind, List<TokenDataResult>> _nfts = new Dictionary<PlatformKind, List<TokenDataResult>>();
+        private Dictionary<PlatformKind, Dictionary<string, IRom>> _roms = new();
         private Dictionary<PlatformKind, HistoryEntry[]> _history = new Dictionary<PlatformKind, HistoryEntry[]>();
         public Dictionary<PlatformKind, RefreshStatus> _refreshStatus = new Dictionary<PlatformKind, RefreshStatus>();
 
         public PlatformKind CurrentPlatform { get; set; }
         public AccountState CurrentState => _states.ContainsKey(CurrentPlatform) ? _states[CurrentPlatform] : null;
-        public List<TokenData> CurrentNfts => _nfts.ContainsKey(CurrentPlatform) ? _nfts[CurrentPlatform] : null;
+        public List<TokenDataResult> CurrentNfts => _nfts.ContainsKey(CurrentPlatform) ? _nfts[CurrentPlatform] : null;
         public HistoryEntry[] CurrentHistory => _history.ContainsKey(CurrentPlatform) ? _history[CurrentPlatform] : null;
 
         public AccountState MainState => _states.ContainsKey(PlatformKind.Phantasma) ? _states[PlatformKind.Phantasma] : null;
@@ -85,6 +90,8 @@ namespace Poltergeist
         public static readonly int SoulMasterStakeAmount = 50000;
 
         private DateTime _lastPriceUpdate = DateTime.MinValue;
+        private bool tokensReinitInProgress;
+        private bool refreshBalancesAfterTokenReload;
 
         private void Awake()
         {
@@ -125,11 +132,11 @@ namespace Poltergeist
             }
         }
 
-        private IEnumerator FetchTokenPrices(IEnumerable<Token> symbols, string currency)
+        private IEnumerator FetchTokenPrices(IEnumerable<TokenResult> tokens, string currency)
         {
             var separator = "%2C";
-            var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, symbols.Where(x => !String.IsNullOrEmpty(x.apiSymbol)).Select(x => x.apiSymbol).Distinct().ToList()) + "&vs_currencies=" + currency;
-            return WebClient.RESTRequestT<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, (error, msg) =>
+            var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, tokens.Where(x => Tokens.HasCGSymbol(x)).Select(x => Tokens.GetCGSymbol(x)).Distinct().ToList()) + "&vs_currencies=" + currency;
+            return WebClient.RESTGet<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, (error, msg) =>
             {
 
             },
@@ -137,18 +144,19 @@ namespace Poltergeist
             {
                 try
                 {
-                    foreach (var symbol in symbols)
+                    foreach (var token in tokens)
                     {
-                        var node = response.Where(x => x.Key.ToUpperInvariant() == symbol.apiSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                        var cgSymbol = Tokens.GetCGSymbol(token);
+                        var node = response.Where(x => x.Key.ToUpperInvariant() == cgSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
                         if (node != default)
                         {
                             var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
 
-                            SetTokenPrice(symbol.symbol, price);
+                            SetTokenPrice(token.Symbol, price);
                         }
                         else
                         {
-                            Log.Write($"Cannot get price for '{symbol.apiSymbol}'.");
+                            Log.Write($"Cannot get price for '{cgSymbol}'.");
                         }
                     }
 
@@ -217,6 +225,12 @@ namespace Poltergeist
 
         public void UpdateRPCURL()
         {
+            if (Settings.nexusKind == NexusKind.Dev_Net)
+            {
+                rpcAvailablePhantasma = 1;
+                return;
+            }
+
             if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net)
             {
                 rpcAvailablePhantasma = 1;
@@ -525,9 +539,9 @@ The Phoenix team", "Notice");
             PlayerPrefs.Save();
         }
 
-        private IEnumerator GetTokens(Action<Token[]> callback)
+        private IEnumerator GetTokens(Action<TokenResult[]> callback)
         {
-            while (!Ready)
+            do
             {
                 var coroutine = StartCoroutine(phantasmaApi.GetTokens((tokens) =>
                 {
@@ -550,22 +564,61 @@ The Phoenix team", "Notice");
                     }
 
                     Log.WriteWarning("Tokens initialization error: " + msg);
-                }));
+                }, 10, 5));
 
                 yield return coroutine;
             }
+            while (!Ready);
         }
 
         private void TokensReinit()
         {
-            StartCoroutine(GetTokens((tokens) =>
+            if (tokensReinitInProgress)
+                return;
+
+            StartCoroutine(TokensReinitRoutine());
+        }
+
+        private IEnumerator TokensReinitRoutine()
+        {
+            tokensReinitInProgress = true;
+            yield return StartCoroutine(GetTokens((tokens) =>
             {
-                Tokens.Init(tokens);
+                lock (Tokens.__lockObj)
+                {
+                    Tokens.Init(tokens);
+                }
+
+                if (ResourceManager.Instance != null)
+                {
+                    ResourceManager.Instance.UnloadTokens();
+                }
 
                 CurrentTokenCurrency = "";
 
                 Status = "ok";
             }));
+            tokensReinitInProgress = false;
+
+            if (refreshBalancesAfterTokenReload)
+            {
+                refreshBalancesAfterTokenReload = false;
+                if (HasSelection)
+                {
+                    RefreshBalances(false);
+                }
+            }
+        }
+
+        public void RequestTokensReload()
+        {
+            ScheduleBalanceRefreshAfterTokens();
+            TokensReinit();
+        }
+
+        private void ScheduleBalanceRefreshAfterTokens()
+        {
+            refreshBalancesAfterTokenReload = true;
         }
 
         public void RefreshTokenPrices()
@@ -640,7 +693,7 @@ The Phoenix team", "Notice");
 
         }
 
-        public decimal AmountFromString(string str, int decimals)
+        public decimal AmountFromString(string str, uint decimals)
         {
             if (string.IsNullOrEmpty(str))
             {
@@ -655,7 +708,7 @@ The Phoenix team", "Notice");
             return UnitConversion.ToDecimal(str, decimals);
         }
 
-        public void SignAndSendTransaction(string chain, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, ProofOfWork PoW, IKeyPair customKeys, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
+        public void SignAndSendTransaction(string chain, byte[] script, byte[] payload, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
             if (payload == null)
             {
@@ -666,7 +719,7 @@ The Phoenix team", "Notice");
             {
                 case PlatformKind.Phantasma:
                     {
-                        StartCoroutine(phantasmaApi.SignAndSendTransactionWithPayload(PhantasmaKeys.FromWIF(CurrentWif), customKeys, Settings.nexusName, script, chain, phaGasPrice, phaGasLimit, payload, PoW, (hashText, encodedTx, txHash) =>
+                        StartCoroutine(phantasmaApi.SignAndSendTransaction(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx) =>
                         {
                             if (Settings.devMode)
                             {
@@ -676,15 +729,7 @@ The Phoenix team", "Notice");
                             {
                                 try
                                 {
-                                    var hash = Hash.Parse(hashText);
-
-                                    if(hash != txHash)
-                                    {
-                                        callback(hash,  $"Error: RPC returned different hash, expected {txHash}");
-                                        return;
-                                    }
-
-                                    callback(hash, null);
+                                    callback(Hash.Parse(hashText), null);
 
                                 }catch (Exception e)
                                 {
@@ -705,6 +750,54 @@ The Phoenix team", "Notice");
                             }
                             callback(Hash.Null, msg);
                         }, customSignFunction));
+                        break;
+                    }
+
+                default:
+                    {
+                        callback(Hash.Null, "not implemented for " + CurrentPlatform);
+                        break;
+                    }
+            }
+        }
+
+        public void SignAndSendCarbonTransaction(TxMsg tx, Action<Hash, string> callback)
+        {
+            switch (CurrentPlatform)
+            {
+                case PlatformKind.Phantasma:
+                    {
+                        StartCoroutine(phantasmaApi.SignAndSendCarbonTransaction(PhantasmaKeys.FromWIF(CurrentWif), tx, (hashText, encodedTx) =>
+                        {
+                            if (Settings.devMode)
+                            {
+                                Log.Write($"SignAndSendCarbonTransaction(): Encoded tx: {encodedTx}");
+                            }
+                            if ( !string.IsNullOrEmpty(hashText) )
+                            {
+                                try
+                                {
+                                    callback(Hash.Parse(hashText), null);
+
+                                }catch (Exception e)
+                                {
+                                    Log.WriteWarning("Error parsing hash: " + e.Message);
+                                    callback(Hash.Null,  $"Error: hashText={hashText}");
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                callback(Hash.Null, "Failed to send transaction");
+                            }
+                        }, (error, msg) =>
+                        {
+                            if(error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                            {
+                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                            }
+                            callback(Hash.Null, msg);
+                        }));
                         break;
                     }
 
@@ -896,6 +989,7 @@ The Phoenix team", "Notice");
 
             _states.Clear();
             _nfts.Clear();
+            _roms.Clear();
             TtrsStore.Clear();
             GameStore.Clear();
             NftImages.Clear();
@@ -917,6 +1011,18 @@ The Phoenix team", "Notice");
                 if (state != null)
                 {
                     Log.Write("Received new state for " + platform);
+
+                    if (_states.TryGetValue(platform, out var previousState) && previousState?.dappTokens != null)
+                    {
+                        foreach (var entry in previousState.dappTokens)
+                        {
+                            if (!state.dappTokens.ContainsKey(entry.Key))
+                            {
+                                state.dappTokens[entry.Key] = entry.Value;
+                            }
+                        }
+                    }
+
                     _states[platform] = state;
                 }
             
@@ -1046,9 +1152,22 @@ The Phoenix team", "Notice");
 
         public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null)
         {
+            if (!HasSelection)
+            {
+                Log.WriteWarning("RefreshBalances: skipped because no account is selected.");
+                return;
+            }
+
+            var currentAccount = CurrentAccount;
+            if (currentAccount.passwordProtected && string.IsNullOrEmpty(CurrentPasswordHash))
+            {
+                Log.WriteWarning("RefreshBalances: skipped because current account is locked.");
+                return;
+            }
+
             List<PlatformKind> platformsList;
             if(platforms == PlatformKind.None)
-                platformsList = CurrentAccount.platforms.Split();
+                platformsList = currentAccount.platforms.Split();
             else
                 platformsList = platforms.Split();
 
@@ -1090,6 +1209,7 @@ The Phoenix team", "Notice");
                 StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
                 {
                     var balanceMap = new Dictionary<string, Balance>();
+                    HashSet<string> missingTokens = null;
 
                     foreach (var entry in acc.Balances)
                     {
@@ -1099,16 +1219,19 @@ The Phoenix team", "Notice");
                             balanceMap[entry.Symbol] = new Balance()
                             {
                                 Symbol = entry.Symbol,
-                                Available = AmountFromString(entry.Amount, token.decimals),
+                                Available = AmountFromString(entry.Amount, token.Decimals),
                                 Staked = 0,
                                 Claimable = 0,
                                 Chain = entry.Chain,
-                                Decimals = token.decimals,
+                                Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible(),
                                 Ids = entry.Ids
                             };
                         else
+                        {
+                            missingTokens ??= new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            missingTokens.Add(entry.Symbol);
                             balanceMap[entry.Symbol] = new Balance()
                             {
                                 Symbol = entry.Symbol,
@@ -1121,6 +1244,7 @@ The Phoenix team", "Notice");
                                 Fungible = true,
                                 Ids = entry.Ids
                             };
+                        }
 
 
                     }
@@ -1150,7 +1274,7 @@ The Phoenix team", "Notice");
                                 Available = 0,
                                 Staked = stakedAmount,
                                 Claimable = 0,
-                                Decimals = token.decimals,
+                                Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible()
                             };
@@ -1176,7 +1300,7 @@ The Phoenix team", "Notice");
                                 Available = 0,
                                 Staked = 0,
                                 Claimable = claimableAmount,
-                                Decimals = token.decimals,
+                                Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible()
                             };
@@ -1218,6 +1342,13 @@ The Phoenix team", "Notice");
                     state.avatarData = acc.Storage.Avatar;
 
                     ReportWalletBalance(PlatformKind.Phantasma, state);
+
+                    if (missingTokens != null && missingTokens.Count > 0)
+                    {
+                        Log.WriteWarning($"RefreshBalances: detected unknown tokens ({string.Join(", ", missingTokens)}) - reloading token list.");
+                        ScheduleBalanceRefreshAfterTokens();
+                        TokensReinit();
+                    }
                 },
                 (error, msg) =>
                 {
@@ -1326,12 +1457,15 @@ The Phoenix team", "Notice");
 
                                         // Initializing NFT dictionary if needed.
                                         if (!_nfts.ContainsKey(platform))
-                                            _nfts.Add(platform, new List<TokenData>());
+                                        {
+                                            _nfts.Add(platform, new List<TokenDataResult>());
+                                            _roms.Add(platform, new ());
+                                        }
 
                                         var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
                                         if(cache == null)
                                         {
-                                            cache = new TokenData[]{};
+                                            cache = new TokenDataResult[]{};
                                         }
 
                                         int loadedTokenCounter = 0;
@@ -1339,23 +1473,34 @@ The Phoenix team", "Notice");
                                         foreach (var id in balanceEntry.Ids)
                                         {
                                             // Checking if token is cached.
-                                            TokenData? tokenData = Cache.FindTokenData(cache, id);
+                                            TokenDataResult? tokenData = Cache.FindTokenData(cache, id);
 
                                             if (tokenData != null)
                                             {
                                                 // Loading token from cache.
-                                                var tokenId = tokenData.Value.ID;
+                                                var tokenId = tokenData.Id;
 
                                                 loadedTokenCounter++;
 
                                                 // Checking if token already loaded to dictionary.
-                                                if (!_nfts[platform].Exists(x => x.ID == tokenId))
+                                                if (!_nfts[platform].Exists(x => x.Id == tokenId))
                                                 {
-                                                    tokenData.Value.ParseRoms(symbol);
-                                                    _nfts[platform].Add(tokenData.Value);
+                                                    var rom = tokenData.ParseRom(symbol);
+                                                    _roms[platform][tokenId] = rom;
+                                                    var (hasError, error) = rom.HasParsingError();
+                                                    if (rom.IsEmpty())
+                                                    {
+                                                        Log.Write($"ROM is null or empty");
+                                                    }
+                                                    else if(hasError)
+                                                    {
+                                                        Log.Write(error);
+                                                    }
+
+                                                    _nfts[platform].Add(tokenData);
 
                                                     // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.Value.GetPropertyValue("ImageURL"), id));
+                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.GetPropertyValue("ImageURL"), id));
                                                 }
 
                                                 if (loadedTokenCounter == balanceEntry.Ids.Length)
@@ -1385,8 +1530,8 @@ The Phoenix team", "Notice");
                                                     // TODO: Load TokenData for TTRS too (add batch load method for TokenDatas).
                                                     // For now we skip TokenData loading to speed up TTRS NFTs loading,
                                                     // since it's not used for TTRS anyway.
-                                                    var tokenData2 = new TokenData();
-                                                    tokenData2.ID = id;
+                                                    var tokenData2 = new TokenDataResult();
+                                                    tokenData2.Id = id;
                                                     _nfts[platform].Add(tokenData2);
 
                                                     loadedTokenCounter++;
@@ -1399,9 +1544,19 @@ The Phoenix team", "Notice");
                                                 }
                                                 else
                                                 {
-                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, (tokenData2) =>
+                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, true, (tokenData2) =>
                                                     {
-                                                        tokenData2.ParseRoms(symbol);
+                                                        var rom = tokenData2.ParseRom(symbol);
+                                                        _roms[platform][id] = rom;
+                                                        var (hasError, error) = rom.HasParsingError();
+                                                        if (rom.IsEmpty())
+                                                        {
+                                                            Log.Write($"ROM is null or empty");
+                                                        }
+                                                        else if(hasError)
+                                                        {
+                                                            Log.Write(error);
+                                                        }
 
                                                         // Downloading NFT images.
                                                         StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
@@ -1575,6 +1730,11 @@ The Phoenix team", "Notice");
         public string GetPhantasmaNftURL(string symbol, string tokenId)
         {
             var url = Settings.phantasmaNftExplorer;
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return string.Empty;
+            }
+
             if (!url.EndsWith("/"))
             {
                 url += "/";
@@ -1808,33 +1968,33 @@ The Phoenix team", "Notice");
                 {
                     case TtrsNftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.Id).mint).ThenBy(x => TtrsStore.GetNft(x.Id).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.Id).mint).ThenByDescending(x => TtrsStore.GetNft(x.Id).timestamp).ToList();
                         break;
                     case TtrsNftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.Id).timestamp).ThenBy(x => TtrsStore.GetNft(x.Id).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.Id).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.Id).mint).ToList();
                         break;
                     case TtrsNftSortMode.Type_Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.Id).item_info.type).ThenBy(x => TtrsStore.GetNft(x.Id).mint).ThenBy(x => TtrsStore.GetNft(x.Id).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.Id).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.Id).mint).ThenByDescending(x => TtrsStore.GetNft(x.Id).timestamp).ToList();
                         break;
                     case TtrsNftSortMode.Type_Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.Id).item_info.type).ThenBy(x => TtrsStore.GetNft(x.Id).timestamp).ThenBy(x => TtrsStore.GetNft(x.Id).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.Id).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.Id).timestamp).ThenByDescending(x => TtrsStore.GetNft(x.Id).mint).ToList();
                         break;
                     case TtrsNftSortMode.Type_Rarity: // And also Number and Date as last sorting parameters.
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.ID).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.ID).item_info.rarity).ThenBy(x => TtrsStore.GetNft(x.ID).mint).ThenBy(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => TtrsStore.GetNft(x.Id).item_info.type).ThenByDescending(x => TtrsStore.GetNft(x.Id).item_info.rarity).ThenBy(x => TtrsStore.GetNft(x.Id).mint).ThenBy(x => TtrsStore.GetNft(x.Id).timestamp).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.ID).item_info.type).ThenBy(x => TtrsStore.GetNft(x.ID).item_info.rarity).ThenByDescending(x => TtrsStore.GetNft(x.ID).mint).ThenByDescending(x => TtrsStore.GetNft(x.ID).timestamp).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => TtrsStore.GetNft(x.Id).item_info.type).ThenBy(x => TtrsStore.GetNft(x.Id).item_info.rarity).ThenByDescending(x => TtrsStore.GetNft(x.Id).mint).ThenByDescending(x => TtrsStore.GetNft(x.Id).timestamp).ToList();
                         break;
                 }
 
@@ -1849,21 +2009,21 @@ The Phoenix team", "Notice");
                 {
                     case NftSortMode.Name:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).meta?.name_english).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.Id).meta?.name_english).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).meta?.name_english).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.Id).meta?.name_english).ToList();
                         break;
                     case NftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).mint).ThenBy(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.Id).mint).ThenBy(x => GameStore.GetNft(x.Id).parsed_rom.timestampDT()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).mint).ThenByDescending(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.Id).mint).ThenByDescending(x => GameStore.GetNft(x.Id).parsed_rom.timestampDT()).ToList();
                         break;
                     case NftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ThenBy(x => GameStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GameStore.GetNft(x.Id).parsed_rom.timestampDT()).ThenBy(x => GameStore.GetNft(x.Id).mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.ID).parsed_rom.timestampDT()).ThenByDescending(x => GameStore.GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GameStore.GetNft(x.Id).parsed_rom.timestampDT()).ThenByDescending(x => GameStore.GetNft(x.Id).mint).ToList();
                         break;
                 }
 
@@ -1878,21 +2038,21 @@ The Phoenix team", "Notice");
                 {
                     case NftSortMode.Name:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).parsedRom.GetName()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNftRom(x.Id).GetName()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).parsedRom.GetName()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNftRom(x.Id).GetName()).ToList();
                         break;
                     case NftSortMode.Number_Date:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).mint).ThenBy(x => GetNft(x.ID).parsedRom.GetDate()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.Id).Mint).ThenBy(x => GetNftRom(x.Id).GetDate()).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).mint).ThenByDescending(x => GetNft(x.ID).parsedRom.GetDate()).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.Id).Mint).ThenByDescending(x => GetNftRom(x.Id).GetDate()).ToList();
                         break;
                     case NftSortMode.Date_Number:
                         if (Settings.nftSortDirection == (int)SortDirection.Ascending)
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNft(x.ID).parsedRom.GetDate()).ThenBy(x => GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderBy(x => GetNftRom(x.Id).GetDate()).ThenBy(x => GetNft(x.Id).Mint).ToList();
                         else
-                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNft(x.ID).parsedRom.GetDate()).ThenByDescending(x => GetNft(x.ID).mint).ToList();
+                            _nfts[CurrentPlatform] = _nfts[CurrentPlatform].OrderByDescending(x => GetNftRom(x.Id).GetDate()).ThenByDescending(x => GetNft(x.Id).Mint).ToList();
                         break;
                 }
 
@@ -1902,9 +2062,14 @@ The Phoenix team", "Notice");
             currentNftsSortDirection = (SortDirection)Settings.nftSortDirection;
         }
 
-        public TokenData GetNft(string id)
+        public TokenDataResult GetNft(string id)
         {
-            return _nfts[CurrentPlatform].Where(x => x.ID == id).FirstOrDefault();
+            return _nfts[CurrentPlatform].Where(x => x.Id == id).FirstOrDefault();
+        }
+        
+        public IRom GetNftRom(string id)
+        {
+            return _roms[CurrentPlatform][id];
         }
 
         public void GetPhantasmaAddressInfo(string addressString, Account? account, Action<string, string> callback)
@@ -2033,33 +2198,33 @@ The Phoenix team", "Notice");
                                                                 {
                                                                     InvokeScriptPhantasma("main", scriptIsMaster, (isMasterResult, isMasterInvokeError) =>
                                                                     {
-                                                                    if (!string.IsNullOrEmpty(isMasterInvokeError))
-                                                                    {
-                                                                        callback(null, "Script invocation error!\n\n" + isMasterInvokeError);
-                                                                        return;
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
-                                                                        var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
-                                                                        var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
-                                                                        var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
-                                                                        var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
-                                                                        var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;
-                                                                        var timeBeforeUnstake = timeBeforeUnstakeResult != null ? VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber() : -1;
-                                                                        var masterDate = masterDateResult != null ? VMObject.FromBytes(masterDateResult).AsTimestamp() : 0;
-                                                                        var isMaster = isMasterResult != null ? VMObject.FromBytes(isMasterResult).AsBool() : false;
+                                                                        if (!string.IsNullOrEmpty(isMasterInvokeError))
+                                                                        {
+                                                                            callback(null, "Script invocation error!\n\n" + isMasterInvokeError);
+                                                                            return;
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
+                                                                            var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
+                                                                            var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
+                                                                            var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
+                                                                            var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
+                                                                            var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;
+                                                                            var timeBeforeUnstake = timeBeforeUnstakeResult != null ? VMObject.FromBytes(timeBeforeUnstakeResult).AsNumber() : -1;
+                                                                            var masterDate = masterDateResult != null ? VMObject.FromBytes(masterDateResult).AsTimestamp() : 0;
+                                                                            var isMaster = isMasterResult != null ? VMObject.FromBytes(isMasterResult).AsBool() : false;
 
-                                                                        callback($"{addressString} account information:\n\n" +
-                                                                            $"Unclaimed: {unclaimed} KCAL\n" +
-                                                                            $"Stake: {stake} SOUL\n" +
-                                                                            $"Is SM: {isMaster}\n" +
-                                                                            $"SM since: {masterDate}\n" +
-                                                                            $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
-                                                                            $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
-                                                                            $"Storage stake: {storageStake} SOUL\n" +
-                                                                            $"Voting power: {votingPower}" +
-                                                                            (account != null ? $"\n\nNeo legacy address: {((Account)account).neoAddress}\nN3 address: {((Account)account).neoAddressN3}\nEth/BSC address: {((Account)account).ethAddress}" : ""), null);
+                                                                            callback($"{addressString} account information:\n\n" +
+                                                                                $"Unclaimed: {unclaimed} KCAL\n" +
+                                                                                $"Stake: {stake} SOUL\n" +
+                                                                                $"Is SM: {isMaster}\n" +
+                                                                                $"SM since: {masterDate}\n" +
+                                                                                $"Stake timestamp: {stakeTimestampLocal} ({stakeTimestamp} UTC)\n" +
+                                                                                $"Next staking period starts in: {TimeSpan.FromSeconds((double)timeBeforeUnstake):hh\\:mm\\:ss}\n" +
+                                                                                $"Storage stake: {storageStake} SOUL\n" +
+                                                                                $"Voting power: {votingPower}" +
+                                                                                (account != null ? $"\n\nNeo legacy address: {((Account)account).neoAddress}\nN3 address: {((Account)account).neoAddressN3}\nEth/BSC address: {((Account)account).ethAddress}" : ""), null);
                                                                         }
                                                                     });
                                                                 }

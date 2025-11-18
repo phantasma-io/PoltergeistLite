@@ -7,6 +7,7 @@ Library/
 Temp/
 *.csproj
 *.sln
+*.slnx
 .DS_Store
 *.user
 packages/
@@ -24,3 +25,5 @@ Assets/Plugins/crosstales
 .idea
 .vscode
 _builds/
+
+USE_ONLY_AS_DOCUMENTATION
