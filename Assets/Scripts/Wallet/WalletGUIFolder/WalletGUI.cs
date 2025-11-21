@@ -1337,7 +1337,7 @@ namespace Poltergeist
                                 {
                                     if (PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
                                     {
-                                        PromptBox("Was this private key created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", ModalYesNo, (legacySeed) =>
+                                        modalActions.YesNo("Was this private key created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", (legacySeed) =>
                                         {
                                             ImportWallet(key, -1, 1, null, legacySeed == PromptResult.Success, null);
                                         });
@@ -1347,7 +1347,7 @@ namespace Poltergeist
                                     {
                                         var priv = Base16.Decode(key);
                                         var tempKey = new PhantasmaKeys(priv);
-                                        PromptBox("Was this WIF created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", ModalYesNo, (legacySeed) =>
+                                        modalActions.YesNo("Was this WIF created using a Poltergeist version earlier than v2.4 (before end of April 2021)?", (legacySeed) =>
                                         {
                                             ImportWallet(tempKey.ToWIF(), -1, 1, null, legacySeed == PromptResult.Success, null);
                                         });
@@ -1502,15 +1502,14 @@ namespace Poltergeist
 
                                     var serializedExportData = Convert.ToBase64String(Serialization.Serialize(accountsExport));
 
-                                    ShowModal("Wallets Export", $"Copy wallets export data to the clipboard?",
-                                        ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result, input) =>
+                                    modalActions.ConfirmCancel("Copy wallets export data to the clipboard?", (result) =>
+                                    {
+                                        if (result == PromptResult.Success)
                                         {
-                                            if (result == PromptResult.Success)
-                                            {
-                                                GUIUtility.systemCopyBuffer = serializedExportData;
-                                                MessageBox(MessageKind.Default, "Wallets export data copied to the clipboard.");
-                                            }
-                                        });
+                                            GUIUtility.systemCopyBuffer = serializedExportData;
+                                            MessageBox(MessageKind.Default, "Wallets export data copied to the clipboard.");
+                                        }
+                                    });
                                 }
                             });
                             break;
@@ -2388,7 +2387,7 @@ namespace Poltergeist
                                             message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
                                         }
 
-                                        PromptBox(message, ModalYesNo, (result) =>
+                                        modalActions.YesNo(message, (result) =>
                                         {
                                             if(result == PromptResult.Success)
                                             {
@@ -2427,7 +2426,7 @@ namespace Poltergeist
                         secondaryEnabled = true;
                         secondaryCallback = () =>
                         {
-                            PromptBox($"Do you want to claim KCAL?\nThere is {balance.Claimable} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.", ModalYesNo, (result) =>
+                            modalActions.YesNo($"Do you want to claim KCAL?\nThere is {balance.Claimable} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.", (result) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -3441,7 +3440,7 @@ namespace Poltergeist
                                     var newKeys = PhantasmaKeys.FromWIF(wif);
                                     if (newKeys.Address.Text != accountManager.CurrentState.address)
                                     {
-                                        PromptBox("Are you sure you want to migrate this account?\n\nBefore doing migration, make sure that both old and new private keys (WIFs or seed phrases) are safely stored.\n\nCheck your Eth/Neo/BSC balances for current wallet, if they have funds, move them to a new wallet before doing migration.\n\nBy doing a migration, any existing Phantasma rewards will be transferred without penalizations.\nTarget address: " + newKeys.Address.Text, ModalYesNo, (result) =>
+                                        modalActions.YesNo("Are you sure you want to migrate this account?\n\nBefore doing migration, make sure that both old and new private keys (WIFs or seed phrases) are safely stored.\n\nCheck your Eth/Neo/BSC balances for current wallet, if they have funds, move them to a new wallet before doing migration.\n\nBy doing a migration, any existing Phantasma rewards will be transferred without penalizations.\nTarget address: " + newKeys.Address.Text, (result) =>
                                         {
                                             if (result == PromptResult.Success)
                                             {
@@ -3528,7 +3527,7 @@ namespace Poltergeist
 
                                                             if (AccountManager.Instance.CurrentAccount.name != name)
                                                             {
-                                                                PromptBox("The address name was set successfully.\nDo you also want to change the local name for the account?\nThe local name is only visible in this device.", ModalYesNo, (localChange) =>
+                                                                modalActions.YesNo("The address name was set successfully.\nDo you also want to change the local name for the account?\nThe local name is only visible in this device.", (localChange) =>
                                                                 {
                                                                     if (localChange == PromptResult.Success)
                                                                     {
@@ -3764,7 +3763,7 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
 
-            PromptBox(msg, ModalYesNo, (result) =>
+            modalActions.YesNo(msg, (result) =>
             {
                 if (result == PromptResult.Success)
                 {
@@ -4736,7 +4735,7 @@ namespace Poltergeist
 
             if ((swapDecimals> 0 || swapBalance > 1) && accountManager.Settings.devMode)
             {
-                PromptBox($"Not enough {feeSymbol} for transaction fees.\nUse some {swapSymbol} to perform a cosmic swap?", ModalYesNo,
+                modalActions.YesNo($"Not enough {feeSymbol} for transaction fees.\nUse some {swapSymbol} to perform a cosmic swap?",
                      (result) =>
                      {
                          if (result == PromptResult.Success)

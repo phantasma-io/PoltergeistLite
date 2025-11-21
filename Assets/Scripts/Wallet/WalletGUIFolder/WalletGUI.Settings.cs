@@ -603,7 +603,7 @@ namespace Poltergeist
             curY += Units(1);
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Clear cache", () =>
             {
-                PromptBox("Are you sure you want to clear wallet's cache?", ModalConfirmCancel, (result) =>
+                modalActions.ConfirmCancel("Are you sure you want to clear wallet's cache?", (result) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -625,7 +625,7 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Reset settings", () =>
             {
-                PromptBox("All settings will be set to default values.\nMake sure you have backups of your private keys!", ModalConfirmCancel, (result) =>
+                modalActions.ConfirmCancel("All settings will be set to default values.\nMake sure you have backups of your private keys!", (result) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -663,7 +663,7 @@ namespace Poltergeist
                 curY += Units(1);
                 DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Delete everything", () =>
                 {
-                    PromptBox("All wallets and settings stored in this device will be lost.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", ModalConfirmCancel, (result) =>
+                    modalActions.ConfirmCancel("All wallets and settings stored in this device will be lost.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", (result) =>
                     {
                         if (result == PromptResult.Success)
                         {
