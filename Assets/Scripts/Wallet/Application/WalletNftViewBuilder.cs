@@ -12,12 +12,24 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletNftViewBuilder
     {
+        public WalletNftViewSnapshot Build(AccountManager accountManager, string symbol, WalletNftViewState viewState)
+        {
+            if (viewState == null)
+            {
+                viewState = new WalletNftViewState();
+            }
+
+            return Build(accountManager, symbol, viewState.FilterName, viewState.FilterType, viewState.FilterRarity, viewState.FilterMinted, viewState.PageSize, viewState.PageNumber);
+        }
+
         public WalletNftViewSnapshot Build(AccountManager accountManager, string symbol, string filterName, string filterType, int filterRarity, int filterMinted, int pageSize, int pageNumber)
         {
             if (accountManager == null)
             {
                 return new WalletNftViewSnapshot(true, true, "Account manager is not available yet.", 0, 0, 0, Array.Empty<TokenDataResult>(), Array.Empty<string>());
             }
+
+            pageSize = Math.Max(1, pageSize);
 
             var nfts = accountManager.CurrentNfts;
             var isRefreshing = accountManager.NftsRefreshing;
@@ -30,6 +42,9 @@ namespace Poltergeist.Wallet
 
                 return new WalletNftViewSnapshot(isRefreshing, true, error, 0, 0, 0, Array.Empty<TokenDataResult>(), Array.Empty<string>());
             }
+
+            accountManager.SortTtrsNfts(symbol);
+            nfts = accountManager.CurrentNfts ?? nfts;
 
             var filtered = new List<TokenDataResult>();
 

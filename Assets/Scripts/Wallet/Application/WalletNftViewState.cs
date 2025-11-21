@@ -16,6 +16,56 @@ namespace Poltergeist.Wallet
         public int PageCount = 0;
         public int TotalCount = 0;
 
+        public bool UpdateFilters(string filterName, int filterTypeIndex, string filterType, int filterRarity, int filterMinted)
+        {
+            var changed = FilterName != filterName ||
+                          FilterTypeIndex != filterTypeIndex ||
+                          FilterType != filterType ||
+                          FilterRarity != filterRarity ||
+                          FilterMinted != filterMinted;
+
+            if (!changed)
+            {
+                return false;
+            }
+
+            FilterName = filterName;
+            FilterTypeIndex = filterTypeIndex;
+            FilterType = filterType;
+            FilterRarity = filterRarity;
+            FilterMinted = filterMinted;
+
+            ResetPagination();
+            return true;
+        }
+
+        public void ApplyPagination(int totalCount, int pageCount, int pageNumber)
+        {
+            TotalCount = totalCount;
+            PageCount = pageCount;
+            PageNumber = ClampPageNumber(pageNumber);
+        }
+
+        public void GoToFirstPage()
+        {
+            PageNumber = 0;
+        }
+
+        public void GoToPreviousPage()
+        {
+            PageNumber = ClampPageNumber(PageNumber - 1);
+        }
+
+        public void GoToNextPage()
+        {
+            PageNumber = ClampPageNumber(PageNumber + 1);
+        }
+
+        public void GoToLastPage()
+        {
+            PageNumber = PageCount > 0 ? PageCount - 1 : 0;
+        }
+
         public void ResetFilters()
         {
             FilterName = string.Empty;
@@ -31,6 +81,25 @@ namespace Poltergeist.Wallet
             PageCount = 0;
             TotalCount = 0;
         }
+
+        private int ClampPageNumber(int pageNumber)
+        {
+            if (PageCount <= 0)
+            {
+                return 0;
+            }
+
+            if (pageNumber < 0)
+            {
+                return 0;
+            }
+
+            if (pageNumber >= PageCount)
+            {
+                return PageCount - 1;
+            }
+
+            return pageNumber;
+        }
     }
 }
-
