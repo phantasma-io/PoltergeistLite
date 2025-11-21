@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Poltergeist.Wallet
 {
@@ -36,6 +37,40 @@ namespace Poltergeist.Wallet
             state.ResetFilters();
             state.ResetPagination();
         }
+
+        public void ClearSelection()
+        {
+            state.ClearSelection();
+        }
+
+        public void Select(IEnumerable<string> ids)
+        {
+            state.Select(ids);
+        }
+
+        public void InvertSelection(IEnumerable<string> ids)
+        {
+            state.InvertSelection(ids);
+        }
+
+        public bool ToggleSelection(string id)
+        {
+            return state.ToggleSelection(id);
+        }
+
+        public bool IsSelected(string id)
+        {
+            return state.IsSelected(id);
+        }
+
+        public void PruneSelection(IEnumerable<string> validIds)
+        {
+            state.PruneSelection(validIds);
+        }
+
+        public IReadOnlyList<string> SelectionSnapshot()
+        {
+            return state.SelectionSnapshot();
+        }
     }
 }
-

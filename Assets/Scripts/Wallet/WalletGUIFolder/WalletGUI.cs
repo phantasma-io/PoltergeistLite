@@ -95,7 +95,6 @@ namespace Poltergeist
 
         // NFT pagination and selection.
         private List<TokenDataResult> nftFilteredList = new List<TokenDataResult>(); // List of displayed NFT items (after applying filters).
-        private List<string> nftTransferList = new List<string>(); // List of NFT items, selected by user.
 
         private List<string> accountManagementSelectedList = new List<string>();
 
@@ -818,17 +817,19 @@ namespace Poltergeist
 
                 var tempTitle = currentTitle;
 
+                var selectedNftCount = nftViewPresenter.State.SelectedCount;
+
                 switch (CurrentState)
                 {
                     case GUIState.Nft:
                     case GUIState.NftView:
-                        if (nftTransferList.Count > 0)
-                            tempTitle = $"{nftViewPresenter.State.TotalCount} ({nftTransferList.Count} selected) {tempTitle}";
+                        if (selectedNftCount > 0)
+                            tempTitle = $"{nftViewPresenter.State.TotalCount} ({selectedNftCount} selected) {tempTitle}";
                         else
                             tempTitle = $"{nftViewPresenter.State.TotalCount} {tempTitle}";
                         break;
                     case GUIState.NftTransferList:
-                        tempTitle = $"{nftTransferList.Count} {tempTitle}";
+                        tempTitle = $"{selectedNftCount} {tempTitle}";
                         break;
                     case GUIState.Account:
                     case GUIState.Balances:
@@ -1874,13 +1875,13 @@ namespace Poltergeist
                                     if (nftFilteredList.Count > 0)
                                     {
                                         // If filter is applied, select button selects only filtered items.
-                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.Id)) nftTransferList.Add(x.Id); });
+                                        nftViewPresenter.Select(nftFilteredList.Select(x => x.Id));
                                     }
                                     else
                                     {
                                         // If no filter is applied, select button selects all items.
-                                        nftTransferList.Clear();
-                                        accountManager.CurrentNfts.ForEach((x) => { nftTransferList.Add(x.Id); });
+                                        nftViewPresenter.ClearSelection();
+                                        nftViewPresenter.Select(accountManager.CurrentNfts?.Select(x => x.Id));
                                     }
                                 });
 
@@ -1892,14 +1893,12 @@ namespace Poltergeist
                                     if (nftFilteredList.Count > 0)
                                     {
                                         // If filter is applied, invert button processes only filtered items.
-                                        nftFilteredList.ForEach((x) => { if (!nftTransferList.Contains(x.Id)) nftTransferList.Add(x.Id); else nftTransferList.Remove(x.Id); });
+                                        nftViewPresenter.InvertSelection(nftFilteredList.Select(x => x.Id));
                                     }
                                     else
                                     {
                                         // If no filter is applied, invert button processes all items.
-                                        var nftTransferListCopy = new List<string>();
-                                        accountManager.CurrentNfts.ForEach((x) => { if (!nftTransferList.Exists(y => y == x.Id)) { nftTransferListCopy.Add(x.Id); } });
-                                        nftTransferList = nftTransferListCopy;
+                                        nftViewPresenter.InvertSelection(accountManager.CurrentNfts?.Select(x => x.Id));
                                     }
                                 });
             }
@@ -1934,7 +1933,7 @@ namespace Poltergeist
             if (viewState.UpdateFilters(filterName, filterTypeIndex, filterType, filterRarity, filterMinted))
             {
                 nftScroll = Vector2.zero;
-                nftTransferList.Clear();
+                nftViewPresenter.ClearSelection();
             }
         }
 
@@ -2512,7 +2511,7 @@ namespace Poltergeist
                                 // We should do this initialization here and not in PushState,
                                 // to allow "Back" button to work properly.
                                 nftScroll = Vector2.zero;
-                                nftTransferList.Clear();
+                                nftViewPresenter.ClearSelection();
                                 nftViewPresenter.ResetFiltersAndPagination();
                                 accountManager.RefreshNft(false, transferSymbol);
 
@@ -2592,7 +2591,7 @@ namespace Poltergeist
                         // We should do this initialization here and not in PushState,
                         // to allow "Back" button to work properly.
                         nftScroll = Vector2.zero;
-                        nftTransferList.Clear();
+                        nftViewPresenter.ClearSelection();
                         nftViewPresenter.ResetFiltersAndPagination();
                         accountManager.RefreshNft(false, transferSymbol);
 
@@ -2731,6 +2730,7 @@ namespace Poltergeist
             startY += (VerticalLayout) ? Units(6) : Units(4);
 
             nftFilteredList = nftSnapshot.FilteredTokens.ToList();
+            nftViewPresenter.PruneSelection(nfts.Select(x => x.Id));
             viewState.ApplyPagination(nftSnapshot.TotalCount, nftSnapshot.PageCount, nftSnapshot.PageNumber);
 
             var endY = DoBottomMenuForNft();
@@ -3018,20 +3018,11 @@ namespace Poltergeist
             }
             if (CurrentState != GUIState.NftView)
             {
-                var nftIsSelected = nftTransferList.Exists(x => x == entryId);
-                if (GUI.Toggle(btnRectToggle, nftIsSelected, ""))
+                var nftIsSelected = nftViewPresenter.IsSelected(entryId);
+                var toggleResult = GUI.Toggle(btnRectToggle, nftIsSelected, "");
+                if (toggleResult != nftIsSelected)
                 {
-                    if (!nftIsSelected)
-                    {
-                        nftTransferList.Add(entryId);
-                    }
-                }
-                else
-                {
-                    if (nftIsSelected)
-                    {
-                        nftTransferList.Remove(nftTransferList.Single(x => x == entryId));
-                    }
+                    nftViewPresenter.ToggleSelection(entryId);
                 }
             }
             GUI.enabled = true;
@@ -3067,17 +3058,14 @@ namespace Poltergeist
             }, false);
             var endY = DoBottomMenuForNftTransferList();
 
-            // We have to remake whole list to have correct order of selected items.
-            var nftTransferListCopy = new List<string>();
-            accountManager.CurrentNfts.ForEach((x) => { if (nftTransferList.Exists(y => y == x.Id)) { nftTransferListCopy.Add(x.Id); } });
-            nftTransferList = nftTransferListCopy;
+            var selectionSnapshot = nftViewPresenter.SelectionSnapshot();
+            var selectionSet = new HashSet<string>(selectionSnapshot);
+            var orderedSelection = accountManager.CurrentNfts == null
+                ? selectionSnapshot.ToList()
+                : accountManager.CurrentNfts.Where(x => selectionSet.Contains(x.Id)).Select(x => x.Id).ToList();
+            nftViewPresenter.PruneSelection(orderedSelection);
 
-            // We can modify nftTransferList while enumerating,
-            // so we should use a copy of it.
-            nftTransferListCopy = new List<string>();
-            nftTransferList.ForEach(x => nftTransferListCopy.Add(x));
-
-            var nftTransferCount = DoScrollArea<string>(ref nftTransferListScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftTransferListCopy,
+            var nftTransferCount = DoScrollArea<string>(ref nftTransferListScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), orderedSelection,
                 DoNftEntry);
 
             if (nftTransferCount == 0)
@@ -3757,6 +3745,7 @@ namespace Poltergeist
 
             int halfWidth = (int)(windowRect.width / 2);
             int btnWidth = VerticalLayout ? Units(7) : Units(11);
+            var selectedCount = nftViewPresenter.State.SelectedCount;
 
             // Close
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : (halfWidth - btnWidth) / 2,
@@ -3819,12 +3808,12 @@ namespace Poltergeist
             if (CurrentState != GUIState.NftView)
             {
                 // To transfer list
-                DoButton(nftTransferList.Count > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2,
+                DoButton(selectedCount > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2,
                                         VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border,
                                         VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "To transfer list", () =>
                 {
                     /*var nftTransferLimit = 100;
-                    if (nftTransferList.Count > nftTransferLimit)
+                    if (selectedCount > nftTransferLimit)
                     {
                         modalActions.ConfirmCancel($"Currently sending is limited to {nftTransferLimit} NFTs for one transfer, reduce selection to first {nftTransferLimit}? ", (result) =>
                         {
@@ -3881,6 +3870,7 @@ namespace Poltergeist
 
             int halfWidth = (int)(windowRect.width / 2);
             int btnWidth = VerticalLayout ? Units(7) : Units(11);
+            var selectedCount = nftViewPresenter.State.SelectedCount;
 
             // Back
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Back", () =>
@@ -3889,8 +3879,14 @@ namespace Poltergeist
             });
 
             // Burn
-            DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth - btnWidth / 2, VerticalLayout ? (int)rect.y + border : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Burn", () =>
+            DoButton(selectedCount > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth - btnWidth / 2, VerticalLayout ? (int)rect.y + border : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Burn", () =>
             {
+                var selectedIds = nftViewPresenter.SelectionSnapshot();
+                if (selectedIds.Count == 0)
+                {
+                    return;
+                }
+
                 modalActions.ConfirmCancel("Are you sure you want to burn (destroy) selected NFTs?", (result) =>
                 {
                     if (result == PromptResult.Success)
@@ -3908,7 +3904,7 @@ namespace Poltergeist
 
                             var sb = new ScriptBuilder();
                             sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                            foreach (var nftToBurn in nftTransferList)
+                            foreach (var nftToBurn in selectedIds)
                             {
                                 sb.CallInterop("Runtime.BurnToken", target, transferSymbol, BigInteger.Parse(nftToBurn));
                             }
@@ -3921,17 +3917,23 @@ namespace Poltergeist
                             return;
                         }
 
-                        SendTransaction($"Burn {nftTransferList.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * nftTransferList.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                        SendTransaction($"Burn {selectedIds.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * selectedIds.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, txResult, error, $"You burned {nftTransferList.Count} NFTs!");
+                            TxResultMessage(hash, txResult, error, $"You burned {selectedIds.Count} NFTs!");
                         });
                     }
                 }, 10);
             });
 
             // Send
-            DoButton(nftTransferList.Count > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border - (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Send", () =>
+            DoButton(selectedCount > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2, VerticalLayout ? (int)rect.y + border - (Units(2) + 4) : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Send", () =>
             {
+                var selectedIds = nftViewPresenter.SelectionSnapshot();
+                if (selectedIds.Count == 0)
+                {
+                    return;
+                }
+
                 var accountManager = AccountManager.Instance;
                 var state = accountManager.CurrentState;
                 var transferName = $"{transferSymbol} transfer";
@@ -4423,6 +4425,7 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
+            var selectedIds = nftViewPresenter.SelectionSnapshot();
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
@@ -4439,8 +4442,14 @@ namespace Poltergeist
                 return;
             }
 
+            if (selectedIds.Count == 0)
+            {
+                MessageBox(MessageKind.Error, "No NFTs selected for transfer.");
+                return;
+            }
+
             var balance = state.GetAvailableAmount(symbol);
-            var amount = nftTransferList.Count;
+            var amount = selectedIds.Count;
             RequestKCAL(symbol, (feeResult) =>
             {
                 if (feeResult == PromptResult.Success)
@@ -4454,7 +4463,7 @@ namespace Poltergeist
                     try
                     {
                         var nftTransferLimit = 100;
-                        var nftSublists = SplitList<string>(nftTransferList, nftTransferLimit).ToArray();
+                        var nftSublists = SplitList<string>(selectedIds.ToList(), nftTransferLimit).ToArray();
 
                         description = $"Transfer {symbol} NFTs\n";
 
@@ -4505,14 +4514,14 @@ namespace Poltergeist
 
                             // Removing sent NFTs from current NFT list.
                             var nfts = accountManager.CurrentNfts;
-                            foreach (var nft in nftTransferList)
+                            foreach (var nft in selectedIds)
                             {
                                 nfts.Remove(nfts.Find(x => x.Id == nft));
                             }
 
                             // Returning to NFT's first screen.
                             nftScroll = Vector2.zero;
-                            nftTransferList.Clear();
+                            nftViewPresenter.ClearSelection();
                             PushState(GUIState.Nft);
                         }
                         else
