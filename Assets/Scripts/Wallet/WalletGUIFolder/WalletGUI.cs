@@ -64,6 +64,7 @@ namespace Poltergeist
         private WalletModalActions modalActions;
         private WalletDataProvider dataProvider;
         private WalletNftPresenter nftViewPresenter;
+        private WalletNftTransactionBuilder nftTxBuilder;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -156,6 +157,7 @@ namespace Poltergeist
             modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
             dataProvider = context.Data;
             nftViewPresenter = context.NftViewPresenter;
+            nftTxBuilder = context.NftTransactions;
         }
 
         void Start()
@@ -3812,22 +3814,7 @@ namespace Poltergeist
                                         VerticalLayout ? (int)rect.y + border + (Units(2) + 4) : (int)rect.y + border,
                                         VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "To transfer list", () =>
                 {
-                    /*var nftTransferLimit = 100;
-                    if (selectedCount > nftTransferLimit)
-                    {
-                        modalActions.ConfirmCancel($"Currently sending is limited to {nftTransferLimit} NFTs for one transfer, reduce selection to first {nftTransferLimit}? ", (result) =>
-                        {
-                            if (result == PromptResult.Success)
-                            {
-                                nftTransferList.RemoveRange(nftTransferLimit, nftTransferList.Count - nftTransferLimit);
-                                PushState(GUIState.NftTransferList);
-                            }
-                        });
-                    }
-                    else*/
-                    {
-                        PushState(GUIState.NftTransferList);
-                    }
+                    PushState(GUIState.NftTransferList);
                 });
             }
             else
@@ -3901,15 +3888,7 @@ namespace Poltergeist
                         try
                         {
                             var target = Address.Parse(state.address);
-
-                            var sb = new ScriptBuilder();
-                            sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                            foreach (var nftToBurn in selectedIds)
-                            {
-                                sb.CallInterop("Runtime.BurnToken", target, transferSymbol, BigInteger.Parse(nftToBurn));
-                            }
-                            sb.SpendGas(target);
-                            script = sb.EndScript();
+                            script = nftTxBuilder.BuildBurnScript(transferSymbol, selectedIds, target);
                         }
                         catch (Exception e)
                         {
@@ -4458,47 +4437,11 @@ namespace Poltergeist
                     string description;
 
                     var gasPrice = accountManager.Settings.feePrice;
-                    var gasLimit = accountManager.Settings.feeLimit;
+                    var gasLimit = accountManager.Settings.feeLimit * selectedIds.Count;
 
                     try
                     {
-                        var nftTransferLimit = 100;
-                        var nftSublists = SplitList<string>(selectedIds.ToList(), nftTransferLimit).ToArray();
-
-                        description = $"Transfer {symbol} NFTs\n";
-
-                        foreach (var nftSublist in nftSublists)
-                        {
-                            var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-
-                            var sb = new ScriptBuilder();
-                            sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-
-                            foreach (var nft in nftSublist)
-                            {
-                                sb.TransferNFT(symbol, source, destination, BigInteger.Parse(nft));
-
-                                string nftDescription = "";
-                                if (symbol == "TTRS")
-                                {
-                                    var item = TtrsStore.GetNft(nft);
-
-                                    if (item.item_info.name_english != null)
-                                        nftDescription = " " + ((item.item_info.name_english.Length > 25) ? item.item_info.name_english.Substring(0, 22) + "..." : item.item_info.name_english);
-
-                                    nftDescription += " Minted " + item.timestamp.ToString("dd.MM.yy") + " #" + item.mint;
-                                }
-
-                                description += $"#{nft.Substring(0, 5) + "..." + nft.Substring(nft.Length - 5)}{nftDescription}\n";
-                            }
-
-                            gasLimit *= nftSublist.Count;
-
-                            sb.SpendGas(source);
-                            scripts.Add(sb.EndScript());
-                        }
-
-                        description += $"to {destination}.";
+                        scripts = nftTxBuilder.BuildTransferScripts(symbol, source, destination, selectedIds, out description).ToList();
                     }
                     catch (Exception e)
                     {
