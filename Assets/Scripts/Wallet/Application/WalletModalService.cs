@@ -47,7 +47,7 @@ namespace Poltergeist.Wallet
         public string[] ModalOkCopyNoAutoCopy => _modalOkCopyNoAutoCopy;
         public string[] ModalHexWifCancel => _modalHexWifCancel;
 
-        public void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, bool verticalLayout, Action resetUiHints = null, int confirmDelay = 0, string defaultValue = "")
+        public void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, bool verticalLayout, Action resetUiHints = null, int confirmDelay = 0, string defaultValue = "", Action onCopy = null, bool closeOnCopy = false)
         {
             if (_context.State == ModalState.None)
             {
@@ -72,6 +72,8 @@ namespace Poltergeist.Wallet
             _context.Hints = null;
             _context.MaxLines = multiLine;
             _context.LineCount = 0;
+            _context.OnCopy = onCopy;
+            _context.CloseOnCopy = closeOnCopy;
 
             Array.ForEach(_context.Caption.Split("\n".ToCharArray()), x => _context.LineCount += (x.Length / (verticalLayout ? 30 : 65)) * 2 + 1);
 

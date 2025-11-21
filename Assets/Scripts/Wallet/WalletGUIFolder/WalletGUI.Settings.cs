@@ -366,14 +366,14 @@ namespace Poltergeist
                                                 var masterCount = VMObject.FromBytes(masterCountResult).AsNumber();
                                                 var masterThreshold = UnitConversion.ToDecimal(VMObject.FromBytes(masterThresholdResult).AsNumber(), 8);
 
-                                                ShowModal("Account information",
+                                                modalActions.CopyableMessage("Account information",
                                                     $"Phantasma staking information:\n\n" +
                                                     $"All SMs: {masterCount}\n" +
                                                     $"SMs eligible for next rewards distribution: {claimMasterCount}\n" +
                                                     $"SM reward prediction: {125000 / claimMasterCount} SOUL\n" +
                                                     $"Next SM rewards distribution date: {masterClaimDate}\n" +
                                                     $"SM threshold: {masterThreshold} SOUL\n",
-                                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (result, input) => { });
+                                                    closeOnCopy: false);
                                             }
                                         });
                                     }
@@ -401,8 +401,7 @@ namespace Poltergeist
                             }
                             else
                             {
-                                ShowModal("Account information", result2,
-                                    ModalState.Message, 0, 0, ModalOkCopy, 0, (result3, input3) => { });
+                                modalActions.CopyableMessage("Account information", result2, closeOnCopy: false);
                                 return;
                             }
                         });
@@ -434,8 +433,7 @@ namespace Poltergeist
                                     }
                                     else
                                     {
-                                        ShowModal("Script description", description,
-                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                        modalActions.CopyableMessage("Script description", description, closeOnCopy: false);
                                     }
                                 }));
                             }
@@ -502,8 +500,7 @@ namespace Poltergeist
                                             "\n" +
                                             description;
 
-                                        ShowModal("Tx description", message,
-                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                        modalActions.CopyableMessage("Tx description", message, closeOnCopy: false);
                                     }
                                 }));
                             }
@@ -588,11 +585,10 @@ namespace Poltergeist
                                 return;
                             }
 
-                            ShowModal("WIF", wif, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (copyResult, input) =>
+                            modalActions.CopyableMessage("WIF", wif, (copyResult, input) =>
                             {
-                                if (copyResult != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                if (copyResult != PromptResult.Success)
                                 {
-                                    GUIUtility.systemCopyBuffer = wif;
                                     MessageBox(MessageKind.Default, "WIF copied to the clipboard.");
                                 }
                             });
@@ -720,15 +716,7 @@ namespace Poltergeist
                     case 0:
                         {
                             var currentSettings = accountManager.Settings.ToString();
-                            ShowModal("Display Settings",
-                                currentSettings,
-                                ModalState.Message, 0, 0, ModalOkCopy, 0, (result, input) =>
-                                {
-                                    if (result == PromptResult.Failure)
-                                    {
-                                        GUIUtility.systemCopyBuffer = currentSettings;
-                                    }
-                                });
+                            modalActions.CopyableMessage("Display Settings", currentSettings, closeOnCopy: false, copyValue: currentSettings);
 
                             break;
                         }
@@ -738,15 +726,7 @@ namespace Poltergeist
                             string path = System.IO.Path.GetDirectoryName(Log.FilePath).TrimEnd(new[] { '\\', '/' }); // Mac doesn't like trailing slash
                             System.Diagnostics.Process.Start(path);
 #else
-                            ShowModal("Log file path",
-                                Log.FilePath,
-                                ModalState.Message, 0, 0, ModalOkCopy, 0, (result, input) =>
-                                {
-                                    if (result == PromptResult.Failure)
-                                    {
-                                        GUIUtility.systemCopyBuffer = Log.FilePath;
-                                    }
-                                });
+                            modalActions.CopyableMessage("Log file path", Log.FilePath, closeOnCopy: false, copyValue: Log.FilePath);
 #endif
                             break;
                         }

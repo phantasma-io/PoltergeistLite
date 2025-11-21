@@ -28,6 +28,8 @@ namespace Poltergeist.Wallet
         public PromptResult Result { get; set; } = PromptResult.Waiting;
         public int LineCount { get; set; }
         public Texture2D PromptPicture { get; set; }
+        public Action OnCopy { get; set; }
+        public bool CloseOnCopy { get; set; }
 
         public void Reset()
         {
@@ -50,6 +52,8 @@ namespace Poltergeist.Wallet
             Result = PromptResult.Waiting;
             LineCount = 0;
             PromptPicture = null;
+            OnCopy = null;
+            CloseOnCopy = false;
         }
     }
 }

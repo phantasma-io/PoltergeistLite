@@ -133,21 +133,38 @@ namespace Poltergeist
             {
                 int halfWidth = (int)(modalRect.width / 2);
 
+                var isCopyOption = ctx.Options == ModalOkCopy || ctx.Options == ModalOkCopy_NoAutoCopy;
+
                 DoButton((!hasHints || !hintComboBox.DropDownIsOpened()),
                     escapePressed && (ctx.Options == ModalConfirmCancel || ctx.Options == ModalSendCancel || ctx.Options == ModalYesNo),
                     new Rect((halfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), ctx.Options[1], () =>
                 {
-                    if (ctx.Options == ModalOkCopy)
+                    if (isCopyOption)
                     {
-                        var caption = ctx.Caption;
-                        if (caption.Contains("The account was migrated."))
+                        if (ctx.OnCopy != null)
                         {
-                            caption = caption.Split(":")[1];
+                            ctx.OnCopy();
+                        }
+                        else if (ctx.Options == ModalOkCopy)
+                        {
+                            var caption = ctx.Caption;
+                            if (caption.Contains("The account was migrated."))
+                            {
+                                caption = caption.Split(":")[1];
+                            }
+
+                            GUIUtility.systemCopyBuffer = caption;
                         }
 
-                        GUIUtility.systemCopyBuffer = caption;
+                        if (ctx.CloseOnCopy)
+                        {
+                            ctx.Result = PromptResult.Failure;
+                        }
+
+                        return;
                     }
-                    else if (ctx.Options == ModalOkView)
+
+                    if (ctx.Options == ModalOkView)
                     {
                         ctx.Result = PromptResult.Failure;
                     }

@@ -2310,8 +2310,7 @@ namespace Poltergeist
                                     }
                                     else
                                     {
-                                        ShowModal("Account information", result,
-                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) => { });
+                                        modalActions.CopyableMessage("Account information", result, closeOnCopy: false);
                                         return;
                                     }
                                 });
@@ -3394,12 +3393,11 @@ namespace Poltergeist
 
                                             modalActions.CopyableMessage("Your private key (HEX)", KeyPrepareForMessageBox(hexKey), (result1, _) =>
                                             {
-                                                if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                if (result1 != PromptResult.Success)
                                                 {
-                                                    GUIUtility.systemCopyBuffer = hexKey;
                                                     MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
                                                 }
-                                            });
+                                            }, copyValue: hexKey);
                                         }
                                     },
                                     ignoreStoredPassword: true);
@@ -3412,12 +3410,11 @@ namespace Poltergeist
                                         {
                                             modalActions.CopyableMessage("Your private key (WIF)", KeyPrepareForMessageBox(accountManager.CurrentWif), (result1, _) =>
                                             {
-                                                if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                if (result1 != PromptResult.Success)
                                                 {
-                                                    GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
                                                     MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
                                                 }
-                                            });
+                                            }, copyValue: accountManager.CurrentWif);
                                         }
                                     },
                                     ignoreStoredPassword: true);
@@ -3461,11 +3458,10 @@ namespace Poltergeist
                                                         accountManager.ReplaceAccountWIF(accountManager.CurrentIndex, wif, accountManager.CurrentPasswordHash, out var deletedDuplicateWallet);
                                                         CloseCurrentStack();
 
-                                                        ShowModal("Message",
+                                                        modalActions.CopyableMessage("Message",
                                                             $"The account was migrated.\n{(string.IsNullOrEmpty(deletedDuplicateWallet) ? "" : $"\nDuplicate account '{deletedDuplicateWallet}' was deleted.\n")}If you haven't stored old account's WIF yet, please do it now.\n\nOld WIF: {oldWif}",
-                                                            ModalState.Message, 0, 0, ModalOkCopy, 0, (_, input) =>
-                                                            {
-                                                            });
+                                                            closeOnCopy: false,
+                                                            copyValue: oldWif);
                                                     }
                                                     else
                                                     {
@@ -3619,7 +3615,7 @@ namespace Poltergeist
 
                                         var signature = Base16.Encode(signatureBytes);
 
-                                        ShowModal("Signature", signature, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (result3, input) =>
+                                        modalActions.CopyableMessage("Signature", signature, (result3, input) =>
                                         {
                                             if (result3 != PromptResult.Success)
                                             {
@@ -3628,10 +3624,9 @@ namespace Poltergeist
                                                     Log.Write($"Signature: '{signature}'");
                                                 }
 
-                                                GUIUtility.systemCopyBuffer = signature;
                                                 MessageBox(MessageKind.Default, "Signature copied to the clipboard.");
                                             }
-                                        });
+                                        }, copyValue: signature);
                                     });
                                 });
 
@@ -5028,4 +5023,3 @@ namespace Poltergeist
     }
 
 }
-

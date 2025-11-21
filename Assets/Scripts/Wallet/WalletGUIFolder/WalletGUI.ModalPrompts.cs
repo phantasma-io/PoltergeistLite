@@ -15,7 +15,7 @@ namespace Poltergeist
         private string[] ModalNone => modalService.ModalNone;
         private string[] ModalOk => modalService.ModalOk;
         private string[] ModalOkCopy => modalService.ModalOkCopy;
-        // ModalOkCopy_NoAutoCopy requires "Copy" button press callback to be implemented
+        // ModalOkCopy_NoAutoCopy copy action is provided via modal copy handlers/callback
         private string[] ModalOkCopy_NoAutoCopy => modalService.ModalOkCopyNoAutoCopy;
         private string[] ModalOkView => modalService.ModalOkView;
         private string[] ModalConfirmCancel => modalService.ModalConfirmCancel;
@@ -54,9 +54,9 @@ namespace Poltergeist
             hintComboBox.ListScroll = Vector2.zero;
         }
 
-        private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "")
+        private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "", Action onCopy = null, bool closeOnCopy = false)
         {
-            modalService.ShowModal(title, caption, state, minInputLength, maxInputLength, options, multiLine, callback, VerticalLayout, ResetModalUiHints, confirmDelay, defaultValue);
+            modalService.ShowModal(title, caption, state, minInputLength, maxInputLength, options, multiLine, callback, VerticalLayout, ResetModalUiHints, confirmDelay, defaultValue, onCopy, closeOnCopy);
         }
 
         public void BeginWaitingModal(string caption)

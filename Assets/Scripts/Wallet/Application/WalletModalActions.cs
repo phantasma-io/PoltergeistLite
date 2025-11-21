@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace Poltergeist.Wallet
 {
@@ -47,9 +48,13 @@ namespace Poltergeist.Wallet
             _service.ShowModal(title, caption, ModalState.Message, 0, 0, _service.ModalHexWifCancel, 0, callback, _isVerticalLayout(), _resetUiHints);
         }
 
-        public void CopyableMessage(string title, string caption, Action<PromptResult, string> callback = null, int minInputLength = 0, int maxInputLength = 0)
+        public void CopyableMessage(string title, string caption, Action<PromptResult, string> callback = null, int minInputLength = 0, int maxInputLength = 0, bool closeOnCopy = true, string copyValue = null)
         {
-            _service.ShowModal(title, caption, ModalState.Message, minInputLength, maxInputLength, _service.ModalOkCopyNoAutoCopy, 0, callback, _isVerticalLayout(), _resetUiHints);
+            var valueToCopy = copyValue ?? caption ?? string.Empty;
+            _service.ShowModal(title, caption, ModalState.Message, minInputLength, maxInputLength, _service.ModalOkCopyNoAutoCopy, 0, callback, _isVerticalLayout(), _resetUiHints, 0, string.Empty, () =>
+            {
+                GUIUtility.systemCopyBuffer = valueToCopy;
+            }, closeOnCopy);
         }
     }
 }
