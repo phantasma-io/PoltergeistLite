@@ -12,18 +12,17 @@ namespace Poltergeist
     public partial class WalletGUI : MonoBehaviour
     {
         #region MODAL PROMPTS
-        private string[] ModalNone = new string[] { };
-        private string[] ModalOk = new string[] { "Ok" };
-        // ModalOkCopy automatically processes "Copy" button press
-        private string[] ModalOkCopy = new string[] { "Ok", "Copy to clipboard" };
+        private string[] ModalNone => modalService.ModalNone;
+        private string[] ModalOk => modalService.ModalOk;
+        private string[] ModalOkCopy => modalService.ModalOkCopy;
         // ModalOkCopy_NoAutoCopy requires "Copy" button press callback to be implemented
-        private string[] ModalOkCopy_NoAutoCopy = new string[] { "Ok", "Copy to clipboard" };
-        private string[] ModalOkView = new string[] { "Ok", "View" };
-        private string[] ModalConfirmCancel = new string[] { "Confirm", "Cancel" };
-        private string[] ModalSignCancel = new string[] { "Sign", "Cancel" };
-        private string[] ModalSendCancel = new string[] { "Send", "Cancel" };
-        private string[] ModalYesNo = new string[] { "Yes" , "No" };
-        private string[] ModalHexWifCancel = new string[] { "HEX format", "WIF format", "Cancel" };
+        private string[] ModalOkCopy_NoAutoCopy => modalService.ModalOkCopyNoAutoCopy;
+        private string[] ModalOkView => modalService.ModalOkView;
+        private string[] ModalConfirmCancel => modalService.ModalConfirmCancel;
+        private string[] ModalSignCancel => modalService.ModalSignCancel;
+        private string[] ModalSendCancel => modalService.ModalSendCancel;
+        private string[] ModalYesNo => modalService.ModalYesNo;
+        private string[] ModalHexWifCancel => modalService.ModalHexWifCancel;
 
         private WalletModalContext modalContext => WalletApplicationContext.Instance.Modals;
 

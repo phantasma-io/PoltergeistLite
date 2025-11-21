@@ -25,6 +25,9 @@ namespace Poltergeist.Wallet
         private readonly string[] _modalConfirmCancel = new[] { "Confirm", "Cancel" };
         private readonly string[] _modalSignCancel = new[] { "Sign", "Cancel" };
         private readonly string[] _modalSendCancel = new[] { "Send", "Cancel" };
+        private readonly string[] _modalYesNo = new[] { "Yes", "No" };
+        private readonly string[] _modalOkCopyNoAutoCopy = new[] { "Ok", "Copy to clipboard" };
+        private readonly string[] _modalHexWifCancel = new[] { "HEX format", "WIF format", "Cancel" };
 
         public WalletModalService(WalletModalContext context)
         {
@@ -40,6 +43,9 @@ namespace Poltergeist.Wallet
         public string[] ModalConfirmCancel => _modalConfirmCancel;
         public string[] ModalSignCancel => _modalSignCancel;
         public string[] ModalSendCancel => _modalSendCancel;
+        public string[] ModalYesNo => _modalYesNo;
+        public string[] ModalOkCopyNoAutoCopy => _modalOkCopyNoAutoCopy;
+        public string[] ModalHexWifCancel => _modalHexWifCancel;
 
         public void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, bool verticalLayout, Action resetUiHints = null, int confirmDelay = 0, string defaultValue = "")
         {
