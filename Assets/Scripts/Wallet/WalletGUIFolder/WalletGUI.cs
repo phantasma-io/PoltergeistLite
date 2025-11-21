@@ -62,6 +62,7 @@ namespace Poltergeist
         private bool activeUserMessageLogged;
         private WalletModalService modalService;
         private WalletModalActions modalActions;
+        private WalletDataProvider dataProvider;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -162,6 +163,7 @@ namespace Poltergeist
             messageQueue = context.Messages;
             modalService = new WalletModalService(context.Modals);
             modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
+            dataProvider = context.Data;
         }
 
         void Start()
@@ -3169,28 +3171,25 @@ namespace Poltergeist
 
             var endY = DoBottomMenu();
 
-            if (accountManager.HistoryRefreshing)
+            var historyModel = dataProvider.GetHistorySnapshot();
+
+            if (historyModel.IsRefreshing)
             {
                 DrawCenteredText("Fetching history...");
                 return;
             }
 
-            var history = accountManager.CurrentHistory;
-
-            if (history == null)
+            if (historyModel.HasError)
             {
-                var message = "Temporary error, cannot display history...";
-                if (accountManager.rpcAvailablePhantasma == 0)
-                {
-                    message = $"Please check your internet connection. All Phantasma RPC servers are unavailable.";
-                }
-                DrawCenteredText(message);
+                DrawCenteredText(historyModel.ErrorMessage);
                 return;
             }
 
+            var history = historyModel.Entries;
+
             int curY = Units(12);
 
-            var historyCount = DoScrollArea<HistoryEntry>(ref balanceScroll, startY, endY, VerticalLayout ? Units(4) : Units(3), history,
+            var historyCount = DoScrollArea<WalletHistoryItem>(ref balanceScroll, startY, endY, VerticalLayout ? Units(4) : Units(3), history,
                 DoHistoryEntry);
 
             if (historyCount == 0)
@@ -3199,13 +3198,13 @@ namespace Poltergeist
             }
         }
 
-        private void DoHistoryEntry(HistoryEntry entry, int index, int curY, Rect rect)
+        private void DoHistoryEntry(WalletHistoryItem entry, int index, int curY, Rect rect)
         {
             var accountManager = AccountManager.Instance;
 
-            var date = String.Format("{0:g}", entry.date);
+            var date = String.Format("{0:g}", entry.Date);
 
-            GUI.Label(new Rect(Units(2), curY + 4, Units(20), Units(2)), VerticalLayout ? entry.hash.Substring(0, 16) + "..." : entry.hash);
+            GUI.Label(new Rect(Units(2), curY + 4, Units(20), Units(2)), VerticalLayout ? entry.Hash.Substring(0, 16) + "..." : entry.Hash);
 
             Rect btnRect;
 
@@ -3221,9 +3220,9 @@ namespace Poltergeist
                 btnRect = new Rect(rect.x + rect.width - Units(6), curY + Units(1), Units(4), Units(1));
             }
 
-            DoButton(!string.IsNullOrEmpty(entry.url), btnRect, "View", () =>
+            DoButton(!string.IsNullOrEmpty(entry.Url), btnRect, "View", () =>
             {
-                Application.OpenURL(entry.url);
+                Application.OpenURL(entry.Url);
             });
         }
 

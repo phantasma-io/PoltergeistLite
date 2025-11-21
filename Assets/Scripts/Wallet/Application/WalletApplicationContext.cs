@@ -1,3 +1,5 @@
+using Poltergeist;
+
 namespace Poltergeist.Wallet
 {
     /// <summary>
@@ -14,6 +16,7 @@ namespace Poltergeist.Wallet
             Navigation = new WalletNavigation();
             Messages = new WalletMessageQueue();
             Modals = new WalletModalContext();
+            Data = new WalletDataProvider(() => AccountManager.Instance);
         }
 
         public WalletNavigation Navigation { get; }
@@ -21,5 +24,7 @@ namespace Poltergeist.Wallet
         public WalletMessageQueue Messages { get; }
 
         public WalletModalContext Modals { get; }
+
+        public WalletDataProvider Data { get; }
     }
 }
