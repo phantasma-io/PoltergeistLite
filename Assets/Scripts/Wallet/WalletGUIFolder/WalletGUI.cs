@@ -435,9 +435,9 @@ namespace Poltergeist
 
         private void PopState()
         {
-            if (modalRedirected)
+            if (modalContext.Redirected)
             {
-                modalRedirected = false;
+                modalContext.Redirected = false;
             }
 
             // We don't have any states left,
@@ -516,16 +516,16 @@ namespace Poltergeist
                     {
                         if (hintComboBox.DropDownIsOpened())
                             hintComboBox.ListScroll.y += touch.deltaPosition.y;
-                        else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
-                            accountScroll.y += touch.deltaPosition.y;
-                        else if ((CurrentState == GUIState.Balances || CurrentState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
-                            balanceScroll.y += touch.deltaPosition.y;
-                        else if (CurrentState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
-                            nftScroll.y += touch.deltaPosition.y;
-                        else if (CurrentState == GUIState.NftTransferList && !(modalState != ModalState.None && !modalRedirected))
-                            nftTransferListScroll.y += touch.deltaPosition.y;
-                        else if (CurrentState == GUIState.Settings && !(modalState != ModalState.None && !modalRedirected))
-                            settingsScroll.y += touch.deltaPosition.y;
+                else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                    accountScroll.y += touch.deltaPosition.y;
+                else if ((CurrentState == GUIState.Balances || CurrentState == GUIState.History) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                    balanceScroll.y += touch.deltaPosition.y;
+                else if (CurrentState == GUIState.NftView && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                    nftScroll.y += touch.deltaPosition.y;
+                else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                    nftTransferListScroll.y += touch.deltaPosition.y;
+                else if (CurrentState == GUIState.Settings && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                    settingsScroll.y += touch.deltaPosition.y;
                     }
                 }
 
@@ -672,22 +672,22 @@ namespace Poltergeist
                     defaultRect = new Rect(windowRect);
                 }
 
-                if (modalResult != PromptResult.Waiting)
+                if (modalContext.Result != PromptResult.Waiting)
                 {
-                    var temp = modalCallback;
-                    var result = modalResult;
-                    var success = modalResult == PromptResult.Success;
-                    modalState = ModalState.None;
-                    modalCallback = null;
-                    modalResult = PromptResult.Waiting;
+                    var temp = modalContext.Callback;
+                    var result = modalContext.Result;
+                    var success = modalContext.Result == PromptResult.Success;
+                    modalContext.State = ModalState.None;
+                    modalContext.Callback = null;
+                    modalContext.Result = PromptResult.Waiting;
 
                     ResetAllCombos();
 
-                    temp?.Invoke(result, success ? modalInput.Trim() : null);
+                    temp?.Invoke(result, success ? modalContext.Input.Trim() : null);
 
-                    if (modalState == ModalState.None)
+                    if (modalContext.State == ModalState.None)
                     {
-                        modalTime = Time.time;
+                        modalContext.Time = Time.time;
                     }
                 }
             }
@@ -739,10 +739,10 @@ namespace Poltergeist
                 }
             }
 
-            if (modalState != ModalState.None && !modalRedirected)
+            if (modalContext.State != ModalState.None && !modalContext.Redirected)
             {
                 var modalWidth = Units(44);
-                var modalHeight = Units(25 + modalLineCount);
+                var modalHeight = Units(25 + modalContext.LineCount);
 
                 int maxModalWidth = virtualWidth - Border * 2;
                 if (modalWidth > maxModalWidth)
@@ -757,7 +757,7 @@ namespace Poltergeist
                 }
 
                 modalRect = new Rect((virtualWidth - modalWidth) / 2, (virtualHeight - modalHeight) / 2, modalWidth, modalHeight);
-                modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
+                modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalContext.Title);
             }
 
             if (!activeUserMessage.HasValue && messageQueue.TryDequeue(out var pendingMessage))
@@ -2009,7 +2009,7 @@ namespace Poltergeist
                             var tag = platform.ToString().ToLower()+"://";
                             if (result.Text.StartsWith(tag))
                             {
-                                modalInput = result.Text.Substring(tag.Length);
+                                modalContext.Input = result.Text.Substring(tag.Length);
                                 PopState();
                             }
                         }
@@ -2639,7 +2639,7 @@ namespace Poltergeist
                         }
                     });
 
-                    modalHints = GenerateAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
+                    modalContext.Hints = GenerateAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
                 }
                 else if (mainAction == "SM reward")
                 {
@@ -3633,7 +3633,7 @@ namespace Poltergeist
                                     });
                                 });
 
-                                modalHints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
+                                modalContext.Hints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
                             }
                             else if (Input.GetKey(KeyCode.LeftControl))
                             {
@@ -3706,7 +3706,7 @@ namespace Poltergeist
                                     });
                                 });
 
-                                modalHints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
+                                modalContext.Hints = new Dictionary<string, string>() { { "Phantasma", "Phantasma" }, { "Ethereum", "Ethereum" }, { "Neo Legacy", "Neo Legacy" } };
                             }
                             else
                             {
@@ -4083,7 +4083,7 @@ namespace Poltergeist
                     }
                 });
 
-                modalHints = GenerateAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
+                modalContext.Hints = GenerateAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
             });
 
             return posY;
@@ -4672,7 +4672,7 @@ namespace Poltergeist
                 }
             });
 
-            modalHints = new Dictionary<string, string>() { { $"Max ({MoneyFormat(max, MoneyFormatType.Short)} {symbol})", max.ToString() } };
+            modalContext.Hints = new Dictionary<string, string>() { { $"Max ({MoneyFormat(max, MoneyFormatType.Short)} {symbol})", max.ToString() } };
         }
 
         private void RequestKCAL(string swapSymbol, Action<PromptResult> callback)

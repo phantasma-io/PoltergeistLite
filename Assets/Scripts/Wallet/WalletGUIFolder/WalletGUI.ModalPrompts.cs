@@ -26,27 +26,6 @@ namespace Poltergeist
 
         private WalletModalContext modalContext => WalletApplicationContext.Instance.Modals;
 
-        // Legacy field aliases pointing to modalContext to reduce churn while refactoring.
-        private string[] modalOptions { get => modalContext.Options; set => modalContext.Options = value; }
-        private int modalConfirmDelay { get => modalContext.ConfirmDelay; set => modalContext.ConfirmDelay = value; }
-        private bool modalRedirected { get => modalContext.Redirected; set => modalContext.Redirected = value; }
-        private float modalTime { get => modalContext.Time; set => modalContext.Time = value; }
-        private ModalState modalState { get => modalContext.State; set => modalContext.State = value; }
-        private Action<PromptResult, string> modalCallback { get => modalContext.Callback; set => modalContext.Callback = value; }
-        private string modalInput { get => modalContext.Input; set => modalContext.Input = value; }
-        private string modalInputKey { get => modalContext.InputKey; set => modalContext.InputKey = value; }
-        private int modalMinInputLength { get => modalContext.MinInputLength; set => modalContext.MinInputLength = value; }
-        private int modalMaxInputLength { get => modalContext.MaxInputLength; set => modalContext.MaxInputLength = value; }
-        private string modalCaption { get => modalContext.Caption; set => modalContext.Caption = value; }
-        private Vector2 modalCaptionScroll { get => modalContext.CaptionScroll; set => modalContext.CaptionScroll = value; }
-        private string modalTitle { get => modalContext.Title; set => modalContext.Title = value; }
-        private int modalMaxLines { get => modalContext.MaxLines; set => modalContext.MaxLines = value; }
-        private string modalHintsLabel { get => modalContext.HintsLabel; set => modalContext.HintsLabel = value; }
-        private Dictionary<string, string> modalHints { get => modalContext.Hints; set => modalContext.Hints = value; }
-        private PromptResult modalResult { get => modalContext.Result; set => modalContext.Result = value; }
-        private int modalLineCount { get => modalContext.LineCount; set => modalContext.LineCount = value; }
-        private Texture2D _promptPicture { get => modalContext.PromptPicture; set => modalContext.PromptPicture = value; }
-
         
         private string GetAdditionalDetails()
         {
