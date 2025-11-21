@@ -67,6 +67,7 @@ namespace Poltergeist.Wallet
             _context.CaptionScroll = Vector2.zero;
             _context.Callback = callback;
             _context.Options = options ?? Array.Empty<string>();
+            _context.OptionsKind = DetermineOptionsKind(options);
             _context.ConfirmDelay = confirmDelay;
             _context.HintsLabel = "...";
             _context.Hints = null;
@@ -74,6 +75,12 @@ namespace Poltergeist.Wallet
             _context.LineCount = 0;
             _context.OnCopy = onCopy;
             _context.CloseOnCopy = closeOnCopy;
+            _context.EscapeActivatesSecondary = ShouldEscapeActivateSecondary(options);
+            _context.EnterActivatesPrimary = ShouldEnterActivatePrimary(options);
+            _context.EnterOrEscapeActivatesSingle = ShouldEnterOrEscapeActivateSingle(options);
+            _context.SecondaryIsCopy = IsCopyOption(options, onCopy);
+            _context.PrimaryResult = PromptResult.Success;
+            _context.SecondaryResult = PromptResult.Failure;
 
             Array.ForEach(_context.Caption.Split("\n".ToCharArray()), x => _context.LineCount += (x.Length / (verticalLayout ? 30 : 65)) * 2 + 1);
 
@@ -215,7 +222,8 @@ namespace Poltergeist.Wallet
 
             if (printDetails)
             {
-                message += additionalDetails?.Invoke();
+                var detailsProvider = additionalDetails ?? GetAdditionalDetails;
+                message += detailsProvider?.Invoke();
             }
 
             ShowModal(success ? "Success" : (timeout ? "Attention" : "Failure"),
@@ -258,6 +266,46 @@ namespace Poltergeist.Wallet
             details += "</size>";
 
             return details;
+        }
+
+        public void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successCustomMessage, string failureCustomMessage, bool verticalLayout, Action resetUiHints = null)
+        {
+            TxResultMessage(hash, txResult, error, successCustomMessage, failureCustomMessage, null, verticalLayout, resetUiHints);
+        }
+
+        private ModalOptionsKind DetermineOptionsKind(string[] options)
+        {
+            if (options == _modalHexWifCancel)
+            {
+                return ModalOptionsKind.HexWifCancel;
+            }
+
+            return ModalOptionsKind.Default;
+        }
+
+        private bool ShouldEscapeActivateSecondary(string[] options)
+        {
+            return options == _modalConfirmCancel || options == _modalSendCancel || options == _modalYesNo;
+        }
+
+        private bool ShouldEnterActivatePrimary(string[] options)
+        {
+            return options == _modalOkCopy || options == _modalOkView || options == _modalConfirmCancel || options == _modalSendCancel || options == _modalYesNo;
+        }
+
+        private bool ShouldEnterOrEscapeActivateSingle(string[] options)
+        {
+            return options == _modalOk;
+        }
+
+        private bool IsCopyOption(string[] options, Action onCopy)
+        {
+            if (onCopy != null)
+            {
+                return true;
+            }
+
+            return options == _modalOkCopy || options == _modalOkCopyNoAutoCopy;
         }
     }
 }

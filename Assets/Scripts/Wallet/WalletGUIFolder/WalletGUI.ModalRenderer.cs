@@ -104,7 +104,7 @@ namespace Poltergeist
 
             curY = (int)(rect.height - Units(2));
 
-            if (ctx.Options == ModalHexWifCancel)
+            if (ctx.OptionsKind == ModalOptionsKind.HexWifCancel)
             {
                 int thirdOfWidth = (int)(modalRect.width / 3);
 
@@ -133,10 +133,10 @@ namespace Poltergeist
             {
                 int halfWidth = (int)(modalRect.width / 2);
 
-                var isCopyOption = ctx.Options == ModalOkCopy || ctx.Options == ModalOkCopy_NoAutoCopy;
+                var isCopyOption = ctx.SecondaryIsCopy;
 
                 DoButton((!hasHints || !hintComboBox.DropDownIsOpened()),
-                    escapePressed && (ctx.Options == ModalConfirmCancel || ctx.Options == ModalSendCancel || ctx.Options == ModalYesNo),
+                    escapePressed && ctx.EscapeActivatesSecondary,
                     new Rect((halfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), ctx.Options[1], () =>
                 {
                     if (isCopyOption)
@@ -145,7 +145,7 @@ namespace Poltergeist
                         {
                             ctx.OnCopy();
                         }
-                        else if (ctx.Options == ModalOkCopy)
+                        else
                         {
                             var caption = ctx.Caption;
                             if (caption.Contains("The account was migrated."))
@@ -158,36 +158,29 @@ namespace Poltergeist
 
                         if (ctx.CloseOnCopy)
                         {
-                            ctx.Result = PromptResult.Failure;
+                            ctx.Result = ctx.SecondaryResult;
                         }
 
                         return;
                     }
 
-                    if (ctx.Options == ModalOkView)
-                    {
-                        ctx.Result = PromptResult.Failure;
-                    }
-                    else
-                    {
-                        ctx.Result = PromptResult.Failure;
-                    }
+                    ctx.Result = ctx.SecondaryResult;
                 });
 
                 DoButton((!hasHints || !hintComboBox.DropDownIsOpened()) && Time.time - ctx.Time >= ctx.ConfirmDelay && ((ctx.State != ModalState.Input && ctx.State != ModalState.Password) || ctx.Input.Length >= ctx.MinInputLength),
-                    enterPressed && (ctx.Options == ModalOkCopy || ctx.Options == ModalOkView || ctx.Options == ModalConfirmCancel || ctx.Options == ModalSendCancel || ctx.Options == ModalYesNo),
+                    enterPressed && ctx.EnterActivatesPrimary,
                     new Rect(halfWidth + (halfWidth - btnWidth) / 2, curY, btnWidth, Units(2)), (ctx.ConfirmDelay > 0 && (Time.time - ctx.Time < ctx.ConfirmDelay)) ? ctx.Options[0] + " (" + (ctx.ConfirmDelay - Math.Floor(Time.time - ctx.Time)) + ")" : ctx.Options[0], () =>
                 {
-                    ctx.Result = PromptResult.Success;
+                    ctx.Result = ctx.PrimaryResult;
                 });
             }
             else if (ctx.Options.Length > 0)
             {
                 DoButton(true,
-                    (escapePressed || enterPressed) && ctx.Options == ModalOk,
+                    (escapePressed || enterPressed) && ctx.EnterOrEscapeActivatesSingle,
                     new Rect((modalRect.width - btnWidth) / 2, curY, btnWidth, Units(2)), ctx.Options[0], () =>
                 {
-                    ctx.Result = PromptResult.Success;
+                    ctx.Result = ctx.PrimaryResult;
                 });
             }
 

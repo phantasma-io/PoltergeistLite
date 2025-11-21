@@ -27,27 +27,6 @@ namespace Poltergeist
         private WalletModalContext modalContext => WalletApplicationContext.Instance.Modals;
 
 
-        private string GetAdditionalDetails()
-        {
-            var accountManager = AccountManager.Instance;
-
-            var details = "<size=-5>\n";
-            details += $"\nWallet version: {UnityEngine.Application.version} built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC";
-            details += $"\nEnvironment: Nexus: {accountManager.Settings.nexusName}";
-            details += $"\nRPC: {accountManager.Settings.phantasmaRPCURL}";
-            details += $"\nFee price: {accountManager.Settings.feePrice}";
-            details += $"\nFee limit: {accountManager.Settings.feeLimit}";
-            if (accountManager.Settings.devMode)
-            {
-                details += $"\nDeveloper mode: {accountManager.Settings.devMode}";
-                details += $"\nNo validation mode: {accountManager.Settings.devMode_NoValidation}";
-            }
-            details += "</size>";
-
-            return details;
-        }
-
-
         private void ResetModalUiHints()
         {
             hintComboBox.SelectedItemIndex = -1;
@@ -92,7 +71,7 @@ namespace Poltergeist
 
         public void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
-            modalService.TxResultMessage(hash, txResult, error, successCustomMessage, failureCustomMessage, GetAdditionalDetails, VerticalLayout, ResetModalUiHints);
+            modalService.TxResultMessage(hash, txResult, error, successCustomMessage, failureCustomMessage, VerticalLayout, ResetModalUiHints);
         }
         #endregion
     }

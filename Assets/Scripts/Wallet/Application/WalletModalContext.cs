@@ -10,6 +10,7 @@ namespace Poltergeist.Wallet
     public sealed class WalletModalContext
     {
         public string[] Options { get; set; } = Array.Empty<string>();
+        public ModalOptionsKind OptionsKind { get; set; } = ModalOptionsKind.Default;
         public int ConfirmDelay { get; set; }
         public bool Redirected { get; set; }
         public float Time { get; set; }
@@ -30,10 +31,17 @@ namespace Poltergeist.Wallet
         public Texture2D PromptPicture { get; set; }
         public Action OnCopy { get; set; }
         public bool CloseOnCopy { get; set; }
+        public bool EscapeActivatesSecondary { get; set; }
+        public bool EnterActivatesPrimary { get; set; }
+        public bool EnterOrEscapeActivatesSingle { get; set; }
+        public bool SecondaryIsCopy { get; set; }
+        public PromptResult PrimaryResult { get; set; } = PromptResult.Success;
+        public PromptResult SecondaryResult { get; set; } = PromptResult.Failure;
 
         public void Reset()
         {
             Options = Array.Empty<string>();
+            OptionsKind = ModalOptionsKind.Default;
             ConfirmDelay = 0;
             Redirected = false;
             Time = 0;
@@ -54,6 +62,12 @@ namespace Poltergeist.Wallet
             PromptPicture = null;
             OnCopy = null;
             CloseOnCopy = false;
+            EscapeActivatesSecondary = false;
+            EnterActivatesPrimary = false;
+            EnterOrEscapeActivatesSingle = false;
+            SecondaryIsCopy = false;
+            PrimaryResult = PromptResult.Success;
+            SecondaryResult = PromptResult.Failure;
         }
     }
 }
