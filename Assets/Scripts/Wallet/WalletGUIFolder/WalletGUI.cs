@@ -25,19 +25,17 @@ using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using PhantasmaPhoenix.Protocol.Carbon;
 using System.IO;
 using PhantasmaPhoenix.Core.Extensions;
+using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
-        private static bool messageForUserPushed;
-        private static string messageForUser;
-        private static string messageForUserTitle;
-        public static void MessageForUser(string message, string title = "Warning")
+        private static WalletApplicationContext SharedContext => WalletApplicationContext.Instance;
+
+        public static void MessageForUser(string message, string title = "Warning", MessageKind kind = MessageKind.Default)
         {
-            messageForUserPushed = true;
-            messageForUser = message;
-            messageForUserTitle = title;
+            SharedContext.Messages.Push(message, title, kind);
         }
 
         public Font monoFont;
@@ -58,8 +56,11 @@ namespace Poltergeist
 
         private Rect modalRect;
 
-        private GUIState guiState;
-        private Stack<GUIState> stateStack = new Stack<GUIState>();
+        private WalletNavigation navigation;
+        private WalletMessageQueue messageQueue;
+        private WalletUserMessage? activeUserMessage;
+        private bool activeUserMessageLogged;
+        private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
         private Hash transactionHash;
@@ -154,6 +155,9 @@ namespace Poltergeist
         private void Awake()
         {
             Instance = this;
+            var context = WalletApplicationContext.Instance;
+            navigation = context.Navigation;
+            messageQueue = context.Messages;
         }
 
         void Start()
@@ -205,7 +209,7 @@ namespace Poltergeist
 
             initialized = false;
 
-            guiState = GUIState.Loading;
+            navigation.Reset(GUIState.Loading);
 
             Log.Write(Screen.width + " x " + Screen.height);
             currencyOptions = AccountManager.Instance.Currencies.ToArray();
@@ -237,19 +241,37 @@ namespace Poltergeist
         #region UTILS
         private void PushState(GUIState state)
         {
-            if (guiState != GUIState.Loading)
+            var previousState = CurrentState;
+
+            if (state == GUIState.Exit)
             {
-                stateStack.Push(guiState);
+                ApplyStateChange(previousState, state);
+                return;
             }
 
-            SetState(state);
+            previousState = navigation.MoveTo(state, CurrentState != GUIState.Loading);
+            ApplyStateChange(previousState, state);
         }
 
         private void SetState(GUIState state)
         {
+            var previousState = CurrentState;
+
+            if (state == GUIState.Exit)
+            {
+                ApplyStateChange(previousState, state);
+                return;
+            }
+
+            previousState = navigation.Replace(state);
+            ApplyStateChange(previousState, state);
+        }
+
+        private void ApplyStateChange(GUIState previousState, GUIState newState)
+        {
             ResetAllCombos();
 
-            switch (guiState)
+            switch (previousState)
             {
                 case GUIState.Backup:
                     newWalletSeedPhrase = null;
@@ -263,28 +285,31 @@ namespace Poltergeist
                         camTexture = null;
                     }
                     break;
+
+                case GUIState.MessageForUser:
+                    activeUserMessage = null;
+                    activeUserMessageLogged = false;
+                    break;
             }
 
-            if (state == GUIState.Exit)
+            if (newState == GUIState.Exit)
             {
                 CloseCurrentStack();
                 return;
             }
 
-            guiState = state;
-
             var accountManager = AccountManager.Instance;
 
             currentTitle = null;
 
-            switch (state)
+            switch (newState)
             {
                 case GUIState.Fatal:
                     currentTitle = "Fatal Error";
                     break;
                 
                 case GUIState.MessageForUser:
-                    currentTitle = messageForUserTitle;
+                    currentTitle = activeUserMessage?.Title ?? "Message";
                     break;
 
                 case GUIState.Wallets:
@@ -458,20 +483,11 @@ namespace Poltergeist
                 modalRedirected = false;
             }
 
-            GUIState state;
-            if (stateStack.Count > 0)
-            {
-                state = stateStack.Pop();
-            }
-            else
-            {
-                // We don't have any states left,
-                // most likely we have been interrupted during wallet initialization
-                // and now we should continue.
-                state = GUIState.Wallets;
-            }
-            
-            SetState(state);
+            // We don't have any states left,
+            // most likely we have been interrupted during wallet initialization
+            // and now we should continue.
+            var previousState = navigation.PopOr(GUIState.Wallets);
+            ApplyStateChange(previousState, navigation.CurrentState);
         }
 
         public void Animate(AnimationDirection direction, bool invert, Action callback = null)
@@ -543,15 +559,15 @@ namespace Poltergeist
                     {
                         if (hintComboBox.DropDownIsOpened())
                             hintComboBox.ListScroll.y += touch.deltaPosition.y;
-                        else if ((guiState == GUIState.Wallets || guiState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
+                        else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalState != ModalState.None && !modalRedirected))
                             accountScroll.y += touch.deltaPosition.y;
-                        else if ((guiState == GUIState.Balances || guiState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
+                        else if ((CurrentState == GUIState.Balances || CurrentState == GUIState.History) && !(modalState != ModalState.None && !modalRedirected))
                             balanceScroll.y += touch.deltaPosition.y;
-                        else if (guiState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
+                        else if (CurrentState == GUIState.NftView && !(modalState != ModalState.None && !modalRedirected))
                             nftScroll.y += touch.deltaPosition.y;
-                        else if (guiState == GUIState.NftTransferList && !(modalState != ModalState.None && !modalRedirected))
+                        else if (CurrentState == GUIState.NftTransferList && !(modalState != ModalState.None && !modalRedirected))
                             nftTransferListScroll.y += touch.deltaPosition.y;
-                        else if (guiState == GUIState.Settings && !(modalState != ModalState.None && !modalRedirected))
+                        else if (CurrentState == GUIState.Settings && !(modalState != ModalState.None && !modalRedirected))
                             settingsScroll.y += touch.deltaPosition.y;
                     }
                 }
@@ -611,11 +627,11 @@ namespace Poltergeist
                     virtualHeight = Screen.height;
                 }
 
-                if (this.guiState == GUIState.Loading && AccountManager.Instance.Ready && !HasAnimation)
+                if (CurrentState == GUIState.Loading && AccountManager.Instance.Ready && !HasAnimation)
                 {
                     Animate(AnimationDirection.Up, true, () =>
                     {
-                        stateStack.Clear();
+                        navigation.ClearHistory();
                         PushState(GUIState.Wallets);
 
                         if (AccountManager.Instance.Settings.nexusKind == NexusKind.Unknown || AccountManager.Instance.Settings.settingRequireReconfiguration)
@@ -747,7 +763,7 @@ namespace Poltergeist
 
             GUI.enabled = true;
 
-            if (guiState == GUIState.Loading)
+            if (CurrentState == GUIState.Loading)
             {
                 if (!AccountManager.Instance.Ready)
                 {
@@ -787,7 +803,13 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalTitle);
             }
 
-            if (messageForUserPushed)
+            if (!activeUserMessage.HasValue && messageQueue.TryDequeue(out var pendingMessage))
+            {
+                activeUserMessage = pendingMessage;
+                activeUserMessageLogged = false;
+            }
+
+            if (activeUserMessage.HasValue && CurrentState != GUIState.MessageForUser)
             {
                 SetState(GUIState.MessageForUser);
                 return;
@@ -840,7 +862,7 @@ namespace Poltergeist
 
                 var tempTitle = currentTitle;
 
-                switch (guiState)
+                switch (CurrentState)
                 {
                     case GUIState.Nft:
                     case GUIState.NftView:
@@ -879,7 +901,7 @@ namespace Poltergeist
                 DrawHorizontalCenteredText(curY - 4, Units(2) + (VerticalLayout ? 4 : 0), tempTitle);
 
                 // Drawing build timestamp at the Settings screen
-                if (guiState == GUIState.Settings)
+                if (CurrentState == GUIState.Settings)
                 {
                     style = GUI.skin.label;
                     style.fontSize -= 6;
@@ -891,7 +913,7 @@ namespace Poltergeist
                 }
             }
 
-            switch (guiState)
+            switch (CurrentState)
             {
                 case GUIState.Sending:
                     DrawCenteredText("Sending transaction...");
@@ -1798,7 +1820,7 @@ namespace Poltergeist
             {
                 var accountManager = AccountManager.Instance;
                 accountManager.UnselectAcount();
-                stateStack.Clear();
+                navigation.ClearHistory();
                 PushState(GUIState.Wallets);
 
                 Animate(AnimationDirection.Up, false);
@@ -1880,7 +1902,7 @@ namespace Poltergeist
                             posY3,
                             (VerticalLayout) ? toolLabelWidth - toolFieldSpacing - 8 : toolLabelWidth - toolFieldSpacing, (accountManager.Settings.nftSortDirection == (int)SortDirection.Ascending) ? "Asc" : "Desc", () => { if (accountManager.Settings.nftSortDirection == (int)SortDirection.Ascending) accountManager.Settings.nftSortDirection = (int)SortDirection.Descending; else accountManager.Settings.nftSortDirection = (int)SortDirection.Ascending; });
 
-            if (guiState != GUIState.NftView)
+            if (CurrentState != GUIState.NftView)
             {
                 // #7: Select all button
                 DoNftToolButton(posX4 + toolLabelWidth,
@@ -2182,13 +2204,17 @@ namespace Poltergeist
         
         private void DoMessageForUserScreen()
         {
-            messageForUserPushed = false;
-            Log.WriteWarning(messageForUser);
+            if (activeUserMessage.HasValue && !activeUserMessageLogged)
+            {
+                Log.WriteWarning(activeUserMessage.Value.Body);
+                activeUserMessageLogged = true;
+            }
 
             int curY;
 
             curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), messageForUser);
+            var messageBody = activeUserMessage?.Body ?? string.Empty;
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), messageBody);
 
             var btnWidth = Units(12);
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
@@ -2196,7 +2222,8 @@ namespace Poltergeist
                 "Continue", () =>
             {
                 PopState();
-                messageForUser = "";
+                activeUserMessage = null;
+                activeUserMessageLogged = false;
             });
         }
 
@@ -3100,7 +3127,7 @@ namespace Poltergeist
             {
                 GUI.enabled = false;
             }
-            if (guiState != GUIState.NftView)
+            if (CurrentState != GUIState.NftView)
             {
                 var nftIsSelected = nftTransferList.Exists(x => x == entryId);
                 if (GUI.Toggle(btnRectToggle, nftIsSelected, ""))
@@ -3538,7 +3565,7 @@ namespace Poltergeist
                                                     {
                                                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                         {
-                                                            SetState(guiState); // force updating the current UI
+                                                            SetState(CurrentState); // force updating the current UI
 
                                                             if (AccountManager.Instance.CurrentAccount.name != name)
                                                             {
@@ -3826,7 +3853,7 @@ namespace Poltergeist
             DoButtonGrid<GUIState>(false, bottomMenu.Length, 0, 0, out posY, (index) =>
             {
                 var btnKind = bottomMenu[index];
-                return new MenuEntry(btnKind, btnKind.ToString(), btnKind != this.guiState);
+                return new MenuEntry(btnKind, btnKind.ToString(), btnKind != this.CurrentState);
             },
             (selected) =>
             {
@@ -3910,7 +3937,7 @@ namespace Poltergeist
                 nftPageNumber = nftPageCount - 1;
             });
 
-            if (guiState != GUIState.NftView)
+            if (CurrentState != GUIState.NftView)
             {
                 // To transfer list
                 DoButton(nftTransferList.Count > 0, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth + (halfWidth - btnWidth) / 2,
@@ -4366,7 +4393,7 @@ namespace Poltergeist
             transactionLastCheck = DateTime.UtcNow;
             this.refreshBalanceAfterConfirmation = refreshBalanceAfterConfirmation;
 
-            if (guiState == GUIState.Sending)
+            if (CurrentState == GUIState.Sending)
             {
                 SetState(GUIState.Confirming);
             }
