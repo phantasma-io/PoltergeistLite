@@ -13,10 +13,13 @@ namespace Poltergeist.Wallet
         {
             Navigation = new WalletNavigation();
             Messages = new WalletMessageQueue();
+            Modals = new WalletModalContext();
         }
 
         public WalletNavigation Navigation { get; }
 
         public WalletMessageQueue Messages { get; }
+
+        public WalletModalContext Modals { get; }
     }
 }

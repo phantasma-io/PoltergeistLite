@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
@@ -24,26 +25,28 @@ namespace Poltergeist
         private string[] ModalYesNo = new string[] { "Yes" , "No" };
         private string[] ModalHexWifCancel = new string[] { "HEX format", "WIF format", "Cancel" };
 
-        private string[] modalOptions;
-        private int modalConfirmDelay;
-        private bool modalRedirected;
-        private float modalTime;
-        private ModalState modalState;
-        private Action<PromptResult, string> modalCallback;
-        private string modalInput;
-        private string modalInputKey;
-        private int modalMinInputLength;
-        private int modalMaxInputLength;
-        private string modalCaption;
-        private Vector2 modalCaptionScroll;
-        private string modalTitle;
-        private int modalMaxLines;
-        private string modalHintsLabel;
-        private Dictionary<string, string> modalHints;
-        private PromptResult modalResult;
-        private int modalLineCount;
+        private WalletModalContext modalContext => WalletApplicationContext.Instance.Modals;
 
-        private Texture2D _promptPicture;
+        // Legacy field aliases pointing to modalContext to reduce churn while refactoring.
+        private string[] modalOptions { get => modalContext.Options; set => modalContext.Options = value; }
+        private int modalConfirmDelay { get => modalContext.ConfirmDelay; set => modalContext.ConfirmDelay = value; }
+        private bool modalRedirected { get => modalContext.Redirected; set => modalContext.Redirected = value; }
+        private float modalTime { get => modalContext.Time; set => modalContext.Time = value; }
+        private ModalState modalState { get => modalContext.State; set => modalContext.State = value; }
+        private Action<PromptResult, string> modalCallback { get => modalContext.Callback; set => modalContext.Callback = value; }
+        private string modalInput { get => modalContext.Input; set => modalContext.Input = value; }
+        private string modalInputKey { get => modalContext.InputKey; set => modalContext.InputKey = value; }
+        private int modalMinInputLength { get => modalContext.MinInputLength; set => modalContext.MinInputLength = value; }
+        private int modalMaxInputLength { get => modalContext.MaxInputLength; set => modalContext.MaxInputLength = value; }
+        private string modalCaption { get => modalContext.Caption; set => modalContext.Caption = value; }
+        private Vector2 modalCaptionScroll { get => modalContext.CaptionScroll; set => modalContext.CaptionScroll = value; }
+        private string modalTitle { get => modalContext.Title; set => modalContext.Title = value; }
+        private int modalMaxLines { get => modalContext.MaxLines; set => modalContext.MaxLines = value; }
+        private string modalHintsLabel { get => modalContext.HintsLabel; set => modalContext.HintsLabel = value; }
+        private Dictionary<string, string> modalHints { get => modalContext.Hints; set => modalContext.Hints = value; }
+        private PromptResult modalResult { get => modalContext.Result; set => modalContext.Result = value; }
+        private int modalLineCount { get => modalContext.LineCount; set => modalContext.LineCount = value; }
+        private Texture2D _promptPicture { get => modalContext.PromptPicture; set => modalContext.PromptPicture = value; }
 
         
         private string GetAdditionalDetails()
@@ -69,36 +72,36 @@ namespace Poltergeist
 
         private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "")
         {
-            if (modalState == ModalState.None)
+            if (modalContext.State == ModalState.None)
             {
-                modalTime = Time.time;
+                modalContext.Time = Time.time;
             }
 
-            modalResult = PromptResult.Waiting;
-            modalInput = defaultValue;
-            modalInputKey = null;
-            modalState = state;
-            modalTitle = title;
+            modalContext.Result = PromptResult.Waiting;
+            modalContext.Input = defaultValue;
+            modalContext.InputKey = null;
+            modalContext.State = state;
+            modalContext.Title = title;
 
-            modalMinInputLength = minInputLength;
-            modalMaxInputLength = maxInputLength;
+            modalContext.MinInputLength = minInputLength;
+            modalContext.MaxInputLength = maxInputLength;
 
-            modalCaption = caption;
-            modalCaptionScroll = Vector2.zero;
-            modalCallback = callback;
-            modalOptions = options;
-            modalConfirmDelay = confirmDelay;
-            modalHintsLabel = "...";
-            modalHints = null;
-            modalMaxLines = multiLine;
+            modalContext.Caption = caption;
+            modalContext.CaptionScroll = Vector2.zero;
+            modalContext.Callback = callback;
+            modalContext.Options = options;
+            modalContext.ConfirmDelay = confirmDelay;
+            modalContext.HintsLabel = "...";
+            modalContext.Hints = null;
+            modalContext.MaxLines = multiLine;
             hintComboBox.SelectedItemIndex = -1;
             hintComboBox.ListScroll = Vector2.zero;
-            modalLineCount = 0;
+            modalContext.LineCount = 0;
             // Counting lines in label. Since labels are wrapped if they are longer than ~65 symbols (~30-40 for vertical layout),
             // we count longer labels too. But labels wrapping based not only on length,
             // but on content also, so we add 2x multiplier to be on a safe side.
             // TODO: Make a better algorithm capable of counting exact number of lines for label depending on label's width and font size.
-            Array.ForEach(modalCaption.Split("\n".ToCharArray()), x => modalLineCount += (x.ToString().Length / ((VerticalLayout) ? 30 : 65)) * 2 + 1);
+            Array.ForEach(modalContext.Caption.Split("\n".ToCharArray()), x => modalContext.LineCount += (x.ToString().Length / ((VerticalLayout) ? 30 : 65)) * 2 + 1);
         }
 
         public void BeginWaitingModal(string caption)
@@ -110,9 +113,9 @@ namespace Poltergeist
 
         public void EndWaitingModal()
         {
-            if (modalOptions.Length == 0)
+            if (modalContext.Options.Length == 0)
             {
-                modalState = ModalState.None;
+                modalContext.State = ModalState.None;
             }
         }
 
