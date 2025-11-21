@@ -17,6 +17,7 @@ namespace Poltergeist.Wallet
             Messages = new WalletMessageQueue();
             Modals = new WalletModalContext();
             Data = new WalletDataProvider(() => AccountManager.Instance);
+            NftViewBuilder = new WalletNftViewBuilder();
         }
 
         public WalletNavigation Navigation { get; }
@@ -26,5 +27,7 @@ namespace Poltergeist.Wallet
         public WalletModalContext Modals { get; }
 
         public WalletDataProvider Data { get; }
+
+        public WalletNftViewBuilder NftViewBuilder { get; }
     }
 }

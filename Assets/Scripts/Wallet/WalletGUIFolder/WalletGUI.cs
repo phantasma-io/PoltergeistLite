@@ -63,6 +63,7 @@ namespace Poltergeist
         private WalletModalService modalService;
         private WalletModalActions modalActions;
         private WalletDataProvider dataProvider;
+        private WalletNftViewBuilder nftViewBuilder;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -164,6 +165,7 @@ namespace Poltergeist
             modalService = new WalletModalService(context.Modals);
             modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
             dataProvider = context.Data;
+            nftViewBuilder = context.NftViewBuilder;
         }
 
         void Start()
@@ -2708,10 +2710,12 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
+            var nftSnapshot = nftViewBuilder.Build(accountManager, transferSymbol, nftFilterName, nftFilterType, nftFilterRarity, nftFilterMinted, nftPageSize, nftPageNumber);
             var nfts = accountManager.CurrentNfts;
-            if (accountManager.NftsRefreshing)
+            if (nftSnapshot.IsRefreshing)
             {
-                DrawCenteredText((nfts != null && nfts.Count > 0) ? $"Loading NFTs ({nfts.Count})..." : "Loading NFTs...");
+                var count = nfts?.Count ?? nftSnapshot.TotalCount;
+                DrawCenteredText(count > 0 ? $"Loading NFTs ({count})..." : "Loading NFTs...");
                 return;
             }
 
@@ -2720,9 +2724,9 @@ namespace Poltergeist
             startY += (VerticalLayout) ? Units(6) : Units(4);
             var endY = DoBottomMenuForNft();
 
-            if (nfts == null)
+            if (nfts == null || nftSnapshot.HasError)
             {
-                DrawCenteredText("Loading...");
+                DrawCenteredText(nftSnapshot.HasError ? nftSnapshot.ErrorMessage : "Loading...");
                 return;
             }
 
@@ -2730,83 +2734,12 @@ namespace Poltergeist
             accountManager.SortTtrsNfts(transferSymbol);
             nfts = accountManager.CurrentNfts;
 
-            // Filtering NFT list, if filters are applied.
-            nftFilteredList.Clear();
-            if (!String.IsNullOrEmpty(nftFilterName) || nftFilterType != "All" || nftFilterRarity != (int)ttrsNftRarity.All || nftFilterMinted != (int)nftMinted.All)
-            {
-                nfts.ForEach((x) =>
-                {
-                    if (transferSymbol == "TTRS")
-                    {
-                        var item = TtrsStore.GetNft(x.Id);
+            nftFilteredList = nftSnapshot.FilteredTokens.ToList();
+            nftCount = nftSnapshot.TotalCount;
+            nftPageCount = nftSnapshot.PageCount;
+            nftPageNumber = nftSnapshot.PageNumber;
 
-                        if ((String.IsNullOrEmpty(nftFilterName) || item.item_info.name_english.ToUpper().Contains(nftFilterName.ToUpper())) &&
-                            (nftFilterType == "All" || item.item_info.display_type_english == nftFilterType) &&
-                            (nftFilterRarity == (int)ttrsNftRarity.All || (int)item.item_info.rarity == nftFilterRarity) &&
-                            (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.timestampDT(), DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.timestampDT(), DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.timestampDT(), DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.timestampDT(), DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.timestampDT(), DateTime.Now.AddMonths(-1)) >= 0)
-                            ))
-                        {
-                            nftFilteredList.Add(x);
-                        }
-                    }
-                    else if (transferSymbol == "GAME")
-                    {
-                        var item = GameStore.GetNft(x.Id);
-
-                        if ((String.IsNullOrEmpty(nftFilterName) || (item.meta?.name_english.ToUpper().Contains(nftFilterName.ToUpper()) ?? false)) &&
-                            (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(item.parsed_rom.timestampDT(), DateTime.Now.AddMonths(-1)) >= 0)
-                            ))
-                        {
-                            nftFilteredList.Add(x);
-                        }
-                    }
-                    else
-                    {
-                        var item = accountManager.GetNft(x.Id);
-                        var rom = accountManager.GetNftRom(x.Id);
-
-                        if ((String.IsNullOrEmpty(nftFilterName) || rom.GetName().ToUpper().Contains(nftFilterName.ToUpper())) &&
-                            (nftFilterMinted == (int)nftMinted.All ||
-                             (nftFilterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(rom.GetDate(), DateTime.Now.AddMinutes(-15)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(rom.GetDate(), DateTime.Now.AddHours(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(rom.GetDate(), DateTime.Now.AddDays(-1)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Week && DateTime.Compare(rom.GetDate(), DateTime.Now.AddDays(-7)) >= 0) ||
-                             (nftFilterMinted == (int)nftMinted.Last_Month && DateTime.Compare(rom.GetDate(), DateTime.Now.AddMonths(-1)) >= 0)
-                            ))
-                        {
-                            nftFilteredList.Add(x);
-                        }
-                    }
-                });
-                nfts = nftFilteredList;
-            }
-
-            // Number of displayed NFTs changed, switching to first page.
-            if (nfts.Count != nftCount)
-            {
-                nftPageNumber = 0;
-            }
-
-            nftCount = nfts.Count;
-            nftPageCount = nftCount / nftPageSize + 1;
-
-            // Making NFT list for current page.
-            var nftPage = new List<string>();
-            for (int i = nftPageSize * nftPageNumber; i < Math.Min(nftPageSize * (nftPageNumber + 1), nfts.Count); i++)
-            {
-                nftPage.Add(nfts[i].Id);
-            }
-            var nftOnPageCount = DoScrollArea<string>(ref nftScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftPage,
+            var nftOnPageCount = DoScrollArea<string>(ref nftScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftSnapshot.PageIds,
                 DoNftEntry);
 
             if (nftOnPageCount == 0)
