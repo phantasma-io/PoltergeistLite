@@ -61,6 +61,7 @@ namespace Poltergeist
         private WalletUserMessage? activeUserMessage;
         private bool activeUserMessageLogged;
         private WalletModalService modalService;
+        private WalletModalActions modalActions;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -160,6 +161,7 @@ namespace Poltergeist
             navigation = context.Navigation;
             messageQueue = context.Messages;
             modalService = new WalletModalService(context.Modals);
+            modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
         }
 
         void Start()
@@ -488,7 +490,7 @@ namespace Poltergeist
 
             _promptVisible = true;
 
-            PromptBox(_promptText, ModalYesNo, (result) =>
+            modalActions.YesNo(_promptText, (result) =>
             {
                 var temp = _promptCallback;
                 _promptText = null;
@@ -1089,7 +1091,7 @@ namespace Poltergeist
                     {
                         if (password == null)
                         {
-                            PromptBox($"Do you want to add a password to wallet{walletNumberString}?\nThe password will be required to open the wallet.\nIt will also be prompted every time you do a transaction", ModalYesNo, (wantsPass) =>
+                            modalActions.YesNo($"Do you want to add a password to wallet{walletNumberString}?\nThe password will be required to open the wallet.\nIt will also be prompted every time you do a transaction", (wantsPass) =>
                             {
                                 if (wantsPass == PromptResult.Success)
                                 {
@@ -1621,7 +1623,7 @@ namespace Poltergeist
 
                     case 2:
                         {
-                            PromptBox($"{accountManagementSelectedList.Count()} selected wallets will be deleted.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", ModalConfirmCancel, (result) =>
+                            modalActions.ConfirmCancel($"{accountManagementSelectedList.Count()} selected wallets will be deleted.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", (result) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -2670,7 +2672,7 @@ namespace Poltergeist
                 {
                     RequireAmount($"Burn {balance.Symbol} tokens", null, balance.Symbol, 0.1m, balance.Available, (amountToBurn) =>
                     {
-                        PromptBox($"Are you sure you want to burn {amountToBurn} {balance.Symbol} tokens?", ModalConfirmCancel, (result) =>
+                        modalActions.ConfirmCancel($"Are you sure you want to burn {amountToBurn} {balance.Symbol} tokens?", (result) =>
                         {
                             if (result == PromptResult.Success)
                             {
@@ -3904,7 +3906,7 @@ namespace Poltergeist
                     /*var nftTransferLimit = 100;
                     if (nftTransferList.Count > nftTransferLimit)
                     {
-                        PromptBox($"Currently sending is limited to {nftTransferLimit} NFTs for one transfer, reduce selection to first {nftTransferLimit}? ", ModalConfirmCancel, (result) =>
+                        modalActions.ConfirmCancel($"Currently sending is limited to {nftTransferLimit} NFTs for one transfer, reduce selection to first {nftTransferLimit}? ", (result) =>
                         {
                             if (result == PromptResult.Success)
                             {
@@ -3969,7 +3971,7 @@ namespace Poltergeist
             // Burn
             DoButton(true, new Rect(VerticalLayout ? rect.x + border * 2 : halfWidth - btnWidth / 2, VerticalLayout ? (int)rect.y + border : (int)rect.y + border, VerticalLayout ? rect.width - border * 4 : btnWidth, Units(2)), "Burn", () =>
             {
-                PromptBox("Are you sure you want to burn (destroy) selected NFTs?", ModalConfirmCancel, (result) =>
+                modalActions.ConfirmCancel("Are you sure you want to burn (destroy) selected NFTs?", (result) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -4137,7 +4139,7 @@ namespace Poltergeist
                     {
                         Animate(AnimationDirection.Left, false, () =>
                         {
-                            PromptBox($"Preparing transaction...\n{description}", ModalSendCancel, (result) =>
+                            modalActions.SendCancel($"Preparing transaction...\n{description}", (result) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -4194,7 +4196,7 @@ namespace Poltergeist
                     {
                         Animate(AnimationDirection.Left, false, () =>
                         {
-                            PromptBox($"Preparing transaction...\n{description}", ModalSendCancel, (result) =>
+                            modalActions.SendCancel($"Preparing transaction...\n{description}", (result) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -4280,7 +4282,7 @@ namespace Poltergeist
                     {
                         Animate(AnimationDirection.Left, false, () =>
                         {
-                            PromptBox(scripts.Count() > 1 ? $"Preparing {scripts.Count()} transactions...\n{description}" : $"Preparing transaction...\n{description}", ModalSendCancel, (result) =>
+                            modalActions.SendCancel(scripts.Count() > 1 ? $"Preparing {scripts.Count()} transactions...\n{description}" : $"Preparing transaction...\n{description}", (result) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
