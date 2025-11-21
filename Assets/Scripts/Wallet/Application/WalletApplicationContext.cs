@@ -17,9 +17,15 @@ namespace Poltergeist.Wallet
             Messages = new WalletMessageQueue();
             Modals = new WalletModalContext();
             Data = new WalletDataProvider(() => AccountManager.Instance);
+            NftSource = new WalletNftSource(() => AccountManager.Instance, new INftMetadataProvider[]
+            {
+                new TtrsNftMetadataProvider(),
+                new GameNftMetadataProvider(),
+                new DefaultNftMetadataProvider(() => AccountManager.Instance)
+            });
             NftViewBuilder = new WalletNftViewBuilder();
             NftViewState = new WalletNftViewState();
-            NftViewPresenter = new WalletNftPresenter(NftViewBuilder, NftViewState, () => AccountManager.Instance);
+            NftViewPresenter = new WalletNftPresenter(NftViewBuilder, NftViewState, NftSource, () => AccountManager.Instance);
             NftTransactions = new WalletNftTransactionBuilder(() => AccountManager.Instance);
         }
 
@@ -30,6 +36,8 @@ namespace Poltergeist.Wallet
         public WalletModalContext Modals { get; }
 
         public WalletDataProvider Data { get; }
+
+        public WalletNftSource NftSource { get; }
 
         public WalletNftViewBuilder NftViewBuilder { get; }
 

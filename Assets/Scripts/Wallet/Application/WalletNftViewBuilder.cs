@@ -12,107 +12,70 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletNftViewBuilder
     {
-        public WalletNftViewSnapshot Build(AccountManager accountManager, string symbol, WalletNftViewState viewState)
+        public WalletNftViewSnapshot Build(WalletNftSource source, string symbol, WalletNftViewState viewState)
         {
             if (viewState == null)
             {
                 viewState = new WalletNftViewState();
             }
 
-            return Build(accountManager, symbol, viewState.FilterName, viewState.FilterType, viewState.FilterRarity, viewState.FilterMinted, viewState.PageSize, viewState.PageNumber);
+            return Build(source, symbol, viewState.FilterName, viewState.FilterType, viewState.FilterRarity, viewState.FilterMinted, viewState.PageSize, viewState.PageNumber);
         }
 
-        public WalletNftViewSnapshot Build(AccountManager accountManager, string symbol, string filterName, string filterType, int filterRarity, int filterMinted, int pageSize, int pageNumber)
+        public WalletNftViewSnapshot Build(WalletNftSource source, string symbol, string filterName, string filterType, int filterRarity, int filterMinted, int pageSize, int pageNumber)
         {
-            if (accountManager == null)
+            if (source == null)
             {
-                return new WalletNftViewSnapshot(true, true, "Account manager is not available yet.", 0, 0, 0, Array.Empty<TokenDataResult>(), Array.Empty<string>());
+                return new WalletNftViewSnapshot(true, true, "NFT source is not available yet.", 0, 0, 0, Array.Empty<TokenDataResult>(), Array.Empty<string>());
             }
 
             pageSize = Math.Max(1, pageSize);
 
-            var nfts = accountManager.CurrentNfts;
-            var isRefreshing = accountManager.NftsRefreshing;
+            var nfts = source.CurrentNfts;
+            var isRefreshing = source.IsRefreshing;
 
             if (nfts == null)
             {
-                var error = accountManager.rpcAvailablePhantasma == 0
+                var error = source.RpcAvailablePhantasma == 0
                     ? "Please check your internet connection. All Phantasma RPC servers are unavailable."
                     : "Loading NFTs...";
 
                 return new WalletNftViewSnapshot(isRefreshing, true, error, 0, 0, 0, Array.Empty<TokenDataResult>(), Array.Empty<string>());
             }
 
-            accountManager.SortTtrsNfts(symbol);
-            nfts = accountManager.CurrentNfts ?? nfts;
+            source.SortTtrsNfts(symbol);
+            nfts = source.CurrentNfts ?? nfts;
 
             var filtered = new List<TokenDataResult>();
 
             foreach (var x in nfts)
             {
-                if (string.Equals(symbol, "TTRS", StringComparison.OrdinalIgnoreCase))
+                if (!source.TryGetMetadata(symbol, x.Id, out var meta) || !meta.HasValue)
                 {
-                    var item = TtrsStore.GetNft(x.Id);
-
-                    if (!string.IsNullOrEmpty(filterName) && !item.item_info.name_english.ToUpper().Contains(filterName.ToUpper()))
-                    {
-                        continue;
-                    }
-
-                    if (filterType != "All" && item.item_info.display_type_english != filterType)
-                    {
-                        continue;
-                    }
-
-                    if (filterRarity != (int)ttrsNftRarity.All && (int)item.item_info.rarity != filterRarity)
-                    {
-                        continue;
-                    }
-
-                    if (!MintedFilterMatch(filterMinted, item.timestampDT()))
-                    {
-                        continue;
-                    }
-
-                    filtered.Add(x);
+                    continue;
                 }
-                else if (string.Equals(symbol, "GAME", StringComparison.OrdinalIgnoreCase))
+
+                if (!string.IsNullOrEmpty(filterName) && !meta.Name.ToUpper().Contains(filterName.ToUpper()))
                 {
-                    var item = GameStore.GetNft(x.Id);
-
-                    var nameEng = item.meta?.name_english ?? string.Empty;
-                    if (!string.IsNullOrEmpty(filterName) && !nameEng.ToUpper().Contains(filterName.ToUpper()))
-                    {
-                        continue;
-                    }
-
-                    if (!MintedFilterMatch(filterMinted, item.parsed_rom.timestampDT()))
-                    {
-                        continue;
-                    }
-
-                    filtered.Add(x);
+                    continue;
                 }
-                else
+
+                if (filterType != "All" && !string.IsNullOrEmpty(filterType) && !string.Equals(meta.Type, filterType, StringComparison.Ordinal))
                 {
-                    var rom = accountManager.GetNftRom(x.Id);
-                    if (rom == null)
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(filterName) && !rom.GetName().ToUpper().Contains(filterName.ToUpper()))
-                    {
-                        continue;
-                    }
-
-                    if (!MintedFilterMatch(filterMinted, rom.GetDate()))
-                    {
-                        continue;
-                    }
-
-                    filtered.Add(x);
+                    continue;
                 }
+
+                if (filterRarity != (int)ttrsNftRarity.All && meta.Rarity != filterRarity)
+                {
+                    continue;
+                }
+
+                if (!MintedFilterMatch(filterMinted, meta.MintDate))
+                {
+                    continue;
+                }
+
+                filtered.Add(x);
             }
 
             var total = filtered.Count;

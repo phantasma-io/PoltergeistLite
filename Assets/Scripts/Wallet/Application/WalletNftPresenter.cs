@@ -10,12 +10,14 @@ namespace Poltergeist.Wallet
     {
         private readonly WalletNftViewBuilder builder;
         private readonly WalletNftViewState state;
+        private readonly WalletNftSource nftSource;
         private readonly Func<AccountManager> accountProvider;
 
-        public WalletNftPresenter(WalletNftViewBuilder builder, WalletNftViewState state, Func<AccountManager> accountProvider)
+        public WalletNftPresenter(WalletNftViewBuilder builder, WalletNftViewState state, WalletNftSource nftSource, Func<AccountManager> accountProvider)
         {
             this.builder = builder ?? throw new ArgumentNullException(nameof(builder));
             this.state = state ?? throw new ArgumentNullException(nameof(state));
+            this.nftSource = nftSource ?? throw new ArgumentNullException(nameof(nftSource));
             this.accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
@@ -23,8 +25,7 @@ namespace Poltergeist.Wallet
 
         public WalletNftViewSnapshot BuildSnapshot(string symbol)
         {
-            var accountManager = accountProvider();
-            return builder.Build(accountManager, symbol, state);
+            return builder.Build(nftSource, symbol, state);
         }
 
         public bool UpdateFilters(string filterName, int filterTypeIndex, string filterType, int filterRarity, int filterMinted)
