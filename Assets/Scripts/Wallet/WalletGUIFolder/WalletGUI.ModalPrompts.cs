@@ -26,7 +26,7 @@ namespace Poltergeist
 
         private WalletModalContext modalContext => WalletApplicationContext.Instance.Modals;
 
-        
+
         private string GetAdditionalDetails()
         {
             var accountManager = AccountManager.Instance;
@@ -37,7 +37,7 @@ namespace Poltergeist
             details += $"\nRPC: {accountManager.Settings.phantasmaRPCURL}";
             details += $"\nFee price: {accountManager.Settings.feePrice}";
             details += $"\nFee limit: {accountManager.Settings.feeLimit}";
-            if(accountManager.Settings.devMode)
+            if (accountManager.Settings.devMode)
             {
                 details += $"\nDeveloper mode: {accountManager.Settings.devMode}";
                 details += $"\nNo validation mode: {accountManager.Settings.devMode_NoValidation}";
@@ -78,7 +78,7 @@ namespace Poltergeist
         {
             modalService.MessageBox(kind, caption, callback, VerticalLayout, ResetModalUiHints);
         }
-        
+
         public void ShowUpdateModal(string title, string caption, Action callback = null)
         {
             modalService.ShowUpdateModal(title, caption, callback, VerticalLayout, ResetModalUiHints);

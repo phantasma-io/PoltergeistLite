@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Collections.Generic;
 
@@ -206,7 +206,7 @@ namespace Poltergeist
             Log.Write("********************************************************\n" +
                        "************** Poltergeist Wallet started **************\n" +
                        "********************************************************\n" +
-                       "Wallet version: " + UnityEngine.Application.version + $" built on: { Poltergeist.Build.Info.Instance.BuildTime} UTC\n" +
+                       "Wallet version: " + UnityEngine.Application.version + $" built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC\n" +
                        "Log level: " + _logLevel.ToString());
 
             Cache.Init("cache");
@@ -311,7 +311,7 @@ namespace Poltergeist
                 case GUIState.Fatal:
                     currentTitle = "Fatal Error";
                     break;
-                
+
                 case GUIState.MessageForUser:
                     currentTitle = activeUserMessage?.Title ?? "Message";
                     break;
@@ -388,17 +388,19 @@ namespace Poltergeist
                         settingsOptions ??= new WalletSettingsOptions(accountManager);
                         settingsOptions.RefreshCurrencyOptions();
 
-                        if(accountManager.Settings.nexusKind == NexusKind.Unknown)
+                        if (accountManager.Settings.nexusKind == NexusKind.Unknown)
                         {
                             currentTitle = "Wallet Setup";
-                        } else if (accountManager.Settings.settingRequireReconfiguration)
+                        }
+                        else if (accountManager.Settings.settingRequireReconfiguration)
                         {
                             currentTitle = "Wallet Setup (Connection failed)";
-                        } else
+                        }
+                        else
                         {
                             currentTitle = "Settings";
                         }
-                        
+
                         settingsScroll = Vector2.zero;
                         currencyIndex = settingsOptions.GetCurrencyIndex(accountManager.Settings.currency);
                         currencyComboBox.SelectedItemIndex = currencyIndex;
@@ -418,7 +420,7 @@ namespace Poltergeist
                         uiThemeIndex = settingsOptions.GetUiThemeIndex(accountManager.Settings.uiThemeName);
                         uiThemeComboBox.SelectedItemIndex = uiThemeIndex;
 
-                        
+
 
                         break;
                     }
@@ -461,13 +463,13 @@ namespace Poltergeist
         private const int MaxResolution = 1024;
 
         #region CONNECTOR PROMPT
-        
+
         private string _promptText;
         private Action<bool> _promptCallback;
         private bool _promptVisible;
 
         public void Prompt(string text, Action<bool> callback)
-        {           
+        {
             // if theres an active prompt, this new one automatically fails
             if (_promptText != null)
             {
@@ -518,16 +520,16 @@ namespace Poltergeist
                     {
                         if (hintComboBox.DropDownIsOpened())
                             hintComboBox.ListScroll.y += touch.deltaPosition.y;
-                else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                    accountScroll.y += touch.deltaPosition.y;
-                else if ((CurrentState == GUIState.Balances || CurrentState == GUIState.History) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                    balanceScroll.y += touch.deltaPosition.y;
-                else if (CurrentState == GUIState.NftView && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                    nftScroll.y += touch.deltaPosition.y;
-                else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                    nftTransferListScroll.y += touch.deltaPosition.y;
-                else if (CurrentState == GUIState.Settings && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                    settingsScroll.y += touch.deltaPosition.y;
+                        else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            accountScroll.y += touch.deltaPosition.y;
+                        else if ((CurrentState == GUIState.Balances || CurrentState == GUIState.History) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            balanceScroll.y += touch.deltaPosition.y;
+                        else if (CurrentState == GUIState.NftView && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            nftScroll.y += touch.deltaPosition.y;
+                        else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            nftTransferListScroll.y += touch.deltaPosition.y;
+                        else if (CurrentState == GUIState.Settings && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            settingsScroll.y += touch.deltaPosition.y;
                     }
                 }
 
@@ -710,7 +712,7 @@ namespace Poltergeist
                 QualitySettings.vSyncCount = 0;
                 Application.targetFrameRate = AccountManager.Instance.Settings.uiFramerate;
             }
-            
+
             var uiThemeName = AccountManager.Instance.Settings.uiThemeName;
             GUI.skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
 
@@ -926,7 +928,7 @@ namespace Poltergeist
                 case GUIState.Fatal:
                     DoFatalScreen();
                     break;
-                
+
                 case GUIState.MessageForUser:
                     DoMessageForUserScreen();
                     break;
@@ -1008,7 +1010,8 @@ namespace Poltergeist
                         accountManager.RefreshTokenPrices();
                     }
 
-                    Animate(AnimationDirection.Down, true, () => {
+                    Animate(AnimationDirection.Down, true, () =>
+                    {
                         PushState(GUIState.Balances);
 
                         Animate(AnimationDirection.Up, false, () =>
@@ -1017,7 +1020,7 @@ namespace Poltergeist
                             {
                                 //MessageBox(MessageKind.Default, "This account was created using legacy mnemonic phrase, please migrate to account created with Poltergeist 2.4 or newer to be compatible with future updates.", () =>
                                 //{
-                                    callback?.Invoke(true);
+                                callback?.Invoke(true);
                                 //});
                             }
                             else
@@ -1053,7 +1056,7 @@ namespace Poltergeist
                 {
                     keys = PhantasmaKeys.FromWIF(wif);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     Log.Write("ImportWallet() exception: " + e);
                     MessageBox(MessageKind.Error, $"Incorrect WIF format.", () => { if (callback != null) { callback(-1); } });
@@ -1119,7 +1122,7 @@ namespace Poltergeist
             "fuckyou", "trustno1", "ranger","buster","thomas","robert","bitcoin","phantasma","wallet","crypto"
         };
 
-        
+
 
         private bool IsGoodPassword(string name, string password)
         {
@@ -1325,7 +1328,7 @@ namespace Poltergeist
                                     });
                                 }
                             });
-                    
+
                             break;
                         }
 
@@ -1422,8 +1425,8 @@ namespace Poltergeist
 
                     if (VerticalLayout)
                     {
-                        GUI.Label(new Rect(Border * 2, curY , windowRect.width - Border * 2, Units(2) + 4), account.ToString());
-                        btnRect = new Rect((rect.width - btnWidth)/2, curY + Units(3) + 4, btnWidth, Units(2));
+                        GUI.Label(new Rect(Border * 2, curY, windowRect.width - Border * 2, Units(2) + 4), account.ToString());
+                        btnRect = new Rect((rect.width - btnWidth) / 2, curY + Units(3) + 4, btnWidth, Units(2));
                     }
                     else
                     {
@@ -1456,7 +1459,7 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            ShowModal("Wallets Export", 
+                            ShowModal("Wallets Export",
                                 ((accountManagementSelectedList.Count() == 0) ? $"All {accountManager.Accounts.Count()} wallets will be exported.\n\n" : $"Selected {accountManagementSelectedList.Count()} wallets will be exported.\n\n") +
                                 "Do you want to protect exported data with a password?\nIf not, leave this field blank.",
                                  ModalState.Password,
@@ -1538,7 +1541,7 @@ namespace Poltergeist
                                             var accountsToImport = new List<Account>();
                                             foreach (var account in accounts)
                                             {
-                                                if(accountManager.Accounts.Where(x => x.phaAddress.ToUpper() == account.phaAddress.ToUpper()).Any())
+                                                if (accountManager.Accounts.Where(x => x.phaAddress.ToUpper() == account.phaAddress.ToUpper()).Any())
                                                 {
                                                     messageWillBeSkipped += $"- {account.name} [{account.phaAddress}]\n";
                                                     someWillBeSkipped = true;
@@ -1627,7 +1630,7 @@ namespace Poltergeist
                                 if (result == PromptResult.Success)
                                 {
                                     var counter = 0;
-                                    foreach(var accountToDelete in accountManagementSelectedList)
+                                    foreach (var accountToDelete in accountManagementSelectedList)
                                     {
                                         accountManager.Accounts.Remove(accountManager.Accounts.Where(x => x.phaAddress.ToUpper() == accountToDelete.ToUpper()).First());
                                         counter++;
@@ -1695,7 +1698,7 @@ namespace Poltergeist
                         style.fontSize -= 4;
                         GUI.Label(new Rect(Border * 2, curY + Units(1) + 8, windowRect.width - Border * 2, Units(2) + 4), $"{account.phaAddress}");
                         style.fontSize += 4;
-                        
+
                         btnRect = new Rect(rect.width - (btnWidth + Units(2)), curY + Units(1), btnWidth, Units(2));
                         btnRect2 = new Rect(rect.width - (btnWidth + Units(1)) * 2 - Units(1), curY + Units(1), btnWidth, Units(2));
                         btnRect3 = new Rect(rect.width - (btnWidth + Units(1)) * 3 - Units(1), curY + Units(1), btnWidth, Units(2));
@@ -1718,7 +1721,7 @@ namespace Poltergeist
                             accountManagementSelectedList.Remove(accountManagementSelectedList.Single(x => x == account.phaAddress));
                         }
                     }
-                    
+
                     DoButton(index != 0, btnRect3, "Move up", () =>
                     {
                         var accountToMoveUp = accountManager.Accounts.ElementAt(index);
@@ -1743,13 +1746,13 @@ namespace Poltergeist
                                 MessageBox(MessageKind.Error, "Invalid account name.\n");
                                 return;
                             }
-                            
-                            if ( accountManager.Accounts.Any(x => x.name.ToLower() == input.ToLower()))
+
+                            if (accountManager.Accounts.Any(x => x.name.ToLower() == input.ToLower()))
                             {
                                 MessageBox(MessageKind.Error, "Account with this name already exists.\n");
                                 return;
                             }
-                            
+
                             if (result == PromptResult.Success)
                             {
                                 account.name = input;
@@ -1804,7 +1807,7 @@ namespace Poltergeist
             }
 
             curY += Units(VerticalLayout ? 2 : 3);
-            DrawHorizontalCenteredText(curY - 5, Units(VerticalLayout ? 3: 2), address);
+            DrawHorizontalCenteredText(curY - 5, Units(VerticalLayout ? 3 : 2), address);
 
             curY += Units(3);
 
@@ -1818,7 +1821,7 @@ namespace Poltergeist
 
                 DoButton(true, new Rect(windowRect.width / 2 + Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Explorer", () =>
                 {
-                    switch(accountManager.CurrentPlatform)
+                    switch (accountManager.CurrentPlatform)
                     {
                         case PlatformKind.Phantasma:
                             Application.OpenURL(accountManager.GetPhantasmaAddressURL(address));
@@ -1933,7 +1936,7 @@ namespace Poltergeist
             if (amount > 0.0001m)
             {
                 var style = GUI.skin.label;
-                style.fontSize -= VerticalLayout ? 4: 2;
+                style.fontSize -= VerticalLayout ? 4 : 2;
 
                 var value = AccountManager.Instance.GetTokenWorth(symbol, amount);
                 GUI.Label(subRect, $"{MoneyFormat(amount)} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
@@ -1983,9 +1986,9 @@ namespace Poltergeist
             }
 
             var camHeight = windowRect.height - Units(12);
-            var camWidth  = (int)((camTexture.width * camHeight) / (float)camTexture.height);
+            var camWidth = (int)((camTexture.width * camHeight) / (float)camTexture.height);
 
-            var camRect = new Rect((windowRect.width - camWidth)/2, Border + Units(5), camWidth, camHeight);
+            var camRect = new Rect((windowRect.width - camWidth) / 2, Border + Units(5), camWidth, camHeight);
             DrawDropshadow(camRect);
             GUI.DrawTexture(camRect, camTexture, ScaleMode.ScaleToFit);
 
@@ -2007,7 +2010,7 @@ namespace Poltergeist
 
                         foreach (var platform in AccountManager.AvailablePlatforms)
                         {
-                            var tag = platform.ToString().ToLower()+"://";
+                            var tag = platform.ToString().ToLower() + "://";
                             if (result.Text.StartsWith(tag))
                             {
                                 modalContext.Input = result.Text.Substring(tag.Length);
@@ -2028,7 +2031,7 @@ namespace Poltergeist
             rnd.GetBytes(randomInt);
             return Convert.ToInt32(randomInt[0]);
         }
-        private void TrySeedVerification(string []seed, Action<bool> callback)
+        private void TrySeedVerification(string[] seed, Action<bool> callback)
         {
             // Verifying 3 random words
             int[] indices = Enumerable.Range(0, seed.Length)
@@ -2045,7 +2048,7 @@ namespace Poltergeist
                     {
                         var wordsToVerify = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-                        if(seed[indices[0]] == wordsToVerify[0] &&
+                        if (seed[indices[0]] == wordsToVerify[0] &&
                             seed[indices[1]] == wordsToVerify[1] &&
                             seed[indices[2]] == wordsToVerify[2]
                         )
@@ -2149,7 +2152,7 @@ namespace Poltergeist
             int curY;
 
             curY = Units(5);
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), fatalError);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border + curY)), fatalError);
 
             var btnWidth = Units(12);
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
@@ -2159,7 +2162,7 @@ namespace Poltergeist
                 MessageBox(MessageKind.Default, "Error log copied to clipboard.");
             });
         }
-        
+
         private void DoMessageForUserScreen()
         {
             if (activeUserMessage.HasValue && !activeUserMessageLogged)
@@ -2172,7 +2175,7 @@ namespace Poltergeist
 
             curY = Units(5);
             var messageBody = activeUserMessage?.Body ?? string.Empty;
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border+curY)), messageBody);
+            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border + curY)), messageBody);
 
             var btnWidth = Units(12);
             curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
@@ -2298,7 +2301,7 @@ namespace Poltergeist
                             secondaryEnabled = true;
                             secondaryCallback = () =>
                             {
-                                accountManager.GetPhantasmaAddressInfo(state.address, accountManager.CurrentAccount,(result, error) =>
+                                accountManager.GetPhantasmaAddressInfo(state.address, accountManager.CurrentAccount, (result, error) =>
                                 {
                                     if (!string.IsNullOrEmpty(error))
                                     {
@@ -2338,16 +2341,16 @@ namespace Poltergeist
 
                                     var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
                                     decimal kcalClaimable = 0;
-                                    if(kcalBalance != default)
+                                    if (kcalBalance != default)
                                     {
                                         kcalClaimable = kcalBalance.Claimable;
                                     }
 
-                                    var message = $"Do you want to stake {selectedAmount} SOUL?" + 
+                                    var message = $"Do you want to stake {selectedAmount} SOUL?" +
                                         $"\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
                                         $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
-                                    
-                                    if(kcalClaimable > 0)
+
+                                    if (kcalClaimable > 0)
                                     {
                                         message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
                                     }
@@ -2373,11 +2376,11 @@ namespace Poltergeist
 
                                         var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
                                         decimal kcalClaimable = 0;
-                                        if(kcalBalance != default)
+                                        if (kcalBalance != default)
                                         {
                                             kcalClaimable = kcalBalance.Claimable;
                                         }
-                                        if(kcalClaimable > 0)
+                                        if (kcalClaimable > 0)
                                         {
                                             message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
                                         }
@@ -2389,7 +2392,7 @@ namespace Poltergeist
 
                                         modalActions.YesNo(message, (result) =>
                                         {
-                                            if(result == PromptResult.Success)
+                                            if (result == PromptResult.Success)
                                             {
                                                 RequestKCAL("SOUL", (kcal) =>
                                                 {
@@ -2398,7 +2401,7 @@ namespace Poltergeist
                                                         var address = Address.Parse(state.address);
 
                                                         var sb = new ScriptBuilder();
-                                                            
+
                                                         sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
                                                         sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
                                                         sb.SpendGas(address);
@@ -2470,51 +2473,51 @@ namespace Poltergeist
                     break;
 
                 default:
-                {
-                    var hasTokenInfo = Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token) && token != null;
-                    var isFungible = balance.Fungible;
-                    if (hasTokenInfo)
                     {
-                        try
+                        var hasTokenInfo = Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var token) && token != null;
+                        var isFungible = balance.Fungible;
+                        if (hasTokenInfo)
                         {
-                            if (token.Flags != null)
+                            try
                             {
-                                isFungible = token.IsFungible();
+                                if (token.Flags != null)
+                                {
+                                    isFungible = token.IsFungible();
+                                }
+                            }
+                            catch
+                            {
+                                // fall back to balance data when token metadata not ready yet
+                                isFungible = balance.Fungible;
                             }
                         }
-                        catch
+
+                        if (!isFungible)
                         {
-                            // fall back to balance data when token metadata not ready yet
-                            isFungible = balance.Fungible;
+                            // It's an NFT. We add additional button to get to NFTs view mode.
+                            secondaryAction = "View";
+                            secondaryEnabled = balance.Available > 0;
+                            secondaryCallback = () =>
+                            {
+                                transferSymbol = balance.Symbol;
+
+                                // We should do this initialization here and not in PushState,
+                                // to allow "Back" button to work properly.
+                                nftScroll = Vector2.zero;
+                                nftTransferList.Clear();
+                                nftFilterName = "";
+                                nftFilterTypeIndex = 0;
+                                nftFilterType = "All";
+                                nftFilterRarity = 0;
+                                nftFilterMinted = 0;
+                                accountManager.RefreshNft(false, transferSymbol);
+
+                                PushState(GUIState.NftView);
+                                return;
+                            };
                         }
+                        break;
                     }
-
-                    if (!isFungible)
-                    {
-                        // It's an NFT. We add additional button to get to NFTs view mode.
-                        secondaryAction = "View";
-                        secondaryEnabled = balance.Available > 0;
-                        secondaryCallback = () =>
-                        {
-                            transferSymbol = balance.Symbol;
-
-                            // We should do this initialization here and not in PushState,
-                            // to allow "Back" button to work properly.
-                            nftScroll = Vector2.zero;
-                            nftTransferList.Clear();
-                            nftFilterName = "";
-                            nftFilterTypeIndex = 0;
-                            nftFilterType = "All";
-                            nftFilterRarity = 0;
-                            nftFilterMinted = 0;
-                            accountManager.RefreshNft(false, transferSymbol);
-
-                            PushState(GUIState.NftView);
-                            return;
-                        };
-                    }
-                    break;
-                }
             }
 
             int btnY = VerticalLayout ? Units(4) + 8 : Units(2);
@@ -2733,7 +2736,8 @@ namespace Poltergeist
             nftFilteredList.Clear();
             if (!String.IsNullOrEmpty(nftFilterName) || nftFilterType != "All" || nftFilterRarity != (int)ttrsNftRarity.All || nftFilterMinted != (int)nftMinted.All)
             {
-                nfts.ForEach((x) => {
+                nfts.ForEach((x) =>
+                {
                     if (transferSymbol == "TTRS")
                     {
                         var item = TtrsStore.GetNft(x.Id);
@@ -2800,7 +2804,7 @@ namespace Poltergeist
 
             // Making NFT list for current page.
             var nftPage = new List<string>();
-            for(int i = nftPageSize * nftPageNumber; i < Math.Min(nftPageSize * (nftPageNumber + 1), nfts.Count); i++)
+            for (int i = nftPageSize * nftPageNumber; i < Math.Min(nftPageSize * (nftPageNumber + 1), nfts.Count); i++)
             {
                 nftPage.Add(nfts[i].Id);
             }
@@ -2825,7 +2829,7 @@ namespace Poltergeist
         // Used for both NFT list and transfer NFT list.
         private void DoNftEntry(string entryId, int index, int curY, Rect rect)
         {
-            if(string.IsNullOrEmpty(entryId))
+            if (string.IsNullOrEmpty(entryId))
             {
                 return;
             }
@@ -2952,7 +2956,7 @@ namespace Poltergeist
                     if (VerticalLayout)
                     {
                         var nftInfusedCount = nftInfusions.Sum(x => x.Value);
-                        if(nftInfusedCount > 0)
+                        if (nftInfusedCount > 0)
                             infusionDescription += (fungibleInfusions.Count() > 0 ? ", " : "") + nftInfusedCount + " NFT" + (nftInfusedCount > 1 ? "s" : "");
                     }
                     else
@@ -3028,7 +3032,7 @@ namespace Poltergeist
             float descYPosition = curY;
             if (!String.IsNullOrEmpty(infusionDescription))
             {
-                nameYPosition += VerticalLayout ? - 2 : - 8;
+                nameYPosition += VerticalLayout ? -2 : -8;
                 descYPosition += VerticalLayout ? Units(1) + 6 : Units(1) - 2;
             }
             else
@@ -3163,7 +3167,7 @@ namespace Poltergeist
             {
                 accountManager.RefreshHistory(false, accountManager.CurrentPlatform);
             });
-            
+
             var endY = DoBottomMenu();
 
             if (accountManager.HistoryRefreshing)
@@ -3202,7 +3206,7 @@ namespace Poltergeist
 
             var date = String.Format("{0:g}", entry.date);
 
-            GUI.Label(new Rect(Units(2), curY + 4, Units(20), Units(2)), VerticalLayout ? entry.hash.Substring(0, 16)+"...": entry.hash);
+            GUI.Label(new Rect(Units(2), curY + 4, Units(20), Units(2)), VerticalLayout ? entry.hash.Substring(0, 16) + "..." : entry.hash);
 
             Rect btnRect;
 
@@ -3404,7 +3408,7 @@ namespace Poltergeist
                                 {
                                     RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
                                     {
-                                            if (auth == PromptResult.Success)
+                                        if (auth == PromptResult.Success)
                                         {
                                             modalActions.CopyableMessage("Your private key (WIF)", KeyPrepareForMessageBox(accountManager.CurrentWif), (result1, _) =>
                                             {
@@ -3614,7 +3618,7 @@ namespace Poltergeist
                                         }
 
                                         var signature = Base16.Encode(signatureBytes);
-                                        
+
                                         ShowModal("Signature", signature, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (result3, input) =>
                                         {
                                             if (result3 != PromptResult.Success)
@@ -3727,7 +3731,7 @@ namespace Poltergeist
                                                 }
 
                                                 var url = string.Format("{0}/{1}", accountManager.Settings.phantasmaPoaUrl.TrimEnd('/'), "api/v1/poa/register");
-                                                
+
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
                                                 StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, (error, msg) =>
@@ -3973,7 +3977,7 @@ namespace Poltergeist
                     {
                         var accountManager = AccountManager.Instance;
                         var state = accountManager.CurrentState;
-                        
+
                         var gasPrice = accountManager.Settings.feePrice;
                         var gasLimit = accountManager.Settings.feeLimit;
 
@@ -4151,7 +4155,7 @@ namespace Poltergeist
                                         {
                                             PopState();
 
-                                            if(hash == Hash.Null)
+                                            if (hash == Hash.Null)
                                             {
                                                 callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
                                             }
@@ -4165,7 +4169,8 @@ namespace Poltergeist
                                 else
                                 {
                                     callback(Hash.Null, null, null); // User cancelled tx
-                                };
+                                }
+                                ;
                             });
                         });
                     });
@@ -4180,7 +4185,7 @@ namespace Poltergeist
                 }
             });
         }
-        
+
         public void SendCarbonTransaction(string description, TxMsg tx, Action<Hash, TransactionResult, string> callback)
         {
             var accountManager = AccountManager.Instance;
@@ -4208,7 +4213,7 @@ namespace Poltergeist
                                         {
                                             PopState();
 
-                                            if(hash == Hash.Null)
+                                            if (hash == Hash.Null)
                                             {
                                                 callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
                                             }
@@ -4222,7 +4227,8 @@ namespace Poltergeist
                                 else
                                 {
                                     callback(Hash.Null, null, null); // User cancelled tx
-                                };
+                                }
+                                ;
                             });
                         });
                     });
@@ -4287,7 +4293,8 @@ namespace Poltergeist
                                 else
                                 {
                                     callback(Hash.Null, null, null); // Cancelled by user
-                                };
+                                }
+                                ;
                             });
                         });
                     });
@@ -4523,7 +4530,7 @@ namespace Poltergeist
 
                     var gasPrice = accountManager.Settings.feePrice;
                     var gasLimit = accountManager.Settings.feeLimit;
-                    
+
                     try
                     {
                         var nftTransferLimit = 100;
@@ -4639,7 +4646,7 @@ namespace Poltergeist
 
                 decimal amount = ParseNumber(temp);
 
-                if(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
+                if (accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
                 {
                     callback(amount);
                     return;
@@ -4713,7 +4720,7 @@ namespace Poltergeist
                 MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.", () =>
                 {
                     callback(PromptResult.Failure);
-                });                
+                });
                 return;
             }
 
@@ -4722,7 +4729,7 @@ namespace Poltergeist
 
             if (Tokens.GetToken(swapSymbol, accountManager.CurrentPlatform, out var tokenInfo))
             {
-                if(!tokenInfo.IsFungible())
+                if (!tokenInfo.IsFungible())
                 {
                     // We cannot swap NFTs.
                     MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.");
@@ -4730,7 +4737,7 @@ namespace Poltergeist
                 }
             }
 
-            if ((swapDecimals> 0 || swapBalance > 1) && accountManager.Settings.devMode)
+            if ((swapDecimals > 0 || swapBalance > 1) && accountManager.Settings.devMode)
             {
                 modalActions.YesNo($"Not enough {feeSymbol} for transaction fees.\nUse some {swapSymbol} to perform a cosmic swap?",
                      (result) =>
@@ -4864,7 +4871,7 @@ namespace Poltergeist
                 }
             }
 
-            for (int index=0; index< accountManager.Accounts.Count(); index++)
+            for (int index = 0; index < accountManager.Accounts.Count(); index++)
             {
                 var account = accountManager.Accounts[index];
                 var platforms = account.platforms.Split();
@@ -4878,7 +4885,7 @@ namespace Poltergeist
 
                     if (targets.HasFlag(platform))
                     {
-                        if(accountManager.CurrentPlatform == PlatformKind.Ethereum && platform == PlatformKind.Phantasma ||
+                        if (accountManager.CurrentPlatform == PlatformKind.Ethereum && platform == PlatformKind.Phantasma ||
                             accountManager.CurrentPlatform == PlatformKind.BSC && platform == PlatformKind.Phantasma ||
                             accountManager.CurrentPlatform == PlatformKind.Neo && platform == PlatformKind.Phantasma ||
                             accountManager.CurrentPlatform == PlatformKind.Phantasma && platform != PlatformKind.Phantasma)
@@ -4909,7 +4916,7 @@ namespace Poltergeist
             return hints;
         }
 
-#region QR CODES
+        #region QR CODES
         public Texture2D GenerateQR(string text)
         {
             var encoded = new Texture2D(256, 256);
@@ -4932,7 +4939,7 @@ namespace Poltergeist
             };
             return writer.Write(textForEncoding);
         }
-#endregion
+        #endregion
 
         private decimal ParseNumber(string s)
         {
@@ -4958,7 +4965,7 @@ namespace Poltergeist
             return (Math.Sign(byteCount) * num).ToString() + suf[place];
         }
 
-#region UI THREAD UTILS
+        #region UI THREAD UTILS
         private List<Action> _uiCallbacks = new List<Action>();
 
         public void CallOnUIThread(Action callback)
@@ -4968,15 +4975,15 @@ namespace Poltergeist
                 _uiCallbacks.Add(callback);
             }
         }
-#endregion
+        #endregion
 
-#region DAPP Interface
+        #region DAPP Interface
         public Address GetAddress()
         {
             return Address.Parse(AccountManager.Instance.CurrentState.address);
         }
 
-        public Dictionary<string, decimal>  GetBalances(string chain)
+        public Dictionary<string, decimal> GetBalances(string chain)
         {
             throw new NotImplementedException();
         }
@@ -5017,7 +5024,7 @@ namespace Poltergeist
                 callback(result, error);
             });
         }
-#endregion
+        #endregion
     }
 
 }

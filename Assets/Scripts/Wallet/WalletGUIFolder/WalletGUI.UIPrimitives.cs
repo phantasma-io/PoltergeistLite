@@ -100,11 +100,11 @@ namespace Poltergeist
         {
             var border = Units(1);
 
-            int panelHeight = VerticalLayout ? Border * 2 + (Units(2)+4) *  buttonCount : (border + Units(3));
-            posY = (int)((windowRect.y + windowRect.height) - (panelHeight+ border)) + yOffset;
+            int panelHeight = VerticalLayout ? Border * 2 + (Units(2) + 4) * buttonCount : (border + Units(3));
+            posY = (int)((windowRect.y + windowRect.height) - (panelHeight + border)) + yOffset;
 
             var rect = new Rect(border, posY, windowRect.width - border * 2, panelHeight);
-            
+
             if (showBackground)
             {
                 GUI.Box(rect, "");
@@ -132,7 +132,7 @@ namespace Poltergeist
 
                 if (VerticalLayout)
                 {
-                    btnRect = new Rect(rect.x + border*2, rect.y + border + i * (Units(2)+4), rect.width - border * 4, Units(2));
+                    btnRect = new Rect(rect.x + border * 2, rect.y + border + i * (Units(2) + 4), rect.width - border * 4, Units(2));
                 }
                 else
                 {
@@ -211,7 +211,7 @@ namespace Poltergeist
             var tempAlign = style.alignment;
             var tempRichText = style.richText;
 
-            style.fontSize -= VerticalLayout ? 2: 4;
+            style.fontSize -= VerticalLayout ? 2 : 4;
             style.alignment = TextAnchor.MiddleCenter;
             style.richText = true;
 
@@ -235,7 +235,7 @@ namespace Poltergeist
         }
         private void DrawDropshadow(Rect rect)
         {
-            float percent = 1/8f;
+            float percent = 1 / 8f;
             var padX = rect.width * percent;
             var padY = rect.height * percent;
             var dropRect = new Rect(rect.x - padX, rect.y - padY, rect.width + padX * 2, rect.height + padY * 2);

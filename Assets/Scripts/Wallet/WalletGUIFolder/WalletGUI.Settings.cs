@@ -57,7 +57,7 @@ namespace Poltergeist
             // boxWidth, boxHeight: Size of "Settings" box.
             int boxWidth = (int)(windowRect.width - (Border * 2));
             int boxHeight = (int)(windowRect.height - curY);
-            
+
             fieldWidth = Math.Min(fieldWidth, boxWidth - fieldX - Units(3));
             comboWidth = Math.Min(comboWidth, boxWidth - fieldX - Units(3));
 
@@ -68,7 +68,7 @@ namespace Poltergeist
             // 2) Dropdown space for log level combo: Units(2) * 3.
             // 3) Last element has additional Units(1) spacing before it.
             int elementsNumber;
-            switch(settings.nexusKind)
+            switch (settings.nexusKind)
             {
                 case NexusKind.Main_Net:
                     elementsNumber = 23;
@@ -95,7 +95,7 @@ namespace Poltergeist
             }
 
             settingsScroll = GUI.BeginScrollView(outsideRect, settingsScroll, insideRect);
-            
+
             var posX = Units(3);
 
             curY = Units(1); // Vertical position inside scroll view.
@@ -121,8 +121,8 @@ namespace Poltergeist
                 var style = GUI.skin.label;
                 var tempStyle = style.fontStyle;
                 style.fontStyle = FontStyle.Italic;
-                var warningHeight = Units(VerticalLayout ? 6: 4);
-                GUI.Label(new Rect(posX, curY, boxWidth - (posX + Border*2), warningHeight), "WARNING - Use this network only if you are a developer or tester.\nAll assets used here are only for development, not real.");
+                var warningHeight = Units(VerticalLayout ? 6 : 4);
+                GUI.Label(new Rect(posX, curY, boxWidth - (posX + Border * 2), warningHeight), "WARNING - Use this network only if you are a developer or tester.\nAll assets used here are only for development, not real.");
                 style.fontStyle = tempStyle;
                 curY += warningHeight + Units(1);
             }
@@ -238,7 +238,7 @@ namespace Poltergeist
                 if (uiFramerateInt is -1 or (>= 1 and <= 120))
                 {
                     settings.uiFramerate = uiFramerateInt;
-                    
+
                     if (settings.uiFramerate > 0)
                     {
                         QualitySettings.vSyncCount = 0;
@@ -282,7 +282,7 @@ namespace Poltergeist
                 var scriptlessMaxGas = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxGas.ToString());
                 BigInteger.TryParse(scriptlessMaxGas, out settings.scriptlessMaxGas);
                 curY += Units(3);
-                
+
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max data");
                 var scriptlessMaxData = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxData.ToString());
                 BigInteger.TryParse(scriptlessMaxData, out settings.scriptlessMaxData);
@@ -321,7 +321,7 @@ namespace Poltergeist
 
                 accountManager.InvokeScriptPhantasma("main", scriptMasterClaimDate, (masterClaimDateResult, masterClaimInvokeError) =>
                 {
-                    if(!string.IsNullOrEmpty(masterClaimInvokeError))
+                    if (!string.IsNullOrEmpty(masterClaimInvokeError))
                     {
                         MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterClaimInvokeError);
                         return;
@@ -370,7 +370,7 @@ namespace Poltergeist
                                                     $"Phantasma staking information:\n\n" +
                                                     $"All SMs: {masterCount}\n" +
                                                     $"SMs eligible for next rewards distribution: {claimMasterCount}\n" +
-                                                    $"SM reward prediction: {125000/claimMasterCount} SOUL\n" +
+                                                    $"SM reward prediction: {125000 / claimMasterCount} SOUL\n" +
                                                     $"Next SM rewards distribution date: {masterClaimDate}\n" +
                                                     $"SM threshold: {masterThreshold} SOUL\n",
                                                     ModalState.Message, 0, 0, ModalOkCopy, 0, (result, input) => { });
@@ -381,7 +381,7 @@ namespace Poltergeist
                             }
                         });
                     }
-                            
+
                 });
             });
             curY += Units(3);
@@ -531,7 +531,7 @@ namespace Poltergeist
                         {
                             Log.Write("signedMessage: '" + verifier.SignedMessage + "'");
                         }
-                        
+
                         if (settings.devMode)
                         {
                             Log.Write("phaAddress: '" + verifier.PhaAddress + "'");
@@ -588,7 +588,8 @@ namespace Poltergeist
                                 return;
                             }
 
-                            ShowModal("WIF", wif, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (copyResult, input) => {
+                            ShowModal("WIF", wif, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (copyResult, input) =>
+                            {
                                 if (copyResult != PromptResult.Success) // Means "Copy to clipboard" button was pressed
                                 {
                                     GUIUtility.systemCopyBuffer = wif;
@@ -680,7 +681,7 @@ namespace Poltergeist
 
                 curY += Units(3);
             }
-            
+
             GUI.EndScrollView();
 
             var btnWidth = Units(10);
