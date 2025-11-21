@@ -64,6 +64,7 @@ namespace Poltergeist
         private WalletModalActions modalActions;
         private WalletDataProvider dataProvider;
         private WalletNftViewBuilder nftViewBuilder;
+        private WalletNftViewState nftViewState;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -89,20 +90,11 @@ namespace Poltergeist
 
         // NFT sorting and filtering.
         private ComboBox nftSortModeComboBox = new ComboBox();
-        private string nftFilterName;
         private ComboBox nftTypeComboBox = new ComboBox();
-        private int nftFilterTypeIndex = 0;
-        private string nftFilterType = "All";
         private ComboBox nftRarityComboBox = new ComboBox();
-        private int nftFilterRarity = 0;
         private ComboBox nftMintedComboBox = new ComboBox();
-        private int nftFilterMinted = 0;
 
-        // NFT pagination.
-        private int nftPageSize = 25;
-        private int nftPageNumber = 0;
-        private int nftCount = 0;
-        private int nftPageCount = 0;
+        // NFT pagination and selection.
         private List<TokenDataResult> nftFilteredList = new List<TokenDataResult>(); // List of displayed NFT items (after applying filters).
         private List<string> nftTransferList = new List<string>(); // List of NFT items, selected by user.
 
@@ -166,6 +158,7 @@ namespace Poltergeist
             modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
             dataProvider = context.Data;
             nftViewBuilder = context.NftViewBuilder;
+            nftViewState = context.NftViewState;
         }
 
         void Start()
@@ -832,9 +825,9 @@ namespace Poltergeist
                     case GUIState.Nft:
                     case GUIState.NftView:
                         if (nftTransferList.Count > 0)
-                            tempTitle = $"{nftCount} ({nftTransferList.Count} selected) {tempTitle}";
+                            tempTitle = $"{nftViewState.TotalCount} ({nftTransferList.Count} selected) {tempTitle}";
                         else
-                            tempTitle = $"{nftCount} {tempTitle}";
+                            tempTitle = $"{nftViewState.TotalCount} {tempTitle}";
                         break;
                     case GUIState.NftTransferList:
                         tempTitle = $"{nftTransferList.Count} {tempTitle}";
@@ -1843,6 +1836,7 @@ namespace Poltergeist
         private void DrawNftTools(int posY)
         {
             var accountManager = AccountManager.Instance;
+            var viewState = nftViewState;
 
             var posX1 = Units(2);
             var posX2 = posX1 + toolLabelWidth + toolFieldWidth + toolFieldSpacing;
@@ -1910,23 +1904,23 @@ namespace Poltergeist
             if (transferSymbol == "TTRS")
             {
                 // #3: NFT rarity filter
-                DoNftToolComboBox(posX3, posY2, nftRarityComboBox, Enum.GetValues(typeof(ttrsNftRarity)).Cast<ttrsNftRarity>().ToList(), "Rarity: ", ref nftFilterRarity);
+                DoNftToolComboBox(posX3, posY2, nftRarityComboBox, Enum.GetValues(typeof(ttrsNftRarity)).Cast<ttrsNftRarity>().ToList(), "Rarity: ", ref viewState.FilterRarity);
             }
 
             // #4: NFT mint date filter
-            DoNftToolComboBox(posX4, posY2, nftMintedComboBox, Enum.GetValues(typeof(nftMinted)).Cast<nftMinted>().ToList().Select(x => x.ToString().Replace('_', ' ')).ToList(), "Minted: ", ref nftFilterMinted);
+            DoNftToolComboBox(posX4, posY2, nftMintedComboBox, Enum.GetValues(typeof(nftMinted)).Cast<nftMinted>().ToList().Select(x => x.ToString().Replace('_', ' ')).ToList(), "Minted: ", ref viewState.FilterMinted);
 
             // #1: NFT name filter
-            DoNftToolTextField(posX1, posY, "Name: ", ref nftFilterName);
+            DoNftToolTextField(posX1, posY, "Name: ", ref viewState.FilterName);
 
             if (transferSymbol == "TTRS")
             {
                 // #2: NFT type filter
-                DoNftToolComboBox(posX2, posY, nftTypeComboBox, Enum.GetValues(typeof(ttrsNftType)).Cast<ttrsNftType>().ToList(), "Type: ", ref nftFilterTypeIndex);
-                if (Enum.IsDefined(typeof(ttrsNftType), nftFilterTypeIndex))
-                    nftFilterType = ((ttrsNftType)nftFilterTypeIndex).ToString();
+                DoNftToolComboBox(posX2, posY, nftTypeComboBox, Enum.GetValues(typeof(ttrsNftType)).Cast<ttrsNftType>().ToList(), "Type: ", ref viewState.FilterTypeIndex);
+                if (Enum.IsDefined(typeof(ttrsNftType), viewState.FilterTypeIndex))
+                    viewState.FilterType = ((ttrsNftType)viewState.FilterTypeIndex).ToString();
                 else
-                    nftFilterType = "All";
+                    viewState.FilterType = "All";
             }
         }
 
@@ -2505,11 +2499,8 @@ namespace Poltergeist
                                 // to allow "Back" button to work properly.
                                 nftScroll = Vector2.zero;
                                 nftTransferList.Clear();
-                                nftFilterName = "";
-                                nftFilterTypeIndex = 0;
-                                nftFilterType = "All";
-                                nftFilterRarity = 0;
-                                nftFilterMinted = 0;
+                                nftViewState.ResetFilters();
+                                nftViewState.ResetPagination();
                                 accountManager.RefreshNft(false, transferSymbol);
 
                                 PushState(GUIState.NftView);
@@ -2589,11 +2580,8 @@ namespace Poltergeist
                         // to allow "Back" button to work properly.
                         nftScroll = Vector2.zero;
                         nftTransferList.Clear();
-                        nftFilterName = "";
-                        nftFilterTypeIndex = 0;
-                        nftFilterType = "All";
-                        nftFilterRarity = 0;
-                        nftFilterMinted = 0;
+                        nftViewState.ResetFilters();
+                        nftViewState.ResetPagination();
                         accountManager.RefreshNft(false, transferSymbol);
 
                         PushState(GUIState.Nft);
@@ -2710,7 +2698,8 @@ namespace Poltergeist
         {
             var accountManager = AccountManager.Instance;
 
-            var nftSnapshot = nftViewBuilder.Build(accountManager, transferSymbol, nftFilterName, nftFilterType, nftFilterRarity, nftFilterMinted, nftPageSize, nftPageNumber);
+            var requestedPageNumber = nftViewState.PageNumber;
+            var nftSnapshot = nftViewBuilder.Build(accountManager, transferSymbol, nftViewState.FilterName, nftViewState.FilterType, nftViewState.FilterRarity, nftViewState.FilterMinted, nftViewState.PageSize, requestedPageNumber);
             var nfts = accountManager.CurrentNfts;
             if (nftSnapshot.IsRefreshing)
             {
@@ -2724,6 +2713,13 @@ namespace Poltergeist
             startY += (VerticalLayout) ? Units(6) : Units(4);
             var endY = DoBottomMenuForNft();
 
+            if (nftViewState.PageNumber != requestedPageNumber)
+            {
+                requestedPageNumber = nftViewState.PageNumber;
+                nftSnapshot = nftViewBuilder.Build(accountManager, transferSymbol, nftViewState.FilterName, nftViewState.FilterType, nftViewState.FilterRarity, nftViewState.FilterMinted, nftViewState.PageSize, requestedPageNumber);
+                nfts = accountManager.CurrentNfts;
+            }
+
             if (nfts == null || nftSnapshot.HasError)
             {
                 DrawCenteredText(nftSnapshot.HasError ? nftSnapshot.ErrorMessage : "Loading...");
@@ -2735,9 +2731,12 @@ namespace Poltergeist
             nfts = accountManager.CurrentNfts;
 
             nftFilteredList = nftSnapshot.FilteredTokens.ToList();
-            nftCount = nftSnapshot.TotalCount;
-            nftPageCount = nftSnapshot.PageCount;
-            nftPageNumber = nftSnapshot.PageNumber;
+            nftViewState.TotalCount = nftSnapshot.TotalCount;
+            nftViewState.PageCount = nftSnapshot.PageCount;
+            if (nftSnapshot.PageNumber != requestedPageNumber)
+            {
+                nftViewState.PageNumber = nftSnapshot.PageNumber;
+            }
 
             var nftOnPageCount = DoScrollArea<string>(ref nftScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftSnapshot.PageIds,
                 DoNftEntry);
@@ -3778,19 +3777,19 @@ namespace Poltergeist
             int pageButtonSpacing = 12;
 
             // <<
-            DoButton(nftPageNumber > 0, new Rect(halfWidth - pageLabelWidth / 2 - (pageButtonWidth + pageButtonSpacing) * 2,
+            DoButton(nftViewState.PageNumber > 0, new Rect(halfWidth - pageLabelWidth / 2 - (pageButtonWidth + pageButtonSpacing) * 2,
                                                  VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                  pageButtonWidth, Units(2)), "<<", () =>
             {
-                nftPageNumber = 0;
+                nftViewState.PageNumber = 0;
             });
 
             // <
-            DoButton(nftPageNumber > 0, new Rect(halfWidth - pageLabelWidth / 2 - (pageButtonWidth + pageButtonSpacing),
+            DoButton(nftViewState.PageNumber > 0, new Rect(halfWidth - pageLabelWidth / 2 - (pageButtonWidth + pageButtonSpacing),
                                                  VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                  pageButtonWidth, Units(2)), "<", () =>
             {
-                nftPageNumber--;
+                nftViewState.PageNumber--;
             });
 
             // Current page number
@@ -3800,24 +3799,24 @@ namespace Poltergeist
 
             GUI.Label(new Rect(halfWidth - pageLabelWidth / 2 - 6,
                                (int)rect.y + 12,
-                               pageLabelWidth, Units(2)), (nftPageNumber + 1).ToString(), style);
+                               pageLabelWidth, Units(2)), (nftViewState.PageNumber + 1).ToString(), style);
 
             style.alignment = prevAlignment;
 
             // >
-            DoButton(nftPageNumber < nftPageCount - 1, new Rect(halfWidth + pageLabelWidth / 2 + pageButtonSpacing,
+            DoButton(nftViewState.PageNumber < nftViewState.PageCount - 1, new Rect(halfWidth + pageLabelWidth / 2 + pageButtonSpacing,
                                                                 VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                                 pageButtonWidth, Units(2)), ">", () =>
             {
-                nftPageNumber++;
+                nftViewState.PageNumber++;
             });
 
             // >>
-            DoButton(nftPageNumber < nftPageCount - 1, new Rect(halfWidth + pageLabelWidth / 2 + pageButtonWidth + pageButtonSpacing * 2,
+            DoButton(nftViewState.PageNumber < nftViewState.PageCount - 1, new Rect(halfWidth + pageLabelWidth / 2 + pageButtonWidth + pageButtonSpacing * 2,
                                                                 VerticalLayout ? (int)rect.y + border : (int)rect.y + border,
                                                                 pageButtonWidth, Units(2)), ">>", () =>
             {
-                nftPageNumber = nftPageCount - 1;
+                nftViewState.PageNumber = nftViewState.PageCount - 1;
             });
 
             if (CurrentState != GUIState.NftView)
