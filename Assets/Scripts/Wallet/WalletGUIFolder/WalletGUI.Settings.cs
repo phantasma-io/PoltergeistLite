@@ -7,29 +7,23 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Legacy;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
         private int currencyIndex;
-        private string[] currencyOptions;
         private ComboBox currencyComboBox = new ComboBox();
 
         private int nexusIndex;
         private ComboBox nexusComboBox = new ComboBox();
 
-        private NexusKind[] availableNexus = Enum.GetValues(typeof(NexusKind)).Cast<NexusKind>().ToArray();
-
         private int mnemonicPhraseLengthIndex;
         private ComboBox mnemonicPhraseLengthComboBox = new ComboBox();
 
-        private MnemonicPhraseLength[] availableMnemonicPhraseLengths = Enum.GetValues(typeof(MnemonicPhraseLength)).Cast<MnemonicPhraseLength>().ToArray();
-
         private int passwordModeIndex;
         private ComboBox passwordModeComboBox = new ComboBox();
-
-        private PasswordMode[] availablePasswordModes = Enum.GetValues(typeof(PasswordMode)).Cast<PasswordMode>().ToArray();
 
         private int logLevelIndex;
         private ComboBox logLevelComboBox = new ComboBox();
@@ -37,14 +31,14 @@ namespace Poltergeist
         private int uiThemeIndex;
         private ComboBox uiThemeComboBox = new ComboBox();
 
-        private Log.Level[] availableLogLevels = Enum.GetValues(typeof(Log.Level)).Cast<Log.Level>().ToArray();
-
-        private UiThemes[] availableUiThemes = Enum.GetValues(typeof(UiThemes)).Cast<UiThemes>().ToArray();
+        private WalletSettingsOptions settingsOptions;
 
         private void DoSettingsScreen()
         {
             var accountManager = AccountManager.Instance;
             var settings = accountManager.Settings;
+
+            settingsOptions ??= new WalletSettingsOptions(accountManager);
 
             int curY = Units(7);
 
@@ -107,15 +101,19 @@ namespace Poltergeist
             curY = Units(1); // Vertical position inside scroll view.
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Currency");
+            var currencyOptions = settingsOptions.CurrencyOptions;
             currencyIndex = currencyComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), currencyOptions, 0, out dropHeight);
-            settings.currency = currencyOptions[currencyIndex];
+            if (currencyOptions.Length > 0)
+            {
+                settings.currency = currencyOptions[currencyIndex];
+            }
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Nexus");
-            var nexusList = availableNexus.Select(x => x.ToString().Replace('_', ' ')).ToArray();
+            var nexusList = settingsOptions.NexusDisplayOptions;
             var prevNexus = nexusIndex;
             nexusIndex = nexusComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), nexusList, 0, out dropHeight, null, 1);
-            settings.nexusKind = availableNexus[nexusIndex];
+            settings.nexusKind = settingsOptions.NexusOptions[nexusIndex];
             curY += dropHeight + Units(1);
 
             if (settings.nexusKind != NexusKind.Main_Net && settings.nexusKind != NexusKind.Custom && settings.nexusKind != NexusKind.Unknown)
@@ -135,16 +133,16 @@ namespace Poltergeist
             }
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Seed length");
-            var mnemonicPhraseLengthsList = availableMnemonicPhraseLengths.Select(x => x.ToString().Replace('_', ' ')).ToArray();
+            var mnemonicPhraseLengthsList = settingsOptions.MnemonicDisplayOptions;
             mnemonicPhraseLengthIndex = mnemonicPhraseLengthComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), mnemonicPhraseLengthsList, 0, out dropHeight, null, 0);
-            settings.mnemonicPhraseLength = availableMnemonicPhraseLengths[mnemonicPhraseLengthIndex];
+            settings.mnemonicPhraseLength = settingsOptions.MnemonicOptions[mnemonicPhraseLengthIndex];
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Password mode");
-            var passwordModesList = availablePasswordModes.Select(x => x.ToString().Replace('_', ' ')).ToArray();
+            var passwordModesList = settingsOptions.PasswordDisplayOptions;
             var prevPasswordModeIndex = passwordModeIndex;
             passwordModeIndex = passwordModeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), passwordModesList, 0, out dropHeight, null, 0);
-            settings.passwordMode = availablePasswordModes[passwordModeIndex];
+            settings.passwordMode = settingsOptions.PasswordModes[passwordModeIndex];
             curY += dropHeight + Units(1);
 
             if (prevPasswordModeIndex != passwordModeIndex)
@@ -220,8 +218,8 @@ namespace Poltergeist
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");
-            logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), availableLogLevels.ToArray(), WalletGUI.Units(2) * 3, out dropHeight);
-            settings.logLevel = availableLogLevels[logLevelIndex];
+            logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), settingsOptions.LogLevelDisplayOptions, WalletGUI.Units(2) * 3, out dropHeight);
+            settings.logLevel = settingsOptions.LogLevels[logLevelIndex];
             curY += dropHeight + Units(1);
 
             settings.logOverwriteMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.logOverwriteMode, "");
@@ -229,8 +227,8 @@ namespace Poltergeist
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "UI theme");
-            uiThemeIndex = uiThemeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), availableUiThemes.ToArray(), WalletGUI.Units(2) * 2, out dropHeight);
-            settings.uiThemeName = availableUiThemes[uiThemeIndex].ToString();
+            uiThemeIndex = uiThemeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), settingsOptions.UiThemeDisplayOptions, WalletGUI.Units(2) * 2, out dropHeight);
+            settings.uiThemeName = settingsOptions.UiThemes[uiThemeIndex].ToString();
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "UI framerate");

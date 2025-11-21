@@ -212,7 +212,7 @@ namespace Poltergeist
             navigation.Reset(GUIState.Loading);
 
             Log.Write(Screen.width + " x " + Screen.height);
-            currencyOptions = AccountManager.Instance.Currencies.ToArray();
+            settingsOptions = new WalletSettingsOptions(AccountManager.Instance);
 
             // We will use this RawImage object to set/change background image.
             background = GameObject.Find("Background").GetComponent<RawImage>();
@@ -381,6 +381,9 @@ namespace Poltergeist
 
                 case GUIState.Settings:
                     {
+                        settingsOptions ??= new WalletSettingsOptions(accountManager);
+                        settingsOptions.RefreshCurrencyOptions();
+
                         if(accountManager.Settings.nexusKind == NexusKind.Unknown)
                         {
                             currentTitle = "Wallet Setup";
@@ -393,70 +396,22 @@ namespace Poltergeist
                         }
                         
                         settingsScroll = Vector2.zero;
-                        currencyComboBox.SelectedItemIndex = 0;
-                        for (int i = 0; i < currencyOptions.Length; i++)
-                        {
-                            if (currencyOptions[i] == accountManager.Settings.currency)
-                            {
-                                currencyComboBox.SelectedItemIndex = i;
-                                break;
-                            }
+                        currencyIndex = settingsOptions.GetCurrencyIndex(accountManager.Settings.currency);
+                        currencyComboBox.SelectedItemIndex = currencyIndex;
 
-                        }
-
-                        nexusIndex = 0;
-                        for (int i = 0; i < availableNexus.Length; i++)
-                        {
-                            if (availableNexus[i] == accountManager.Settings.nexusKind)
-                            {
-                                nexusIndex = i;
-                                break;
-                            }
-                        }
+                        nexusIndex = settingsOptions.GetNexusIndex(accountManager.Settings.nexusKind);
                         nexusComboBox.SelectedItemIndex = nexusIndex;
 
-                        mnemonicPhraseLengthIndex = 0;
-                        for (int i = 0; i < availableMnemonicPhraseLengths.Length; i++)
-                        {
-                            if (availableMnemonicPhraseLengths[i] == accountManager.Settings.mnemonicPhraseLength)
-                            {
-                                mnemonicPhraseLengthIndex = i;
-                                break;
-                            }
-                        }
+                        mnemonicPhraseLengthIndex = settingsOptions.GetMnemonicIndex(accountManager.Settings.mnemonicPhraseLength);
                         mnemonicPhraseLengthComboBox.SelectedItemIndex = mnemonicPhraseLengthIndex;
 
-                        passwordModeIndex = 0;
-                        for (int i = 0; i < availablePasswordModes.Length; i++)
-                        {
-                            if (availablePasswordModes[i] == accountManager.Settings.passwordMode)
-                            {
-                                passwordModeIndex = i;
-                                break;
-                            }
-                        }
+                        passwordModeIndex = settingsOptions.GetPasswordModeIndex(accountManager.Settings.passwordMode);
                         passwordModeComboBox.SelectedItemIndex = passwordModeIndex;
 
-                        logLevelIndex = 0;
-                        for (int i = 0; i < availableLogLevels.Length; i++)
-                        {
-                            if (availableLogLevels[i] == accountManager.Settings.logLevel)
-                            {
-                                logLevelIndex = i;
-                                break;
-                            }
-                        }
+                        logLevelIndex = settingsOptions.GetLogLevelIndex(accountManager.Settings.logLevel);
                         logLevelComboBox.SelectedItemIndex = logLevelIndex;
 
-                        uiThemeIndex = 0;
-                        for (int i = 0; i < availableUiThemes.Length; i++)
-                        {
-                            if (availableUiThemes[i].ToString() == accountManager.Settings.uiThemeName)
-                            {
-                                uiThemeIndex = i;
-                                break;
-                            }
-                        }
+                        uiThemeIndex = settingsOptions.GetUiThemeIndex(accountManager.Settings.uiThemeName);
                         uiThemeComboBox.SelectedItemIndex = uiThemeIndex;
 
                         
