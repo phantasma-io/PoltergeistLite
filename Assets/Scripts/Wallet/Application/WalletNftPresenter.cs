@@ -32,6 +32,18 @@ namespace Poltergeist.Wallet
             return state.UpdateFilters(filterName, filterTypeIndex, filterType, filterRarity, filterMinted);
         }
 
+        public void Refresh(string symbol, bool force)
+        {
+            var accountManager = accountProvider();
+            accountManager?.RefreshNft(force, symbol);
+        }
+
+        public void ResetSorting()
+        {
+            var accountManager = accountProvider();
+            accountManager?.ResetNftsSorting();
+        }
+
         public void ResetFiltersAndPagination()
         {
             state.ResetFilters();

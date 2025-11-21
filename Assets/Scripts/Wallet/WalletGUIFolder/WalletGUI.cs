@@ -339,7 +339,7 @@ namespace Poltergeist
                 case GUIState.Nft:
                 case GUIState.NftView:
                     currentTitle = transferSymbol + " NFTs for " + accountManager.CurrentAccount.name;
-                    accountManager.ResetNftsSorting();
+                    nftViewPresenter.ResetSorting();
                     break;
 
                 case GUIState.NftTransferList:
@@ -2515,7 +2515,8 @@ namespace Poltergeist
                                 nftScroll = Vector2.zero;
                                 nftViewPresenter.ClearSelection();
                                 nftViewPresenter.ResetFiltersAndPagination();
-                                accountManager.RefreshNft(false, transferSymbol);
+                                nftViewPresenter.ResetSorting();
+                                nftViewPresenter.Refresh(transferSymbol, false);
 
                                 PushState(GUIState.NftView);
                                 return;
@@ -2595,7 +2596,8 @@ namespace Poltergeist
                         nftScroll = Vector2.zero;
                         nftViewPresenter.ClearSelection();
                         nftViewPresenter.ResetFiltersAndPagination();
-                        accountManager.RefreshNft(false, transferSymbol);
+                        nftViewPresenter.ResetSorting();
+                        nftViewPresenter.Refresh(transferSymbol, false);
 
                         PushState(GUIState.Nft);
                         return;
@@ -2750,8 +2752,8 @@ namespace Poltergeist
             DrawPlatformTopMenu(() =>
             {
                 accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
-                accountManager.RefreshNft(false, transferSymbol);
-                accountManager.ResetNftsSorting();
+                nftViewPresenter.Refresh(transferSymbol, false);
+                nftViewPresenter.ResetSorting();
             }, false);
         }
 
@@ -4393,13 +4395,6 @@ namespace Poltergeist
             });
         }
 
-        public static IEnumerable<List<T>> SplitList<T>(List<T> locations, int nSize = 30)
-        {
-            for (int i = 0; i < locations.Count; i += nSize)
-            {
-                yield return locations.GetRange(i, Math.Min(nSize, locations.Count - i));
-            }
-        }
         private void ContinuePhantasmaNftTransfer(string transferName, string symbol, string destAddress)
         {
             var accountManager = AccountManager.Instance;
