@@ -2207,30 +2207,27 @@ namespace Poltergeist
             });
             var endY = DoBottomMenu();
 
-            if (accountManager.BalanceRefreshing)
+            var balancesModel = dataProvider.GetBalancesSnapshot();
+
+            if (balancesModel.IsRefreshing)
             {
                 DrawCenteredText("Fetching balances...");
                 return;
             }
 
-            if (state == null)
+            if (balancesModel.HasError)
             {
-                var message = "Temporary error, cannot display balances...";
-                if (accountManager.rpcAvailablePhantasma == 0)
-                {
-                    message = $"Please check your internet connection. All Phantasma RPC servers are unavailable.";
-                }
-                DrawCenteredText(message);
+                DrawCenteredText(balancesModel.ErrorMessage);
                 return;
             }
 
-            if (state.balances == null)
+            if (balancesModel.Balances == null || balancesModel.Balances.Count == 0)
             {
                 DrawCenteredText($"No assets found in this {accountManager.CurrentPlatform} account.");
                 return;
             }
 
-            var balanceCount = DoScrollArea<Balance>(ref balanceScroll, startY, endY, VerticalLayout ? Units(7) : Units(6), state.balances.Where(x => x.Total >= 0.001m),
+            var balanceCount = DoScrollArea<WalletBalanceEntry>(ref balanceScroll, startY, endY, VerticalLayout ? Units(7) : Units(6), balancesModel.Balances.Where(x => x.Total >= 0.001m),
                 DoBalanceEntry);
 
             if (balanceCount == 0)
@@ -2239,7 +2236,7 @@ namespace Poltergeist
             }
         }
 
-        private void DoBalanceEntry(Balance balance, int index, int curY, Rect rect)
+        private void DoBalanceEntry(WalletBalanceEntry balance, int index, int curY, Rect rect)
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
@@ -2273,7 +2270,7 @@ namespace Poltergeist
             var style = GUI.skin.label;
 
             style.fontSize -= VerticalLayout ? 0 : 4;
-            var value = accountManager.GetTokenWorth(balance.Symbol, balance.Available);
+            var value = balance.FiatWorth;
             var balanceFormat = $"{MoneyFormat(balance.Available)}";
             GUI.Label(new Rect(posX, posY, rect.width - posX, Units(2)), $"{balanceFormat} {balance.Symbol}" + (value == null ? "" : $" ({value})"));
             style.fontSize += VerticalLayout ? 0 : 4;

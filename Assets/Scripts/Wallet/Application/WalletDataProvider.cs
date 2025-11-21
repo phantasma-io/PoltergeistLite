@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.NFT.Extensions;
 using Poltergeist;
 
 namespace Poltergeist.Wallet
@@ -99,7 +100,42 @@ namespace Poltergeist.Wallet
                 return new WalletNftModel(accountName, accountManager.CurrentPlatform, symbol, isRefreshing, Array.Empty<WalletNftItem>(), error);
             }
 
-            var items = nfts.Select(x => new WalletNftItem(x.Id, string.Empty, string.Empty, string.Empty)).ToList();
+            var items = nfts.Select(x =>
+            {
+                // Basic metadata; detailed parsing stays in UI layer for now.
+                if (string.Equals(symbol, "TTRS", StringComparison.OrdinalIgnoreCase))
+                {
+                    var item = global::TtrsStore.GetNft(x.Id);
+                    var name = item.item_info.name_english ?? string.Empty;
+                    var desc = item.mint == 0 ? string.Empty : $"Mint #{item.mint} {item.timestampDT():dd.MM.yyyy HH:mm:ss}";
+                    var image = item.img ?? string.Empty;
+                    return new WalletNftItem(x.Id, name, desc, image);
+                }
+
+                if (string.Equals(symbol, "GAME", StringComparison.OrdinalIgnoreCase))
+                {
+                    var item = global::GameStore.GetNft(x.Id);
+                    var name = item.meta?.name_english ?? string.Empty;
+                    var desc = item.mint == 0 ? string.Empty : $"Mint #{item.mint} {item.parsed_rom.timestampDT():dd.MM.yyyy HH:mm:ss}";
+                    var image = item.parsed_rom.img_url ?? string.Empty;
+                    return new WalletNftItem(x.Id, name, desc, image);
+                }
+
+                var token = accountManager.GetNft(x.Id);
+                var rom = accountManager.GetNftRom(x.Id);
+                var date = rom?.GetDate();
+
+                var nftName = token?.GetPropertyValue("Name") ?? string.Empty;
+                var nftDescription = token?.GetPropertyValue("Description") ?? string.Empty;
+                var imageUrl = token?.GetPropertyValue("ImageURL") ?? string.Empty;
+
+                if (string.IsNullOrEmpty(nftDescription) && date.HasValue && date.Value != DateTime.MinValue)
+                {
+                    nftDescription = date.Value.ToString("dd.MM.yyyy HH:mm:ss");
+                }
+
+                return new WalletNftItem(x.Id, nftName, nftDescription, imageUrl);
+            }).ToList();
 
             return new WalletNftModel(state.name, accountManager.CurrentPlatform, symbol, isRefreshing, items, string.Empty);
         }
