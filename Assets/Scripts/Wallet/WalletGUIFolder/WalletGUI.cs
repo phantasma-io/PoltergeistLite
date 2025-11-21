@@ -1070,7 +1070,7 @@ namespace Poltergeist
                 }
             }
 
-            ShowModal("Wallet Name", $"Enter a name for your wallet{walletNumberString}", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, name) =>
+            ShowModal("Wallet Name", $"Enter a name for your wallet{walletNumberString}", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, modalActions.ConfirmCancelOptions, 1, (result, name) =>
             {
                 if (result == PromptResult.Success)
                 {
@@ -1148,7 +1148,7 @@ namespace Poltergeist
 
         private void TrySettingWalletPassword(string name, string wif, bool legacySeed, Action<int> callback)
         {
-            ShowModal("Wallet Password", "Enter a password for your wallet", ModalState.Password, AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, ModalConfirmCancel, 1, (passResult, password) =>
+            ShowModal("Wallet Password", "Enter a password for your wallet", ModalState.Password, AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, modalActions.ConfirmCancelOptions, 1, (passResult, password) =>
             {
                 if (passResult == PromptResult.Success)
                 {
@@ -1212,7 +1212,7 @@ namespace Poltergeist
         }
         private void DeriveAccountsFromSeed(string mnemonicPhrase)
         {
-            ShowModal("Number of created wallets", "Enter number of wallets to derive from this seed phrase.\n\nUse \"1\" if unsure.", ModalState.Input, 1, -1, ModalConfirmCancel, 1, (success, input) =>
+            ShowModal("Number of created wallets", "Enter number of wallets to derive from this seed phrase.\n\nUse \"1\" if unsure.", ModalState.Input, 1, -1, modalActions.ConfirmCancelOptions, 1, (success, input) =>
             {
                 if (success == PromptResult.Success)
                 {
@@ -1305,7 +1305,7 @@ namespace Poltergeist
                         {
                             ShowModal("Attention!",
                                 "For your own safety, write down generated seed words on a piece of paper and store it safely and hidden.\n\nThese words serve as a back-up of your wallet.\n\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.",
-                                ModalState.Message, -1, -1, ModalConfirmCancel, 0,
+                                ModalState.Message, -1, -1, modalActions.ConfirmCancelOptions, 0,
                                 (result, _) =>
                             {
                                 if (result == PromptResult.Success)
@@ -1331,7 +1331,7 @@ namespace Poltergeist
 
                     case 1:
                         {
-                            ShowModal("Wallet Import", "Supported inputs:\n12/24 word seed phrase\nPrivate key (HEX format)\nPrivate key (WIF format)", ModalState.Input, 32, 1024, ModalConfirmCancel, 4, (result, key) =>
+                            ShowModal("Wallet Import", "Supported inputs:\n12/24 word seed phrase\nPrivate key (HEX format)\nPrivate key (WIF format)", ModalState.Input, 32, 1024, modalActions.ConfirmCancelOptions, 4, (result, key) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -1461,7 +1461,7 @@ namespace Poltergeist
                                 "Do you want to protect exported data with a password?\nIf not, leave this field blank.",
                                  ModalState.Password,
                                  -1, -1,
-                                 ModalConfirmCancel, 1, (passResult, password) =>
+                                 modalActions.ConfirmCancelOptions, 1, (passResult, password) =>
                             {
                                 var accountsExport = new AccountsExport();
 
@@ -1517,7 +1517,7 @@ namespace Poltergeist
 
                     case 1:
                         {
-                            ShowModal("Wallets Import", "Please enter wallets data that you received from Wallets Export dialog (on Wallets Management screen):", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result, walletsData) =>
+                            ShowModal("Wallets Import", "Please enter wallets data that you received from Wallets Export dialog (on Wallets Management screen):", ModalState.Input, 1, -1, modalActions.ConfirmCancelOptions, 4, (result, walletsData) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
@@ -1565,7 +1565,7 @@ namespace Poltergeist
 
                                             ShowModal("Wallets Import",
                                                 (someWillBeImported ? (messageWillBeImported + "\n\n") : "") + (someWillBeSkipped ? messageWillBeSkipped : ""),
-                                                ModalState.Message, 0, 0, ModalConfirmCancel, 0, (result2, input) =>
+                                                ModalState.Message, 0, 0, modalActions.ConfirmCancelOptions, 0, (result2, input) =>
                                                 {
                                                     if (result2 == PromptResult.Success)
                                                     {
@@ -1583,7 +1583,7 @@ namespace Poltergeist
                                         if (accountsExport.passwordProtected)
                                         {
                                             ShowModal("Wallets Import",
-                                                "Please enter password:", ModalState.Password, AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, ModalConfirmCancel, 1, (passResult, password) =>
+                                                "Please enter password:", ModalState.Password, AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, modalActions.ConfirmCancelOptions, 1, (passResult, password) =>
                                                 {
                                                     if (passResult == PromptResult.Success && !String.IsNullOrEmpty(password))
                                                     {
@@ -1735,7 +1735,7 @@ namespace Poltergeist
 
                     DoButton(true, btnRect, "Rename", () =>
                     {
-                        ShowModal("Rename", $"Current local name: {account.name}\nAddress: {account.phaAddress}\n\nEnter new local account name:", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, input) =>
+                        ShowModal("Rename", $"Current local name: {account.name}\nAddress: {account.phaAddress}\n\nEnter new local account name:", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, modalActions.ConfirmCancelOptions, 1, (result, input) =>
                         {
                             if (input == null || input.Length < AccountManager.MinAccountNameLength ||
                                 input.Length > AccountManager.MaxAccountNameLength)
@@ -2037,7 +2037,7 @@ namespace Poltergeist
                           .OrderBy(i => i)
                           .ToArray();
             ShowModal("Seed verification", $"To confirm that you have backed up your seed phrase, enter your seed words {string.Join(", ", indices.Select(i => $"#{i + 1}"))}, using space to separate them:",
-                ModalState.Input, 5, -1, ModalConfirmCancel, 4, (result, input) =>
+                ModalState.Input, 5, -1, modalActions.ConfirmCancelOptions, 4, (result, input) =>
             {
                 if (result == PromptResult.Success)
                 {
@@ -2603,7 +2603,7 @@ namespace Poltergeist
                         return;
                     }
 
-                    ShowModal(transferName, "Enter destination address", ModalState.Input, 3, 64, ModalConfirmCancel, 1, (result, destAddress) =>
+                    ShowModal(transferName, "Enter destination address", ModalState.Input, 3, 64, modalActions.ConfirmCancelOptions, 1, (result, destAddress) =>
                     {
                         if (result == PromptResult.Failure)
                         {
@@ -3373,61 +3373,58 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            ShowModal("Private key export", $"Show private key in WIF format (recommended) or in HEX format." +
+                            modalActions.HexOrWif("Private key export", $"Show private key in WIF format (recommended) or in HEX format." +
                                 "\n\nNEVER SHARE YOUR PRIVATE KEY with ANYONE, including TEAM, SUPPORT or COMMUNITY ADMINS." +
                                 "\n\nFollowing screen will reveal your private key. It provides full access to your wallet and funds." +
                                 " Press 'WIF format' or 'HEX format' buttons to expose private key in corresponding format." +
-                                "\n\nMake sure NO ONE IS LOOKING AT YOUR SCREEN.",
-                                ModalState.Message, 0, 0, ModalHexWifCancel, 0, (result, input) =>
+                                "\n\nMake sure NO ONE IS LOOKING AT YOUR SCREEN.", (result, input) =>
+                            {
+                                if (result == PromptResult.Custom_1)
                                 {
-                                    if (result == PromptResult.Custom_1)
+                                    RequestPassword("Export private key (HEX)", accountManager.CurrentPlatform, true, false, (auth) =>
                                     {
-                                        RequestPassword("Export private key (HEX)", accountManager.CurrentPlatform, true, false, (auth) =>
+                                        if (auth == PromptResult.Success)
                                         {
-                                            if (auth == PromptResult.Success)
-                                            {
-                                                var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(accountManager.CurrentWif);
-                                                var hexKey = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+                                            var keys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(accountManager.CurrentWif);
+                                            var hexKey = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Hex.HexConvertors.Extensions.HexByteConvertorExtensions.ToHex(keys.PrivateKey);
 
-                                                ShowModal("Your private key (HEX)",
-                                                    KeyPrepareForMessageBox(hexKey),
-                                                    ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 1, (result1, _) =>
-                                                 {
-                                                     if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
-                                                     {
-                                                         GUIUtility.systemCopyBuffer = hexKey;
-                                                         MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
-                                                     }
-                                                 });
-                                            }
-                                        },
-                                        ignoreStoredPassword: true);
-                                    }
-                                    else if (result == PromptResult.Custom_2)
-                                    {
-                                        RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
-                                        {
-                                            if (auth == PromptResult.Success)
+                                            modalActions.CopyableMessage("Your private key (HEX)", KeyPrepareForMessageBox(hexKey), (result1, _) =>
                                             {
-                                                ShowModal("Your private key (WIF)", KeyPrepareForMessageBox(accountManager.CurrentWif), ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 1, (result1, _) =>
+                                                if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
                                                 {
-                                                    if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
-                                                    {
-                                                        GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
-                                                        MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
-                                                    }
-                                                });
-                                            }
-                                        },
-                                        ignoreStoredPassword: true);
-                                    }
-                                });
+                                                    GUIUtility.systemCopyBuffer = hexKey;
+                                                    MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                }
+                                            });
+                                        }
+                                    },
+                                    ignoreStoredPassword: true);
+                                }
+                                else if (result == PromptResult.Custom_2)
+                                {
+                                    RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, (auth) =>
+                                    {
+                                            if (auth == PromptResult.Success)
+                                        {
+                                            modalActions.CopyableMessage("Your private key (WIF)", KeyPrepareForMessageBox(accountManager.CurrentWif), (result1, _) =>
+                                            {
+                                                if (result1 != PromptResult.Success) // Means "Copy to clipboard" button was pressed
+                                                {
+                                                    GUIUtility.systemCopyBuffer = accountManager.CurrentWif;
+                                                    MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                }
+                                            });
+                                        }
+                                    },
+                                    ignoreStoredPassword: true);
+                                }
+                            });
                             break;
                         }
 
                     case 1:
                         {
-                            ShowModal("Account migration", "Insert WIF of the target account", ModalState.Input, 32, 64, ModalConfirmCancel, 1, (wifResult, wif) =>
+                            ShowModal("Account migration", "Insert WIF of the target account", ModalState.Input, 32, 64, modalActions.ConfirmCancelOptions, 1, (wifResult, wif) =>
                             {
                                 if (wifResult != PromptResult.Success)
                                 {
@@ -3491,7 +3488,7 @@ namespace Poltergeist
 
                             if (stake >= 1)
                             {
-                                ShowModal("Setup Name", $"Enter a name for the chain address.\nOther users will be able to transfer assets directly to this name.", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, ModalConfirmCancel, 1, (result, name) =>
+                                ShowModal("Setup Name", $"Enter a name for the chain address.\nOther users will be able to transfer assets directly to this name.", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, modalActions.ConfirmCancelOptions, 1, (result, name) =>
                                 {
                                     if (result == PromptResult.Success)
                                     {
@@ -3569,14 +3566,14 @@ namespace Poltergeist
                         {
                             if (Input.GetKey(KeyCode.LeftShift))
                             {
-                                ShowModal("", "Select chain", ModalState.Input, 1, 10, ModalConfirmCancel, 1, (result, chain) =>
+                                ShowModal("", "Select chain", ModalState.Input, 1, 10, modalActions.ConfirmCancelOptions, 1, (result, chain) =>
                                 {
                                     if (result == PromptResult.Failure)
                                     {
                                         return; // user cancelled
                                     }
 
-                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result2, message) =>
+                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, modalActions.ConfirmCancelOptions, 4, (result2, message) =>
                                     {
                                         if (result2 == PromptResult.Failure)
                                         {
@@ -3618,7 +3615,7 @@ namespace Poltergeist
 
                                         var signature = Base16.Encode(signatureBytes);
                                         
-                                        ShowModal("Signature", signature, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (result3, input) =>
+                                        ShowModal("Signature", signature, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (result3, input) =>
                                         {
                                             if (result3 != PromptResult.Success)
                                             {
@@ -3638,21 +3635,21 @@ namespace Poltergeist
                             }
                             else if (Input.GetKey(KeyCode.LeftControl))
                             {
-                                ShowModal("", "Select chain", ModalState.Input, 1, 10, ModalConfirmCancel, 1, (result, chain) =>
+                                ShowModal("", "Select chain", ModalState.Input, 1, 10, modalActions.ConfirmCancelOptions, 1, (result, chain) =>
                                 {
                                     if (result == PromptResult.Failure)
                                     {
                                         return; // user cancelled
                                     }
 
-                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result2, message) =>
+                                    ShowModal("", "Enter message", ModalState.Input, 1, -1, modalActions.ConfirmCancelOptions, 4, (result2, message) =>
                                     {
                                         if (result2 == PromptResult.Failure)
                                         {
                                             return; // user cancelled
                                         }
 
-                                        ShowModal("", "Enter signature", ModalState.Input, 1, -1, ModalConfirmCancel, 4, (result3, signature) =>
+                                        ShowModal("", "Enter signature", ModalState.Input, 1, -1, modalActions.ConfirmCancelOptions, 4, (result3, signature) =>
                                         {
                                             if (result3 == PromptResult.Failure)
                                             {
@@ -4030,7 +4027,7 @@ namespace Poltergeist
                     return;
                 }
 
-                ShowModal(transferName, "Enter destination address", ModalState.Input, 3, 64, ModalConfirmCancel, 1, (result, destAddress) =>
+                ShowModal(transferName, "Enter destination address", ModalState.Input, 3, 64, modalActions.ConfirmCancelOptions, 1, (result, destAddress) =>
                 {
                     if (result == PromptResult.Failure)
                     {
@@ -4633,7 +4630,7 @@ namespace Poltergeist
                 caption += $"\nDestination: {destination}";
             }
 
-            ShowModal(description, caption, ModalState.Input, 1, 64, ModalConfirmCancel, 1, (result, temp) =>
+            ShowModal(description, caption, ModalState.Input, 1, 64, modalActions.ConfirmCancelOptions, 1, (result, temp) =>
             {
                 if (result == PromptResult.Failure)
                 {
@@ -5024,3 +5021,4 @@ namespace Poltergeist
     }
 
 }
+

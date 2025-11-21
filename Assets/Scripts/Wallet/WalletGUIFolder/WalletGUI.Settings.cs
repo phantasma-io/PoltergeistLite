@@ -388,7 +388,7 @@ namespace Poltergeist
 
             DoButton(settings.devMode, new Rect(posX, curY, Units(16), Units(2)), "Phantasma address info", () =>
             {
-                ShowModal("Address", "Enter an address", ModalState.Input, 2, -1, ModalConfirmCancel, 1, (result, input) =>
+                ShowModal("Address", "Enter an address", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 1, (result, input) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -413,7 +413,7 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Get tx description from script", () =>
             {
-                ShowModal("Transaction script", "Enter transaction script in Base16 encoding", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                ShowModal("Transaction script", "Enter transaction script in Base16 encoding", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, input) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -452,7 +452,7 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Decode tx", () =>
             {
-                ShowModal("Encoded transaction", "Enter transaction in Base16 encoding", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                ShowModal("Encoded transaction", "Enter transaction in Base16 encoding", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, input) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -520,7 +520,7 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Verify proof of addresses", () =>
             {
-                ShowModal("Verify proof of addresses", "Enter proof of addresses messages", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, input) =>
+                ShowModal("Verify proof of addresses", "Enter proof of addresses messages", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, input) =>
                 {
                     if (result == PromptResult.Success)
                     {
@@ -560,7 +560,7 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Old seed to WIF", () =>
             {
-                ShowModal("Old seed to WIF", "Enter your old seed phrase (created with Poltergeist 2.3 or older)", ModalState.Input, 2, -1, ModalConfirmCancel, 4, (result, legacySeed) =>
+                ShowModal("Old seed to WIF", "Enter your old seed phrase (created with Poltergeist 2.3 or older)", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, legacySeed) =>
                 {
                     if (result != PromptResult.Success)
                     {
@@ -569,7 +569,7 @@ namespace Poltergeist
 
                     ShowModal("Legacy seed password",
                         "For wallets created with Poltergeist v1.0-v1.2: Enter seed password.\nIf you put a wrong password, wrong WIF will be generated.\n\nFor wallets created with v1.3 or later (without a seed password), you must leave this field blank.\n\nThis is NOT your wallet password used to log into the wallet.\n",
-                        ModalState.Input, 0, 64, ModalConfirmCancel, 1, (pwdResult, legacySeedPassword) =>
+                        ModalState.Input, 0, 64, modalActions.ConfirmCancelOptions, 1, (pwdResult, legacySeedPassword) =>
                         {
                             if (pwdResult != PromptResult.Success)
                             {
@@ -588,7 +588,7 @@ namespace Poltergeist
                                 return;
                             }
 
-                            ShowModal("WIF", wif, ModalState.Message, 0, 0, ModalOkCopy_NoAutoCopy, 0, (copyResult, input) => {
+                            ShowModal("WIF", wif, ModalState.Message, 0, 0, modalActions.OkCopyNoAutoCopyOptions, 0, (copyResult, input) => {
                                 if (copyResult != PromptResult.Success) // Means "Copy to clipboard" button was pressed
                                 {
                                     GUIUtility.systemCopyBuffer = wif;

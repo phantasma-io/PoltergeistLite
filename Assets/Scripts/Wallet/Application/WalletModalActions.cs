@@ -23,6 +23,10 @@ namespace Poltergeist.Wallet
             _service.PromptBox(caption, _service.ModalYesNo, callback, confirmDelay, _isVerticalLayout(), _resetUiHints);
         }
 
+        public string[] ConfirmCancelOptions => _service.ModalConfirmCancel;
+        public string[] OkCopyNoAutoCopyOptions => _service.ModalOkCopyNoAutoCopy;
+        public string[] HexWifCancelOptions => _service.ModalHexWifCancel;
+
         public void ConfirmCancel(string caption, Action<PromptResult> callback, int confirmDelay = 0)
         {
             _service.PromptBox(caption, _service.ModalConfirmCancel, callback, confirmDelay, _isVerticalLayout(), _resetUiHints);
