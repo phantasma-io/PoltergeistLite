@@ -70,112 +70,40 @@ namespace Poltergeist
         }
 
 
-        private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "")
+        private void ResetModalUiHints()
         {
-            if (modalContext.State == ModalState.None)
-            {
-                modalContext.Time = Time.time;
-            }
-
-            modalContext.Result = PromptResult.Waiting;
-            modalContext.Input = defaultValue;
-            modalContext.InputKey = null;
-            modalContext.State = state;
-            modalContext.Title = title;
-
-            modalContext.MinInputLength = minInputLength;
-            modalContext.MaxInputLength = maxInputLength;
-
-            modalContext.Caption = caption;
-            modalContext.CaptionScroll = Vector2.zero;
-            modalContext.Callback = callback;
-            modalContext.Options = options;
-            modalContext.ConfirmDelay = confirmDelay;
-            modalContext.HintsLabel = "...";
-            modalContext.Hints = null;
-            modalContext.MaxLines = multiLine;
             hintComboBox.SelectedItemIndex = -1;
             hintComboBox.ListScroll = Vector2.zero;
-            modalContext.LineCount = 0;
-            // Counting lines in label. Since labels are wrapped if they are longer than ~65 symbols (~30-40 for vertical layout),
-            // we count longer labels too. But labels wrapping based not only on length,
-            // but on content also, so we add 2x multiplier to be on a safe side.
-            // TODO: Make a better algorithm capable of counting exact number of lines for label depending on label's width and font size.
-            Array.ForEach(modalContext.Caption.Split("\n".ToCharArray()), x => modalContext.LineCount += (x.ToString().Length / ((VerticalLayout) ? 30 : 65)) * 2 + 1);
+        }
+
+        private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "")
+        {
+            modalService.ShowModal(title, caption, state, minInputLength, maxInputLength, options, multiLine, callback, VerticalLayout, ResetModalUiHints, confirmDelay, defaultValue);
         }
 
         public void BeginWaitingModal(string caption)
         {
-            ShowModal("Please wait...", caption, ModalState.Message, 0, 0, ModalNone, 1, (result, input) =>
-            {
-            });
+            modalService.BeginWaitingModal(caption, VerticalLayout, ResetModalUiHints);
         }
 
         public void EndWaitingModal()
         {
-            if (modalContext.Options.Length == 0)
-            {
-                modalContext.State = ModalState.None;
-            }
+            modalService.EndWaitingModal();
         }
 
         public void PromptBox(string caption, string[] options, Action<PromptResult> callback, int confirmDelay = 0)
         {
-            ShowModal("Confirmation", caption, ModalState.Message, 0, 0, options, 1, (result, input) =>
-            {
-                _promptPicture = null;
-                callback(result);
-            }, confirmDelay);
+            modalService.PromptBox(caption, options, callback, confirmDelay, VerticalLayout, ResetModalUiHints);
         }
 
         public void MessageBox(MessageKind kind, string caption, Action callback = null)
         {
-            // try to have focus for Phantasma Link requests
-            AppFocus.Instance.StartFocus();
-
-            string title;
-            string[] options;
-            switch (kind)
-            {
-                case MessageKind.Success:
-                    title = "Success";
-                    options = ModalOk;
-                    break;
-
-                case MessageKind.Error:
-                    title = "Error";
-                    options = ModalOkCopy;
-                    caption += GetAdditionalDetails();
-                    Log.Write($"Error MessageBox: {caption}");
-                    break;
-
-                default:
-                    title = "Message";
-                    options = ModalOk;
-                    break;
-            }
-
-            ShowModal(title, caption, ModalState.Message, 0, 0, options, 1, (result, input) =>
-            {
-                callback?.Invoke();
-            });
+            modalService.MessageBox(kind, caption, callback, VerticalLayout, ResetModalUiHints);
         }
         
         public void ShowUpdateModal(string title, string caption, Action callback = null)
         {
-            ShowModal( title,  caption,  ModalState.Message, 0, 0, ModalOkView, 2,  (result, input) =>
-                {
-                    Debug.Log("Update modal result: " + result + ", input: " + input + ", callback: " + callback);
-                    if (result == PromptResult.Failure)
-                    {
-                        Application.OpenURL(UpdateChecker.UPDATE_URL);
-                    }
-                    
-                    if (result == PromptResult.Success)
-                    {
-                        callback?.Invoke();
-                    }
-                });
+            modalService.ShowUpdateModal(title, caption, callback, VerticalLayout, ResetModalUiHints);
         }
 
         private static string AddIndent(string input, string indent)
@@ -186,95 +114,7 @@ namespace Poltergeist
 
         public void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
         {
-            var printDetails = false;
-
-            if(hash == Hash.Null && txResult == null && error == null)
-            {
-                // User cancelled tx
-                return;
-            }
-
-            var accountManager = AccountManager.Instance;
-
-            var success = string.IsNullOrEmpty(error) && hash != Hash.Null;
-
-            // Timeout is not possible for Ethereum tx,
-            // since RequestConfirmation() returns success immediatly for Eth.
-            var timeout = error == "timeout";
-
-            var message = "";
-            if(success && !string.IsNullOrEmpty(successCustomMessage))
-            {
-                message = successCustomMessage;
-            }
-            else if(!success && hash == Hash.Null)
-            {
-                // Hash is unavailable - tx wasn't transferred.
-                // Just printing error as is.
-            }
-            else if(!success && !string.IsNullOrEmpty(failureCustomMessage))
-            {
-                message = failureCustomMessage;
-            }
-            else
-            {
-                if(success)
-                {
-                    message = "The transaction has successfully completed, but it may take up to 30 secs until the change is reflected in your wallet balance";
-                }
-                else
-                {
-                    if (timeout)
-                    {
-                        message = "Your transaction has been broadcasted but its state cannot be determined.\nPlease use explorer to ensure transaction is confirmed successfully and funds are transferred (button 'View' below).\n";
-                    }
-                    else
-                    {
-                        //if(error != "Transaction failed")
-                        //{
-                        //    message = "Transaction failed";
-                        //}
-                    }
-                }
-            }
-
-            if (!string.IsNullOrEmpty(error) && !timeout)
-            {
-                message += "\nError: " + AddIndent(error, "    ");
-
-                if(txResult != null)
-                {
-                    message += "\nResult: " + txResult.Result;
-                    message += "\nComment: " + txResult.DebugComment;
-                }
-
-                printDetails = true;
-            }
-
-            if(hash != Hash.Null)
-            {
-                message += "\nTransaction hash:\n" + hash;
-            }
-
-            if (printDetails)
-            {
-                message += GetAdditionalDetails();
-            }
-
-            ShowModal(success ? "Success" : (timeout ? "Attention" : "Failure"),
-                message,
-                ModalState.Message, 0, 0, ModalOkView, 0, (viewTxChoice, input) =>
-                {
-                    if (viewTxChoice == PromptResult.Failure)
-                    {
-                        switch (accountManager.CurrentPlatform)
-                        {
-                            case PlatformKind.Phantasma:
-                                Application.OpenURL(accountManager.GetPhantasmaTransactionURL(hash.ToString()));
-                                break;
-                        }
-                    }
-                });
+            modalService.TxResultMessage(hash, txResult, error, successCustomMessage, failureCustomMessage, GetAdditionalDetails, VerticalLayout, ResetModalUiHints);
         }
         #endregion
     }

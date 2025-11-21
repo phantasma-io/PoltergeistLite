@@ -60,6 +60,7 @@ namespace Poltergeist
         private WalletMessageQueue messageQueue;
         private WalletUserMessage? activeUserMessage;
         private bool activeUserMessageLogged;
+        private WalletModalService modalService;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -158,6 +159,7 @@ namespace Poltergeist
             var context = WalletApplicationContext.Instance;
             navigation = context.Navigation;
             messageQueue = context.Messages;
+            modalService = new WalletModalService(context.Modals);
         }
 
         void Start()
