@@ -63,11 +63,13 @@ namespace Poltergeist
         private WalletModalService modalService;
         private WalletModalActions modalActions;
         private WalletDataProvider dataProvider;
+        private WalletBalancePresenter balancePresenter;
+        private WalletHistoryPresenter historyPresenter;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletUiSignals uiSignals;
-        private WalletBalancesModel balancesSnapshot;
-        private WalletHistoryModel historySnapshot;
+        private WalletBalanceViewSnapshot balancesSnapshot;
+        private WalletHistoryViewSnapshot historySnapshot;
         private readonly Dictionary<string, WalletNftViewSnapshot> nftViewSnapshots = new Dictionary<string, WalletNftViewSnapshot>();
         private readonly HashSet<string> dirtyNftSymbols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private bool balancesDirty = true;
@@ -153,24 +155,24 @@ namespace Poltergeist
             dirtyNftSymbols.Add(symbol);
         }
 
-        private WalletBalancesModel GetBalancesModel()
+        private WalletBalanceViewSnapshot GetBalancesSnapshot()
         {
             if (balancesDirty || balancesSnapshot == null)
             {
-            Log.Write($"[GUI] Fetch balances snapshot dirty={balancesDirty} currentPlatform={AccountManager.Instance?.CurrentPlatform}"); //TODO Check if still needed once refactoring is over
-                balancesSnapshot = dataProvider.GetBalancesSnapshot();
+                Log.Write($"[GUI] Fetch balances snapshot dirty={balancesDirty} currentPlatform={AccountManager.Instance?.CurrentPlatform}"); //TODO Check if still needed once refactoring is over
+                balancesSnapshot = balancePresenter.BuildSnapshot();
                 balancesDirty = false;
             }
 
             return balancesSnapshot;
         }
 
-        private WalletHistoryModel GetHistoryModel()
+        private WalletHistoryViewSnapshot GetHistorySnapshot()
         {
             if (historyDirty || historySnapshot == null)
             {
-            Log.Write($"[GUI] Fetch history snapshot dirty={historyDirty} currentPlatform={AccountManager.Instance?.CurrentPlatform}"); //TODO Check if still needed once refactoring is over
-                historySnapshot = dataProvider.GetHistorySnapshot();
+                Log.Write($"[GUI] Fetch history snapshot dirty={historyDirty} currentPlatform={AccountManager.Instance?.CurrentPlatform}"); //TODO Check if still needed once refactoring is over
+                historySnapshot = historyPresenter.BuildSnapshot();
                 historyDirty = false;
             }
 
@@ -245,6 +247,8 @@ namespace Poltergeist
             modalService = new WalletModalService(context.Modals);
             modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
             dataProvider = context.Data;
+            balancePresenter = context.BalancePresenter;
+            historyPresenter = context.HistoryPresenter;
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
             uiSignals = context.UiSignals;
@@ -2438,12 +2442,12 @@ namespace Poltergeist
 
             var startY = DrawPlatformTopMenu(() =>
             {
-                accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
+                balancePresenter.Refresh(false);
                 MarkBalancesDirty();
             });
             var endY = DoBottomMenu();
 
-            var balancesModel = GetBalancesModel();
+            var balancesModel = GetBalancesSnapshot();
 
             if (balancesModel.IsRefreshing)
             {
@@ -3314,13 +3318,13 @@ namespace Poltergeist
 
             var startY = DrawPlatformTopMenu(() =>
             {
-                accountManager.RefreshHistory(false, accountManager.CurrentPlatform);
+                historyPresenter.Refresh(false);
                 MarkHistoryDirty();
             });
 
             var endY = DoBottomMenu();
 
-            var historyModel = GetHistoryModel();
+            var historyModel = GetHistorySnapshot();
 
             if (historyModel.IsRefreshing)
             {
