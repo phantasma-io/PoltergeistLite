@@ -29,7 +29,7 @@ namespace Poltergeist
                 }
                 else
                 {
-                    MessageBox(MessageKind.Error, $"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () =>
+                    modalActions.Error($"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () =>
                     {
                         masterPassword = null;
                         RequestPassword(description, platforms, forcePasswordPrompt, allowMasterPasswordPrompt, callback);
@@ -39,7 +39,7 @@ namespace Poltergeist
             catch (Exception e)
             {
                 Log.WriteWarning("Authorization error: " + e.ToString());
-                MessageBox(MessageKind.Error, $"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () =>
+                modalActions.Error($"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () =>
                 {
                     masterPassword = null;
                     RequestPassword(description, platforms, forcePasswordPrompt, allowMasterPasswordPrompt, callback);

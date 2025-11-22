@@ -315,7 +315,7 @@ namespace Poltergeist
                 }
                 catch (Exception e)
                 {
-                    MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                    modalActions.Error("Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
                     return;
                 }
 
@@ -323,7 +323,7 @@ namespace Poltergeist
                 {
                     if (!string.IsNullOrEmpty(masterClaimInvokeError))
                     {
-                        MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterClaimInvokeError);
+                        modalActions.Error("Script invocation error!\n\n" + masterClaimInvokeError);
                         return;
                     }
                     else
@@ -338,7 +338,7 @@ namespace Poltergeist
                         {
                             if (!string.IsNullOrEmpty(claimMasterCountInvokeError))
                             {
-                                MessageBox(MessageKind.Error, "Script invocation error!\n\n" + claimMasterCountInvokeError);
+                                modalActions.Error("Script invocation error!\n\n" + claimMasterCountInvokeError);
                                 return;
                             }
                             else
@@ -347,7 +347,7 @@ namespace Poltergeist
                                 {
                                     if (!string.IsNullOrEmpty(masterCountInvokeError))
                                     {
-                                        MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterCountInvokeError);
+                                        modalActions.Error("Script invocation error!\n\n" + masterCountInvokeError);
                                         return;
                                     }
                                     else
@@ -356,7 +356,7 @@ namespace Poltergeist
                                         {
                                             if (!string.IsNullOrEmpty(masterThresholdInvokeError))
                                             {
-                                                MessageBox(MessageKind.Error, "Script invocation error!\n\n" + masterThresholdInvokeError);
+                                                modalActions.Error("Script invocation error!\n\n" + masterThresholdInvokeError);
                                                 return;
                                             }
                                             else
@@ -396,7 +396,7 @@ namespace Poltergeist
                         {
                             if (!string.IsNullOrEmpty(error))
                             {
-                                MessageBox(MessageKind.Error, "Something went wrong!\n" + error);
+                                modalActions.Error("Something went wrong!\n" + error);
                                 return;
                             }
                             else
@@ -419,7 +419,7 @@ namespace Poltergeist
                         var script = Base16.Decode(input.CleanHex(), false);
                         if (script == null)
                         {
-                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse script '{input}'");
+                            modalActions.Error($"Cannot parse script '{input}'");
                         }
                         else
                         {
@@ -429,7 +429,7 @@ namespace Poltergeist
                                 {
                                     if (!string.IsNullOrEmpty(error))
                                     {
-                                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + error);
+                                        modalActions.Error("Error during script parsing.\nDetails: " + error);
                                     }
                                     else
                                     {
@@ -439,7 +439,7 @@ namespace Poltergeist
                             }
                             catch (Exception e)
                             {
-                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.ToString());
+                                modalActions.Error("Error during script parsing.\nDetails: " + e.ToString());
                                 return;
                             }
                         }
@@ -461,13 +461,13 @@ namespace Poltergeist
                         }
                         catch (Exception e)
                         {
-                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse transaction '{input}'.\nDetails: " + e.ToString());
+                            modalActions.Error($"Cannot parse transaction '{input}'.\nDetails: " + e.ToString());
                             return;
                         }
 
                         if (tx == null)
                         {
-                            WalletGUI.Instance.MessageBox(MessageKind.Error, $"Cannot parse transaction '{input}'");
+                            modalActions.Error($"Cannot parse transaction '{input}'");
                         }
                         else
                         {
@@ -477,7 +477,7 @@ namespace Poltergeist
                                 {
                                     if (!string.IsNullOrEmpty(error))
                                     {
-                                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during tx parsing.\nDetails: " + error);
+                                        modalActions.Error("Error during tx parsing.\nDetails: " + error);
                                     }
                                     else
                                     {
@@ -506,7 +506,7 @@ namespace Poltergeist
                             }
                             catch (Exception e)
                             {
-                                WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during script parsing.\nDetails: " + e.ToString());
+                                modalActions.Error("Error during script parsing.\nDetails: " + e.ToString());
                                 return;
                             }
                         }
@@ -545,11 +545,11 @@ namespace Poltergeist
 
                         if (!success)
                         {
-                            MessageBox(MessageKind.Error, errorMessage);
+                            modalActions.Error(errorMessage);
                             return;
                         }
 
-                        MessageBox(MessageKind.Default, "Proof of addresses message was validated successfully");
+                        modalActions.Info("Proof of addresses message was validated successfully");
                     }
                 });
             });
@@ -581,7 +581,7 @@ namespace Poltergeist
                             catch (Exception e)
                             {
                                 Log.Write("Legacy seed decoding exception: " + e);
-                                MessageBox(MessageKind.Error, $"Legacy seed cannot be decoded");
+                                modalActions.Error("Legacy seed cannot be decoded");
                                 return;
                             }
 
@@ -589,7 +589,7 @@ namespace Poltergeist
                             {
                                 if (copyResult != PromptResult.Success)
                                 {
-                                    MessageBox(MessageKind.Default, "WIF copied to the clipboard.");
+                                    modalActions.Info("WIF copied to the clipboard.");
                                 }
                             });
                         });
@@ -605,7 +605,7 @@ namespace Poltergeist
                     if (result == PromptResult.Success)
                     {
                         Cache.Clear();
-                        MessageBox(MessageKind.Default, "Cache cleared.");
+                        modalActions.Info("Cache cleared.");
                     }
                 });
             });
@@ -616,7 +616,7 @@ namespace Poltergeist
             {
                 accountManager.Settings.lastShownInformationScreen = 0;
                 accountManager.Settings.SaveOnExit(); // Required on Android
-                MessageBox(MessageKind.Default, "Startup notifications will be shown again on next wallet start.");
+                modalActions.Info("Startup notifications will be shown again on next wallet start.");
             });
             curY += Units(3);
 
@@ -646,7 +646,7 @@ namespace Poltergeist
                         // If they are not restored, following calls of DoSettingsScreen() will change them again.
                         SetState(GUIState.Settings);
 
-                        MessageBox(MessageKind.Default, "All settings set to default values.", () =>
+                        modalActions.Info("All settings set to default values.", () =>
                         {
                             CloseCurrentStack();
                         });
@@ -667,7 +667,7 @@ namespace Poltergeist
                             accountManager.DeleteAll();
                             PlayerPrefs.DeleteAll();
                             accountManager.Settings.Load();
-                            MessageBox(MessageKind.Default, "All data removed from this device.", () =>
+                            modalActions.Info("All data removed from this device.", () =>
                             {
                                 CloseCurrentStack();
                             });
@@ -764,48 +764,48 @@ namespace Poltergeist
 
             if (settings.nexusKind == NexusKind.Unknown)
             {
-                MessageBox(MessageKind.Error, "Select a Phantasma network first.");
+                modalActions.Error("Select a Phantasma network first.");
                 return false;
             }
 
             if (!settings.phantasmaRPCURL.IsValidURL())
             {
-                MessageBox(MessageKind.Error, "Invalid URL for Phantasma RPC URL.\n" + settings.phantasmaRPCURL);
+                modalActions.Error("Invalid URL for Phantasma RPC URL.\n" + settings.phantasmaRPCURL);
                 return false;
             }
 
             if (!settings.phantasmaExplorer.IsValidURL())
             {
-                MessageBox(MessageKind.Error, "Invalid URL for Phantasma Explorer URL.\n" + settings.phantasmaExplorer);
+                modalActions.Error("Invalid URL for Phantasma Explorer URL.\n" + settings.phantasmaExplorer);
                 return false;
             }
 
             if (!string.IsNullOrEmpty(settings.phantasmaNftExplorer) && !settings.phantasmaNftExplorer.IsValidURL())
             {
-                MessageBox(MessageKind.Error, "Invalid URL for Phantasma NFT Explorer URL.\n" + settings.phantasmaNftExplorer);
+                modalActions.Error("Invalid URL for Phantasma NFT Explorer URL.\n" + settings.phantasmaNftExplorer);
                 return false;
             }
 
             if (settings.feePrice < 1)
             {
-                MessageBox(MessageKind.Error, "Invalid value for fee price.\n" + settings.feePrice);
+                modalActions.Error("Invalid value for fee price.\n" + settings.feePrice);
                 return false;
             }
 
             if (settings.feeLimit < 900)
             {
-                MessageBox(MessageKind.Error, "Invalid value for fee limit.\n" + settings.feeLimit);
+                modalActions.Error("Invalid value for fee limit.\n" + settings.feeLimit);
                 return false;
             }
 
             if (settings.initialWindowWidth < -1)
             {
-                MessageBox(MessageKind.Error, "Invalid value for initial width.\n" + settings.initialWindowWidth);
+                modalActions.Error("Invalid value for initial width.\n" + settings.initialWindowWidth);
                 return false;
             }
             if (settings.initialWindowHeight < -1)
             {
-                MessageBox(MessageKind.Error, "Invalid value for initial height.\n" + settings.initialWindowHeight);
+                modalActions.Error("Invalid value for initial height.\n" + settings.initialWindowHeight);
                 return false;
             }
 

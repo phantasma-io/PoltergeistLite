@@ -35,7 +35,7 @@ namespace Poltergeist
 
         private void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "", Action onCopy = null, bool closeOnCopy = false)
         {
-            modalService.ShowModal(title, caption, state, minInputLength, maxInputLength, options, multiLine, callback, VerticalLayout, ResetModalUiHints, confirmDelay, defaultValue, onCopy, closeOnCopy);
+            modalActions.ShowModal(title, caption, state, minInputLength, maxInputLength, options, multiLine, callback, confirmDelay, defaultValue, onCopy, closeOnCopy);
         }
 
         public void BeginWaitingModal(string caption)
@@ -55,7 +55,7 @@ namespace Poltergeist
 
         public void MessageBox(MessageKind kind, string caption, Action callback = null)
         {
-            modalService.MessageBox(kind, caption, callback, VerticalLayout, ResetModalUiHints);
+            modalActions.Message(kind, caption, callback);
         }
 
         public void ShowUpdateModal(string title, string caption, Action callback = null)

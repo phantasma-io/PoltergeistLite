@@ -991,12 +991,12 @@ namespace Poltergeist
             if (AccountManager.Instance.ReportGetPeersFailure)
             {
                 AccountManager.Instance.ReportGetPeersFailure = false;
-                MessageBox(MessageKind.Error, $"Couldn't load RPCs list.\nWallet might malfunction.");
+                modalActions.Error("Couldn't load RPCs list.\nWallet might malfunction.");
             }
             if (AccountManager.Instance.ReportAllRpcsUnavailabe)
             {
                 AccountManager.Instance.ReportAllRpcsUnavailabe = false;
-                MessageBox(MessageKind.Error, "All Phantasma RPC servers are unavailable.\nPlease check your network connection.");
+                modalActions.Error("All Phantasma RPC servers are unavailable.\nPlease check your network connection.");
             }
         }
 
@@ -1248,7 +1248,7 @@ namespace Poltergeist
                 if (auth == PromptResult.Failure)
                 {
                     var account = accountManager.Accounts[index];
-                    MessageBox(MessageKind.Error, $"Could not open '{account.name}' account.", () =>
+                    modalActions.Error($"Could not open '{account.name}' account.", () =>
                     {
                         callback?.Invoke(false);
                     });
@@ -1273,7 +1273,7 @@ namespace Poltergeist
                 catch (Exception e)
                 {
                     Log.Write("ImportWallet() exception: " + e);
-                    MessageBox(MessageKind.Error, $"Incorrect WIF format.", () => { if (callback != null) { callback(-1); } });
+                    modalActions.Error("Incorrect WIF format.", () => { if (callback != null) { callback(-1); } });
                     return;
                 }
 
@@ -1281,7 +1281,7 @@ namespace Poltergeist
                 {
                     if (account.phaAddress == keys.Address.ToString())
                     {
-                        MessageBox(MessageKind.Error, $"Private key{walletNumberString} is already imported in a different account: {account.name}.", () => { if (callback != null) { callback(-1); } });
+                        modalActions.Error($"Private key{walletNumberString} is already imported in a different account: {account.name}.", () => { if (callback != null) { callback(-1); } });
                         return;
                     }
                 }
@@ -1302,7 +1302,7 @@ namespace Poltergeist
 
                     if (nameAlreadyTaken)
                     {
-                        MessageBox(MessageKind.Error, "An account with this name already exists.", () => { ImportWallet(wif, pkIndex, overallDerivationCount, password, legacySeed, callback); });
+                        modalActions.Error("An account with this name already exists.", () => { ImportWallet(wif, pkIndex, overallDerivationCount, password, legacySeed, callback); });
                     }
                     else
                     {
@@ -1375,7 +1375,7 @@ namespace Poltergeist
                     }
                     else
                     {
-                        MessageBox(MessageKind.Error, $"That password is either too short or too weak.\nNeeds at least {AccountManager.MinPasswordLength} characters and can't be easy to guess.", () =>
+                        modalActions.Error($"That password is either too short or too weak.\nNeeds at least {AccountManager.MinPasswordLength} characters and can't be easy to guess.", () =>
                         {
                             TrySettingWalletPassword(name, wif, legacySeed, callback);
                         });
@@ -1396,16 +1396,16 @@ namespace Poltergeist
             {
                 if (incorrectWord != null)
                 {
-                    MessageBox(MessageKind.Error, $"Seed phrase that you entered is incorrect.\nIncorrect word: '{incorrectWord}'.");
+                    modalActions.Error($"Seed phrase that you entered is incorrect.\nIncorrect word: '{incorrectWord}'.");
                 }
                 else
                 {
-                    MessageBox(MessageKind.Error, "Seed phrase that you entered is incorrect." +
-        "\nPlease check your spelling carefully, and try again." +
-        "\n" +
-        "\nEnsure that:" +
-        "\n* If copy / pasting - That you've selected the entire set of characters." +
-        "\n* If copy / pasting - That the characters have been copied into your clipboard correctly." +
+                    modalActions.Error("Seed phrase that you entered is incorrect." +
+"\nPlease check your spelling carefully, and try again." +
+"\n" +
+"\nEnsure that:" +
+"\n* If copy / pasting - That you've selected the entire set of characters." +
+"\n* If copy / pasting - That the characters have been copied into your clipboard correctly." +
         "\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.");
                 }
                 return;
@@ -1439,7 +1439,7 @@ namespace Poltergeist
                     }
                     else
                     {
-                        MessageBox(MessageKind.Error, "Incorrect number", () => { DeriveAccountsFromSeed(mnemonicPhrase); });
+                        modalActions.Error("Incorrect number", () => { DeriveAccountsFromSeed(mnemonicPhrase); });
                     }
                 }
             }, 0, "1");
@@ -1466,7 +1466,7 @@ namespace Poltergeist
             {
                 newWalletSeedPhrase = null; // seedPhrase is used to determine value of isNewWallet global flag, and should be reset in case of error.
                 newWalletCallback = null;
-                MessageBox(MessageKind.Error, "Error creating account.\n" + e.Message);
+                modalActions.Error("Error creating account.\n" + e.Message);
             }
         }
 
@@ -1580,7 +1580,7 @@ namespace Poltergeist
                                     }
                                     else
                                     {
-                                        MessageBox(MessageKind.Error, "Seed phrase or private key that you entered is incorrect." +
+                                        modalActions.Error("Seed phrase or private key that you entered is incorrect." +
 "\nPlease check your spelling carefully, and try again." +
 "\n" +
 "\nEnsure that:" +
@@ -1723,7 +1723,7 @@ namespace Poltergeist
                                         if (result == PromptResult.Success)
                                         {
                                             GUIUtility.systemCopyBuffer = serializedExportData;
-                                            MessageBox(MessageKind.Default, "Wallets export data copied to the clipboard.");
+                                            modalActions.Info("Wallets export data copied to the clipboard.");
                                         }
                                     });
                                 }
@@ -1791,7 +1791,7 @@ namespace Poltergeist
                                                             accountManager.Accounts.Add(accountToImport);
                                                             count++;
                                                         }
-                                                        MessageBox(MessageKind.Default, $"{count} wallets successfully imported.");
+                                                        modalActions.Info($"{count} wallets successfully imported.");
                                                     }
                                                 });
                                         });
@@ -1816,7 +1816,7 @@ namespace Poltergeist
                                                         catch (Exception e)
                                                         {
                                                             Log.WriteWarning("Cannot decrypt wallets data: " + e.ToString());
-                                                            MessageBox(MessageKind.Error, $"Cannot decrypt wallets data.");
+                                                            modalActions.Error("Cannot decrypt wallets data.");
                                                         }
                                                     }
                                                 });
@@ -1829,7 +1829,7 @@ namespace Poltergeist
                                     catch (Exception e)
                                     {
                                         Log.WriteWarning("Cannot open wallets data: " + e.ToString());
-                                        MessageBox(MessageKind.Error, $"Cannot open wallets data.");
+                                        modalActions.Error("Cannot open wallets data.");
                                     }
                                 }
                             });
@@ -1851,7 +1851,7 @@ namespace Poltergeist
 
                                     accountManagementSelectedList.Clear();
 
-                                    MessageBox(MessageKind.Default, $"{counter} wallets removed from this device.");
+                                    modalActions.Info($"{counter} wallets removed from this device.");
                                 }
                             }, 10);
                             break;
@@ -1956,13 +1956,13 @@ namespace Poltergeist
                             if (input == null || input.Length < AccountManager.MinAccountNameLength ||
                                 input.Length > AccountManager.MaxAccountNameLength)
                             {
-                                MessageBox(MessageKind.Error, "Invalid account name.\n");
+                                modalActions.Error("Invalid account name.\n");
                                 return;
                             }
 
                             if (accountManager.Accounts.Any(x => x.name.ToLower() == input.ToLower()))
                             {
-                                MessageBox(MessageKind.Error, "Account with this name already exists.\n");
+                                modalActions.Error("Account with this name already exists.\n");
                                 return;
                             }
 
@@ -1984,7 +1984,7 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                MessageBox(MessageKind.Error, "Could not import wallet.\n" + e.Message);
+                modalActions.Error("Could not import wallet.\n" + e.Message);
             }
         }
 
@@ -2029,7 +2029,7 @@ namespace Poltergeist
                 DoButton(true, new Rect(windowRect.width / 2 - btnWidth - Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Copy Address", () =>
                   {
                       GUIUtility.systemCopyBuffer = address;
-                      MessageBox(MessageKind.Default, "Address copied to clipboard.");
+                      modalActions.Info("Address copied to clipboard.");
                   });
 
                 DoButton(true, new Rect(windowRect.width / 2 + Border, curY, btnWidth, Units(1) + (VerticalLayout ? 8 : 0)), "Explorer", () =>
@@ -2306,7 +2306,7 @@ namespace Poltergeist
                         }
                         else
                         {
-                            MessageBox(MessageKind.Error, "Seed phrase is incorrect!", () =>
+                            modalActions.Error("Seed phrase is incorrect!", () =>
                             {
                                 TrySeedVerification(seed, callback);
                             });
@@ -2315,7 +2315,7 @@ namespace Poltergeist
                     catch (Exception e)
                     {
                         Log.WriteWarning("TrySeedVerification: Exception: " + e);
-                        MessageBox(MessageKind.Error, "Seed phrase is incorrect!\n" + e.Message, () =>
+                        modalActions.Error("Seed phrase is incorrect!\n" + e.Message, () =>
                         {
                             TrySeedVerification(seed, callback);
                         });
@@ -2367,7 +2367,7 @@ namespace Poltergeist
                     case 0:
                         {
                             GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
-                            MessageBox(MessageKind.Default, "Seed phrase copied to the clipboard.");
+                            modalActions.Info("Seed phrase copied to the clipboard.");
                             break;
                         }
 
@@ -2408,7 +2408,7 @@ namespace Poltergeist
             DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)), "Copy to Clipboard", () =>
             {
                 GUIUtility.systemCopyBuffer = fatalError;
-                MessageBox(MessageKind.Default, "Error log copied to clipboard.");
+                modalActions.Info("Error log copied to clipboard.");
             });
         }
 
@@ -2528,7 +2528,7 @@ namespace Poltergeist
                                 {
                                     if (!string.IsNullOrEmpty(error))
                                     {
-                                        MessageBox(MessageKind.Error, "Something went wrong!\n" + error);
+                                        modalActions.Error("Something went wrong!\n" + error);
                                         return;
                                     }
                                     else
@@ -2663,7 +2663,7 @@ namespace Poltergeist
                                         else
                                         if (feeResult == PromptResult.Failure)
                                         {
-                                            MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
+                                            modalActions.Error("KCAL is required to make transactions!");
                                         }
                                     });
                                 }
@@ -2777,7 +2777,7 @@ namespace Poltergeist
 
                     if (string.IsNullOrEmpty(transferToken.Flags))
                     {
-                        MessageBox(MessageKind.Error, $"Operations with token {transferSymbol} are not supported yet in this version.");
+                        modalActions.Error($"Operations with token {transferSymbol} are not supported yet in this version.");
                         return;
                     }
 
@@ -2798,7 +2798,7 @@ namespace Poltergeist
 
                     if (!transferToken.IsTransferable())
                     {
-                        MessageBox(MessageKind.Error, $"Transfers of {transferSymbol} tokens are not allowed.");
+                        modalActions.Error($"Transfers of {transferSymbol} tokens are not allowed.");
                         return;
                     }
 
@@ -2829,13 +2829,13 @@ namespace Poltergeist
                                 }
                                 else
                                 {
-                                    MessageBox(MessageKind.Error, "No account with such name exists.");
+                                    modalActions.Error("No account with such name exists.");
                                 }
                             });
                         }
                         else
                         {
-                            MessageBox(MessageKind.Error, "Invalid destination address.");
+                            modalActions.Error("Invalid destination address.");
                         }
                     });
 
@@ -3389,7 +3389,7 @@ namespace Poltergeist
                                             {
                                                 if (result1 != PromptResult.Success)
                                                 {
-                                                    MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                    modalActions.Info("Your private key was copied to the clipboard.");
                                                 }
                                             }, copyValue: hexKey);
                                         }
@@ -3406,7 +3406,7 @@ namespace Poltergeist
                                             {
                                                 if (result1 != PromptResult.Success)
                                                 {
-                                                    MessageBox(MessageKind.Default, "Your private key was copied to the clipboard.");
+                                                    modalActions.Info("Your private key was copied to the clipboard.");
                                                 }
                                             }, copyValue: accountManager.CurrentWif);
                                         }
@@ -3462,7 +3462,7 @@ namespace Poltergeist
                                     }
                                     else
                                     {
-                                        MessageBox(MessageKind.Error, "You need to provide a different WIF.");
+                                        modalActions.Error("You need to provide a different WIF.");
                                     }
                                 }
 
@@ -3496,42 +3496,42 @@ namespace Poltergeist
                                                             SetState(CurrentState); // force updating the current UI
 
                                                             if (AccountManager.Instance.CurrentAccount.name != name)
-                                                            {
-                                                                modalActions.YesNo("The address name was set successfully.\nDo you also want to change the local name for the account?\nThe local name is only visible in this device.", (localChange) =>
-                                                                {
-                                                                    if (localChange == PromptResult.Success)
-                                                                    {
-                                                                        if (accountManager.RenameAccount(name))
-                                                                        {
-                                                                            MessageBox(MessageKind.Default, $"The local account name was renamed '{name}'.");
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                            MessageBox(MessageKind.Error, $"Was not possible to rename the local account.\nHowever the public address was renamed with success.");
-                                                                        }
-                                                                    }
-                                                                });
-                                                            }
-                                                        }
-                                                        else
                                                         {
-                                                            MessageBox(MessageKind.Error, "An error occured when trying to setup the address name.");
+                                                            modalActions.YesNo("The address name was set successfully.\nDo you also want to change the local name for the account?\nThe local name is only visible in this device.", (localChange) =>
+                                                            {
+                                                                if (localChange == PromptResult.Success)
+                                                                {
+                                                                    if (accountManager.RenameAccount(name))
+                                                                    {
+                                                                        modalActions.Info($"The local account name was renamed '{name}'.");
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        modalActions.Error("Was not possible to rename the local account.\nHowever the public address was renamed with success.");
+                                                                    }
+                                                                }
+                                                            });
                                                         }
-                                                    });
+                                                    }
+                                                    else
+                                                    {
+                                                        modalActions.Error("An error occured when trying to setup the address name.");
+                                                    }
+                                                });
 
-                                                }
-                                            });
+                                            }
+                                        });
                                         }
                                         else
                                         {
-                                            MessageBox(MessageKind.Error, "That name is not a valid Phantasma address name.\nNo spaces allowed, only lowercase letters and numbers.\nMust be between 3 and 15 characters in length.");
+                                            modalActions.Error("That name is not a valid Phantasma address name.\nNo spaces allowed, only lowercase letters and numbers.\nMust be between 3 and 15 characters in length.");
                                         }
                                     }
                                 });
                             }
                             else
                             {
-                                MessageBox(MessageKind.Error, $"To register an address name you will need at least some SOUL staked.");
+                                modalActions.Error("To register an address name you will need at least some SOUL staked.");
                             }
                             break;
                         }
@@ -3582,7 +3582,7 @@ namespace Poltergeist
                                         }
                                         else
                                         {
-                                            MessageBox(MessageKind.Error, "Unsupported chain");
+                                            modalActions.Error("Unsupported chain");
                                             return;
                                         }
 
@@ -3597,7 +3597,7 @@ namespace Poltergeist
                                                     Log.Write($"Signature: '{signature}'");
                                                 }
 
-                                                MessageBox(MessageKind.Default, "Signature copied to the clipboard.");
+                                                modalActions.Info("Signature copied to the clipboard.");
                                             }
                                         }, copyValue: signature);
                                     });
@@ -3660,17 +3660,17 @@ namespace Poltergeist
                                             }
                                             else
                                             {
-                                                MessageBox(MessageKind.Error, "Unsupported chain");
+                                                modalActions.Error("Unsupported chain");
                                                 return;
                                             }
 
                                             if (verificationResult)
                                             {
-                                                MessageBox(MessageKind.Success, "Signature is correct");
+                                                modalActions.Success("Signature is correct");
                                             }
                                             else
                                             {
-                                                MessageBox(MessageKind.Error, "Signature is incorrect");
+                                                modalActions.Error("Signature is incorrect");
                                             }
                                         });
                                     });
@@ -3704,17 +3704,17 @@ namespace Poltergeist
 
                                                 StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, (error, msg) =>
                                                 {
-                                                    MessageBox(MessageKind.Error, "Error occured. Please try later.");
+                                                    modalActions.Error("Error occured. Please try later.");
                                                 },
                                                 (result) =>
                                                 {
-                                                    MessageBox(MessageKind.Default, "Message sent.");
+                                                    modalActions.Info("Message sent.");
                                                 }));
 
                                                 if (accountManager.Settings.devMode)
                                                 {
                                                     GUIUtility.systemCopyBuffer = message;
-                                                    MessageBox(MessageKind.Default, "Message copied to the clipboard.");
+                                                    modalActions.Info("Message copied to the clipboard.");
                                                 }
                                             }
                                         });
@@ -3947,13 +3947,13 @@ namespace Poltergeist
 
                 if (string.IsNullOrEmpty(transferToken.Flags))
                 {
-                    MessageBox(MessageKind.Error, $"Operations with token {transferSymbol} are not supported yet in this version.");
+                        modalActions.Error($"Operations with token {transferSymbol} are not supported yet in this version.");
                     return;
                 }
 
                 if (!transferToken.IsTransferable())
                 {
-                    MessageBox(MessageKind.Error, $"Transfers of {transferSymbol} tokens are not allowed.");
+                        modalActions.Error($"Transfers of {transferSymbol} tokens are not allowed.");
                     return;
                 }
 
@@ -3974,18 +3974,18 @@ namespace Poltergeist
                         }
                         else
                         {
-                            MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to this type of address not supported.");
+                            modalActions.Error($"Direct transfers from {accountManager.CurrentPlatform} to this type of address not supported.");
                         }
                     }
                     else
                     if (PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoUtils.IsValidAddress(destAddress))
                     {
-                        MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to Neo address not supported.");
+                        modalActions.Error($"Direct transfers from {accountManager.CurrentPlatform} to Neo address not supported.");
                     }
                     else
                     if (ethereumAddressUtil.IsValidEthereumAddressHexFormat(destAddress) && ethereumAddressUtil.IsChecksumAddress(destAddress))
                     {
-                        MessageBox(MessageKind.Error, $"Direct transfers from {accountManager.CurrentPlatform} to Ethereum/BSC address not supported.");
+                        modalActions.Error($"Direct transfers from {accountManager.CurrentPlatform} to Ethereum/BSC address not supported.");
                     }
                     else
                     if (ValidationUtils.IsValidIdentifier(destAddress) && destAddress != state.name && accountManager.CurrentPlatform.ValidateTransferTarget(transferToken, PlatformKind.Phantasma))
@@ -4001,13 +4001,13 @@ namespace Poltergeist
                             }
                             else
                             {
-                                MessageBox(MessageKind.Error, "No account with such name exists.");
+                                modalActions.Error("No account with such name exists.");
                             }
                         });
                     }
                     else
                     {
-                        MessageBox(MessageKind.Error, "Invalid destination address.");
+                        modalActions.Error("Invalid destination address.");
                     }
                 });
 
@@ -4024,7 +4024,7 @@ namespace Poltergeist
             if (draftResult == null || !draftResult.Success || draftResult.Draft == null)
             {
                 var errorMessage = draftResult?.Error ?? "Invalid transaction draft.";
-                MessageBox(MessageKind.Error, errorMessage);
+                modalActions.Error(errorMessage);
                 callback?.Invoke(Hash.Null, null, errorMessage);
                 return;
             }
@@ -4071,13 +4071,13 @@ namespace Poltergeist
 
             if (state == null)
             {
-                MessageBox(MessageKind.Error, "Account state is unavailable.");
+                modalActions.Error("Account state is unavailable.");
                 return;
             }
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.Phantasma);
+                modalActions.Error($"Current platform must be " + PlatformKind.Phantasma);
                 return;
             }
 
@@ -4091,7 +4091,7 @@ namespace Poltergeist
                         var planResult = transferService.BuildFungibleTransferPlan(symbol, amount, destAddress);
                         if (!planResult.Success)
                         {
-                            MessageBox(MessageKind.Error, planResult.Error);
+                            modalActions.Error(planResult.Error);
                             return;
                         }
 
@@ -4106,7 +4106,7 @@ namespace Poltergeist
                     else
                     if (feeResult == PromptResult.Failure)
                     {
-                        MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
+                        modalActions.Error("KCAL is required to make transactions!");
                     }
                 });
             });
@@ -4120,7 +4120,7 @@ namespace Poltergeist
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.Phantasma);
+                modalActions.Error($"Current platform must be " + PlatformKind.Phantasma);
                 return;
             }
 
@@ -4129,13 +4129,13 @@ namespace Poltergeist
 
             if (source == destination)
             {
-                MessageBox(MessageKind.Error, $"Source and destination address must be different!");
+                modalActions.Error("Source and destination address must be different!");
                 return;
             }
 
             if (selectedIds.Count == 0)
             {
-                MessageBox(MessageKind.Error, "No NFTs selected for transfer.");
+                modalActions.Error("No NFTs selected for transfer.");
                 return;
             }
 
@@ -4172,7 +4172,7 @@ namespace Poltergeist
                 else
                 if (feeResult == PromptResult.Failure)
                 {
-                    MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
+                    modalActions.Error("KCAL is required to make transactions!");
                 }
             });
         }
@@ -4183,7 +4183,7 @@ namespace Poltergeist
             {
                 if (result == PromptResult.Failure && !string.IsNullOrEmpty(error))
                 {
-                    MessageBox(MessageKind.Error, error);
+                    modalActions.Error(error);
                 }
 
                 callback?.Invoke(result);
@@ -4330,7 +4330,7 @@ namespace Poltergeist
 
         public void ShowError(string message)
         {
-            MessageBox(MessageKind.Error, message);
+            modalActions.Error(message);
         }
         #endregion
         #endregion

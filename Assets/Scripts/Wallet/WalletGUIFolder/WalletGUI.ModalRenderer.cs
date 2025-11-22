@@ -211,7 +211,7 @@ namespace Poltergeist
                             }
                             else
                             {
-                                MessageBox(MessageKind.Error, "Internal error decoding hint redirection.\nContact the developers.");
+                                modalActions.Error("Internal error decoding hint redirection.\nContact the developers.");
                             }
                         }
                         else

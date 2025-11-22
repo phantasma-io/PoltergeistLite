@@ -37,6 +37,26 @@ namespace Poltergeist.Wallet
             _service.PromptBox(caption, _service.ModalConfirmCancel, callback, confirmDelay, _isVerticalLayout(), _resetUiHints);
         }
 
+        public void Message(MessageKind kind, string caption, Action callback = null)
+        {
+            _service.MessageBox(kind, caption, callback, _isVerticalLayout(), _resetUiHints);
+        }
+
+        public void Error(string caption, Action callback = null)
+        {
+            Message(MessageKind.Error, caption, callback);
+        }
+
+        public void Success(string caption, Action callback = null)
+        {
+            Message(MessageKind.Success, caption, callback);
+        }
+
+        public void Info(string caption, Action callback = null)
+        {
+            Message(MessageKind.Default, caption, callback);
+        }
+
         public void SignCancel(string caption, Action<PromptResult> callback, int confirmDelay = 0)
         {
             _service.PromptBox(caption, _service.ModalSignCancel, callback, confirmDelay, _isVerticalLayout(), _resetUiHints);
@@ -90,6 +110,11 @@ namespace Poltergeist.Wallet
             {
                 { $"Max ({WalletAmountFormatter.Format(max, MoneyFormatType.Short)} {symbol})", max.ToString() }
             };
+        }
+
+        public void ShowModal(string title, string caption, ModalState state, int minInputLength, int maxInputLength, string[] options, int multiLine, Action<PromptResult, string> callback, int confirmDelay = 0, string defaultValue = "", Action onCopy = null, bool closeOnCopy = false)
+        {
+            _service.ShowModal(title, caption, state, minInputLength, maxInputLength, options, multiLine, callback, _isVerticalLayout(), _resetUiHints, confirmDelay, defaultValue, onCopy, closeOnCopy);
         }
     }
 }
