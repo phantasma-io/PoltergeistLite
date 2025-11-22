@@ -80,6 +80,7 @@ namespace Poltergeist
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletTransactionOrchestrator transactionOrchestrator;
         private WalletUiSignals uiSignals;
+        private WalletSettingsService settingsService;
         private WalletBalanceViewSnapshot balancesSnapshot;
         private WalletHistoryViewSnapshot historySnapshot;
         private readonly Dictionary<string, WalletNftViewSnapshot> nftViewSnapshots = new Dictionary<string, WalletNftViewSnapshot>();
@@ -258,6 +259,7 @@ namespace Poltergeist
             nftTxBuilder = context.NftTransactions;
             transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, this);
             uiSignals = context.UiSignals;
+            settingsService = context.SettingsService;
 
             ResetSnapshots();
             SubscribeToSignals();

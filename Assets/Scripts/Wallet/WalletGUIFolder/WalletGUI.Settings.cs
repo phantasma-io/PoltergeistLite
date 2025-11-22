@@ -759,69 +759,7 @@ namespace Poltergeist
 
         private bool ValidateSettings()
         {
-            var accountManager = AccountManager.Instance;
-            var settings = accountManager.Settings;
-
-            if (settings.nexusKind == NexusKind.Unknown)
-            {
-                modalActions.Error("Select a Phantasma network first.");
-                return false;
-            }
-
-            if (!settings.phantasmaRPCURL.IsValidURL())
-            {
-                modalActions.Error("Invalid URL for Phantasma RPC URL.\n" + settings.phantasmaRPCURL);
-                return false;
-            }
-
-            if (!settings.phantasmaExplorer.IsValidURL())
-            {
-                modalActions.Error("Invalid URL for Phantasma Explorer URL.\n" + settings.phantasmaExplorer);
-                return false;
-            }
-
-            if (!string.IsNullOrEmpty(settings.phantasmaNftExplorer) && !settings.phantasmaNftExplorer.IsValidURL())
-            {
-                modalActions.Error("Invalid URL for Phantasma NFT Explorer URL.\n" + settings.phantasmaNftExplorer);
-                return false;
-            }
-
-            if (settings.feePrice < 1)
-            {
-                modalActions.Error("Invalid value for fee price.\n" + settings.feePrice);
-                return false;
-            }
-
-            if (settings.feeLimit < 900)
-            {
-                modalActions.Error("Invalid value for fee limit.\n" + settings.feeLimit);
-                return false;
-            }
-
-            if (settings.initialWindowWidth < -1)
-            {
-                modalActions.Error("Invalid value for initial width.\n" + settings.initialWindowWidth);
-                return false;
-            }
-            if (settings.initialWindowHeight < -1)
-            {
-                modalActions.Error("Invalid value for initial height.\n" + settings.initialWindowHeight);
-                return false;
-            }
-
-            if (accountManager.Accounts.Count() == 0)
-            {
-                accountManager.InitDemoAccounts(settings.nexusKind);
-            }
-
-            accountManager.UpdateRPCURL();
-
-            accountManager.UpdateAPIs(true);
-            accountManager.RefreshTokenPrices();
-            accountManager.Settings.Save();
-            accountManager.RequestTokensReload();
-            accountManager.Settings.settingRequireReconfiguration = false;
-            return true;
+            return settingsService.ValidateAndApply(error => modalActions.Error(error));
         }
     }
 }

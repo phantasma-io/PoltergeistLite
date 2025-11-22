@@ -42,6 +42,7 @@ namespace Poltergeist.Wallet
             AccountAdminService = new WalletAccountAdminService(() => AccountManager.Instance);
             AmountValidator = new WalletAmountValidator(() => AccountManager.Instance);
             FeeRequirement = new WalletFeeRequirement(() => AccountManager.Instance);
+            SettingsService = new WalletSettingsService(() => AccountManager.Instance);
         }
 
         public WalletNavigation Navigation { get; }
@@ -91,5 +92,7 @@ namespace Poltergeist.Wallet
         public WalletAmountValidator AmountValidator { get; }
 
         public WalletFeeRequirement FeeRequirement { get; }
+
+        public WalletSettingsService SettingsService { get; }
     }
 }
