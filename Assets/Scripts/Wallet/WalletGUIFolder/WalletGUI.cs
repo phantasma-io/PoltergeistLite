@@ -65,6 +65,8 @@ namespace Poltergeist
         private WalletDataProvider dataProvider;
         private WalletBalancePresenter balancePresenter;
         private WalletHistoryPresenter historyPresenter;
+        private BalanceViewRenderer balanceRenderer;
+        private HistoryViewRenderer historyRenderer;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletUiSignals uiSignals;
@@ -249,6 +251,8 @@ namespace Poltergeist
             dataProvider = context.Data;
             balancePresenter = context.BalancePresenter;
             historyPresenter = context.HistoryPresenter;
+            balanceRenderer = new BalanceViewRenderer(this);
+            historyRenderer = new HistoryViewRenderer(this);
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
             uiSignals = context.UiSignals;
@@ -2451,31 +2455,7 @@ namespace Poltergeist
 
             var balancesModel = GetBalancesSnapshot();
 
-            if (balancesModel.IsRefreshing)
-            {
-                DrawCenteredText("Fetching balances...");
-                return;
-            }
-
-            if (balancesModel.HasError)
-            {
-                DrawCenteredText(balancesModel.ErrorMessage);
-                return;
-            }
-
-            if (balancesModel.Balances == null || balancesModel.Balances.Count == 0)
-            {
-                DrawCenteredText($"No assets found in this {accountManager.CurrentPlatform} account.");
-                return;
-            }
-
-            var balanceCount = DoScrollArea<WalletBalanceEntry>(ref balancePresenter.State.Scroll, startY, endY, VerticalLayout ? Units(7) : Units(6), balancesModel.Balances.Where(x => x.Total >= 0.001m),
-                DoBalanceEntry);
-
-            if (balanceCount == 0)
-            {
-                DrawCenteredText($"No assets found in this {accountManager.CurrentPlatform} account.");
-            }
+            balanceRenderer.Render(balancesModel, ref balancePresenter.State.Scroll, startY, endY);
         }
 
         private void DoBalanceEntry(WalletBalanceEntry balance, int index, int curY, Rect rect)
@@ -3328,29 +3308,7 @@ namespace Poltergeist
 
             var historyModel = GetHistorySnapshot();
 
-            if (historyModel.IsRefreshing)
-            {
-                DrawCenteredText("Fetching history...");
-                return;
-            }
-
-            if (historyModel.HasError)
-            {
-                DrawCenteredText(historyModel.ErrorMessage);
-                return;
-            }
-
-            var history = historyModel.Entries;
-
-            int curY = Units(12);
-
-            var historyCount = DoScrollArea<WalletHistoryItem>(ref historyPresenter.State.Scroll, startY, endY, VerticalLayout ? Units(4) : Units(3), history,
-                DoHistoryEntry);
-
-            if (historyCount == 0)
-            {
-                    DrawCenteredText($"No transactions found for this {accountManager.CurrentPlatform} account.");
-            }
+            historyRenderer.Render(historyModel, ref historyPresenter.State.Scroll, startY, endY);
         }
 
         private void DoHistoryEntry(WalletHistoryItem entry, int index, int curY, Rect rect)
