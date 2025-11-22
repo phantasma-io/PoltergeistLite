@@ -69,6 +69,7 @@ namespace Poltergeist
         private HistoryViewRenderer historyRenderer;
         private NftListRenderer nftRenderer;
         private NftTransferListRenderer nftTransferRenderer;
+        private WalletFeeService feeService;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletUiSignals uiSignals;
@@ -257,6 +258,7 @@ namespace Poltergeist
             historyRenderer = new HistoryViewRenderer(this);
             nftRenderer = new NftListRenderer(this);
             nftTransferRenderer = new NftTransferListRenderer(this);
+            feeService = context.FeeService;
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
             uiSignals = context.UiSignals;
@@ -4682,26 +4684,13 @@ namespace Poltergeist
 
         private void RequestKCAL(string forSymbol, Action<PromptResult> callback)
         {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-            var min = 0.1m;
-
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            feeService.EnsureKcal(0.1m, callback);
+            if (callback == null)
             {
-                callback(PromptResult.Success);
                 return;
             }
 
-            var feeBalance = state.GetAvailableAmount("KCAL");
-            if (feeBalance >= min)
-            {
-                callback(PromptResult.Success);
-            }
-            else
-            {
-                MessageBox(MessageKind.Error, $"Not enough KCAL for transaction fees.");
-                callback(PromptResult.Failure);
-            }
+            // If EnsureKcal already answered, nothing else to do. If caller needs a modal, it should be handled in service later.
         }
 
         #endregion

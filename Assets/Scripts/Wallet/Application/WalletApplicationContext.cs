@@ -34,6 +34,7 @@ namespace Poltergeist.Wallet
             HistoryViewState = new WalletHistoryViewState();
             HistoryViewBuilder = new WalletHistoryViewBuilder();
             HistoryPresenter = new WalletHistoryPresenter(HistoryViewBuilder, HistoryViewState, Data, () => AccountManager.Instance);
+            FeeService = new WalletFeeService(() => AccountManager.Instance);
         }
 
         public WalletNavigation Navigation { get; }
@@ -67,5 +68,7 @@ namespace Poltergeist.Wallet
         public WalletHistoryViewBuilder HistoryViewBuilder { get; }
 
         public WalletHistoryPresenter HistoryPresenter { get; }
+
+        public WalletFeeService FeeService { get; }
     }
 }
