@@ -2860,12 +2860,20 @@ namespace Poltergeist
                 {
                     modalActions.RequireAmount($"Burn {balance.Symbol} tokens", null, balance.Symbol, 0.1m, balance.Available, (amountToBurn) =>
                     {
-                        modalActions.ConfirmCancel($"Are you sure you want to burn {amountToBurn} {balance.Symbol} tokens?", (result) =>
+                        var burnPrep = burnService.PrepareFungibleBurn(balance.Symbol, balance.Available, amountToBurn);
+                        if (!burnPrep.Success)
+                        {
+                            modalActions.Error(burnPrep.Error);
+                            return;
+                        }
+
+                        var confirmMessage = string.IsNullOrEmpty(burnPrep.Message) ? $"Are you sure you want to burn {amountToBurn} {balance.Symbol} tokens?" : burnPrep.Message;
+
+                        modalActions.ConfirmCancel(confirmMessage, (result) =>
                         {
                             if (result == PromptResult.Success)
                             {
-                                var planResult = burnService.BuildFungibleBurnDraft(balance.Symbol, amountToBurn);
-                                SendTransactionDraft(planResult, (hash, txResult, error) =>
+                                SendTransactionDraft(burnPrep.Data, (hash, txResult, error) =>
                                 {
                                     TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
                                 });
@@ -3923,12 +3931,20 @@ namespace Poltergeist
                     return;
                 }
 
-                modalActions.ConfirmCancel("Are you sure you want to burn (destroy) selected NFTs?", (result) =>
+                var burnPrep = burnService.PrepareNftBurn(transferSymbol, selectedIds);
+                if (!burnPrep.Success)
+                {
+                    modalActions.Error(burnPrep.Error);
+                    return;
+                }
+
+                var confirmMessage = string.IsNullOrEmpty(burnPrep.Message) ? $"Are you sure you want to burn (destroy) {selectedIds.Count} {transferSymbol} NFTs?" : burnPrep.Message;
+
+                modalActions.ConfirmCancel(confirmMessage, (result) =>
                 {
                     if (result == PromptResult.Success)
                     {
-                        var planResult = burnService.BuildNftBurnDraft(transferSymbol, selectedIds);
-                        SendTransactionDraft(planResult, (hash, txResult, error) =>
+                        SendTransactionDraft(burnPrep.Data, (hash, txResult, error) =>
                         {
                             TxResultMessage(hash, txResult, error, $"You burned {selectedIds.Count} NFTs!");
                         });

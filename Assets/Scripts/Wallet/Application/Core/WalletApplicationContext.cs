@@ -40,7 +40,7 @@ namespace Poltergeist.Wallet
             FeeService = new WalletFeeService(() => AccountManager.Instance);
             TransferService = new WalletTransferService(() => AccountManager.Instance, FeeRequirement);
             StakeService = new WalletStakeService(() => AccountManager.Instance);
-            BurnService = new WalletBurnService(() => AccountManager.Instance, NftTransactions);
+            BurnService = new WalletBurnService(() => AccountManager.Instance, NftTransactions, FeeRequirement);
             NftTransferService = new WalletNftTransferService(() => AccountManager.Instance, NftTransactions, FeeRequirement);
             AccountAdminService = new WalletAccountAdminService(() => AccountManager.Instance);
             AmountValidator = new WalletAmountValidator(() => AccountManager.Instance);

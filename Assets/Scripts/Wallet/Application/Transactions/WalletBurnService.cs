@@ -17,27 +17,69 @@ namespace Poltergeist.Wallet
     {
         private readonly Func<AccountManager> _accountProvider;
         private readonly WalletNftTransactionBuilder _nftBuilder;
+        private readonly WalletFeeRequirement _feeRequirement;
 
-        public WalletBurnService(Func<AccountManager> accountProvider, WalletNftTransactionBuilder nftBuilder)
+        public WalletBurnService(Func<AccountManager> accountProvider, WalletNftTransactionBuilder nftBuilder, WalletFeeRequirement feeRequirement)
         {
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
             _nftBuilder = nftBuilder ?? throw new ArgumentNullException(nameof(nftBuilder));
+            _feeRequirement = feeRequirement ?? throw new ArgumentNullException(nameof(feeRequirement));
+        }
+
+        public ValidationResult<WalletTransactionDraft> PrepareFungibleBurn(string symbol, decimal availableAmount, decimal requestedAmount)
+        {
+            var accountManager = _accountProvider();
+            if (accountManager == null)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail("Account manager is not available yet.");
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail($"Current platform must be {PlatformKind.Phantasma}");
+            }
+
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail("Account state is unavailable.");
+            }
+
+            if (requestedAmount <= 0 || requestedAmount > availableAmount)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail("Invalid burn amount.");
+            }
+
+            var feeCheck = EnsureKcal(accountManager, 0.1m);
+            if (!feeCheck.Success)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail(feeCheck.Error);
+            }
+
+            var draftResult = BuildFungibleBurnDraft(symbol, requestedAmount, state, accountManager);
+            if (!draftResult.Success)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail(draftResult.Error);
+            }
+
+            var message = $"Are you sure you want to burn {draftResult.Amount} {symbol} tokens?";
+            return ValidationResult<WalletTransactionDraft>.Ok(draftResult.Draft, message);
         }
 
         public WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, decimal amount)
         {
             var accountManager = _accountProvider();
+            var state = accountManager?.CurrentState;
+            return BuildFungibleBurnDraft(symbol, amount, state, accountManager);
+        }
+
+        private WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, decimal amount, AccountState state, AccountManager accountManager)
+        {
             if (accountManager == null)
             {
                 return WalletTransactionDraftResult.Fail("Account manager is not available yet.");
             }
 
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
-            {
-                return WalletTransactionDraftResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
-            }
-
-            var state = accountManager.CurrentState;
             if (state == null)
             {
                 return WalletTransactionDraftResult.Fail("Account state is unavailable.");
@@ -73,29 +115,35 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan, burnAmount);
         }
 
-        public WalletTransactionDraftResult BuildNftBurnDraft(string symbol, IEnumerable<string> nftIds)
+        public ValidationResult<WalletTransactionDraft> PrepareNftBurn(string symbol, IEnumerable<string> nftIds)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                return WalletTransactionDraftResult.Fail("Account manager is not available yet.");
+                return ValidationResult<WalletTransactionDraft>.Fail("Account manager is not available yet.");
             }
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                return WalletTransactionDraftResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
+                return ValidationResult<WalletTransactionDraft>.Fail($"Current platform must be {PlatformKind.Phantasma}");
             }
 
             var state = accountManager.CurrentState;
             if (state == null)
             {
-                return WalletTransactionDraftResult.Fail("Account state is unavailable.");
+                return ValidationResult<WalletTransactionDraft>.Fail("Account state is unavailable.");
             }
 
             var ids = nftIds?.Where(x => !string.IsNullOrEmpty(x)).ToList() ?? new List<string>();
             if (ids.Count == 0)
             {
-                return WalletTransactionDraftResult.Fail("No NFTs selected.");
+                return ValidationResult<WalletTransactionDraft>.Fail("No NFTs selected.");
+            }
+
+            var feeCheck = EnsureKcal(accountManager, 0.1m);
+            if (!feeCheck.Success)
+            {
+                return ValidationResult<WalletTransactionDraft>.Fail(feeCheck.Error);
             }
 
             var target = Address.Parse(state.address);
@@ -106,11 +154,26 @@ namespace Poltergeist.Wallet
             }
             catch (Exception e)
             {
-                return WalletTransactionDraftResult.Fail($"Failed to build NFT burn transaction.\n{e.Message}");
+                return ValidationResult<WalletTransactionDraft>.Fail($"Failed to build NFT burn transaction.\n{e.Message}");
             }
 
             var plan = WalletTransactionDraft.ForSingleScript($"Burn {ids.Count} {symbol} NFTs", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
-            return WalletTransactionDraftResult.CreateSuccess(plan, ids.Count);
+            var message = $"Are you sure you want to burn (destroy) {ids.Count} {symbol} NFTs?";
+            return ValidationResult<WalletTransactionDraft>.Ok(plan, message);
+        }
+
+        public ValidationResult EnsureKcal(AccountManager accountManager, decimal minAmount)
+        {
+            var result = ValidationResult.Ok();
+            _feeRequirement.EnsureKcal(minAmount, (feeResult, error) =>
+            {
+                if (feeResult != PromptResult.Success)
+                {
+                    result = ValidationResult.Fail(string.IsNullOrEmpty(error) ? "KCAL is required to make transactions!" : error);
+                }
+            });
+
+            return result;
         }
     }
 }
