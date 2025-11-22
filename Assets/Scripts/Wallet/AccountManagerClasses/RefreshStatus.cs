@@ -8,6 +8,7 @@ namespace Poltergeist
         public bool BalanceRefreshing;
         public DateTime LastBalanceRefresh;
         public Action BalanceRefreshCallback;
+        public string BalanceError;
         // History
         public bool HistoryRefreshing;
         public DateTime LastHistoryRefresh;

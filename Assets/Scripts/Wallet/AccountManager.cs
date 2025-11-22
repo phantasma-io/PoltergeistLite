@@ -78,6 +78,37 @@ namespace Poltergeist
         public bool BalanceRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].BalanceRefreshing : false;
         public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
         public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
+        internal string GetBalanceError(PlatformKind platform)
+        {
+            lock (_refreshStatus)
+            {
+                if (_refreshStatus.TryGetValue(platform, out var status))
+                {
+                    return status.BalanceError;
+                }
+            }
+
+            return null;
+        }
+
+        private void SetBalanceError(PlatformKind platform, string message)
+        {
+            lock (_refreshStatus)
+            {
+                if (_refreshStatus.TryGetValue(platform, out var status))
+                {
+                    status.BalanceError = message;
+                    _refreshStatus[platform] = status;
+                }
+                else
+                {
+                    _refreshStatus[platform] = new RefreshStatus
+                    {
+                        BalanceError = message
+                    };
+                }
+            }
+        }
 
         public PhantasmaAPI phantasmaApi { get; private set; }
 
@@ -1047,8 +1078,14 @@ The Phoenix team", "Notice");
                 RefreshStatus refreshStatus;
                 lock (_refreshStatus)
                 {
-                    refreshStatus = _refreshStatus[platform];
+                    refreshStatus = _refreshStatus.ContainsKey(platform)
+                        ? _refreshStatus[platform]
+                        : new RefreshStatus();
                     refreshStatus.BalanceRefreshing = false;
+                    if (state != null)
+                    {
+                        refreshStatus.BalanceError = null;
+                    }
                     _refreshStatus[platform] = refreshStatus;
                 }
 
@@ -1253,6 +1290,7 @@ The Phoenix team", "Notice");
                         refreshStatus.BalanceRefreshing = true;
                         refreshStatus.LastBalanceRefresh = now;
                         refreshStatus.BalanceRefreshCallback = callback;
+                        refreshStatus.BalanceError = null;
 
                         _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
                     }
@@ -1264,6 +1302,7 @@ The Phoenix team", "Notice");
                                 BalanceRefreshing = true,
                                 LastBalanceRefresh = now,
                                 BalanceRefreshCallback = callback,
+                                BalanceError = null,
                                 HistoryRefreshing = false,
                                 LastHistoryRefresh = DateTime.MinValue
                             });
@@ -1416,6 +1455,14 @@ The Phoenix team", "Notice");
                     state.avatarData = acc.Storage.Avatar;
 
                     ReportWalletBalance(PlatformKind.Phantasma, state);
+                    lock (_refreshStatus)
+                    {
+                        if (_refreshStatus.TryGetValue(PlatformKind.Phantasma, out var status))
+                        {
+                            status.BalanceError = null;
+                            _refreshStatus[PlatformKind.Phantasma] = status;
+                        }
+                    }
 
                     if (missingTokens != null && missingTokens.Count > 0)
                     {
@@ -1433,6 +1480,13 @@ The Phoenix team", "Notice");
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
                     }
 
+                    SetBalanceError(PlatformKind.Phantasma, $"Phantasma request failed: {ex.Message}");
+                    ReportWalletBalance(PlatformKind.Phantasma, null);
+                }
+                catch (Exception ex)
+                {
+                    Log.WriteWarning($"RefreshBalances[PHA] unexpected error: {ex}");
+                    SetBalanceError(PlatformKind.Phantasma, $"Error while fetching balances: {ex.Message}");
                     ReportWalletBalance(PlatformKind.Phantasma, null);
                 }
             }

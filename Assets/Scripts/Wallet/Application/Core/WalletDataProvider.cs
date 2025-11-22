@@ -35,9 +35,10 @@ namespace Poltergeist.Wallet
 
             if (state == null)
             {
-                var error = accountManager.rpcAvailablePhantasma == 0
+                var error = accountManager.GetBalanceError(accountManager.CurrentPlatform)
+                    ?? (accountManager.rpcAvailablePhantasma == 0
                     ? "Please check your internet connection. All Phantasma RPC servers are unavailable."
-                    : "Temporary error, cannot display balances...";
+                    : "Temporary error, cannot display balances...");
 
                 return new WalletBalancesModel(accountName, accountManager.CurrentPlatform, isRefreshing, Array.Empty<WalletBalanceEntry>(), error);
             }
