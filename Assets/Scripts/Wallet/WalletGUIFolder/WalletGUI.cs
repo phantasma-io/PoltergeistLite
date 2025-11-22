@@ -70,6 +70,7 @@ namespace Poltergeist
         private NftListRenderer nftRenderer;
         private NftTransferListRenderer nftTransferRenderer;
         private WalletFeeService feeService;
+        private WalletTransferService transferService;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletUiSignals uiSignals;
@@ -259,6 +260,7 @@ namespace Poltergeist
             nftRenderer = new NftListRenderer(this);
             nftTransferRenderer = new NftTransferListRenderer(this);
             feeService = context.FeeService;
+            transferService = context.TransferService;
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
             uiSignals = context.UiSignals;
@@ -4414,18 +4416,15 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
 
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            if (state == null)
             {
-                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.Phantasma);
+                MessageBox(MessageKind.Error, "Account state is unavailable.");
                 return;
             }
 
-            var source = Address.Parse(state.address);
-            var destination = Address.Parse(destAddress);
-
-            if (source == destination)
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                MessageBox(MessageKind.Error, $"Source and destination address must be different!");
+                MessageBox(MessageKind.Error, $"Current platform must be " + PlatformKind.Phantasma);
                 return;
             }
 
@@ -4436,93 +4435,28 @@ namespace Poltergeist
                 {
                     if (feeResult == PromptResult.Success)
                     {
-                        // In case we swapped SOUL to KCAL we should check if selected amound is still available
-                        // If not - reduce to balance
-                        // We should update balance first
-                        balance = AccountManager.Instance.CurrentState.GetAvailableAmount(symbol);
-                        if (amount > balance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
-                            amount = balance;
-
-                        byte[] txBytes = null;
-                        TxMsg? txMsg = null;
-
-                        var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-                        var bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
-                        var useScriptlessTxes = accountManager.Settings.preferScriptlessTxes;
-
-                        if (useScriptlessTxes && (bigIntAmount < 0 || bigIntAmount > ulong.MaxValue))
+                        var planResult = transferService.BuildFungibleTransferPlan(symbol, amount, destAddress);
+                        if (!planResult.Success)
                         {
-                            Log.WriteWarning($"Scriptless transfer blocked for {symbol}: amount {bigIntAmount} exceeds UInt64 range.");
-                            MessageBox(MessageKind.Error, "Scriptless transactions currently can't transfer this amount.\nPlease switch to Standard transactions in Settings and try again.");
+                            MessageBox(MessageKind.Error, planResult.Error);
                             return;
                         }
 
-                        if (useScriptlessTxes)
+                        var plan = planResult.Plan;
+                        var amountSent = planResult.Amount;
+
+                        if (plan.IsCarbonTransaction && plan.CarbonTx.HasValue)
                         {
-                            try
+                            SendCarbonTransaction(plan.Description, plan.CarbonTx.Value, (hash, txResult, error) =>
                             {
-                                var tokenCarbonId = Tokens.GetTokenCarbonId(symbol, accountManager.CurrentPlatform);
-
-                                txMsg = new TxMsg
-                                {
-                                    type = TxTypes.TransferFungible,
-                                    expiry = DateTimeOffset.UtcNow.AddSeconds(30).ToUnixTimeMilliseconds(),
-                                    maxGas = (ulong)accountManager.Settings.scriptlessMaxGas,
-                                    maxData = (ulong)accountManager.Settings.scriptlessMaxData,
-                                    gasFrom = new Bytes32(source.GetPublicKey()),
-                                    payload = new SmallString(accountManager.WalletIdentifier),
-                                    msg = new TxMsgTransferFungible
-                                    {
-                                        to = new Bytes32(destination.GetPublicKey()),
-                                        tokenId = tokenCarbonId,
-                                        amount = (ulong)bigIntAmount
-                                    }
-                                };
-                            }
-                            catch (Exception e)
-                            {
-                                MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            try
-                            {
-                                var sb = new ScriptBuilder();
-                                sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-
-                                if (symbol == "KCAL" && amount == balance)
-                                {
-                                    sb.TransferBalance(symbol, source, destination);
-                                }
-                                else
-                                {
-                                    sb.TransferTokens(symbol, source, destination, bigIntAmount);
-                                }
-
-                                sb.SpendGas(source);
-                                txBytes = sb.EndScript();
-                            }
-                            catch (Exception e)
-                            {
-                                MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                                return;
-                            }
-                        }
-
-                        if (useScriptlessTxes)
-                        {
-                            SendCarbonTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txMsg.Value, (hash, txResult, error) =>
-                            {
-                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                             });
                         }
-                        else
+                        else if (plan.Script != null)
                         {
-                            SendTransaction($"Transfer {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}\nDestination: {destination}", txBytes, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                            SendTransaction(plan.Description, plan.Script, null, plan.GasPrice, plan.GasLimit, null, plan.Chain, plan.PoW, (hash, txResult, error) =>
                             {
-                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                             });
                         }
                     }
