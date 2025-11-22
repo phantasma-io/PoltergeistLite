@@ -65,13 +65,13 @@ namespace Poltergeist
         private WalletDataProvider dataProvider;
         private WalletBalancePresenter balancePresenter;
         private WalletHistoryPresenter historyPresenter;
+        private WalletTransferService transferService;
         private BalanceViewRenderer balanceRenderer;
         private HistoryViewRenderer historyRenderer;
         private NftListRenderer nftRenderer;
         private NftTransferListRenderer nftTransferRenderer;
         private WalletFeeService feeService;
         private WalletFeeRequirement feeRequirement;
-        private WalletTransferService transferService;
         private WalletStakeService stakeService;
         private WalletBurnService burnService;
         private WalletNftTransferService nftTransferService;
@@ -244,13 +244,13 @@ namespace Poltergeist
             dataProvider = context.Data;
             balancePresenter = context.BalancePresenter;
             historyPresenter = context.HistoryPresenter;
+            transferService = context.TransferService;
             balanceRenderer = new BalanceViewRenderer(this);
             historyRenderer = new HistoryViewRenderer(this);
             nftRenderer = new NftListRenderer(this);
             nftTransferRenderer = new NftTransferListRenderer(this);
             feeService = context.FeeService;
             feeRequirement = context.FeeRequirement;
-            transferService = context.TransferService;
             stakeService = context.StakeService;
             burnService = context.BurnService;
             nftTransferService = context.NftTransferService;
@@ -2624,7 +2624,7 @@ namespace Poltergeist
                                                     {
                                                         var address = Address.Parse(state.address);
 
-                                                        var planResult = stakeService.BuildUnstakePlan(amount);
+                                                        var planResult = stakeService.BuildUnstakeDraft(amount);
                                                         SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                         {
                                                             TxResultMessage(hash, txResult, error, "Your SOUL tokens were unstaked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
@@ -2655,7 +2655,7 @@ namespace Poltergeist
                                     {
                                         if (feeResult == PromptResult.Success)
                                         {
-                                            var planResult = stakeService.BuildClaimKcalPlan(balance.Claimable);
+                                            var planResult = stakeService.BuildClaimKcalDraft(balance.Claimable);
 
                                             SendTransactionDraft(planResult, (hash, txResult, error) =>
                                             {
@@ -2845,7 +2845,7 @@ namespace Poltergeist
                 }
                 else if (mainAction == "SM reward")
                 {
-                    var planResult = stakeService.BuildClaimSmRewardPlan();
+                    var planResult = stakeService.BuildClaimSmRewardDraft();
                     SendTransactionDraft(planResult, (hash, txResult, error) =>
                     {
                         TxResultMessage(hash, txResult, error, "You claimed SM reward!");
@@ -2859,7 +2859,7 @@ namespace Poltergeist
                         {
                             if (result == PromptResult.Success)
                             {
-                                var planResult = burnService.BuildFungibleBurnPlan(balance.Symbol, amountToBurn);
+                                var planResult = burnService.BuildFungibleBurnDraft(balance.Symbol, amountToBurn);
                                 SendTransactionDraft(planResult, (hash, txResult, error) =>
                                 {
                                     TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
@@ -3440,7 +3440,7 @@ namespace Poltergeist
                                             {
                                                 var address = Address.Parse(accountManager.CurrentState.address);
 
-                                                var planResult = accountAdminService.BuildMigratePlan(newKeys.Address);
+                                                var planResult = accountAdminService.BuildMigrateDraft(newKeys.Address);
 
                                                 SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                 {
@@ -3489,7 +3489,7 @@ namespace Poltergeist
                                                 {
                                                     if (kcalResult == PromptResult.Success)
                                                     {
-                                                        var planResult = accountAdminService.BuildRegisterNamePlan(name, accountManager.CurrentState.address);
+                                                        var planResult = accountAdminService.BuildRegisterNameDraft(name, accountManager.CurrentState.address);
 
                                                     SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                     {
@@ -3739,7 +3739,7 @@ namespace Poltergeist
                     {
                         if (kcal == PromptResult.Success)
                         {
-                            var planResult = stakeService.BuildStakePlan(selectedAmount);
+                            var planResult = stakeService.BuildStakeDraft(selectedAmount);
                             SendTransactionDraft(planResult, (hash, txResult, error) =>
                             {
                                 callback(hash, txResult, error);
@@ -3922,7 +3922,7 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        var planResult = burnService.BuildNftBurnPlan(transferSymbol, selectedIds);
+                        var planResult = burnService.BuildNftBurnDraft(transferSymbol, selectedIds);
                         SendTransactionDraft(planResult, (hash, txResult, error) =>
                         {
                             TxResultMessage(hash, txResult, error, $"You burned {selectedIds.Count} NFTs!");
@@ -4036,7 +4036,7 @@ namespace Poltergeist
 
         public void SendTransactionDraft(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true)
         {
-            transactionOrchestrator.SendDraft(draft, refreshBalanceAfterConfirmation, callback);
+            transactionOrchestrator.SendTransactionDraft(draft, refreshBalanceAfterConfirmation, callback);
         }
 
         private void InvokeTransactionCallback(Hash hash, TransactionResult txResult, string error)
@@ -4068,48 +4068,28 @@ namespace Poltergeist
         #region transfers
         private void ContinuePhantasmaTransfer(string transferName, string symbol, string destAddress)
         {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-
-            if (state == null)
+            var availability = transferService.GetFungibleAvailability(symbol);
+            if (!availability.Success)
             {
-                modalActions.Error("Account state is unavailable.");
+                modalActions.Error(availability.Error);
                 return;
             }
 
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            modalActions.RequireAmount(transferName, destAddress, symbol, availability.MinAmount, availability.MaxAmount, (amount) =>
             {
-                modalActions.Error($"Current platform must be " + PlatformKind.Phantasma);
-                return;
-            }
-
-            var balance = state.GetAvailableAmount(symbol);
-            modalActions.RequireAmount(transferName, destAddress, symbol, 0.001m, balance, (amount) =>
-            {
-                RequestKCAL(symbol, (feeResult) =>
+                var planResult = transferService.BuildFungibleTransferDraft(symbol, amount, destAddress);
+                if (!planResult.Success)
                 {
-                    if (feeResult == PromptResult.Success)
-                    {
-                        var planResult = transferService.BuildFungibleTransferPlan(symbol, amount, destAddress);
-                        if (!planResult.Success)
-                        {
-                            modalActions.Error(planResult.Error);
-                            return;
-                        }
+                    modalActions.Error(planResult.Error);
+                    return;
+                }
 
-                        var plan = planResult.Draft;
-                        var amountSent = planResult.Amount;
+                var plan = planResult.Draft;
+                var amountSent = planResult.Amount;
 
-                        SendTransactionDraft(plan, (hash, txResult, error) =>
-                        {
-                            TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                        });
-                    }
-                    else
-                    if (feeResult == PromptResult.Failure)
-                    {
-                        modalActions.Error("KCAL is required to make transactions!");
-                    }
+                SendTransactionDraft(plan, (hash, txResult, error) =>
+                {
+                    TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                 });
             });
         }
@@ -4117,64 +4097,35 @@ namespace Poltergeist
         private void ContinuePhantasmaNftTransfer(string transferName, string symbol, string destAddress)
         {
             var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
             var selectedIds = nftViewPresenter.SelectionSnapshot();
-
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            var planResult = nftTransferService.BuildNftTransferDraft(symbol, destAddress, selectedIds);
+            if (!planResult.Success)
             {
-                modalActions.Error($"Current platform must be " + PlatformKind.Phantasma);
+                modalActions.Error(planResult.Error);
                 return;
             }
 
-            var source = Address.Parse(state.address);
-            var destination = Address.Parse(destAddress);
-
-            if (source == destination)
+            SendTransactionDraft(planResult, (hash, txResult, error) =>
             {
-                modalActions.Error("Source and destination address must be different!");
-                return;
-            }
-
-            if (selectedIds.Count == 0)
-            {
-                modalActions.Error("No NFTs selected for transfer.");
-                return;
-            }
-
-            RequestKCAL(symbol, (feeResult) =>
-            {
-                if (feeResult == PromptResult.Success)
+                if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                 {
-                    var planResult = nftTransferService.BuildTransferPlan(symbol, destAddress, selectedIds);
+                    TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(planResult.Amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
-                    SendTransactionDraft(planResult, (hash, txResult, error) =>
+                    // Removing sent NFTs from current NFT list.
+                    var nfts = accountManager.CurrentNfts;
+                    foreach (var nft in selectedIds)
                     {
-                        if (string.IsNullOrEmpty(error) && hash != Hash.Null)
-                        {
-                            TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(selectedIds.Count, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                        nfts.Remove(nfts.Find(x => x.Id == nft));
+                    }
 
-                            // Removing sent NFTs from current NFT list.
-                            var nfts = accountManager.CurrentNfts;
-                            foreach (var nft in selectedIds)
-                            {
-                                nfts.Remove(nfts.Find(x => x.Id == nft));
-                            }
-
-                            // Returning to NFT's first screen.
-                            nftScroll = Vector2.zero;
-                            nftViewPresenter.ClearSelection();
-                            PushState(GUIState.Nft);
-                        }
-                        else
-                        {
-                            TxResultMessage(hash, txResult, error, null, "Some or all transactions failed.");
-                        }
-                    });
+                    // Returning to NFT's first screen.
+                    nftScroll = Vector2.zero;
+                    nftViewPresenter.ClearSelection();
+                    PushState(GUIState.Nft);
                 }
                 else
-                if (feeResult == PromptResult.Failure)
                 {
-                    modalActions.Error("KCAL is required to make transactions!");
+                    TxResultMessage(hash, txResult, error, null, "Some or all transactions failed.");
                 }
             });
         }

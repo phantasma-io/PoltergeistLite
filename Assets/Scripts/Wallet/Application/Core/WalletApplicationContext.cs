@@ -34,14 +34,14 @@ namespace Poltergeist.Wallet
             HistoryViewState = new WalletHistoryViewState();
             HistoryViewBuilder = new WalletHistoryViewBuilder();
             HistoryPresenter = new WalletHistoryPresenter(HistoryViewBuilder, HistoryViewState, Data, () => AccountManager.Instance);
+            FeeRequirement = new WalletFeeRequirement(() => AccountManager.Instance);
             FeeService = new WalletFeeService(() => AccountManager.Instance);
-            TransferService = new WalletTransferService(() => AccountManager.Instance);
+            TransferService = new WalletTransferService(() => AccountManager.Instance, FeeRequirement);
             StakeService = new WalletStakeService(() => AccountManager.Instance);
             BurnService = new WalletBurnService(() => AccountManager.Instance, NftTransactions);
-            NftTransferService = new WalletNftTransferService(() => AccountManager.Instance, NftTransactions);
+            NftTransferService = new WalletNftTransferService(() => AccountManager.Instance, NftTransactions, FeeRequirement);
             AccountAdminService = new WalletAccountAdminService(() => AccountManager.Instance);
             AmountValidator = new WalletAmountValidator(() => AccountManager.Instance);
-            FeeRequirement = new WalletFeeRequirement(() => AccountManager.Instance);
             SettingsService = new WalletSettingsService(() => AccountManager.Instance);
         }
 

@@ -10,7 +10,7 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Builds staking/claiming transaction plans so UI layers stay thin.
+    /// Builds staking/claiming transaction drafts so UI layers stay thin.
     /// </summary>
     public sealed class WalletStakeService
     {
@@ -21,7 +21,7 @@ namespace Poltergeist.Wallet
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
-        public WalletTransactionDraftResult BuildStakePlan(decimal requestedAmount)
+        public WalletTransactionDraftResult BuildStakeDraft(decimal requestedAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -70,7 +70,7 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan, amount);
         }
 
-        public WalletTransactionDraftResult BuildUnstakePlan(decimal amount)
+        public WalletTransactionDraftResult BuildUnstakeDraft(decimal amount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -102,7 +102,7 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan, amount);
         }
 
-        public WalletTransactionDraftResult BuildClaimKcalPlan(decimal claimableAmount)
+        public WalletTransactionDraftResult BuildClaimKcalDraft(decimal claimableAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -133,7 +133,7 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan, claimableAmount);
         }
 
-        public WalletTransactionDraftResult BuildClaimSmRewardPlan()
+        public WalletTransactionDraftResult BuildClaimSmRewardDraft()
         {
             var accountManager = _accountProvider();
             if (accountManager == null)

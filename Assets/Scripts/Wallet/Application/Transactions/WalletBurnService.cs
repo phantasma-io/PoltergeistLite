@@ -11,7 +11,7 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Builds burn transaction plans for fungible tokens and NFTs.
+    /// Builds burn transaction drafts for fungible tokens and NFTs.
     /// </summary>
     public sealed class WalletBurnService
     {
@@ -24,7 +24,7 @@ namespace Poltergeist.Wallet
             _nftBuilder = nftBuilder ?? throw new ArgumentNullException(nameof(nftBuilder));
         }
 
-        public WalletTransactionDraftResult BuildFungibleBurnPlan(string symbol, decimal amount)
+        public WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, decimal amount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -73,7 +73,7 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan, burnAmount);
         }
 
-        public WalletTransactionDraftResult BuildNftBurnPlan(string symbol, IEnumerable<string> nftIds)
+        public WalletTransactionDraftResult BuildNftBurnDraft(string symbol, IEnumerable<string> nftIds)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)

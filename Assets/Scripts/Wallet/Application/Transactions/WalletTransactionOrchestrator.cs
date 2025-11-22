@@ -36,7 +36,7 @@ namespace Poltergeist.Wallet
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
         }
 
-        public void SendDraft(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        public void SendTransactionDraft(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
         {
             if (draft == null)
             {

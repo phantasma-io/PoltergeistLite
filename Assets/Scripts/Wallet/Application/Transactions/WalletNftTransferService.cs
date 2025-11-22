@@ -9,20 +9,22 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Builds NFT transfer plans so UI layers stay thin.
+    /// Builds NFT transfer drafts so UI layers stay thin.
     /// </summary>
     public sealed class WalletNftTransferService
     {
         private readonly Func<AccountManager> _accountProvider;
         private readonly WalletNftTransactionBuilder _nftBuilder;
+        private readonly WalletFeeRequirement _feeRequirement;
 
-        public WalletNftTransferService(Func<AccountManager> accountProvider, WalletNftTransactionBuilder nftBuilder)
+        public WalletNftTransferService(Func<AccountManager> accountProvider, WalletNftTransactionBuilder nftBuilder, WalletFeeRequirement feeRequirement)
         {
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
             _nftBuilder = nftBuilder ?? throw new ArgumentNullException(nameof(nftBuilder));
+            _feeRequirement = feeRequirement ?? throw new ArgumentNullException(nameof(feeRequirement));
         }
 
-        public WalletTransactionDraftResult BuildTransferPlan(string symbol, string destinationAddress, IEnumerable<string> nftIds)
+        public WalletTransactionDraftResult BuildNftTransferDraft(string symbol, string destinationAddress, IEnumerable<string> nftIds)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -73,6 +75,12 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail("No NFTs selected for transfer.");
             }
 
+            var feeCheck = EnsureKcal(accountManager, 0.1m);
+            if (!feeCheck.Success)
+            {
+                return feeCheck;
+            }
+
             try
             {
                 var scripts = _nftBuilder.BuildTransferScripts(symbol, source, destination, ids, out var description);
@@ -83,6 +91,19 @@ namespace Poltergeist.Wallet
             {
                 return WalletTransactionDraftResult.Fail($"Failed to build NFT transfer transaction.\n{e.Message}");
             }
+        }
+
+        private WalletTransactionDraftResult EnsureKcal(AccountManager accountManager, decimal minAmount)
+        {
+            var result = WalletTransactionDraftResult.CreateSuccess(null);
+            _feeRequirement.EnsureKcal(minAmount, (feeResult, error) =>
+            {
+                if (feeResult != PromptResult.Success)
+                {
+                    result = WalletTransactionDraftResult.Fail(string.IsNullOrEmpty(error) ? "KCAL is required to make transactions!" : error);
+                }
+            });
+            return result;
         }
     }
 }

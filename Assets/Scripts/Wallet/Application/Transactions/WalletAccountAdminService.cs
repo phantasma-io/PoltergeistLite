@@ -7,7 +7,7 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Builds account administration transaction plans (migration, name registration).
+    /// Builds account administration transaction drafts (migration, name registration).
     /// </summary>
     public sealed class WalletAccountAdminService
     {
@@ -18,7 +18,7 @@ namespace Poltergeist.Wallet
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
-        public WalletTransactionDraftResult BuildMigratePlan(Address targetAddress)
+        public WalletTransactionDraftResult BuildMigrateDraft(Address targetAddress)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -49,7 +49,7 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan);
         }
 
-        public WalletTransactionDraftResult BuildRegisterNamePlan(string name, string addressText)
+        public WalletTransactionDraftResult BuildRegisterNameDraft(string name, string addressText)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)

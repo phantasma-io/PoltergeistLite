@@ -12,18 +12,50 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Builds fungible transfer plans so UI layers stay thin.
+    /// Builds fungible transfer drafts so UI layers stay thin.
     /// </summary>
     public sealed class WalletTransferService
     {
-        private readonly Func<AccountManager> _accountProvider;
+        public const decimal MinimumFungibleAmount = 0.001m;
 
-        public WalletTransferService(Func<AccountManager> accountProvider)
+        private readonly Func<AccountManager> _accountProvider;
+        private readonly WalletFeeRequirement _feeRequirement;
+
+        public WalletTransferService(Func<AccountManager> accountProvider, WalletFeeRequirement feeRequirement)
         {
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
+            _feeRequirement = feeRequirement ?? throw new ArgumentNullException(nameof(feeRequirement));
         }
 
-        public WalletTransactionDraftResult BuildFungibleTransferPlan(string symbol, decimal requestedAmount, string destinationText)
+        public WalletTransferAvailabilityResult GetFungibleAvailability(string symbol)
+        {
+            var accountManager = _accountProvider();
+            if (accountManager == null)
+            {
+                return WalletTransferAvailabilityResult.Fail("Account manager is not available yet.");
+            }
+
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                return WalletTransferAvailabilityResult.Fail("Account state is unavailable.");
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return WalletTransferAvailabilityResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
+            }
+
+            var available = state.GetAvailableAmount(symbol);
+            if (available < MinimumFungibleAmount)
+            {
+                return WalletTransferAvailabilityResult.Fail($"Not enough {symbol}.");
+            }
+
+            return WalletTransferAvailabilityResult.Create(MinimumFungibleAmount, available);
+        }
+
+        public WalletTransactionDraftResult BuildFungibleTransferDraft(string symbol, decimal requestedAmount, string destinationText)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -31,74 +63,14 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail("Account manager is not available yet.");
             }
 
-            var state = accountManager.CurrentState;
-            if (state == null)
+            if (!TryValidateTransferRequest(accountManager, symbol, requestedAmount, destinationText, out var source, out var destination, out var amount, out var decimals, out var bigIntAmount, out var availableBalance, out var validationError))
             {
-                return WalletTransactionDraftResult.Fail("Account state is unavailable.");
+                return WalletTransactionDraftResult.Fail(validationError);
             }
 
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            if (!EnsureKcal(accountManager, 0.1m, out var feeError))
             {
-                return WalletTransactionDraftResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
-            }
-
-            if (requestedAmount <= 0)
-            {
-                return WalletTransactionDraftResult.Fail("Amount must be greater than zero.");
-            }
-
-            Address source;
-            Address destination;
-            try
-            {
-                source = Address.Parse(state.address);
-            }
-            catch
-            {
-                return WalletTransactionDraftResult.Fail("Invalid source address.");
-            }
-
-            try
-            {
-                destination = Address.Parse(destinationText);
-            }
-            catch
-            {
-                return WalletTransactionDraftResult.Fail("Invalid destination address.");
-            }
-
-            if (source == destination)
-            {
-                return WalletTransactionDraftResult.Fail("Source and destination address must be different.");
-            }
-
-            var balance = state.GetAvailableAmount(symbol);
-            var amount = requestedAmount;
-
-            if (amount > balance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
-            {
-                amount = balance;
-            }
-
-            if (amount <= 0)
-            {
-                return WalletTransactionDraftResult.Fail($"Not enough {symbol}.");
-            }
-
-            var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-            if (!ValidateDecimals(amount, decimals))
-            {
-                return WalletTransactionDraftResult.Fail($"Invalid {symbol} amount.");
-            }
-
-            BigInteger bigIntAmount;
-            try
-            {
-                bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
-            }
-            catch (Exception e)
-            {
-                return WalletTransactionDraftResult.Fail($"Failed to convert amount: {e.Message}");
+                return WalletTransactionDraftResult.Fail(feeError);
             }
 
             var chain = DomainSettings.RootChainName;
@@ -149,7 +121,7 @@ namespace Poltergeist.Wallet
                     var sb = new ScriptBuilder();
                     sb.AllowGas(source, Address.Null, gasPrice, gasLimit);
 
-                    if (symbol == "KCAL" && amount == balance)
+                    if (symbol == "KCAL" && amount == availableBalance)
                     {
                         sb.TransferBalance(symbol, source, destination);
                     }
@@ -192,6 +164,139 @@ namespace Poltergeist.Wallet
         {
             amount -= amount % 0.000000000001M;
             return amount.ToString("#,0.############");
+        }
+
+        private bool TryValidateTransferRequest(AccountManager accountManager, string symbol, decimal requestedAmount, string destinationText, out Address source, out Address destination, out decimal amount, out uint decimals, out BigInteger bigIntAmount, out decimal availableBalance, out string error)
+        {
+            source = Address.Null;
+            destination = Address.Null;
+            amount = 0;
+            decimals = 0;
+            bigIntAmount = 0;
+            availableBalance = 0;
+            error = null;
+
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                error = "Account state is unavailable.";
+                return false;
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                error = $"Current platform must be {PlatformKind.Phantasma}";
+                return false;
+            }
+
+            if (requestedAmount <= 0)
+            {
+                error = "Amount must be greater than zero.";
+                return false;
+            }
+
+            try
+            {
+                source = Address.Parse(state.address);
+            }
+            catch
+            {
+                error = "Invalid source address.";
+                return false;
+            }
+
+            try
+            {
+                destination = Address.Parse(destinationText);
+            }
+            catch
+            {
+                error = "Invalid destination address.";
+                return false;
+            }
+
+            if (source == destination)
+            {
+                error = "Source and destination address must be different.";
+                return false;
+            }
+
+            availableBalance = state.GetAvailableAmount(symbol);
+            amount = requestedAmount;
+
+            if (amount > availableBalance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
+            {
+                amount = availableBalance;
+            }
+
+            if (amount <= 0)
+            {
+                error = $"Not enough {symbol}.";
+                return false;
+            }
+
+            decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
+            if (!ValidateDecimals(amount, decimals))
+            {
+                error = $"Invalid {symbol} amount.";
+                return false;
+            }
+
+            try
+            {
+                bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
+            }
+            catch (Exception e)
+            {
+                error = $"Failed to convert amount: {e.Message}";
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool EnsureKcal(AccountManager accountManager, decimal minAmount, out string error)
+        {
+            var success = true;
+            string localError = null;
+
+            _feeRequirement.EnsureKcal(minAmount, (feeResult, err) =>
+            {
+                if (feeResult != PromptResult.Success)
+                {
+                    success = false;
+                    localError = string.IsNullOrEmpty(err) ? "KCAL is required to make transactions!" : err;
+                }
+            });
+
+            error = localError;
+            return success;
+        }
+    }
+
+    public sealed class WalletTransferAvailabilityResult
+    {
+        private WalletTransferAvailabilityResult(bool success, decimal minAmount, decimal maxAmount, string error)
+        {
+            Success = success;
+            MinAmount = minAmount;
+            MaxAmount = maxAmount;
+            Error = error ?? string.Empty;
+        }
+
+        public bool Success { get; }
+        public decimal MinAmount { get; }
+        public decimal MaxAmount { get; }
+        public string Error { get; }
+
+        public static WalletTransferAvailabilityResult Create(decimal minAmount, decimal maxAmount)
+        {
+            return new WalletTransferAvailabilityResult(true, minAmount, maxAmount, string.Empty);
+        }
+
+        public static WalletTransferAvailabilityResult Fail(string error)
+        {
+            return new WalletTransferAvailabilityResult(false, 0, 0, error);
         }
     }
 }
