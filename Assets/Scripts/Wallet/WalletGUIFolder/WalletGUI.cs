@@ -70,6 +70,8 @@ namespace Poltergeist
         private NftListRenderer nftRenderer;
         private NftTransferListRenderer nftTransferRenderer;
         private WalletFeeService feeService;
+        private WalletAmountValidator amountValidator;
+        private WalletFeeRequirement feeRequirement;
         private WalletTransferService transferService;
         private WalletStakeService stakeService;
         private WalletBurnService burnService;
@@ -265,6 +267,8 @@ namespace Poltergeist
             nftRenderer = new NftListRenderer(this);
             nftTransferRenderer = new NftTransferListRenderer(this);
             feeService = context.FeeService;
+            amountValidator = context.AmountValidator;
+            feeRequirement = context.FeeRequirement;
             transferService = context.TransferService;
             stakeService = context.StakeService;
             burnService = context.BurnService;
@@ -4439,19 +4443,6 @@ namespace Poltergeist
             });
         }
 
-        private bool ValidDecimals(decimal amount, string symbol)
-        {
-            var decimals = Tokens.GetTokenDecimals(symbol, AccountManager.Instance.CurrentPlatform);
-
-            if (decimals > 0)
-            {
-                return true;
-            }
-
-            var temp = amount - (long)amount;
-            return temp == 0;
-        }
-
         private void RequireAmount(string description, string destination, string symbol, decimal min, decimal max, Action<decimal> callback)
         {
             var accountManager = AccountManager.Instance;
@@ -4469,37 +4460,14 @@ namespace Poltergeist
                     return; // user cancelled
                 }
 
-                decimal amount = ParseNumber(temp);
-
-                if (accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
+                var validation = amountValidator.ParseAndValidate(temp, symbol, min, max);
+                if (!validation.Success)
                 {
-                    callback(amount);
+                    MessageBox(MessageKind.Error, validation.Error);
                     return;
                 }
 
-                if (amount > 0 && ValidDecimals(amount, symbol))
-                {
-                    if (amount > max)
-                    {
-                        MessageBox(MessageKind.Error, $"Not enough {symbol}!");
-                        return;
-                    }
-                    else
-                    if (amount < min)
-                    {
-                        MessageBox(MessageKind.Error, $"Amount is too small.\nMinimum accepted is {min} {symbol}!");
-                        return;
-                    }
-                    else
-                    {
-                        callback(amount);
-                    }
-                }
-                else
-                {
-                    MessageBox(MessageKind.Error, "Invalid amount!");
-                    return;
-                }
+                callback(validation.Amount);
             });
 
             modalContext.Hints = new Dictionary<string, string>() { { $"Max ({MoneyFormat(max, MoneyFormatType.Short)} {symbol})", max.ToString() } };
@@ -4507,13 +4475,15 @@ namespace Poltergeist
 
         private void RequestKCAL(string forSymbol, Action<PromptResult> callback)
         {
-            feeService.EnsureKcal(0.1m, callback);
-            if (callback == null)
+            feeRequirement.EnsureKcal(0.1m, (result, error) =>
             {
-                return;
-            }
+                if (result == PromptResult.Failure && !string.IsNullOrEmpty(error))
+                {
+                    MessageBox(MessageKind.Error, error);
+                }
 
-            // If EnsureKcal already answered, nothing else to do. If caller needs a modal, it should be handled in service later.
+                callback?.Invoke(result);
+            });
         }
 
         #endregion
@@ -4605,19 +4575,6 @@ namespace Poltergeist
             return writer.Write(textForEncoding);
         }
         #endregion
-
-        private decimal ParseNumber(string s)
-        {
-            s = s.Trim().Replace(" ", "").Replace("_", "");
-            s = s.Replace(",", CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator);
-            decimal result;
-            if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out result))
-            {
-                return result;
-            }
-
-            return -1;
-        }
 
         static string BytesToString(long byteCount)
         {

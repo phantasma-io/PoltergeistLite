@@ -40,6 +40,8 @@ namespace Poltergeist.Wallet
             BurnService = new WalletBurnService(() => AccountManager.Instance, NftTransactions);
             NftTransferService = new WalletNftTransferService(() => AccountManager.Instance, NftTransactions);
             AccountAdminService = new WalletAccountAdminService(() => AccountManager.Instance);
+            AmountValidator = new WalletAmountValidator(() => AccountManager.Instance);
+            FeeRequirement = new WalletFeeRequirement(() => AccountManager.Instance);
         }
 
         public WalletNavigation Navigation { get; }
@@ -85,5 +87,9 @@ namespace Poltergeist.Wallet
         public WalletNftTransferService NftTransferService { get; }
 
         public WalletAccountAdminService AccountAdminService { get; }
+
+        public WalletAmountValidator AmountValidator { get; }
+
+        public WalletFeeRequirement FeeRequirement { get; }
     }
 }
