@@ -12,6 +12,7 @@ using PhantasmaPhoenix.Protocol.Carbon;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
+using Poltergeist.Wallet;
 using UnityEngine.Device;
 
 namespace Poltergeist
@@ -455,7 +456,8 @@ namespace Poltergeist
                         {
                             if (success)
                             {
-                                WalletGUI.Instance.SendTransaction(description, script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, payload, chain, pow, (hash, txResult, error) =>
+                                var draft = WalletTransactionDraft.ForSingleScript(description, script, chain, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, pow, payload);
+                                WalletGUI.Instance.SendTransactionDraft(draft, (hash, txResult, error) =>
                                 {
                                     AppFocus.Instance.EndFocus();
 
@@ -517,7 +519,8 @@ namespace Poltergeist
                         {
                             if (success)
                             {
-                                WalletGUI.Instance.SendCarbonTransaction(description, txMsg, (hash, txResult, error) =>
+                                var draft = WalletTransactionDraft.ForCarbon(description, txMsg, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                                WalletGUI.Instance.SendTransactionDraft(draft, (hash, txResult, error) =>
                                 {
                                     AppFocus.Instance.EndFocus();
 

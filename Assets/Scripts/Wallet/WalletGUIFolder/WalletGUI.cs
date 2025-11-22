@@ -2643,7 +2643,7 @@ namespace Poltergeist
                                                         var address = Address.Parse(state.address);
 
                                                         var planResult = stakeService.BuildUnstakePlan(amount);
-                                                        SendTransactionPlan(planResult, (hash, txResult, error) =>
+                                                        SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                         {
                                                             TxResultMessage(hash, txResult, error, "Your SOUL tokens were unstaked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                                         });
@@ -2675,7 +2675,7 @@ namespace Poltergeist
                                         {
                                             var planResult = stakeService.BuildClaimKcalPlan(balance.Claimable);
 
-                                            SendTransactionPlan(planResult, (hash, txResult, error) =>
+                                            SendTransactionDraft(planResult, (hash, txResult, error) =>
                                             {
                                                 TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                             });
@@ -2864,7 +2864,7 @@ namespace Poltergeist
                 else if (mainAction == "SM reward")
                 {
                     var planResult = stakeService.BuildClaimSmRewardPlan();
-                    SendTransactionPlan(planResult, (hash, txResult, error) =>
+                    SendTransactionDraft(planResult, (hash, txResult, error) =>
                     {
                         TxResultMessage(hash, txResult, error, "You claimed SM reward!");
                     });
@@ -2878,7 +2878,7 @@ namespace Poltergeist
                             if (result == PromptResult.Success)
                             {
                                 var planResult = burnService.BuildFungibleBurnPlan(balance.Symbol, amountToBurn);
-                                SendTransactionPlan(planResult, (hash, txResult, error) =>
+                                SendTransactionDraft(planResult, (hash, txResult, error) =>
                                 {
                                     TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
                                 });
@@ -3460,7 +3460,7 @@ namespace Poltergeist
 
                                                 var planResult = accountAdminService.BuildMigratePlan(newKeys.Address);
 
-                                                SendTransactionPlan(planResult, (hash, txResult, error) =>
+                                                SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                 {
                                                     if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                     {
@@ -3504,12 +3504,12 @@ namespace Poltergeist
                                         if (ValidationUtils.IsValidIdentifier(name))
                                         {
                                             RequestKCAL(null, (kcalResult) =>
-                                            {
-                                                if (kcalResult == PromptResult.Success)
                                                 {
-                                                    var planResult = accountAdminService.BuildRegisterNamePlan(name, accountManager.CurrentState.address);
+                                                    if (kcalResult == PromptResult.Success)
+                                                    {
+                                                        var planResult = accountAdminService.BuildRegisterNamePlan(name, accountManager.CurrentState.address);
 
-                                                    SendTransactionPlan(planResult, (hash, txResult, error) =>
+                                                    SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                     {
                                                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                         {
@@ -3758,7 +3758,7 @@ namespace Poltergeist
                         if (kcal == PromptResult.Success)
                         {
                             var planResult = stakeService.BuildStakePlan(selectedAmount);
-                            SendTransactionPlan(planResult, (hash, txResult, error) =>
+                            SendTransactionDraft(planResult, (hash, txResult, error) =>
                             {
                                 callback(hash, txResult, error);
                             });
@@ -3941,7 +3941,7 @@ namespace Poltergeist
                     if (result == PromptResult.Success)
                     {
                         var planResult = burnService.BuildNftBurnPlan(transferSymbol, selectedIds);
-                        SendTransactionPlan(planResult, (hash, txResult, error) =>
+                        SendTransactionDraft(planResult, (hash, txResult, error) =>
                         {
                             TxResultMessage(hash, txResult, error, $"You burned {selectedIds.Count} NFTs!");
                         });
@@ -4039,7 +4039,7 @@ namespace Poltergeist
 
         private Action<Hash, TransactionResult, string> transactionCallback;
 
-        private void SendTransactionPlan(WalletTransactionDraftResult draftResult, Action<Hash, TransactionResult, string> callback)
+        public void SendTransactionDraft(WalletTransactionDraftResult draftResult, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true)
         {
             if (draftResult == null || !draftResult.Success || draftResult.Draft == null)
             {
@@ -4049,12 +4049,12 @@ namespace Poltergeist
                 return;
             }
 
-            SendTransactionPlan(draftResult.Draft, callback);
+            SendTransactionDraft(draftResult.Draft, callback, refreshBalanceAfterConfirmation);
         }
 
-        private void SendTransactionPlan(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback)
+        public void SendTransactionDraft(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true)
         {
-            transactionOrchestrator.SendDraft(draft, true, callback);
+            transactionOrchestrator.SendDraft(draft, refreshBalanceAfterConfirmation, callback);
         }
 
         private void InvokeTransactionCallback(Hash hash, TransactionResult txResult, string error)
@@ -4062,252 +4062,6 @@ namespace Poltergeist
             var temp = transactionCallback;
             transactionCallback = null;
             temp?.Invoke(hash, txResult, error);
-        }
-
-        public void SendTransaction(string description, byte[] script, TransferRequest? transferRequest, BigInteger phaGasPrice, BigInteger phaGasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
-        {
-            if (script == null && transferRequest == null)
-            {
-                MessageBox(MessageKind.Error, "Null transaction script and request", () =>
-                {
-                    callback(Hash.Null, null, "Null transaction scrip and request");
-                });
-            }
-
-            var accountManager = AccountManager.Instance;
-            if (accountManager.CurrentPlatform == PlatformKind.Phantasma)
-            {
-                BigInteger usedGas;
-
-                try
-                {
-                    var vm = new GasMachine(script, 0, null);
-                    var result = vm.Execute();
-                    usedGas = vm.UsedGas;
-                }
-                catch
-                {
-                    usedGas = 400;
-                }
-
-                var estimatedFee = usedGas * phaGasPrice;
-                var feeDecimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
-                description += $"\nEstimated fee: {UnitConversion.ToDecimal(estimatedFee, feeDecimals)} KCAL";
-            }
-
-            RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
-            {
-                if (auth == PromptResult.Success)
-                {
-                    Animate(AnimationDirection.Right, true, () =>
-                    {
-                        Animate(AnimationDirection.Left, false, () =>
-                        {
-                            modalActions.SendCancel($"Preparing transaction...\n{description}", (result) =>
-                            {
-                                if (result == PromptResult.Success)
-                                {
-                                    PushState(GUIState.Sending);
-
-                                    accountManager.SignAndSendTransaction(chain, script, payload, (hash, error) =>
-                                    {
-                                        if (string.IsNullOrEmpty(error))
-                                        {
-                                            ShowConfirmationScreen(hash, true, callback);
-                                        }
-                                        else
-                                        {
-                                            PopState();
-
-                                            if (hash == Hash.Null)
-                                            {
-                                                callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
-                                            }
-                                            else
-                                            {
-                                                callback(hash, null, "Unknown error. Details:\n" + error);
-                                            }
-                                        }
-                                    });
-                                }
-                                else
-                                {
-                                    callback(Hash.Null, null, null); // User cancelled tx
-                                }
-                                ;
-                            });
-                        });
-                    });
-                }
-                else
-                if (auth == PromptResult.Failure)
-                {
-                    MessageBox(MessageKind.Error, $"Authorization failed.", () =>
-                    {
-                        callback(Hash.Null, null, "Authorization failed.");
-                    });
-                }
-            });
-        }
-
-        public void SendCarbonTransaction(string description, TxMsg tx, Action<Hash, TransactionResult, string> callback)
-        {
-            var accountManager = AccountManager.Instance;
-            RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
-            {
-                if (auth == PromptResult.Success)
-                {
-                    Animate(AnimationDirection.Right, true, () =>
-                    {
-                        Animate(AnimationDirection.Left, false, () =>
-                        {
-                            modalActions.SendCancel($"Preparing transaction...\n{description}", (result) =>
-                            {
-                                if (result == PromptResult.Success)
-                                {
-                                    PushState(GUIState.Sending);
-
-                                    accountManager.SignAndSendCarbonTransaction(tx, (hash, error) =>
-                                    {
-                                        if (string.IsNullOrEmpty(error))
-                                        {
-                                            ShowConfirmationScreen(hash, true, callback);
-                                        }
-                                        else
-                                        {
-                                            PopState();
-
-                                            if (hash == Hash.Null)
-                                            {
-                                                callback(Hash.Null, null, "Cannot send transaction. Details:\n" + error);
-                                            }
-                                            else
-                                            {
-                                                callback(hash, null, "Unknown error. Details:\n" + error);
-                                            }
-                                        }
-                                    });
-                                }
-                                else
-                                {
-                                    callback(Hash.Null, null, null); // User cancelled tx
-                                }
-                                ;
-                            });
-                        });
-                    });
-                }
-                else
-                if (auth == PromptResult.Failure)
-                {
-                    MessageBox(MessageKind.Error, $"Authorization failed.", () =>
-                    {
-                        callback(Hash.Null, null, "Authorization failed.");
-                    });
-                }
-            });
-        }
-
-        public void SendPhaTransactions(string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
-        {
-            if (scripts.Count() == 0)
-            {
-                MessageBox(MessageKind.Error, "Null transaction script", () =>
-                {
-                    callback(Hash.Null, null, "Null transaction script");
-                });
-            }
-
-            var accountManager = AccountManager.Instance;
-
-            BigInteger usedGas = 0;
-
-            foreach (var script in scripts)
-            {
-                try
-                {
-                    var vm = new GasMachine(script, 0, null);
-                    var result = vm.Execute();
-                    usedGas += vm.UsedGas;
-                }
-                catch
-                {
-                    usedGas += 400;
-                }
-            }
-
-            var estimatedFee = usedGas * gasPrice;
-            var feeDecimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
-            description += $"\nEstimated fee: {UnitConversion.ToDecimal(estimatedFee, feeDecimals)} KCAL";
-
-            RequestPassword(description, accountManager.CurrentPlatform, false, false, (auth) =>
-            {
-                if (auth == PromptResult.Success)
-                {
-                    Animate(AnimationDirection.Right, true, () =>
-                    {
-                        Animate(AnimationDirection.Left, false, () =>
-                        {
-                            modalActions.SendCancel(scripts.Count() > 1 ? $"Preparing {scripts.Count()} transactions...\n{description}" : $"Preparing transaction...\n{description}", (result) =>
-                            {
-                                if (result == PromptResult.Success)
-                                {
-                                    SendTransactionsInternal(accountManager, description, scripts, gasPrice, gasLimit, payload, chain, PoW, callback);
-                                }
-                                else
-                                {
-                                    callback(Hash.Null, null, null); // Cancelled by user
-                                }
-                                ;
-                            });
-                        });
-                    });
-                }
-                else
-                if (auth == PromptResult.Failure)
-                {
-                    MessageBox(MessageKind.Error, $"Authorization failed.", () =>
-                    {
-                        callback(Hash.Null, null, "Authorization failed.");
-                    });
-                }
-            });
-        }
-
-        private void SendTransactionsInternal(AccountManager accountManager, string description, List<byte[]> scripts, BigInteger gasPrice, BigInteger gasLimit, byte[] payload, string chain, ProofOfWork PoW, Action<Hash, TransactionResult, string> callback)
-        {
-            PushState(GUIState.Sending);
-
-            accountManager.SignAndSendTransaction(chain, scripts[0], payload, (hash, error) =>
-            {
-                if (string.IsNullOrEmpty(error) && hash != Hash.Null)
-                {
-                    if (scripts.Count() > 1)
-                    {
-                        ShowConfirmationScreen(hash, false, (txHash, txResult, error) =>
-                        {
-                            if (string.IsNullOrEmpty(error))
-                            {
-                                SendTransactionsInternal(accountManager, description, scripts.Skip(1).ToList(), gasPrice, gasLimit, payload, chain, PoW, callback);
-                            }
-                        });
-                    }
-                    else
-                    {
-                        // Finishing, last script.
-                        ShowConfirmationScreen(hash, true, callback);
-                    }
-                }
-                else
-                {
-                    PopState();
-
-                    MessageBox(MessageKind.Error, $"Error sending transaction.\n{error}", () =>
-                    {
-                        callback(Hash.Null, null, error);
-                    });
-                }
-            });
         }
 
         private void ShowConfirmationScreen(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
@@ -4364,7 +4118,7 @@ namespace Poltergeist
                         var plan = planResult.Draft;
                         var amountSent = planResult.Amount;
 
-                        SendTransactionPlan(plan, (hash, txResult, error) =>
+                        SendTransactionDraft(plan, (hash, txResult, error) =>
                         {
                             TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                         });
@@ -4411,7 +4165,7 @@ namespace Poltergeist
                 {
                     var planResult = nftTransferService.BuildTransferPlan(symbol, destAddress, selectedIds);
 
-                    SendTransactionPlan(planResult, (hash, txResult, error) =>
+                    SendTransactionDraft(planResult, (hash, txResult, error) =>
                     {
                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                         {
