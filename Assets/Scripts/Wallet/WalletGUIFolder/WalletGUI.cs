@@ -29,7 +29,7 @@ using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
-    public partial class WalletGUI : MonoBehaviour
+    public partial class WalletGUI : MonoBehaviour, IWalletTransactionUi
     {
         private static WalletApplicationContext SharedContext => WalletApplicationContext.Instance;
 
@@ -77,6 +77,7 @@ namespace Poltergeist
         private WalletAccountAdminService accountAdminService;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
+        private WalletTransactionOrchestrator transactionOrchestrator;
         private WalletUiSignals uiSignals;
         private WalletBalanceViewSnapshot balancesSnapshot;
         private WalletHistoryViewSnapshot historySnapshot;
@@ -271,6 +272,7 @@ namespace Poltergeist
             accountAdminService = context.AccountAdminService;
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
+            transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, this);
             uiSignals = context.UiSignals;
 
             ResetSnapshots();
@@ -4048,43 +4050,7 @@ namespace Poltergeist
 
         private void SendTransactionPlan(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback)
         {
-            if (draft == null)
-            {
-                var errorMessage = "Invalid transaction draft.";
-                MessageBox(MessageKind.Error, errorMessage);
-                callback?.Invoke(Hash.Null, null, errorMessage);
-                return;
-            }
-
-            if (draft.IsCarbonTransaction && draft.CarbonTx.HasValue)
-            {
-                SendCarbonTransaction(draft.Description, draft.CarbonTx.Value, callback);
-                return;
-            }
-
-            if (draft.Scripts != null && draft.Scripts.Count > 0)
-            {
-                if (draft.Scripts.Count == 1)
-                {
-                    SendTransaction(draft.Description, draft.Scripts[0], draft.TransferRequest, draft.GasPrice, draft.GasLimit, draft.Payload, draft.Chain, draft.PoW, callback);
-                }
-                else
-                {
-                    SendPhaTransactions(draft.Description, draft.Scripts.ToList(), draft.GasPrice, draft.GasLimit, draft.Payload, draft.Chain, draft.PoW, callback);
-                }
-
-                return;
-            }
-
-            if (draft.Script != null)
-            {
-                SendTransaction(draft.Description, draft.Script, draft.TransferRequest, draft.GasPrice, draft.GasLimit, draft.Payload, draft.Chain, draft.PoW, callback);
-                return;
-            }
-
-            var message = "Transaction draft does not contain any scripts.";
-            MessageBox(MessageKind.Error, message);
-            callback?.Invoke(Hash.Null, null, message);
+            transactionOrchestrator.SendDraft(draft, true, callback);
         }
 
         private void InvokeTransactionCallback(Hash hash, TransactionResult txResult, string error)
@@ -4674,6 +4640,38 @@ namespace Poltergeist
                 _uiCallbacks.Add(callback);
             }
         }
+
+        #region Transaction UI bridge
+        public void RequestPassword(string description, PlatformKind platform, Action<PromptResult> callback)
+        {
+            RequestPassword(description, platform, false, false, callback, false);
+        }
+
+        public void ShowSendProgress(string description, int txCount, Action<PromptResult> callback)
+        {
+            modalActions.SendCancel(description, callback);
+        }
+
+        public void PushSendingState()
+        {
+            PushState(GUIState.Sending);
+        }
+
+        public void PopSendingState()
+        {
+            PopState();
+        }
+
+        public void ShowConfirmation(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        {
+            ShowConfirmationScreen(hash, refreshBalanceAfterConfirmation, callback);
+        }
+
+        public void ShowError(string message)
+        {
+            MessageBox(MessageKind.Error, message);
+        }
+        #endregion
         #endregion
 
         #region DAPP Interface
