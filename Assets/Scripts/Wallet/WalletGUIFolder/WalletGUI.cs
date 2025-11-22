@@ -65,6 +65,14 @@ namespace Poltergeist
         private WalletDataProvider dataProvider;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
+        private WalletUiSignals uiSignals;
+        private WalletBalancesModel balancesSnapshot;
+        private WalletHistoryModel historySnapshot;
+        private readonly Dictionary<string, WalletNftViewSnapshot> nftViewSnapshots = new Dictionary<string, WalletNftViewSnapshot>();
+        private readonly HashSet<string> dirtyNftSymbols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private bool balancesDirty = true;
+        private bool historyDirty = true;
+        private bool signalsSubscribed;
         private GUIState CurrentState => navigation.CurrentState;
 
         private string transferSymbol;
@@ -124,6 +132,87 @@ namespace Poltergeist
             nftMintedComboBox.ResetState();
         }
 
+        private void MarkBalancesDirty()
+        {
+            balancesDirty = true;
+        }
+
+        private void MarkHistoryDirty()
+        {
+            historyDirty = true;
+        }
+
+        private void MarkNftDirty(string symbol = null)
+        {
+            symbol ??= transferSymbol;
+            if (string.IsNullOrEmpty(symbol))
+            {
+                return;
+            }
+
+            dirtyNftSymbols.Add(symbol);
+        }
+
+        private WalletBalancesModel GetBalancesModel()
+        {
+            if (balancesDirty || balancesSnapshot == null)
+            {
+            Log.Write($"[GUI] Fetch balances snapshot dirty={balancesDirty} currentPlatform={AccountManager.Instance?.CurrentPlatform}"); //TODO Check if still needed once refactoring is over
+                balancesSnapshot = dataProvider.GetBalancesSnapshot();
+                balancesDirty = false;
+            }
+
+            return balancesSnapshot;
+        }
+
+        private WalletHistoryModel GetHistoryModel()
+        {
+            if (historyDirty || historySnapshot == null)
+            {
+            Log.Write($"[GUI] Fetch history snapshot dirty={historyDirty} currentPlatform={AccountManager.Instance?.CurrentPlatform}"); //TODO Check if still needed once refactoring is over
+                historySnapshot = dataProvider.GetHistorySnapshot();
+                historyDirty = false;
+            }
+
+            return historySnapshot;
+        }
+
+        private WalletNftViewSnapshot GetNftViewSnapshot(string symbol)
+        {
+            symbol ??= transferSymbol;
+            if (string.IsNullOrEmpty(symbol))
+            {
+                Log.Write("[GUI] Build NFT snapshot with empty symbol"); //TODO Check if still needed once refactoring is over
+                return nftViewPresenter.BuildSnapshot(string.Empty);
+            }
+
+            if (dirtyNftSymbols.Contains(symbol) || !nftViewSnapshots.TryGetValue(symbol, out var snapshot))
+            {
+                Log.Write($"[GUI] Build NFT snapshot symbol={symbol} dirty={dirtyNftSymbols.Contains(symbol)}"); //TODO Check if still needed once refactoring is over
+                snapshot = nftViewPresenter.BuildSnapshot(symbol);
+                nftViewSnapshots[symbol] = snapshot;
+                dirtyNftSymbols.Remove(symbol);
+            }
+
+            return snapshot;
+        }
+
+        private void ResetSnapshots()
+        {
+            balancesSnapshot = null;
+            historySnapshot = null;
+            nftViewSnapshots.Clear();
+            dirtyNftSymbols.Clear();
+            MarkBalancesDirty();
+            MarkHistoryDirty();
+        }
+
+        private bool ShouldHandlePlatform(PlatformKind platform)
+        {
+            var accountManager = AccountManager.Instance;
+            return accountManager != null && accountManager.CurrentPlatform == platform;
+        }
+
         public static int Units(int n)
         {
             return 16 * n;
@@ -158,6 +247,10 @@ namespace Poltergeist
             dataProvider = context.Data;
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
+            uiSignals = context.UiSignals;
+
+            ResetSnapshots();
+            SubscribeToSignals();
         }
 
         void Start()
@@ -221,6 +314,8 @@ namespace Poltergeist
         void OnEnable()
         {
             Application.logMessageReceived += LogCallback;
+            SubscribeToSignals();
+            Log.Write("[GUI] OnEnable"); //TODO Check if still needed once refactoring is over
         }
 
         void LogCallback(string condition, string stackTrace, LogType type)
@@ -236,6 +331,9 @@ namespace Poltergeist
         void OnDisable()
         {
             Application.logMessageReceived -= LogCallback;
+
+            UnsubscribeFromSignals();
+            Log.Write("[GUI] OnDisable"); //TODO Check if still needed once refactoring is over
         }
 
         #region UTILS
@@ -270,7 +368,7 @@ namespace Poltergeist
         private void ApplyStateChange(GUIState previousState, GUIState newState)
         {
             ResetAllCombos();
-
+            // Clear cached snapshots when navigating to ensure fresh data on next paint.
             switch (previousState)
             {
                 case GUIState.Backup:
@@ -326,6 +424,7 @@ namespace Poltergeist
                 case GUIState.Balances:
                     currentTitle = "Balances for " + accountManager.CurrentAccount.name;
                     balanceScroll = Vector2.zero;
+                    MarkBalancesDirty();
 
                     // We do this only when account was just opened.
                     // We don't do this on every consequent state change.
@@ -340,15 +439,18 @@ namespace Poltergeist
                 case GUIState.NftView:
                     currentTitle = transferSymbol + " NFTs for " + accountManager.CurrentAccount.name;
                     nftViewPresenter.ResetSorting();
+                    MarkNftDirty(transferSymbol);
                     break;
 
                 case GUIState.NftTransferList:
                     currentTitle = transferSymbol + " NFTs transfer list for " + accountManager.CurrentAccount.name;
                     nftTransferListScroll = Vector2.zero;
+                    MarkNftDirty(transferSymbol);
                     break;
 
                 case GUIState.History:
                     currentTitle = "History for " + accountManager.CurrentAccount.name;
+                    MarkHistoryDirty();
 
                     // We do this only when account was just opened.
                     // We don't do this on every consequent state change.
@@ -457,6 +559,107 @@ namespace Poltergeist
         #endregion
 
         private const int MaxResolution = 1024;
+
+        private void SubscribeToSignals()
+        {
+            if (uiSignals == null || signalsSubscribed)
+            {
+                return;
+            }
+
+            uiSignals.EnsureSubscribed();
+            uiSignals.BalancesUpdated += OnBalancesUpdated;
+            uiSignals.HistoryUpdated += OnHistoryUpdated;
+            uiSignals.NftsUpdated += OnNftsUpdated;
+            uiSignals.BalancesRefreshStarted += OnBalancesRefreshStarted;
+            uiSignals.HistoryRefreshStarted += OnHistoryRefreshStarted;
+            uiSignals.NftsRefreshStarted += OnNftsRefreshStarted;
+            signalsSubscribed = true;
+            Log.Write($"[GUI] Subscribed to wallet UI signals (UiSignals.IsSubscribed={uiSignals.IsSubscribed})"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void UnsubscribeFromSignals()
+        {
+            if (uiSignals == null || !signalsSubscribed)
+            {
+                return;
+            }
+
+            uiSignals.BalancesUpdated -= OnBalancesUpdated;
+            uiSignals.HistoryUpdated -= OnHistoryUpdated;
+            uiSignals.NftsUpdated -= OnNftsUpdated;
+            uiSignals.BalancesRefreshStarted -= OnBalancesRefreshStarted;
+            uiSignals.HistoryRefreshStarted -= OnHistoryRefreshStarted;
+            uiSignals.NftsRefreshStarted -= OnNftsRefreshStarted;
+            signalsSubscribed = false;
+            Log.Write("[GUI] Unsubscribed from wallet UI signals"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void OnBalancesRefreshStarted(PlatformKind platform)
+        {
+            if (!ShouldHandlePlatform(platform))
+            {
+                return;
+            }
+
+            MarkBalancesDirty();
+            Log.Write($"[GUI] Balances refresh started for {platform}"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void OnBalancesUpdated(PlatformKind platform)
+        {
+            if (!ShouldHandlePlatform(platform))
+            {
+                return;
+            }
+
+            MarkBalancesDirty();
+            Log.Write($"[GUI] Balances updated for {platform}"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void OnHistoryRefreshStarted(PlatformKind platform)
+        {
+            if (!ShouldHandlePlatform(platform))
+            {
+                return;
+            }
+
+            MarkHistoryDirty();
+            Log.Write($"[GUI] History refresh started for {platform}"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void OnHistoryUpdated(PlatformKind platform)
+        {
+            if (!ShouldHandlePlatform(platform))
+            {
+                return;
+            }
+
+            MarkHistoryDirty();
+            Log.Write($"[GUI] History updated for {platform}"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void OnNftsUpdated(PlatformKind platform, string symbol)
+        {
+            if (!ShouldHandlePlatform(platform))
+            {
+                return;
+            }
+
+            MarkNftDirty(symbol);
+            Log.Write($"[GUI] NFTs updated for {platform} symbol={symbol}"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void OnNftsRefreshStarted(PlatformKind platform, string symbol)
+        {
+            if (!ShouldHandlePlatform(platform))
+            {
+                return;
+            }
+
+            MarkNftDirty(symbol);
+            Log.Write($"[GUI] NFTs refresh started for {platform} symbol={symbol}"); //TODO Check if still needed once refactoring is over
+        }
 
         #region CONNECTOR PROMPT
 
@@ -1843,6 +2046,9 @@ namespace Poltergeist
             var filterType = viewState.FilterType;
             var filterRarity = viewState.FilterRarity;
             var filterMinted = viewState.FilterMinted;
+            var prevSortMode = accountManager.Settings.nftSortMode;
+            var prevTtrsSortMode = accountManager.Settings.ttrsNftSortMode;
+            var prevSortDirection = accountManager.Settings.nftSortDirection;
 
             var posX1 = Units(2);
             var posX2 = posX1 + toolLabelWidth + toolFieldWidth + toolFieldSpacing;
@@ -1885,6 +2091,7 @@ namespace Poltergeist
                                         nftViewPresenter.ClearSelection();
                                         nftViewPresenter.Select(accountManager.CurrentNfts?.Select(x => x.Id));
                                     }
+                                    MarkNftDirty(transferSymbol);
                                 });
 
                 // #8: Invert selection button
@@ -1902,6 +2109,7 @@ namespace Poltergeist
                                         // If no filter is applied, invert button processes all items.
                                         nftViewPresenter.InvertSelection(accountManager.CurrentNfts?.Select(x => x.Id));
                                     }
+                                    MarkNftDirty(transferSymbol);
                                 });
             }
 
@@ -1936,6 +2144,22 @@ namespace Poltergeist
             {
                 nftScroll = Vector2.zero;
                 nftViewPresenter.ClearSelection();
+                MarkNftDirty(transferSymbol);
+            }
+
+            if (transferSymbol == "TTRS")
+            {
+                if (accountManager.Settings.ttrsNftSortMode != prevTtrsSortMode || accountManager.Settings.nftSortDirection != prevSortDirection)
+                {
+                    MarkNftDirty(transferSymbol);
+                }
+            }
+            else
+            {
+                if (accountManager.Settings.nftSortMode != prevSortMode || accountManager.Settings.nftSortDirection != prevSortDirection)
+                {
+                    MarkNftDirty(transferSymbol);
+                }
             }
         }
 
@@ -2215,10 +2439,11 @@ namespace Poltergeist
             var startY = DrawPlatformTopMenu(() =>
             {
                 accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
+                MarkBalancesDirty();
             });
             var endY = DoBottomMenu();
 
-            var balancesModel = dataProvider.GetBalancesSnapshot();
+            var balancesModel = GetBalancesModel();
 
             if (balancesModel.IsRefreshing)
             {
@@ -2517,6 +2742,7 @@ namespace Poltergeist
                                 nftViewPresenter.ResetFiltersAndPagination();
                                 nftViewPresenter.ResetSorting();
                                 nftViewPresenter.Refresh(transferSymbol, false);
+                                MarkNftDirty(transferSymbol);
 
                                 PushState(GUIState.NftView);
                                 return;
@@ -2598,6 +2824,7 @@ namespace Poltergeist
                         nftViewPresenter.ResetFiltersAndPagination();
                         nftViewPresenter.ResetSorting();
                         nftViewPresenter.Refresh(transferSymbol, false);
+                        MarkNftDirty(transferSymbol);
 
                         PushState(GUIState.Nft);
                         return;
@@ -2714,7 +2941,7 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
 
             var viewState = nftViewPresenter.State;
-            var nftSnapshot = nftViewPresenter.BuildSnapshot(transferSymbol);
+            var nftSnapshot = GetNftViewSnapshot(transferSymbol);
             var nfts = accountManager.CurrentNfts;
             if (nftSnapshot.IsRefreshing)
             {
@@ -2754,6 +2981,8 @@ namespace Poltergeist
                 accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
                 nftViewPresenter.Refresh(transferSymbol, false);
                 nftViewPresenter.ResetSorting();
+                MarkBalancesDirty();
+                MarkNftDirty(transferSymbol);
             }, false);
         }
 
@@ -3027,6 +3256,7 @@ namespace Poltergeist
                 if (toggleResult != nftIsSelected)
                 {
                     nftViewPresenter.ToggleSelection(entryId);
+                    MarkNftDirty(transferSymbol);
                 }
             }
             GUI.enabled = true;
@@ -3085,11 +3315,12 @@ namespace Poltergeist
             var startY = DrawPlatformTopMenu(() =>
             {
                 accountManager.RefreshHistory(false, accountManager.CurrentPlatform);
+                MarkHistoryDirty();
             });
 
             var endY = DoBottomMenu();
 
-            var historyModel = dataProvider.GetHistorySnapshot();
+            var historyModel = GetHistoryModel();
 
             if (historyModel.IsRefreshing)
             {
@@ -3772,6 +4003,7 @@ namespace Poltergeist
                                                  pageButtonWidth, Units(2)), "<<", () =>
             {
                 nftViewPresenter.State.GoToFirstPage();
+                MarkNftDirty(transferSymbol);
             });
 
             // <
@@ -3780,6 +4012,7 @@ namespace Poltergeist
                                                  pageButtonWidth, Units(2)), "<", () =>
             {
                 nftViewPresenter.State.GoToPreviousPage();
+                MarkNftDirty(transferSymbol);
             });
 
             // Current page number
@@ -3799,6 +4032,7 @@ namespace Poltergeist
                                                                 pageButtonWidth, Units(2)), ">", () =>
             {
                 nftViewPresenter.State.GoToNextPage();
+                MarkNftDirty(transferSymbol);
             });
 
             // >>
@@ -3807,6 +4041,7 @@ namespace Poltergeist
                                                                 pageButtonWidth, Units(2)), ">>", () =>
             {
                 nftViewPresenter.State.GoToLastPage();
+                MarkNftDirty(transferSymbol);
             });
 
             if (CurrentState != GUIState.NftView)

@@ -27,6 +27,7 @@ namespace Poltergeist.Wallet
             NftViewState = new WalletNftViewState();
             NftViewPresenter = new WalletNftPresenter(NftViewBuilder, NftViewState, NftSource, () => AccountManager.Instance);
             NftTransactions = new WalletNftTransactionBuilder(() => AccountManager.Instance);
+            UiSignals = new WalletUiSignals(() => AccountManager.Instance);
         }
 
         public WalletNavigation Navigation { get; }
@@ -46,5 +47,7 @@ namespace Poltergeist.Wallet
         public WalletNftPresenter NftViewPresenter { get; }
 
         public WalletNftTransactionBuilder NftTransactions { get; }
+
+        public WalletUiSignals UiSignals { get; }
     }
 }

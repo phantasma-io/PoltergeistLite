@@ -51,6 +51,13 @@ namespace Poltergeist
         private Dictionary<PlatformKind, HistoryEntry[]> _history = new Dictionary<PlatformKind, HistoryEntry[]>();
         public Dictionary<PlatformKind, RefreshStatus> _refreshStatus = new Dictionary<PlatformKind, RefreshStatus>();
 
+        public event Action<PlatformKind> BalancesRefreshStarted;
+        public event Action<PlatformKind> BalancesUpdated;
+        public event Action<PlatformKind, string> NftsUpdated;
+        public event Action<PlatformKind, string> NftsRefreshStarted;
+        public event Action<PlatformKind> HistoryUpdated;
+        public event Action<PlatformKind> HistoryRefreshStarted;
+
         public PlatformKind CurrentPlatform { get; set; }
         public AccountState CurrentState => _states.ContainsKey(CurrentPlatform) ? _states[CurrentPlatform] : null;
         public List<TokenDataResult> CurrentNfts => _nfts.ContainsKey(CurrentPlatform) ? _nfts[CurrentPlatform] : null;
@@ -115,6 +122,9 @@ namespace Poltergeist
             platforms.Add(PlatformKind.BSC);
 
             AvailablePlatforms = platforms.ToArray();
+
+            // Ensure UI signal hub is hooked to our events as soon as AccountManager is ready.
+            Poltergeist.Wallet.WalletApplicationContext.Instance?.UiSignals?.EnsureSubscribed();
         }
 
         public string GetTokenWorth(string symbol, decimal amount)
@@ -1008,6 +1018,8 @@ The Phoenix team", "Notice");
                     _refreshStatus[platform] = refreshStatus;
                 }
 
+                Log.Write($"[Balances] ReportWalletBalance platform={platform} stateNull={state == null}"); //TODO Check if still needed once refactoring is over
+
                 if (state != null)
                 {
                     Log.Write("Received new state for " + platform);
@@ -1033,6 +1045,9 @@ The Phoenix team", "Notice");
                     _refreshStatus[platform] = refreshStatus;
                 }
                 temp?.Invoke();
+
+                Log.Write($"[Balances] Invoking BalancesUpdated for {platform} (subscribers: {BalancesUpdated?.GetInvocationList()?.Length ?? 0})"); //TODO Check if still needed once refactoring is over
+                BalancesUpdated?.Invoke(platform);
             }
             catch (Exception) { } // This fixes crash when user leaves account fast without waiting for balances to load
         }
@@ -1057,6 +1072,9 @@ The Phoenix team", "Notice");
                 {
                     CurrentPlatform = platform;
                 }
+
+                Log.Write($"[NFT] Invoking NftsUpdated for {platform} {symbol} (subscribers: {NftsUpdated?.GetInvocationList()?.Length ?? 0})"); //TODO Check if still needed once refactoring is over
+                NftsUpdated?.Invoke(platform, symbol);
             }
         }
 
@@ -1071,6 +1089,8 @@ The Phoenix team", "Notice");
                     _refreshStatus[platform] = refreshStatus;
                 }
 
+                Log.Write($"[History] ReportWalletHistory platform={platform} historyNull={history == null}"); //TODO Check if still needed once refactoring is over
+
                 if (history != null)
                 {
                     Log.Write("Received new history for " + platform);
@@ -1081,6 +1101,9 @@ The Phoenix team", "Notice");
                         CurrentPlatform = platform;
                     }
                 }
+
+                Log.Write($"[History] Invoking HistoryUpdated for {platform} (subscribers: {HistoryUpdated?.GetInvocationList()?.Length ?? 0})"); //TODO Check if still needed once refactoring is over
+                HistoryUpdated?.Invoke(platform);
             }
             catch (Exception) { } // This fixes crash when user leaves account fast without waiting for balances to load
         }
@@ -1197,6 +1220,12 @@ The Phoenix team", "Notice");
                             LastHistoryRefresh = DateTime.MinValue
                         });
                 }
+            }
+
+            Log.Write($"[Balances] RefreshBalances start force={force} currentPlatform={CurrentPlatform} targets={string.Join(',', platformsList)}"); //TODO Check if still needed once refactoring is over
+            foreach (var platform in platformsList)
+            {
+                BalancesRefreshStarted?.Invoke(platform);
             }
 
             var wif = CurrentWif;
@@ -1415,6 +1444,12 @@ The Phoenix team", "Notice");
                             NftsRefreshing = true
                         });
                 }
+            }
+
+            Log.Write($"[NFT] RefreshNft start force={force} symbol={symbol} currentPlatform={CurrentPlatform}"); //TODO Check if still needed once refactoring is over
+            foreach (var platform in CurrentAccount.platforms.Split())
+            {
+                NftsRefreshStarted?.Invoke(platform, symbol);
             }
 
             if (force)
@@ -1663,6 +1698,11 @@ The Phoenix team", "Notice");
                             LastHistoryRefresh = now
                         });
                 }
+            }
+
+            foreach (var platform in platformsList)
+            {
+                HistoryRefreshStarted?.Invoke(platform);
             }
 
             var wif = this.CurrentWif;
