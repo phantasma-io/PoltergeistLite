@@ -3818,7 +3818,7 @@ namespace Poltergeist
                     {
                         if (kcal == PromptResult.Success)
                         {
-                            // In case we swapped SOUL to KCAL we should check if selected amound is still available
+                            // Ensure selected amount is still available after fee checks
                             // If not - reduce to balance
                             // We should update balance object first
                             var balance = AccountManager.Instance.CurrentState.balances.Where(x => x.Symbol == "SOUL").FirstOrDefault();
@@ -4632,11 +4632,6 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
             var caption = $"Enter {symbol} amount:\nMax: {MoneyFormat(max, MoneyFormatType.Long)} {symbol}";
-            if (symbol == "GAS" && accountManager.CurrentPlatform == PlatformKind.Phantasma && destination == null)
-            {
-                caption += "\nWarning: Swapping back consumes GAS (around 0.1) so if your GAS balance falls below that, swap back to NEO will fail.";
-            }
-
             if (!string.IsNullOrEmpty(destination))
             {
                 caption += $"\nDestination: {destination}";
@@ -4685,177 +4680,30 @@ namespace Poltergeist
             modalContext.Hints = new Dictionary<string, string>() { { $"Max ({MoneyFormat(max, MoneyFormatType.Short)} {symbol})", max.ToString() } };
         }
 
-        private void RequestKCAL(string swapSymbol, Action<PromptResult> callback)
-        {
-            RequestFee(swapSymbol, "KCAL", 0.1m, callback);
-        }
-
-        private void RequestFee(string swapSymbol, string feeSymbol, decimal min, Action<PromptResult> callback)
+        private void RequestKCAL(string forSymbol, Action<PromptResult> callback)
         {
             var accountManager = AccountManager.Instance;
             var state = accountManager.CurrentState;
-
-            if (swapSymbol == "NEO")
-            {
-                swapSymbol = "GAS";
-            }
-
-            decimal feeBalance = state.GetAvailableAmount(feeSymbol);
+            var min = 0.1m;
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                callback(feeBalance >= min ? PromptResult.Success : PromptResult.Failure);
-                return;
-            }
-
-            if (swapSymbol == feeSymbol)
-            {
                 callback(PromptResult.Success);
                 return;
             }
 
+            var feeBalance = state.GetAvailableAmount("KCAL");
             if (feeBalance >= min)
             {
                 callback(PromptResult.Success);
-                return;
-            }
-
-            if (swapSymbol == null)
-            {
-                MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.", () =>
-                {
-                    callback(PromptResult.Failure);
-                });
-                return;
-            }
-
-            var swapDecimals = Tokens.GetTokenDecimals(swapSymbol, accountManager.CurrentPlatform);
-            decimal swapBalance = state.GetAvailableAmount(swapSymbol);
-
-            if (Tokens.GetToken(swapSymbol, accountManager.CurrentPlatform, out var tokenInfo))
-            {
-                if (!tokenInfo.IsFungible())
-                {
-                    // We cannot swap NFTs.
-                    MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.");
-                    return;
-                }
-            }
-
-            if ((swapDecimals > 0 || swapBalance > 1) && accountManager.Settings.devMode)
-            {
-                modalActions.YesNo($"Not enough {feeSymbol} for transaction fees.\nUse some {swapSymbol} to perform a cosmic swap?",
-                     (result) =>
-                     {
-                         if (result == PromptResult.Success)
-                         {
-                             byte[] script;
-
-                             try
-                             {
-                                 var source = Address.Parse(state.address);
-
-                                 var decimals = Tokens.GetTokenDecimals(feeSymbol, accountManager.CurrentPlatform);
-                                 var decimalsSwap = Tokens.GetTokenDecimals(swapSymbol, accountManager.CurrentPlatform);
-
-                                 var sb = new ScriptBuilder();
-                                 if (feeSymbol == "KCAL")
-                                 {
-                                     sb.CallContract("swap", "SwapFee", source, swapSymbol, UnitConversion.ToBigInteger(1m, decimals));
-                                 }
-                                 else
-                                 {
-                                     sb.CallContract("swap", "SwapReverse", source, swapSymbol, feeSymbol, UnitConversion.ToBigInteger(1m, decimals));
-                                 }
-                                 sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                 sb.SpendGas(source);
-                                 script = sb.EndScript();
-                             }
-                             catch (Exception e)
-                             {
-                                 MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                                 return;
-                             }
-
-                             var swapSymbolBalance = AccountManager.Instance.CurrentState.GetAvailableAmount(swapSymbol);
-                             var feeSymbolBalance = AccountManager.Instance.CurrentState.GetAvailableAmount(feeSymbol);
-                             Log.Write($"Balance before swap: {swapSymbol}: {swapSymbolBalance}, {feeSymbol}: {feeSymbolBalance}.");
-                             SendTransaction($"Swap {swapSymbol} for {feeSymbol}", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
-                             {
-                                 if (!string.IsNullOrEmpty(error) || hash == Hash.Null)
-                                 {
-                                     TxResultMessage(hash, txResult, error);
-                                     callback(PromptResult.Failure);
-                                 }
-                                 else
-                                 {
-                                     // We should check if balance is properly updated,
-                                     // to prevent further potential errors.
-                                     var swapSymbolBalanceNew = AccountManager.Instance.CurrentState.GetAvailableAmount(swapSymbol);
-                                     var feeSymbolBalanceNew = AccountManager.Instance.CurrentState.GetAvailableAmount(feeSymbol);
-
-                                     if (swapSymbolBalance == swapSymbolBalanceNew || feeSymbolBalance == feeSymbolBalanceNew)
-                                     {
-                                         Log.Write($"Balance is not refreshed properly, #1. {swapSymbol}: {swapSymbolBalanceNew}, {feeSymbol}: {feeSymbolBalanceNew}");
-                                         // Balance is not refreshed properly, retrying.
-                                         Thread.Sleep(2000);
-                                         accountManager.RefreshBalances(true, accountManager.CurrentPlatform, () =>
-                                         {
-                                             swapSymbolBalanceNew = AccountManager.Instance.CurrentState.GetAvailableAmount(swapSymbol);
-                                             feeSymbolBalanceNew = AccountManager.Instance.CurrentState.GetAvailableAmount(feeSymbol);
-
-                                             if (swapSymbolBalance == swapSymbolBalanceNew || feeSymbolBalance == feeSymbolBalanceNew)
-                                             {
-                                                 Log.Write($"Balance is not refreshed properly, #2. {swapSymbol}: {swapSymbolBalanceNew}, {feeSymbol}: {feeSymbolBalanceNew}");
-                                                 // Still not updated, waiting another 4 seconds.
-                                                 Thread.Sleep(4000);
-                                                 accountManager.RefreshBalances(true, accountManager.CurrentPlatform, () =>
-                                                 {
-                                                     swapSymbolBalanceNew = AccountManager.Instance.CurrentState.GetAvailableAmount(swapSymbol);
-                                                     feeSymbolBalanceNew = AccountManager.Instance.CurrentState.GetAvailableAmount(feeSymbol);
-
-                                                     if (swapSymbolBalance == swapSymbolBalanceNew || feeSymbolBalance == feeSymbolBalanceNew)
-                                                     {
-                                                         Log.Write($"Balance is not refreshed properly, #3. {swapSymbol}: {swapSymbolBalanceNew}, {feeSymbol}: {feeSymbolBalanceNew}");
-                                                         // Still not updated, aborting.
-
-                                                         MessageBox(MessageKind.Error, "Cannot update balance after cosmic swap.\nPlease try again later.");
-                                                         return;
-                                                     }
-                                                     else
-                                                     {
-                                                         // Balance updated after swap.
-                                                         callback(PromptResult.Success);
-                                                     }
-                                                 });
-                                             }
-                                             else
-                                             {
-                                                 // Balance updated after swap.
-                                                 callback(PromptResult.Success);
-                                             }
-                                         });
-                                     }
-                                     else
-                                     {
-                                         // Balance updated after swap.
-                                         callback(PromptResult.Success);
-                                     }
-                                 }
-                             });
-                         }
-                         else
-                         {
-                             callback(result);
-                         }
-                     });
             }
             else
             {
-                MessageBox(MessageKind.Error, $"Not enough {feeSymbol} for transaction fees.");
-                // \nHowever to use {swapSymbol} cosmic swaps, you need at least 2 {swapSymbol}.
+                MessageBox(MessageKind.Error, $"Not enough KCAL for transaction fees.");
+                callback(PromptResult.Failure);
             }
         }
+
         #endregion
 
         private Dictionary<string, string> GenerateAccountHints(PlatformKind targets)
