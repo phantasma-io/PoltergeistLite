@@ -2179,15 +2179,15 @@ namespace Poltergeist
             return nftTypeComboBox.DropDownIsOpened() || nftMintedComboBox.DropDownIsOpened() || nftRarityComboBox.DropDownIsOpened();
         }
 
-        private void DrawBalanceLine(ref Rect subRect, string symbol, decimal amount, string caption)
+        private void DrawBalanceLine(ref Rect subRect, string symbol, string displayAmount, decimal amountForFiat, string caption)
         {
-            if (amount > 0.0001m)
+            if (!string.IsNullOrEmpty(displayAmount) && displayAmount != "0")
             {
                 var style = GUI.skin.label;
                 style.fontSize -= VerticalLayout ? 4 : 2;
 
-                var value = AccountManager.Instance.GetTokenWorth(symbol, amount);
-                GUI.Label(subRect, $"{WalletAmountFormatter.Format(amount)} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
+                var value = amountForFiat > 0 ? AccountManager.Instance.GetTokenWorth(symbol, amountForFiat) : null;
+                GUI.Label(subRect, $"{displayAmount} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
                 style.fontSize += VerticalLayout ? 4 : 2;
 
                 // For vertical layout making a height correction proportional to font size difference.
@@ -2494,13 +2494,13 @@ namespace Poltergeist
 
             style.fontSize -= VerticalLayout ? 0 : 4;
             var value = balance.FiatWorth;
-            var balanceFormat = $"{WalletAmountFormatter.Format(balance.Available)}";
+            var balanceFormat = balance.AvailableText;
             GUI.Label(new Rect(posX, posY, rect.width - posX, Units(2)), $"{balanceFormat} {balance.Symbol}" + (value == null ? "" : $" ({value})"));
             style.fontSize += VerticalLayout ? 0 : 4;
 
             var subRect = new Rect(posX, posY + Units(1) + 4, Units(20), Units(2));
-            DrawBalanceLine(ref subRect, balance.Symbol, balance.Staked, "staked");
-            DrawBalanceLine(ref subRect, balance.Symbol, balance.Claimable, "claimable");
+            DrawBalanceLine(ref subRect, balance.Symbol, balance.StakedText, balance.Staked, "staked");
+            DrawBalanceLine(ref subRect, balance.Symbol, balance.ClaimableText, balance.Claimable, "claimable");
 
             string secondaryAction = null;
             bool secondaryEnabled = false;
@@ -2550,7 +2550,7 @@ namespace Poltergeist
                                     var crownBalance = state.balances.Where(x => x.Symbol.ToUpper() == "CROWN").FirstOrDefault();
                                     if (crownBalance != default(Balance))
                                     {
-                                        crownMultiplier += crownBalance.Available * 0.05m;
+                                        crownMultiplier += crownBalance.AvailableDecimal * 0.05m;
                                     }
                                     var expectedDailyKCAL = (selectedAmount + balance.Staked) * 0.002m * crownMultiplier;
 
@@ -2564,12 +2564,12 @@ namespace Poltergeist
                                     decimal kcalClaimable = 0;
                                     if (kcalBalance != default)
                                     {
-                                        kcalClaimable = kcalBalance.Claimable;
+                                        kcalClaimable = kcalBalance.ClaimableDecimal;
                                     }
 
                                     var message = $"Do you want to stake {selectedAmount} SOUL?" +
-                                        $"\nYou will be able to claim {WalletAmountFormatter.Format(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
-                                        $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
+                            $"\nYou will be able to claim {WalletAmountFormatter.Format(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
+                            $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
 
                                     if (kcalClaimable > 0)
                                     {
@@ -2577,9 +2577,9 @@ namespace Poltergeist
                                     }
 
                                     StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
-                                    {
-                                        TxResultMessage(hash, txResult, error, "Your SOUL tokens were staked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                                    });
+                        {
+                                                    TxResultMessage(hash, txResult, error, "Your SOUL tokens were staked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                                                });
                                 });
                             };
                         }
@@ -2655,8 +2655,8 @@ namespace Poltergeist
 
                                             SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                 {
-                                            TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                                        });
+                                                    TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                                                });
                                         }
                                         else
                                             if (feeResult == PromptResult.Failure)
@@ -3481,7 +3481,7 @@ namespace Poltergeist
                     case 2:
                         {
                             var state = accountManager.CurrentState;
-                            decimal stake = state != null ? state.balances.Where(x => x.Symbol == DomainSettings.StakingTokenSymbol).Select(x => x.Staked).FirstOrDefault() : 0;
+                            decimal stake = state != null ? state.balances.Where(x => x.Symbol == DomainSettings.StakingTokenSymbol).Select(x => x.StakedDecimal).FirstOrDefault() : 0;
 
                             if (stake >= 1)
                             {

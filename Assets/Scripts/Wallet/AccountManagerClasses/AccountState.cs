@@ -33,7 +33,7 @@ namespace Poltergeist
                 var entry = balances[i];
                 if (entry.Symbol == symbol)
                 {
-                    return entry.Available;
+                    return entry.AvailableDecimal;
                 }
             }
 

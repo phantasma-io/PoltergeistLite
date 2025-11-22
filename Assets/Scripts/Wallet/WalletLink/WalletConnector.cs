@@ -135,7 +135,7 @@ namespace Poltergeist
                 balances = state.balances.Select(x => new Balance()
                 {
                     symbol = x.Symbol,
-                    value = UnitConversion.ToBigInteger(x.Available, x.Decimals).ToString(),
+                    value = x.Available.ToString(),
                     decimals = x.Decimals,
                     ids = x.Ids
                 });
@@ -150,7 +150,7 @@ namespace Poltergeist
                 balances = state.balances.Select(x => new Balance()
                 {
                     symbol = x.Symbol,
-                    value = UnitConversion.ToBigInteger(x.Available, x.Decimals).ToString(),
+                    value = x.Available.ToString(),
                     decimals = x.Decimals
                 });
             }

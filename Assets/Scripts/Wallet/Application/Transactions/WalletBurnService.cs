@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.VM;
-using Poltergeist;
 
 namespace Poltergeist.Wallet
 {
@@ -91,10 +89,11 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail($"{symbol} balance is not available.");
             }
 
+            var available = balance.AvailableDecimal;
             var burnAmount = amount;
-            if (burnAmount > balance.Available && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
+            if (burnAmount > available && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
             {
-                burnAmount = balance.Available;
+                burnAmount = available;
             }
 
             if (burnAmount <= 0)

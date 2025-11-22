@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using PhantasmaPhoenix.Protocol;
-using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.NFT.Extensions;
-using Poltergeist;
 
 namespace Poltergeist.Wallet
 {
@@ -32,10 +29,11 @@ namespace Poltergeist.Wallet
             var accountName = accountManager.HasSelection ? accountManager.CurrentAccount.name : string.Empty;
             var state = accountManager.CurrentState;
             var isRefreshing = accountManager.BalanceRefreshing;
+            var balanceError = accountManager.GetBalanceError(accountManager.CurrentPlatform);
 
             if (state == null)
             {
-                var error = accountManager.GetBalanceError(accountManager.CurrentPlatform)
+                var error = balanceError
                     ?? (accountManager.rpcAvailablePhantasma == 0
                     ? "Please check your internet connection. All Phantasma RPC servers are unavailable."
                     : "Temporary error, cannot display balances...");
@@ -44,10 +42,12 @@ namespace Poltergeist.Wallet
             }
 
             var balances = state.balances?.Select(b =>
-                new WalletBalanceEntry(b.Symbol, b.Available, b.Staked, b.Claimable, b.Chain, b.Decimals, b.Burnable, b.Fungible, b.Ids, accountManager.GetTokenWorth(b.Symbol, b.Available)))
-                .ToList() ?? new List<WalletBalanceEntry>();
+            {
+                var fiatWorth = b.AvailableOverflow ? null : accountManager.GetTokenWorth(b.Symbol, b.AvailableDecimal);
+                return new WalletBalanceEntry(b.Symbol, b.Available, b.Staked, b.Claimable, b.Chain, b.Decimals, b.Burnable, b.Fungible, b.Ids, fiatWorth);
+            }).ToList() ?? new List<WalletBalanceEntry>();
 
-            return new WalletBalancesModel(state.name, accountManager.CurrentPlatform, isRefreshing, balances, string.Empty);
+            return new WalletBalancesModel(state.name, accountManager.CurrentPlatform, isRefreshing, balances, balanceError ?? string.Empty);
         }
 
         public WalletHistoryModel GetHistorySnapshot()

@@ -1,11 +1,9 @@
 using System;
 using System.Linq;
-using System.Numerics;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.VM;
-using Poltergeist;
 
 namespace Poltergeist.Wallet
 {
@@ -76,18 +74,19 @@ namespace Poltergeist.Wallet
             }
 
             var stakingBalance = state.balances?.FirstOrDefault(x => string.Equals(x.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase));
-            if (stakingBalance == null || stakingBalance.Staked <= 0)
+            var stakedAmount = stakingBalance?.StakedDecimal ?? 0;
+            if (stakingBalance == null || stakedAmount <= 0)
             {
                 return ValidationResult<string>.Fail("No SOUL is currently staked.");
             }
 
-            if (requestedAmount <= 0 || requestedAmount > stakingBalance.Staked)
+            if (requestedAmount <= 0 || requestedAmount > stakedAmount)
             {
                 return ValidationResult<string>.Fail("Invalid unstake amount.");
             }
 
             var kcalBalance = state.balances?.FirstOrDefault(s => s.Symbol == "KCAL");
-            var kcalClaimable = kcalBalance?.Claimable ?? 0;
+            var kcalClaimable = kcalBalance?.ClaimableDecimal ?? 0;
 
             var message = $"Do you want to unstake {requestedAmount} SOUL?";
 
@@ -97,7 +96,7 @@ namespace Poltergeist.Wallet
             }
 
             var nameRegistered = !string.Equals(state.name, ValidationUtils.ANONYMOUS_NAME, StringComparison.OrdinalIgnoreCase);
-            if (requestedAmount > stakingBalance.Staked - 2 && nameRegistered)
+            if (requestedAmount > stakedAmount - 2 && nameRegistered)
             {
                 message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
             }
@@ -152,10 +151,11 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail("SOUL balance is not available.");
             }
 
+            var available = balance.AvailableDecimal;
             var amount = requestedAmount;
-            if (amount > balance.Available && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
+            if (amount > available && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
             {
-                amount = balance.Available;
+                amount = available;
             }
 
             if (amount <= 0)

@@ -1,4 +1,5 @@
-using System;
+using System.Globalization;
+using System.Numerics;
 
 namespace Poltergeist.Wallet
 {
@@ -7,6 +8,87 @@ namespace Poltergeist.Wallet
     /// </summary>
     public static class WalletAmountFormatter
     {
+        public static decimal ToDecimal(BigInteger raw, uint decimals, out bool overflowed)
+        {
+            var scale = BigInteger.Pow(10, (int)decimals);
+            var quotient = BigInteger.DivRem(raw, scale, out var remainder);
+
+            var max = (BigInteger)decimal.MaxValue;
+            var min = (BigInteger)decimal.MinValue;
+
+            if (quotient > max)
+            {
+                overflowed = true;
+                return decimal.MaxValue;
+            }
+
+            if (quotient < min)
+            {
+                overflowed = true;
+                return decimal.MinValue;
+            }
+
+            var value = (decimal)quotient;
+            if (remainder != 0)
+            {
+                var fraction = (decimal)remainder / (decimal)scale;
+                value += fraction;
+            }
+
+            overflowed = false;
+            return value;
+        }
+
+        public static string Format(BigInteger raw, uint decimals, MoneyFormatType formatType = MoneyFormatType.Standard)
+        {
+            var precision = formatType switch
+            {
+                MoneyFormatType.Short => 2,
+                MoneyFormatType.Long => 12,
+                _ => 4
+            };
+
+            var negative = raw < 0;
+            var abs = BigInteger.Abs(raw);
+            var digits = abs.ToString();
+
+            string intPartDigits;
+            string fracPartDigits;
+
+            if (decimals == 0)
+            {
+                intPartDigits = digits;
+                fracPartDigits = string.Empty;
+            }
+            else if (digits.Length <= decimals)
+            {
+                intPartDigits = "0";
+                var padded = digits.PadLeft((int)decimals, '0');
+                fracPartDigits = padded;
+            }
+            else
+            {
+                intPartDigits = digits.Substring(0, digits.Length - (int)decimals);
+                fracPartDigits = digits.Substring(digits.Length - (int)decimals);
+            }
+
+            if (precision >= 0 && fracPartDigits.Length > precision)
+            {
+                fracPartDigits = fracPartDigits.Substring(0, precision);
+            }
+
+            fracPartDigits = TrimTrailingZeros(fracPartDigits);
+            var intPartFormatted = InsertThousandsSeparators(intPartDigits);
+
+            var sign = negative ? "-" : string.Empty;
+            if (string.IsNullOrEmpty(fracPartDigits))
+            {
+                return $"{sign}{intPartFormatted}";
+            }
+
+            return $"{sign}{intPartFormatted}.{fracPartDigits}";
+        }
+
         public static string Format(decimal amount, MoneyFormatType formatType = MoneyFormatType.Standard)
         {
             switch (formatType)
@@ -23,6 +105,44 @@ namespace Poltergeist.Wallet
                 default:
                     return amount.ToString();
             }
+        }
+
+        private static string InsertThousandsSeparators(string digits)
+        {
+            if (string.IsNullOrEmpty(digits))
+            {
+                return "0";
+            }
+
+            var result = string.Empty;
+            var count = 0;
+            for (int i = digits.Length - 1; i >= 0; i--)
+            {
+                result = digits[i] + result;
+                count++;
+                if (count == 3 && i != 0)
+                {
+                    result = CultureInfo.InvariantCulture.NumberFormat.NumberGroupSeparator + result;
+                    count = 0;
+                }
+            }
+            return result;
+        }
+
+        private static string TrimTrailingZeros(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+
+            int i = value.Length;
+            while (i > 0 && value[i - 1] == '0')
+            {
+                i--;
+            }
+
+            return value.Substring(0, i);
         }
     }
 

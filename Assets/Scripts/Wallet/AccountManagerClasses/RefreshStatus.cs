@@ -16,7 +16,7 @@ namespace Poltergeist
 
         public override string ToString()
         {
-            return $"BalanceRefreshing: {BalanceRefreshing}, LastBalanceRefresh: {LastBalanceRefresh}, HistoryRefreshing: {HistoryRefreshing}, LastHistoryRefresh: {LastHistoryRefresh}";
+            return $"BalanceRefreshing: {BalanceRefreshing}, LastBalanceRefresh: {LastBalanceRefresh}, BalanceError: {BalanceError}, HistoryRefreshing: {HistoryRefreshing}, LastHistoryRefresh: {LastHistoryRefresh}";
         }
     }
 }
