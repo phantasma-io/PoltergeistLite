@@ -103,7 +103,7 @@ namespace Poltergeist.Wallet
                     return;
                 }
 
-                callback?.Invoke(validation.Amount);
+                callback?.Invoke(validation.Data);
             }, _isVerticalLayout(), _resetUiHints);
 
             _service.Context.Hints = new Dictionary<string, string>

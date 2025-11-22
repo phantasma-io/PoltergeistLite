@@ -15,10 +15,116 @@ namespace Poltergeist.Wallet
     public sealed class WalletStakeService
     {
         private readonly Func<AccountManager> _accountProvider;
+        private const uint UnstakeCooldownSeconds = 86400;
 
         public WalletStakeService(Func<AccountManager> accountProvider)
         {
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
+        }
+
+        public ValidationResult GetUnstakeAvailability()
+        {
+            var accountManager = _accountProvider();
+            if (accountManager == null)
+            {
+                return ValidationResult.Fail("Account manager is not available yet.");
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return ValidationResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
+            }
+
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                return ValidationResult.Fail("Account state is unavailable.");
+            }
+
+            var canUnstake = (Timestamp.Now - state.stakeTime) >= UnstakeCooldownSeconds;
+            if (!canUnstake)
+            {
+                return ValidationResult.Fail("You can unstake only after 24 hours from staking.");
+            }
+
+            return ValidationResult.Ok();
+        }
+
+        public ValidationResult<string> BuildUnstakeMessage(decimal requestedAmount)
+        {
+            var accountManager = _accountProvider();
+            if (accountManager == null)
+            {
+                return ValidationResult<string>.Fail("Account manager is not available yet.");
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return ValidationResult<string>.Fail($"Current platform must be {PlatformKind.Phantasma}");
+            }
+
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                return ValidationResult<string>.Fail("Account state is unavailable.");
+            }
+
+            var availability = GetUnstakeAvailability();
+            if (!availability.Success)
+            {
+                return ValidationResult<string>.Fail(availability.Error);
+            }
+
+            var stakingBalance = state.balances?.FirstOrDefault(x => string.Equals(x.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase));
+            if (stakingBalance == null || stakingBalance.Staked <= 0)
+            {
+                return ValidationResult<string>.Fail("No SOUL is currently staked.");
+            }
+
+            if (requestedAmount <= 0 || requestedAmount > stakingBalance.Staked)
+            {
+                return ValidationResult<string>.Fail("Invalid unstake amount.");
+            }
+
+            var kcalBalance = state.balances?.FirstOrDefault(s => s.Symbol == "KCAL");
+            var kcalClaimable = kcalBalance?.Claimable ?? 0;
+
+            var message = $"Do you want to unstake {requestedAmount} SOUL?";
+
+            if (kcalClaimable > 0)
+            {
+                message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+            }
+
+            var nameRegistered = !string.Equals(state.name, ValidationUtils.ANONYMOUS_NAME, StringComparison.OrdinalIgnoreCase);
+            if (requestedAmount > stakingBalance.Staked - 2 && nameRegistered)
+            {
+                message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
+            }
+
+            return ValidationResult<string>.Ok(message, message);
+        }
+
+        public ValidationResult<string> BuildClaimKcalMessage(decimal claimableAmount)
+        {
+            var accountManager = _accountProvider();
+            if (accountManager == null)
+            {
+                return ValidationResult<string>.Fail("Account manager is not available yet.");
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return ValidationResult<string>.Fail($"Current platform must be {PlatformKind.Phantasma}");
+            }
+
+            if (claimableAmount <= 0)
+            {
+                return ValidationResult<string>.Fail("No KCAL available to claim.");
+            }
+
+            var message = $"Do you want to claim KCAL?\nThere is {claimableAmount} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.";
+            return ValidationResult<string>.Ok(message, message);
         }
 
         public WalletTransactionDraftResult BuildStakeDraft(decimal requestedAmount)
@@ -164,4 +270,5 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan);
         }
     }
+
 }

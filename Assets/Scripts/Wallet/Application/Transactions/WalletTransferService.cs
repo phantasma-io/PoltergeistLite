@@ -27,32 +27,32 @@ namespace Poltergeist.Wallet
             _feeRequirement = feeRequirement ?? throw new ArgumentNullException(nameof(feeRequirement));
         }
 
-        public WalletTransferAvailabilityResult GetFungibleAvailability(string symbol)
+        public ValidationResult<decimal, decimal> GetFungibleAvailability(string symbol)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                return WalletTransferAvailabilityResult.Fail("Account manager is not available yet.");
+                return ValidationResult<decimal, decimal>.Fail("Account manager is not available yet.");
             }
 
             var state = accountManager.CurrentState;
             if (state == null)
             {
-                return WalletTransferAvailabilityResult.Fail("Account state is unavailable.");
+                return ValidationResult<decimal, decimal>.Fail("Account state is unavailable.");
             }
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                return WalletTransferAvailabilityResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
+                return ValidationResult<decimal, decimal>.Fail($"Current platform must be {PlatformKind.Phantasma}");
             }
 
             var available = state.GetAvailableAmount(symbol);
             if (available < MinimumFungibleAmount)
             {
-                return WalletTransferAvailabilityResult.Fail($"Not enough {symbol}.");
+                return ValidationResult<decimal, decimal>.Fail($"Not enough {symbol}.");
             }
 
-            return WalletTransferAvailabilityResult.Create(MinimumFungibleAmount, available);
+            return ValidationResult<decimal, decimal>.Ok(MinimumFungibleAmount, available);
         }
 
         public WalletTransactionDraftResult BuildFungibleTransferDraft(string symbol, decimal requestedAmount, string destinationText)
@@ -271,32 +271,6 @@ namespace Poltergeist.Wallet
 
             error = localError;
             return success;
-        }
-    }
-
-    public sealed class WalletTransferAvailabilityResult
-    {
-        private WalletTransferAvailabilityResult(bool success, decimal minAmount, decimal maxAmount, string error)
-        {
-            Success = success;
-            MinAmount = minAmount;
-            MaxAmount = maxAmount;
-            Error = error ?? string.Empty;
-        }
-
-        public bool Success { get; }
-        public decimal MinAmount { get; }
-        public decimal MaxAmount { get; }
-        public string Error { get; }
-
-        public static WalletTransferAvailabilityResult Create(decimal minAmount, decimal maxAmount)
-        {
-            return new WalletTransferAvailabilityResult(true, minAmount, maxAmount, string.Empty);
-        }
-
-        public static WalletTransferAvailabilityResult Fail(string error)
-        {
-            return new WalletTransferAvailabilityResult(false, 0, 0, error);
         }
     }
 }

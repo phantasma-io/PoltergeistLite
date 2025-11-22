@@ -2591,34 +2591,25 @@ namespace Poltergeist
                             };
                         }
 
+                        var unstakeAvailability = stakeService.GetUnstakeAvailability();
                         if (balance.Staked > 0)
                         {
                             tertiaryAction = "Unstake";
-                            tertiaryEnabled = (Timestamp.Now - state.stakeTime) >= 86400;
+                            tertiaryEnabled = unstakeAvailability.Success;
                             tertiaryCallback = () =>
                             {
                                 modalActions.RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
                                     (amount) =>
                                     {
-                                        var message = $"Do you want to unstake {amount} SOUL?";
-
-                                        var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
-                                        decimal kcalClaimable = 0;
-                                        if (kcalBalance != default)
+                                        var unstakeMessage = stakeService.BuildUnstakeMessage(amount);
+                                        if (!unstakeMessage.Success)
                                         {
-                                            kcalClaimable = kcalBalance.Claimable;
-                                        }
-                                        if (kcalClaimable > 0)
-                                        {
-                                            message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                                            modalActions.Error(unstakeMessage.Error);
+                                            return;
                                         }
 
-                                        if (amount > balance.Staked - 2 && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
-                                        {
-                                            message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
-                                        }
-
-                                        modalActions.YesNo(message, (result) =>
+                                        var messageText = string.IsNullOrEmpty(unstakeMessage.Message) ? unstakeMessage.Error : unstakeMessage.Message;
+                                        modalActions.YesNo(messageText, (result) =>
                                         {
                                             if (result == PromptResult.Success)
                                             {
@@ -2646,17 +2637,25 @@ namespace Poltergeist
 
                 case "KCAL":
                     if (balance.Claimable > 0)
-                    {
-                        secondaryAction = "Claim";
-                        secondaryEnabled = true;
-                        secondaryCallback = () =>
                         {
-                            modalActions.YesNo($"Do you want to claim KCAL?\nThere is {balance.Claimable} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.", (result) =>
+                            secondaryAction = "Claim";
+                            secondaryEnabled = true;
+                            secondaryCallback = () =>
                             {
-                                if (result == PromptResult.Success)
+                                var claimMessage = stakeService.BuildClaimKcalMessage(balance.Claimable);
+                                if (!claimMessage.Success)
                                 {
-                                    RequestKCAL("SOUL", (feeResult) =>
+                                    modalActions.Error(claimMessage.Error);
+                                    return;
+                                }
+
+                                var messageText = string.IsNullOrEmpty(claimMessage.Message) ? claimMessage.Error : claimMessage.Message;
+                                modalActions.YesNo(messageText, (result) =>
+                                {
+                                    if (result == PromptResult.Success)
                                     {
+                                        RequestKCAL("SOUL", (feeResult) =>
+                                        {
                                         if (feeResult == PromptResult.Success)
                                         {
                                             var planResult = stakeService.BuildClaimKcalDraft(balance.Claimable);
@@ -4083,7 +4082,7 @@ namespace Poltergeist
                 return;
             }
 
-            modalActions.RequireAmount(transferName, destAddress, symbol, availability.MinAmount, availability.MaxAmount, (amount) =>
+            modalActions.RequireAmount(transferName, destAddress, symbol, availability.Data1, availability.Data2, (amount) =>
             {
                 var planResult = transferService.BuildFungibleTransferDraft(symbol, amount, destAddress);
                 if (!planResult.Success)

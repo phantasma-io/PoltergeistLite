@@ -17,12 +17,12 @@ namespace Poltergeist.Wallet
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
-        public WalletAmountValidationResult ParseAndValidate(string input, string symbol, decimal minAmount, decimal maxAmount)
+        public ValidationResult<decimal> ParseAndValidate(string input, string symbol, decimal minAmount, decimal maxAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                return WalletAmountValidationResult.Fail("Account manager is not available yet.");
+                return ValidationResult<decimal>.Fail("Account manager is not available yet.");
             }
 
             uint decimals;
@@ -32,31 +32,31 @@ namespace Poltergeist.Wallet
             }
             catch (Exception e)
             {
-                return WalletAmountValidationResult.Fail($"Cannot load token decimals for {symbol}. {e.Message}");
+                return ValidationResult<decimal>.Fail($"Cannot load token decimals for {symbol}. {e.Message}");
             }
 
             var amount = ParseNumber(input);
             if (accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
             {
-                return WalletAmountValidationResult.Create(amount);
+                return ValidationResult<decimal>.Ok(amount);
             }
 
             if (amount <= 0 || !ValidDecimals(amount, decimals))
             {
-                return WalletAmountValidationResult.Fail("Invalid amount!");
+                return ValidationResult<decimal>.Fail("Invalid amount!");
             }
 
             if (amount > maxAmount)
             {
-                return WalletAmountValidationResult.Fail($"Not enough {symbol}!");
+                return ValidationResult<decimal>.Fail($"Not enough {symbol}!");
             }
 
             if (amount < minAmount)
             {
-                return WalletAmountValidationResult.Fail($"Amount is too small.\nMinimum accepted is {minAmount} {symbol}!");
+                return ValidationResult<decimal>.Fail($"Amount is too small.\nMinimum accepted is {minAmount} {symbol}!");
             }
 
-            return WalletAmountValidationResult.Create(amount);
+            return ValidationResult<decimal>.Ok(amount);
         }
 
         private static bool ValidDecimals(decimal amount, uint decimals)
@@ -81,30 +81,6 @@ namespace Poltergeist.Wallet
             }
 
             return -1;
-        }
-    }
-
-    public sealed class WalletAmountValidationResult
-    {
-        private WalletAmountValidationResult(bool success, decimal amount, string error)
-        {
-            Success = success;
-            Amount = amount;
-            Error = error ?? string.Empty;
-        }
-
-        public bool Success { get; }
-        public decimal Amount { get; }
-        public string Error { get; }
-
-        public static WalletAmountValidationResult Create(decimal amount)
-        {
-            return new WalletAmountValidationResult(true, amount, null);
-        }
-
-        public static WalletAmountValidationResult Fail(string error)
-        {
-            return new WalletAmountValidationResult(false, 0, error);
         }
     }
 }
