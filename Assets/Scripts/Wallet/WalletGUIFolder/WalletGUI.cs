@@ -70,7 +70,6 @@ namespace Poltergeist
         private NftListRenderer nftRenderer;
         private NftTransferListRenderer nftTransferRenderer;
         private WalletFeeService feeService;
-        private WalletAmountValidator amountValidator;
         private WalletFeeRequirement feeRequirement;
         private WalletTransferService transferService;
         private WalletStakeService stakeService;
@@ -233,24 +232,6 @@ namespace Poltergeist
             return 16 * n;
         }
 
-        public static string MoneyFormat(decimal amount, MoneyFormatType formatType = MoneyFormatType.Standard)
-        {
-            switch (formatType)
-            {
-                case MoneyFormatType.Short:
-                    amount -= amount % 0.01M; // Getting rid of deceiving rounding.
-                    return amount.ToString("#,0.##");
-                case MoneyFormatType.Standard:
-                    amount -= amount % 0.0001M;
-                    return amount.ToString("#,0.####");
-                case MoneyFormatType.Long:
-                    amount -= amount % 0.000000000001M;
-                    return amount.ToString("#,0.############");
-                default:
-                    return amount.ToString();
-            }
-        }
-
         private void Awake()
         {
             Instance = this;
@@ -258,7 +239,7 @@ namespace Poltergeist
             navigation = context.Navigation;
             messageQueue = context.Messages;
             modalService = new WalletModalService(context.Modals);
-            modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints);
+            modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints, context.AmountValidator);
             dataProvider = context.Data;
             balancePresenter = context.BalancePresenter;
             historyPresenter = context.HistoryPresenter;
@@ -267,7 +248,6 @@ namespace Poltergeist
             nftRenderer = new NftListRenderer(this);
             nftTransferRenderer = new NftTransferListRenderer(this);
             feeService = context.FeeService;
-            amountValidator = context.AmountValidator;
             feeRequirement = context.FeeRequirement;
             transferService = context.TransferService;
             stakeService = context.StakeService;
@@ -2208,7 +2188,7 @@ namespace Poltergeist
                 style.fontSize -= VerticalLayout ? 4 : 2;
 
                 var value = AccountManager.Instance.GetTokenWorth(symbol, amount);
-                GUI.Label(subRect, $"{MoneyFormat(amount)} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
+                GUI.Label(subRect, $"{WalletAmountFormatter.Format(amount)} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
                 style.fontSize += VerticalLayout ? 4 : 2;
 
                 // For vertical layout making a height correction proportional to font size difference.
@@ -2515,7 +2495,7 @@ namespace Poltergeist
 
             style.fontSize -= VerticalLayout ? 0 : 4;
             var value = balance.FiatWorth;
-            var balanceFormat = $"{MoneyFormat(balance.Available)}";
+            var balanceFormat = $"{WalletAmountFormatter.Format(balance.Available)}";
             GUI.Label(new Rect(posX, posY, rect.width - posX, Units(2)), $"{balanceFormat} {balance.Symbol}" + (value == null ? "" : $" ({value})"));
             style.fontSize += VerticalLayout ? 0 : 4;
 
@@ -2565,7 +2545,7 @@ namespace Poltergeist
                             secondaryEnabled = balance.Available > 1.2m;
                             secondaryCallback = () =>
                             {
-                                RequireAmount($"Stake SOUL", null, "SOUL", 0.1m, balance.Available, (selectedAmount) =>
+                                modalActions.RequireAmount("Stake SOUL", null, "SOUL", 0.1m, balance.Available, (selectedAmount) =>
                                 {
                                     var crownMultiplier = 1m;
                                     var crownBalance = state.balances.Where(x => x.Symbol.ToUpper() == "CROWN").FirstOrDefault();
@@ -2589,12 +2569,12 @@ namespace Poltergeist
                                     }
 
                                     var message = $"Do you want to stake {selectedAmount} SOUL?" +
-                                        $"\nYou will be able to claim {MoneyFormat(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
+                                        $"\nYou will be able to claim {WalletAmountFormatter.Format(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
                                         $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
 
                                     if (kcalClaimable > 0)
                                     {
-                                        message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                                        message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
                                     }
 
                                     StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
@@ -2611,7 +2591,7 @@ namespace Poltergeist
                             tertiaryEnabled = (Timestamp.Now - state.stakeTime) >= 86400;
                             tertiaryCallback = () =>
                             {
-                                RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
+                                modalActions.RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
                                     (amount) =>
                                     {
                                         var message = $"Do you want to unstake {amount} SOUL?";
@@ -2624,7 +2604,7 @@ namespace Poltergeist
                                         }
                                         if (kcalClaimable > 0)
                                         {
-                                            message += $"\n\nAll unclaimed KCAL will be claimed: {MoneyFormat(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                                            message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
                                         }
 
                                         if (amount > balance.Staked - 2 && accountManager.CurrentState.name != ValidationUtils.ANONYMOUS_NAME)
@@ -2871,7 +2851,7 @@ namespace Poltergeist
                 }
                 else if (mainAction == "Burn")
                 {
-                    RequireAmount($"Burn {balance.Symbol} tokens", null, balance.Symbol, 0.1m, balance.Available, (amountToBurn) =>
+                    modalActions.RequireAmount($"Burn {balance.Symbol} tokens", null, balance.Symbol, 0.1m, balance.Available, (amountToBurn) =>
                     {
                         modalActions.ConfirmCancel($"Are you sure you want to burn {amountToBurn} {balance.Symbol} tokens?", (result) =>
                         {
@@ -4102,7 +4082,7 @@ namespace Poltergeist
             }
 
             var balance = state.GetAvailableAmount(symbol);
-            RequireAmount(transferName, destAddress, symbol, 0.001m, balance, (amount) =>
+            modalActions.RequireAmount(transferName, destAddress, symbol, 0.001m, balance, (amount) =>
             {
                 RequestKCAL(symbol, (feeResult) =>
                 {
@@ -4120,7 +4100,7 @@ namespace Poltergeist
 
                         SendTransactionDraft(plan, (hash, txResult, error) =>
                         {
-                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                         });
                     }
                     else
@@ -4169,7 +4149,7 @@ namespace Poltergeist
                     {
                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                         {
-                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(selectedIds.Count, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(selectedIds.Count, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
                             // Removing sent NFTs from current NFT list.
                             var nfts = accountManager.CurrentNfts;
@@ -4195,36 +4175,6 @@ namespace Poltergeist
                     MessageBox(MessageKind.Error, $"KCAL is required to make transactions!");
                 }
             });
-        }
-
-        private void RequireAmount(string description, string destination, string symbol, decimal min, decimal max, Action<decimal> callback)
-        {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-            var caption = $"Enter {symbol} amount:\nMax: {MoneyFormat(max, MoneyFormatType.Long)} {symbol}";
-            if (!string.IsNullOrEmpty(destination))
-            {
-                caption += $"\nDestination: {destination}";
-            }
-
-            ShowModal(description, caption, ModalState.Input, 1, 64, modalActions.ConfirmCancelOptions, 1, (result, temp) =>
-            {
-                if (result == PromptResult.Failure)
-                {
-                    return; // user cancelled
-                }
-
-                var validation = amountValidator.ParseAndValidate(temp, symbol, min, max);
-                if (!validation.Success)
-                {
-                    MessageBox(MessageKind.Error, validation.Error);
-                    return;
-                }
-
-                callback(validation.Amount);
-            });
-
-            modalContext.Hints = new Dictionary<string, string>() { { $"Max ({MoneyFormat(max, MoneyFormatType.Short)} {symbol})", max.ToString() } };
         }
 
         private void RequestKCAL(string forSymbol, Action<PromptResult> callback)

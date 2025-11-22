@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using Poltergeist;
 
 namespace Poltergeist.Wallet
 {
@@ -11,12 +13,14 @@ namespace Poltergeist.Wallet
         private readonly WalletModalService _service;
         private readonly Func<bool> _isVerticalLayout;
         private readonly Action _resetUiHints;
+        private readonly WalletAmountValidator _amountValidator;
 
-        public WalletModalActions(WalletModalService service, Func<bool> isVerticalLayout, Action resetUiHints)
+        public WalletModalActions(WalletModalService service, Func<bool> isVerticalLayout, Action resetUiHints, WalletAmountValidator amountValidator)
         {
             _service = service ?? throw new ArgumentNullException(nameof(service));
             _isVerticalLayout = isVerticalLayout ?? throw new ArgumentNullException(nameof(isVerticalLayout));
             _resetUiHints = resetUiHints ?? (() => { });
+            _amountValidator = amountValidator ?? throw new ArgumentNullException(nameof(amountValidator));
         }
 
         public void YesNo(string caption, Action<PromptResult> callback, int confirmDelay = 0)
@@ -55,6 +59,37 @@ namespace Poltergeist.Wallet
             {
                 GUIUtility.systemCopyBuffer = valueToCopy;
             }, closeOnCopy);
+        }
+
+        public void RequireAmount(string description, string destination, string symbol, decimal min, decimal max, Action<decimal> callback)
+        {
+            var caption = $"Enter {symbol} amount:\nMax: {WalletAmountFormatter.Format(max, MoneyFormatType.Long)} {symbol}";
+            if (!string.IsNullOrEmpty(destination))
+            {
+                caption += $"\nDestination: {destination}";
+            }
+
+            _service.ShowModal(description, caption, ModalState.Input, 1, 64, ConfirmCancelOptions, 1, (result, input) =>
+            {
+                if (result == PromptResult.Failure)
+                {
+                    return;
+                }
+
+                var validation = _amountValidator.ParseAndValidate(input, symbol, min, max);
+                if (!validation.Success)
+                {
+                    _service.MessageBox(MessageKind.Error, validation.Error, null, _isVerticalLayout(), _resetUiHints);
+                    return;
+                }
+
+                callback?.Invoke(validation.Amount);
+            }, _isVerticalLayout(), _resetUiHints);
+
+            _service.Context.Hints = new Dictionary<string, string>
+            {
+                { $"Max ({WalletAmountFormatter.Format(max, MoneyFormatType.Short)} {symbol})", max.ToString() }
+            };
         }
     }
 }

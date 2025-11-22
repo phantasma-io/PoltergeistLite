@@ -119,11 +119,4 @@ namespace Poltergeist
         Last_Week,
         Last_Month
     }
-
-    public enum MoneyFormatType
-    {
-        Short,
-        Standard,
-        Long
-    }
 }

@@ -18,6 +18,7 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.NFT;
 using PhantasmaPhoenix.NFT.Extensions;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
+using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
@@ -134,7 +135,7 @@ namespace Poltergeist
             {
                 var price = _tokenPrices[symbol] * amount;
                 var ch = _currencyMap[CurrentTokenCurrency];
-                return $"{WalletGUI.MoneyFormat(price, MoneyFormatType.Short)} {ch}";
+                return $"{WalletAmountFormatter.Format(price, MoneyFormatType.Short)} {ch}";
             }
             else
             {
