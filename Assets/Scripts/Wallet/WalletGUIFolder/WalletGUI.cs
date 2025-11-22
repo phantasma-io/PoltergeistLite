@@ -427,7 +427,7 @@ namespace Poltergeist
 
                 case GUIState.Balances:
                     currentTitle = "Balances for " + accountManager.CurrentAccount.name;
-                    balanceScroll = Vector2.zero;
+                    balancePresenter.State.Scroll = Vector2.zero;
                     MarkBalancesDirty();
 
                     // We do this only when account was just opened.
@@ -454,6 +454,7 @@ namespace Poltergeist
 
                 case GUIState.History:
                     currentTitle = "History for " + accountManager.CurrentAccount.name;
+                    historyPresenter.State.Scroll = Vector2.zero;
                     MarkHistoryDirty();
 
                     // We do this only when account was just opened.
@@ -725,8 +726,10 @@ namespace Poltergeist
                             hintComboBox.ListScroll.y += touch.deltaPosition.y;
                         else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             accountScroll.y += touch.deltaPosition.y;
-                        else if ((CurrentState == GUIState.Balances || CurrentState == GUIState.History) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            balanceScroll.y += touch.deltaPosition.y;
+                        else if (CurrentState == GUIState.Balances && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            balancePresenter.State.Scroll.y += touch.deltaPosition.y;
+                        else if (CurrentState == GUIState.History && !(modalContext.State != ModalState.None && !modalContext.Redirected))
+                            historyPresenter.State.Scroll.y += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.NftView && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             nftScroll.y += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
@@ -1466,7 +1469,6 @@ namespace Poltergeist
         private string[] walletsManagementOptions = new string[] { "Export", "Import", "Delete", "Cancel", "Save and Close" };
 
         private Vector2 accountScroll;
-        private Vector2 balanceScroll;
         private Vector2 nftScroll;
         private Vector2 nftTransferListScroll;
         private Vector2 settingsScroll;
@@ -2467,7 +2469,7 @@ namespace Poltergeist
                 return;
             }
 
-            var balanceCount = DoScrollArea<WalletBalanceEntry>(ref balanceScroll, startY, endY, VerticalLayout ? Units(7) : Units(6), balancesModel.Balances.Where(x => x.Total >= 0.001m),
+            var balanceCount = DoScrollArea<WalletBalanceEntry>(ref balancePresenter.State.Scroll, startY, endY, VerticalLayout ? Units(7) : Units(6), balancesModel.Balances.Where(x => x.Total >= 0.001m),
                 DoBalanceEntry);
 
             if (balanceCount == 0)
@@ -3342,12 +3344,12 @@ namespace Poltergeist
 
             int curY = Units(12);
 
-            var historyCount = DoScrollArea<WalletHistoryItem>(ref balanceScroll, startY, endY, VerticalLayout ? Units(4) : Units(3), history,
+            var historyCount = DoScrollArea<WalletHistoryItem>(ref historyPresenter.State.Scroll, startY, endY, VerticalLayout ? Units(4) : Units(3), history,
                 DoHistoryEntry);
 
             if (historyCount == 0)
             {
-                DrawCenteredText($"No transactions found for this {accountManager.CurrentPlatform} account.");
+                    DrawCenteredText($"No transactions found for this {accountManager.CurrentPlatform} account.");
             }
         }
 
