@@ -23,28 +23,28 @@ namespace Poltergeist.Wallet
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
-        public WalletTransferPlanResult BuildFungibleTransferPlan(string symbol, decimal requestedAmount, string destinationText)
+        public WalletTransactionDraftResult BuildFungibleTransferPlan(string symbol, decimal requestedAmount, string destinationText)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                return WalletTransferPlanResult.Fail("Account manager is not available yet.");
+                return WalletTransactionDraftResult.Fail("Account manager is not available yet.");
             }
 
             var state = accountManager.CurrentState;
             if (state == null)
             {
-                return WalletTransferPlanResult.Fail("Account state is unavailable.");
+                return WalletTransactionDraftResult.Fail("Account state is unavailable.");
             }
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                return WalletTransferPlanResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
+                return WalletTransactionDraftResult.Fail($"Current platform must be {PlatformKind.Phantasma}");
             }
 
             if (requestedAmount <= 0)
             {
-                return WalletTransferPlanResult.Fail("Amount must be greater than zero.");
+                return WalletTransactionDraftResult.Fail("Amount must be greater than zero.");
             }
 
             Address source;
@@ -55,7 +55,7 @@ namespace Poltergeist.Wallet
             }
             catch
             {
-                return WalletTransferPlanResult.Fail("Invalid source address.");
+                return WalletTransactionDraftResult.Fail("Invalid source address.");
             }
 
             try
@@ -64,12 +64,12 @@ namespace Poltergeist.Wallet
             }
             catch
             {
-                return WalletTransferPlanResult.Fail("Invalid destination address.");
+                return WalletTransactionDraftResult.Fail("Invalid destination address.");
             }
 
             if (source == destination)
             {
-                return WalletTransferPlanResult.Fail("Source and destination address must be different.");
+                return WalletTransactionDraftResult.Fail("Source and destination address must be different.");
             }
 
             var balance = state.GetAvailableAmount(symbol);
@@ -82,13 +82,13 @@ namespace Poltergeist.Wallet
 
             if (amount <= 0)
             {
-                return WalletTransferPlanResult.Fail($"Not enough {symbol}.");
+                return WalletTransactionDraftResult.Fail($"Not enough {symbol}.");
             }
 
             var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
             if (!ValidateDecimals(amount, decimals))
             {
-                return WalletTransferPlanResult.Fail($"Invalid {symbol} amount.");
+                return WalletTransactionDraftResult.Fail($"Invalid {symbol} amount.");
             }
 
             BigInteger bigIntAmount;
@@ -98,7 +98,7 @@ namespace Poltergeist.Wallet
             }
             catch (Exception e)
             {
-                return WalletTransferPlanResult.Fail($"Failed to convert amount: {e.Message}");
+                return WalletTransactionDraftResult.Fail($"Failed to convert amount: {e.Message}");
             }
 
             var chain = DomainSettings.RootChainName;
@@ -110,7 +110,7 @@ namespace Poltergeist.Wallet
                 if (bigIntAmount < 0 || bigIntAmount > ulong.MaxValue)
                 {
                     Log.WriteWarning($"Scriptless transfer blocked for {symbol}: amount {bigIntAmount} exceeds UInt64 range.");
-                    return WalletTransferPlanResult.Fail("Scriptless transactions currently can't transfer this amount. Please switch to Standard transactions in Settings and try again.");
+                    return WalletTransactionDraftResult.Fail("Scriptless transactions currently can't transfer this amount. Please switch to Standard transactions in Settings and try again.");
                 }
 
                 try
@@ -134,12 +134,12 @@ namespace Poltergeist.Wallet
                     };
 
                     var description = BuildDescription(symbol, amount, destination);
-                    var plan = WalletTransferPlan.ForCarbon(description, tx, chain, gasPrice, gasLimit);
-                    return WalletTransferPlanResult.CreateSuccess(plan, amount);
+                    var plan = WalletTransactionDraft.ForCarbon(description, tx, chain, gasPrice, gasLimit);
+                    return WalletTransactionDraftResult.CreateSuccess(plan, amount);
                 }
                 catch (Exception e)
                 {
-                    return WalletTransferPlanResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
+                    return WalletTransactionDraftResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
                 }
             }
             else
@@ -162,12 +162,12 @@ namespace Poltergeist.Wallet
                     var script = sb.EndScript();
 
                     var description = BuildDescription(symbol, amount, destination);
-                    var plan = WalletTransferPlan.ForScript(description, script, chain, gasPrice, gasLimit, ProofOfWork.None);
-                    return WalletTransferPlanResult.CreateSuccess(plan, amount);
+                    var plan = WalletTransactionDraft.ForSingleScript(description, script, chain, gasPrice, gasLimit, ProofOfWork.None);
+                    return WalletTransactionDraftResult.CreateSuccess(plan, amount);
                 }
                 catch (Exception e)
                 {
-                    return WalletTransferPlanResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
+                    return WalletTransactionDraftResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
                 }
             }
         }
@@ -192,66 +192,6 @@ namespace Poltergeist.Wallet
         {
             amount -= amount % 0.000000000001M;
             return amount.ToString("#,0.############");
-        }
-    }
-
-    public sealed class WalletTransferPlanResult
-    {
-        private WalletTransferPlanResult(bool success, WalletTransferPlan plan, string error, decimal amount)
-        {
-            Success = success;
-            Plan = plan;
-            Error = error ?? string.Empty;
-            Amount = amount;
-        }
-
-        public bool Success { get; }
-        public WalletTransferPlan Plan { get; }
-        public string Error { get; }
-        public decimal Amount { get; }
-
-        public static WalletTransferPlanResult CreateSuccess(WalletTransferPlan plan, decimal amount)
-        {
-            return new WalletTransferPlanResult(true, plan, null, amount);
-        }
-
-        public static WalletTransferPlanResult Fail(string error)
-        {
-            return new WalletTransferPlanResult(false, null, error, 0);
-        }
-    }
-
-    public sealed class WalletTransferPlan
-    {
-        private WalletTransferPlan(string description, string chain, BigInteger gasPrice, BigInteger gasLimit, ProofOfWork pow, byte[] script, TxMsg? carbonTx, bool isCarbon)
-        {
-            Description = description ?? string.Empty;
-            Chain = chain ?? string.Empty;
-            GasPrice = gasPrice;
-            GasLimit = gasLimit;
-            PoW = pow;
-            Script = script;
-            CarbonTx = carbonTx;
-            IsCarbonTransaction = isCarbon;
-        }
-
-        public string Description { get; }
-        public string Chain { get; }
-        public BigInteger GasPrice { get; }
-        public BigInteger GasLimit { get; }
-        public ProofOfWork PoW { get; }
-        public byte[] Script { get; }
-        public TxMsg? CarbonTx { get; }
-        public bool IsCarbonTransaction { get; }
-
-        public static WalletTransferPlan ForScript(string description, byte[] script, string chain, BigInteger gasPrice, BigInteger gasLimit, ProofOfWork pow)
-        {
-            return new WalletTransferPlan(description, chain, gasPrice, gasLimit, pow, script, null, false);
-        }
-
-        public static WalletTransferPlan ForCarbon(string description, TxMsg tx, string chain, BigInteger gasPrice, BigInteger gasLimit)
-        {
-            return new WalletTransferPlan(description, chain, gasPrice, gasLimit, ProofOfWork.None, null, tx, true);
         }
     }
 }

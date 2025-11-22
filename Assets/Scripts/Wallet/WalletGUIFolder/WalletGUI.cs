@@ -71,6 +71,10 @@ namespace Poltergeist
         private NftTransferListRenderer nftTransferRenderer;
         private WalletFeeService feeService;
         private WalletTransferService transferService;
+        private WalletStakeService stakeService;
+        private WalletBurnService burnService;
+        private WalletNftTransferService nftTransferService;
+        private WalletAccountAdminService accountAdminService;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletUiSignals uiSignals;
@@ -261,6 +265,10 @@ namespace Poltergeist
             nftTransferRenderer = new NftTransferListRenderer(this);
             feeService = context.FeeService;
             transferService = context.TransferService;
+            stakeService = context.StakeService;
+            burnService = context.BurnService;
+            nftTransferService = context.NftTransferService;
+            accountAdminService = context.AccountAdminService;
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
             uiSignals = context.UiSignals;
@@ -2628,14 +2636,8 @@ namespace Poltergeist
                                                     {
                                                         var address = Address.Parse(state.address);
 
-                                                        var sb = new ScriptBuilder();
-
-                                                        sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                        sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, balance.Decimals));
-                                                        sb.SpendGas(address);
-                                                        var script = sb.EndScript();
-
-                                                        SendTransaction($"Unstake {amount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                                        var planResult = stakeService.BuildUnstakePlan(amount);
+                                                        SendTransactionPlan(planResult, (hash, txResult, error) =>
                                                         {
                                                             TxResultMessage(hash, txResult, error, "Your SOUL tokens were unstaked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                                         });
@@ -2665,25 +2667,9 @@ namespace Poltergeist
                                     {
                                         if (feeResult == PromptResult.Success)
                                         {
-                                            var address = Address.Parse(state.address);
+                                            var planResult = stakeService.BuildClaimKcalPlan(balance.Claimable);
 
-                                            var sb = new ScriptBuilder();
-
-                                            if (balance.Available > 0)
-                                            {
-                                                sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                sb.CallContract("stake", "Claim", address, address);
-                                            }
-                                            else
-                                            {
-                                                sb.CallContract("stake", "Claim", address, address);
-                                                sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                            }
-
-                                            sb.SpendGas(address);
-                                            var script = sb.EndScript();
-
-                                            SendTransaction($"Claim {balance.Claimable} KCAL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                            SendTransactionPlan(planResult, (hash, txResult, error) =>
                                             {
                                                 TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                             });
@@ -2871,25 +2857,8 @@ namespace Poltergeist
                 }
                 else if (mainAction == "SM reward")
                 {
-                    byte[] script;
-                    try
-                    {
-                        var address = Address.Parse(state.address);
-
-                        var sb = new ScriptBuilder();
-
-                        sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                        sb.CallContract("stake", "MasterClaim", address);
-                        sb.SpendGas(address);
-                        script = sb.EndScript();
-                    }
-                    catch (Exception e)
-                    {
-                        MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                        return;
-                    }
-
-                    SendTransaction($"Claim SM reward", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                    var planResult = stakeService.BuildClaimSmRewardPlan();
+                    SendTransactionPlan(planResult, (hash, txResult, error) =>
                     {
                         TxResultMessage(hash, txResult, error, "You claimed SM reward!");
                     });
@@ -2902,24 +2871,8 @@ namespace Poltergeist
                         {
                             if (result == PromptResult.Success)
                             {
-                                byte[] script;
-                                try
-                                {
-                                    var target = Address.Parse(state.address);
-
-                                    var sb = new ScriptBuilder();
-                                    sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                    sb.CallInterop("Runtime.BurnTokens", target, balance.Symbol, UnitConversion.ToBigInteger(amountToBurn, balance.Decimals));
-                                    sb.SpendGas(target);
-                                    script = sb.EndScript();
-                                }
-                                catch (Exception e)
-                                {
-                                    MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                                    return;
-                                }
-
-                                SendTransaction($"Burn {amountToBurn} {balance.Symbol} tokens", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                var planResult = burnService.BuildFungibleBurnPlan(balance.Symbol, amountToBurn);
+                                SendTransactionPlan(planResult, (hash, txResult, error) =>
                                 {
                                     TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
                                 });
@@ -3499,14 +3452,9 @@ namespace Poltergeist
                                             {
                                                 var address = Address.Parse(accountManager.CurrentState.address);
 
-                                                var sb = new ScriptBuilder();
+                                                var planResult = accountAdminService.BuildMigratePlan(newKeys.Address);
 
-                                                sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                sb.CallContract("account", "Migrate", address, newKeys.Address);
-                                                sb.SpendGas(address);
-                                                var script = sb.EndScript();
-
-                                                SendTransaction("Migrate account", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                                SendTransactionPlan(planResult, (hash, txResult, error) =>
                                                 {
                                                     if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                     {
@@ -3553,25 +3501,9 @@ namespace Poltergeist
                                             {
                                                 if (kcalResult == PromptResult.Success)
                                                 {
-                                                    byte[] script;
+                                                    var planResult = accountAdminService.BuildRegisterNamePlan(name, accountManager.CurrentState.address);
 
-                                                    try
-                                                    {
-                                                        var source = Address.Parse(accountManager.CurrentState.address);
-
-                                                        var sb = new ScriptBuilder();
-                                                        sb.AllowGas(source, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                                        sb.CallContract("account", "RegisterName", source, name);
-                                                        sb.SpendGas(source);
-                                                        script = sb.EndScript();
-                                                    }
-                                                    catch (Exception e)
-                                                    {
-                                                        MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                                                        return;
-                                                    }
-
-                                                    SendTransaction($"Register address name\nName: {name}\nAddress: {accountManager.CurrentState.address}?", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                                                    SendTransactionPlan(planResult, (hash, txResult, error) =>
                                                     {
                                                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                         {
@@ -3811,9 +3743,6 @@ namespace Poltergeist
 
         private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, TransactionResult, string> callback)
         {
-            var accountManager = AccountManager.Instance;
-            var state = accountManager.CurrentState;
-
             modalActions.YesNo(msg, (result) =>
             {
                 if (result == PromptResult.Success)
@@ -3822,25 +3751,8 @@ namespace Poltergeist
                     {
                         if (kcal == PromptResult.Success)
                         {
-                            // Ensure selected amount is still available after fee checks
-                            // If not - reduce to balance
-                            // We should update balance object first
-                            var balance = AccountManager.Instance.CurrentState.balances.Where(x => x.Symbol == "SOUL").FirstOrDefault();
-
-                            if (selectedAmount > balance.Available)
-                                selectedAmount = balance.Available;
-
-                            var address = Address.Parse(state.address);
-
-                            var sb = new ScriptBuilder();
-
-                            sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                            sb.CallContract("stake", "Stake", address, UnitConversion.ToBigInteger(selectedAmount, balance.Decimals));
-                            sb.SpendGas(address);
-
-                            var script = sb.EndScript();
-
-                            SendTransaction($"Stake {selectedAmount} SOUL", script, null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                            var planResult = stakeService.BuildStakePlan(selectedAmount);
+                            SendTransactionPlan(planResult, (hash, txResult, error) =>
                             {
                                 callback(hash, txResult, error);
                             });
@@ -4022,25 +3934,8 @@ namespace Poltergeist
                 {
                     if (result == PromptResult.Success)
                     {
-                        var accountManager = AccountManager.Instance;
-                        var state = accountManager.CurrentState;
-
-                        var gasPrice = accountManager.Settings.feePrice;
-                        var gasLimit = accountManager.Settings.feeLimit;
-
-                        byte[] script;
-                        try
-                        {
-                            var target = Address.Parse(state.address);
-                            script = nftTxBuilder.BuildBurnScript(transferSymbol, selectedIds, target);
-                        }
-                        catch (Exception e)
-                        {
-                            MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                            return;
-                        }
-
-                        SendTransaction($"Burn {selectedIds.Count} {transferSymbol} NFTs", script, null, gasPrice, gasLimit * selectedIds.Count, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                        var planResult = burnService.BuildNftBurnPlan(transferSymbol, selectedIds);
+                        SendTransactionPlan(planResult, (hash, txResult, error) =>
                         {
                             TxResultMessage(hash, txResult, error, $"You burned {selectedIds.Count} NFTs!");
                         });
@@ -4137,6 +4032,60 @@ namespace Poltergeist
         }
 
         private Action<Hash, TransactionResult, string> transactionCallback;
+
+        private void SendTransactionPlan(WalletTransactionDraftResult draftResult, Action<Hash, TransactionResult, string> callback)
+        {
+            if (draftResult == null || !draftResult.Success || draftResult.Draft == null)
+            {
+                var errorMessage = draftResult?.Error ?? "Invalid transaction draft.";
+                MessageBox(MessageKind.Error, errorMessage);
+                callback?.Invoke(Hash.Null, null, errorMessage);
+                return;
+            }
+
+            SendTransactionPlan(draftResult.Draft, callback);
+        }
+
+        private void SendTransactionPlan(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback)
+        {
+            if (draft == null)
+            {
+                var errorMessage = "Invalid transaction draft.";
+                MessageBox(MessageKind.Error, errorMessage);
+                callback?.Invoke(Hash.Null, null, errorMessage);
+                return;
+            }
+
+            if (draft.IsCarbonTransaction && draft.CarbonTx.HasValue)
+            {
+                SendCarbonTransaction(draft.Description, draft.CarbonTx.Value, callback);
+                return;
+            }
+
+            if (draft.Scripts != null && draft.Scripts.Count > 0)
+            {
+                if (draft.Scripts.Count == 1)
+                {
+                    SendTransaction(draft.Description, draft.Scripts[0], draft.TransferRequest, draft.GasPrice, draft.GasLimit, draft.Payload, draft.Chain, draft.PoW, callback);
+                }
+                else
+                {
+                    SendPhaTransactions(draft.Description, draft.Scripts.ToList(), draft.GasPrice, draft.GasLimit, draft.Payload, draft.Chain, draft.PoW, callback);
+                }
+
+                return;
+            }
+
+            if (draft.Script != null)
+            {
+                SendTransaction(draft.Description, draft.Script, draft.TransferRequest, draft.GasPrice, draft.GasLimit, draft.Payload, draft.Chain, draft.PoW, callback);
+                return;
+            }
+
+            var message = "Transaction draft does not contain any scripts.";
+            MessageBox(MessageKind.Error, message);
+            callback?.Invoke(Hash.Null, null, message);
+        }
 
         private void InvokeTransactionCallback(Hash hash, TransactionResult txResult, string error)
         {
@@ -4442,23 +4391,13 @@ namespace Poltergeist
                             return;
                         }
 
-                        var plan = planResult.Plan;
+                        var plan = planResult.Draft;
                         var amountSent = planResult.Amount;
 
-                        if (plan.IsCarbonTransaction && plan.CarbonTx.HasValue)
+                        SendTransactionPlan(plan, (hash, txResult, error) =>
                         {
-                            SendCarbonTransaction(plan.Description, plan.CarbonTx.Value, (hash, txResult, error) =>
-                            {
-                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                            });
-                        }
-                        else if (plan.Script != null)
-                        {
-                            SendTransaction(plan.Description, plan.Script, null, plan.GasPrice, plan.GasLimit, null, plan.Chain, plan.PoW, (hash, txResult, error) =>
-                            {
-                                TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                            });
-                        }
+                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                        });
                     }
                     else
                     if (feeResult == PromptResult.Failure)
@@ -4496,33 +4435,17 @@ namespace Poltergeist
                 return;
             }
 
-            var balance = state.GetAvailableAmount(symbol);
-            var amount = selectedIds.Count;
             RequestKCAL(symbol, (feeResult) =>
             {
                 if (feeResult == PromptResult.Success)
                 {
-                    var scripts = new List<byte[]>();
-                    string description;
+                    var planResult = nftTransferService.BuildTransferPlan(symbol, destAddress, selectedIds);
 
-                    var gasPrice = accountManager.Settings.feePrice;
-                    var gasLimit = accountManager.Settings.feeLimit * selectedIds.Count;
-
-                    try
-                    {
-                        scripts = nftTxBuilder.BuildTransferScripts(symbol, source, destination, selectedIds, out description).ToList();
-                    }
-                    catch (Exception e)
-                    {
-                        MessageBox(MessageKind.Error, "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
-                        return;
-                    }
-
-                    SendPhaTransactions(description, scripts, gasPrice, gasLimit, null, DomainSettings.RootChainName, ProofOfWork.None, (hash, txResult, error) =>
+                    SendTransactionPlan(planResult, (hash, txResult, error) =>
                     {
                         if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                         {
-                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                            TxResultMessage(hash, txResult, error, $"You transferred {MoneyFormat(selectedIds.Count, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
                             // Removing sent NFTs from current NFT list.
                             var nfts = accountManager.CurrentNfts;

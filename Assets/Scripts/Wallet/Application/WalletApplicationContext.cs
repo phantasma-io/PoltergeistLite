@@ -36,6 +36,10 @@ namespace Poltergeist.Wallet
             HistoryPresenter = new WalletHistoryPresenter(HistoryViewBuilder, HistoryViewState, Data, () => AccountManager.Instance);
             FeeService = new WalletFeeService(() => AccountManager.Instance);
             TransferService = new WalletTransferService(() => AccountManager.Instance);
+            StakeService = new WalletStakeService(() => AccountManager.Instance);
+            BurnService = new WalletBurnService(() => AccountManager.Instance, NftTransactions);
+            NftTransferService = new WalletNftTransferService(() => AccountManager.Instance, NftTransactions);
+            AccountAdminService = new WalletAccountAdminService(() => AccountManager.Instance);
         }
 
         public WalletNavigation Navigation { get; }
@@ -73,5 +77,13 @@ namespace Poltergeist.Wallet
         public WalletFeeService FeeService { get; }
 
         public WalletTransferService TransferService { get; }
+
+        public WalletStakeService StakeService { get; }
+
+        public WalletBurnService BurnService { get; }
+
+        public WalletNftTransferService NftTransferService { get; }
+
+        public WalletAccountAdminService AccountAdminService { get; }
     }
 }
