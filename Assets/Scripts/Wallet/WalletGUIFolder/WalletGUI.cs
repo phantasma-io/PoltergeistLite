@@ -67,6 +67,8 @@ namespace Poltergeist
         private WalletHistoryPresenter historyPresenter;
         private BalanceViewRenderer balanceRenderer;
         private HistoryViewRenderer historyRenderer;
+        private NftListRenderer nftRenderer;
+        private NftTransferListRenderer nftTransferRenderer;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
         private WalletUiSignals uiSignals;
@@ -253,6 +255,8 @@ namespace Poltergeist
             historyPresenter = context.HistoryPresenter;
             balanceRenderer = new BalanceViewRenderer(this);
             historyRenderer = new HistoryViewRenderer(this);
+            nftRenderer = new NftListRenderer(this);
+            nftTransferRenderer = new NftTransferListRenderer(this);
             nftViewPresenter = context.NftViewPresenter;
             nftTxBuilder = context.NftTransactions;
             uiSignals = context.UiSignals;
@@ -2924,52 +2928,7 @@ namespace Poltergeist
 
         private void DoNftScreen()
         {
-            var accountManager = AccountManager.Instance;
-
-            var viewState = nftViewPresenter.State;
-            var nftSnapshot = GetNftViewSnapshot(transferSymbol);
-            var nfts = accountManager.CurrentNfts;
-            if (nftSnapshot.IsRefreshing)
-            {
-                var count = nfts?.Count ?? nftSnapshot.TotalCount;
-                DrawCenteredText(count > 0 ? $"Loading NFTs ({count})..." : "Loading NFTs...");
-                return;
-            }
-
-            if (nfts == null || nftSnapshot.HasError)
-            {
-                DrawCenteredText(nftSnapshot.HasError ? nftSnapshot.ErrorMessage : "Loading...");
-                return;
-            }
-
-            var startY = Units(VerticalLayout ? 11 : 7);
-            var nftToolsY = startY;
-            startY += (VerticalLayout) ? Units(6) : Units(4);
-
-            nftFilteredList = nftSnapshot.FilteredTokens.ToList();
-            nftViewPresenter.PruneSelection(nfts.Select(x => x.Id));
-            viewState.ApplyPagination(nftSnapshot.TotalCount, nftSnapshot.PageCount, nftSnapshot.PageNumber);
-
-            var endY = DoBottomMenuForNft();
-
-            var nftOnPageCount = DoScrollArea<string>(ref nftScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), nftSnapshot.PageIds,
-                DoNftEntry);
-
-            if (nftOnPageCount == 0)
-            {
-                DrawCenteredText($"No {transferSymbol} NFTs found for this {accountManager.CurrentPlatform} account.");
-            }
-
-            DrawNftTools(nftToolsY);
-
-            DrawPlatformTopMenu(() =>
-            {
-                accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
-                nftViewPresenter.Refresh(transferSymbol, false);
-                nftViewPresenter.ResetSorting();
-                MarkBalancesDirty();
-                MarkNftDirty(transferSymbol);
-            }, false);
+            nftRenderer.Render(GetNftViewSnapshot(transferSymbol));
         }
 
         // Used for both NFT list and transfer NFT list.
@@ -3271,27 +3230,7 @@ namespace Poltergeist
 
         private void DoNftTransferListScreen()
         {
-            var accountManager = AccountManager.Instance;
-
-            var startY = DrawPlatformTopMenu(() =>
-            {
-            }, false);
-            var endY = DoBottomMenuForNftTransferList();
-
-            var selectionSnapshot = nftViewPresenter.SelectionSnapshot();
-            var selectionSet = new HashSet<string>(selectionSnapshot);
-            var orderedSelection = accountManager.CurrentNfts == null
-                ? selectionSnapshot.ToList()
-                : accountManager.CurrentNfts.Where(x => selectionSet.Contains(x.Id)).Select(x => x.Id).ToList();
-            nftViewPresenter.PruneSelection(orderedSelection);
-
-            var nftTransferCount = DoScrollArea<string>(ref nftTransferListScroll, startY, endY, VerticalLayout ? Units(5) : Units(4), orderedSelection,
-                DoNftEntry);
-
-            if (nftTransferCount == 0)
-            {
-                DrawCenteredText($"No NFTs selected for transfer.");
-            }
+            nftTransferRenderer.Render();
         }
 
         private void DoHistoryScreen()
