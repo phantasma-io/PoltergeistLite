@@ -1,9 +1,12 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.Networking;
-using System.Collections;
 using System.Linq;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using System.Threading;
+using System.Threading.Tasks;
+using Poltergeist.Wallet;
 
 // Storing NFT images.
 public static class NftImages
@@ -117,18 +120,18 @@ public static class NftImages
         return true;
     }
 
-    public static IEnumerator DownloadImage(string symbol, string url, string nftId)
+    public static async Task DownloadImageAsync(string symbol, string url, string nftId, CancellationToken cancellationToken = default)
     {
         // Log.Write("NFT image loading: URL: " + url);
         if (string.IsNullOrEmpty(url))
         {
-            yield break;
+            return;
         }
 
         // Trying to avoid downloading same image multiple times.
         if (CheckIfImageLoaded(url))
         {
-            yield break;
+            return;
         }
 
         var texture = Cache.GetTexture($"{symbol.ToLower()}-image-{nftId}", 0);
@@ -145,17 +148,17 @@ public static class NftImages
                 if (!CheckIfImageLoaded(image.Url))
                     Images.Add(image.Url, image);
             }
-            yield break;
+            return;
         }
 
         while (imagesLoadedSimultaneously > 5)
         {
-            yield return null;
+            await Task.Yield();
 
             // Trying to avoid downloading same image multiple times.
             if (CheckIfImageLoaded(url))
             {
-                yield break;
+                return;
             }
         }
 
@@ -183,7 +186,7 @@ public static class NftImages
             if (string.IsNullOrEmpty(normalizedUrl))
             {
                 Log.WriteWarning($"NFT image loading: Invalid URL '{fullUrl}'. Skipping download.");
-                yield break;
+                return;
             }
 
             Log.Write("NFT image loading: Full URL: " + normalizedUrl);
@@ -196,10 +199,10 @@ public static class NftImages
             catch (Exception e) when (e is UriFormatException || e is ArgumentException)
             {
                 Log.WriteWarning($"NFT image loading: Failed to build request for '{normalizedUrl}': {e.Message}");
-                yield break;
+                return;
             }
             // Log.Write("NFT image loading: Sending request...");
-            yield return request.SendWebRequest();
+            await SendRequestAsync(request, cancellationToken);
             // var downloadedBytes = request.downloadHandler?.data?.Length ?? 0;
             // Log.Write($"NFT image loading: Request finished. result={request.result}, status={request.responseCode}, bytes={downloadedBytes}, error={request.error}");
             if (request.result == UnityWebRequest.Result.ConnectionError || request.result == UnityWebRequest.Result.ProtocolError || request.result == UnityWebRequest.Result.DataProcessingError)
@@ -252,6 +255,36 @@ public static class NftImages
         {
             imagesLoadedSimultaneously--;
         }
+    }
+
+    private static Task SendRequestAsync(UnityWebRequest request, CancellationToken cancellationToken)
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationToken.Register(() =>
+            {
+                if (tcs.Task.IsCompleted)
+                {
+                    return;
+                }
+
+                request.Abort();
+                tcs.TrySetCanceled(cancellationToken);
+            });
+        }
+
+        var asyncOp = request.SendWebRequest();
+        asyncOp.completed += _ => UnityTaskRunner.PostToMainThread(() =>
+        {
+            if (!tcs.Task.IsCompleted)
+            {
+                tcs.TrySetResult(true);
+            }
+        });
+
+        return tcs.Task;
     }
 
     private static string NormalizeImageUrl(string url)

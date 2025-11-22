@@ -1,11 +1,9 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 using System;
 using System.IO;
 using System.Linq;
-using System.Numerics;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
@@ -19,6 +17,8 @@ using PhantasmaPhoenix.NFT;
 using PhantasmaPhoenix.NFT.Extensions;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using Poltergeist.Wallet;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Poltergeist
 {
@@ -143,42 +143,36 @@ namespace Poltergeist
             }
         }
 
-        private IEnumerator FetchTokenPrices(IEnumerable<TokenResult> tokens, string currency)
+        private async Task FetchTokenPricesAsync(IEnumerable<TokenResult> tokens, string currency, CancellationToken cancellationToken)
         {
             var separator = "%2C";
             var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, tokens.Where(x => Tokens.HasCGSymbol(x)).Select(x => Tokens.GetCGSymbol(x)).Distinct().ToList()) + "&vs_currencies=" + currency;
-            return WebClient.RESTGet<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, (error, msg) =>
+            try
             {
-
-            },
-            (response) =>
-            {
-                try
+                var response = await WebClientAsync.GetAsync<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, cancellationToken);
+                foreach (var token in tokens)
                 {
-                    foreach (var token in tokens)
+                    var cgSymbol = Tokens.GetCGSymbol(token);
+                    var node = response.Where(x => x.Key.ToUpperInvariant() == cgSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                    if (node != default)
                     {
-                        var cgSymbol = Tokens.GetCGSymbol(token);
-                        var node = response.Where(x => x.Key.ToUpperInvariant() == cgSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
-                        if (node != default)
-                        {
-                            var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
+                        var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
 
-                            SetTokenPrice(token.Symbol, price);
-                        }
-                        else
-                        {
-                            Log.Write($"Cannot get price for '{cgSymbol}'.");
-                        }
+                        SetTokenPrice(token.Symbol, price);
                     }
+                    else
+                    {
+                        Log.Write($"Cannot get price for '{cgSymbol}'.");
+                    }
+                }
 
-                    // GOATI token price is pegged to 0.1$.
-                    SetTokenPrice("GOATI", Convert.ToDecimal(0.1));
-                }
-                catch (Exception e)
-                {
-                    Log.WriteWarning(e.ToString());
-                }
-            });
+                // GOATI token price is pegged to 0.1$.
+                SetTokenPrice("GOATI", Convert.ToDecimal(0.1));
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning(e.ToString());
+            }
         }
 
         private void SetTokenPrice(string symbol, decimal price)
@@ -236,46 +230,36 @@ namespace Poltergeist
 
         public void UpdateRPCURL()
         {
-            if (Settings.nexusKind == NexusKind.Dev_Net)
+            async Task ExecuteAsync()
             {
-                rpcAvailablePhantasma = 1;
-                return;
-            }
-
-            if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net)
-            {
-                rpcAvailablePhantasma = 1;
-                return; // No need to change RPC, it is set by custom settings.
-            }
-
-            string url;
-            if(Settings.nexusKind == NexusKind.Main_Net)
-            {
-                url = $"https://peers.phantasma.info/mainnet-getpeers.json";
-            }
-            else
-            {
-                url = $"https://peers.phantasma.info/testnet-getpeers.json";
-            }
-
-            rpcBenchmarkedPhantasma = 0;
-            rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
-
-            StartCoroutine(
-                WebClient.RESTGet<JToken>(url, WebClient.DefaultTimeout, (error, msg) =>
+                if (Settings.nexusKind == NexusKind.Dev_Net)
                 {
-                    ReportGetPeersFailure = true;
-                    Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + error);
-                },
-                (response) =>
+                    rpcAvailablePhantasma = 1;
+                    return;
+                }
+
+                if (Settings.nexusKind != NexusKind.Main_Net && Settings.nexusKind != NexusKind.Test_Net)
                 {
+                    rpcAvailablePhantasma = 1;
+                    return; // No need to change RPC, it is set by custom settings.
+                }
+
+                string url = Settings.nexusKind == NexusKind.Main_Net
+                    ? "https://peers.phantasma.info/mainnet-getpeers.json"
+                    : "https://peers.phantasma.info/testnet-getpeers.json";
+
+                rpcBenchmarkedPhantasma = 0;
+                rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
+
+                try
+                {
+                    var response = await WebClientAsync.GetAsync<JToken>(url, WebClient.DefaultTimeout, CancellationToken.None);
                     if (response != null)
                     {
                         rpcNumberPhantasma = response.Count();
 
                         if (String.IsNullOrEmpty(Settings.phantasmaRPCURL))
                         {
-                            // If we have no previously used RPC, we select random one at first.
                             var index = ((int)(Time.realtimeSinceStartup * 1000)) % rpcNumberPhantasma;
                             var node = response[index];
                             var result = node.Value<string>("url") + "/rpc";
@@ -285,82 +269,75 @@ namespace Poltergeist
 
                         UpdateAPIs();
 
-                        // Benchmarking RPCs.
+                        var benchmarkTasks = new List<Task>();
                         foreach (var node in response.Children())
                         {
                             var rpcUrl = node.Value<string>("url") + "/rpc";
+                            benchmarkTasks.Add(BenchmarkRpcAsync(rpcUrl));
+                        }
 
-                            StartCoroutine(
-                                WebClient.Ping(rpcUrl, (error, msg) =>
-                                {
-                                    Log.Write("Ping error: " + error);
+                        await Task.WhenAll(benchmarkTasks);
 
-                                    rpcBenchmarkedPhantasma++;
+                        if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
+                        {
+                            TimeSpan bestTime;
+                            string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
 
-                                    lock (rpcResponseTimesPhantasma)
-                                    {
-                                        rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, true, new TimeSpan()));
-                                    }
-
-                                    if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
-                                    {
-                                        // We finished benchmarking, time to select best RPC server.
-                                        TimeSpan bestTime;
-                                        string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
-
-                                        if (String.IsNullOrEmpty(bestRpcUrl))
-                                        {
-                                            ReportAllRpcsUnavailabe = true;
-                                            Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
-                                        }
-                                        else
-                                        {
-                                            Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
-
-                                            Settings.phantasmaRPCURL = bestRpcUrl;
-                                            UpdateAPIs();
-                                            Settings.SaveOnExit();
-                                        }
-                                    }
-                                },
-                                (responseTime) =>
-                                {
-                                    rpcBenchmarkedPhantasma++;
-
-                                    rpcAvailablePhantasma++;
-
-                                    lock (rpcResponseTimesPhantasma)
-                                    {
-                                        rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, false, responseTime));
-                                    }
-
-                                    if (rpcBenchmarkedPhantasma == rpcNumberPhantasma)
-                                    {
-                                        // We finished benchmarking, time to select best RPC server.
-                                        TimeSpan bestTime;
-                                        string bestRpcUrl = GetFastestWorkingRPCURL(out bestTime);
-
-                                        if (String.IsNullOrEmpty(bestRpcUrl))
-                                        {
-                                            ReportAllRpcsUnavailabe = true;
-                                            Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
-                                        }
-                                        else
-                                        {
-                                            Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
-                                            Settings.phantasmaRPCURL = bestRpcUrl;
-                                            UpdateAPIs();
-                                            Settings.SaveOnExit();
-                                        }
-                                    }
-                                })
-                            );
+                            if (String.IsNullOrEmpty(bestRpcUrl))
+                            {
+                                ReportAllRpcsUnavailabe = true;
+                                Log.WriteWarning("All Phantasma RPC servers are unavailable. Please check your network connection.");
+                            }
+                            else
+                            {
+                                Log.Write($"Fastest Phantasma RPC is {bestRpcUrl}: {new DateTime(bestTime.Ticks).ToString("ss.fff")} sec.");
+                                Settings.phantasmaRPCURL = bestRpcUrl;
+                                UpdateAPIs();
+                                Settings.SaveOnExit();
+                            }
                         }
                     }
-                })
-            );
+                }
+                catch (Exception ex)
+                {
+                    ReportGetPeersFailure = true;
+                    Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + ex.Message);
+                }
+
+                ExecuteAsync().Forget(LogTaskException);
+            }
+
         }
 
+        private async Task BenchmarkRpcAsync(string rpcUrl)
+        {
+            try
+            {
+                var responseTime = await AsyncPhantasma.FromApi<TimeSpan>(
+                    (onSuccess, onError) => WebClient.Ping(rpcUrl, onError, onSuccess),
+                    CancellationToken.None);
+
+                lock (rpcResponseTimesPhantasma)
+                {
+                    rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, false, responseTime));
+                }
+
+                Interlocked.Increment(ref rpcAvailablePhantasma);
+            }
+            catch (PhantasmaRequestException ex)
+            {
+                Log.Write("Ping error: " + ex.Message);
+
+                lock (rpcResponseTimesPhantasma)
+                {
+                    rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, true, new TimeSpan()));
+                }
+            }
+            finally
+            {
+                Interlocked.Increment(ref rpcBenchmarkedPhantasma);
+            }
+        }
         public void ChangeFaultyRPCURL(PlatformKind platformKind)
         {
             if (Settings.nexusKind != NexusKind.Main_Net ||
@@ -374,7 +351,7 @@ namespace Poltergeist
                 Log.Write($"Changing faulty Phantasma RPC {Settings.phantasmaRPCURL}.");
 
                 // Now we have one less working RPC.
-                if(rpcAvailablePhantasma > 0)
+                if (rpcAvailablePhantasma > 0)
                     rpcAvailablePhantasma--;
 
                 // Marking faulty RPC.
@@ -550,36 +527,34 @@ The Phoenix team", "Notice");
             PlayerPrefs.Save();
         }
 
-        private IEnumerator GetTokens(Action<TokenResult[]> callback)
+        private async Task<TokenResult[]> GetTokensAsync(CancellationToken cancellationToken)
         {
-            do
+            while (true)
             {
-                var coroutine = StartCoroutine(phantasmaApi.GetTokens((tokens) =>
+                try
                 {
-                    callback(tokens);
-                }, (error, msg) =>
+                    return await AsyncPhantasma.FromApi<TokenResult[]>(
+                        (onSuccess, onError) => phantasmaApi.GetTokens(onSuccess, onError, 10, 5),
+                        cancellationToken);
+                }
+                catch (PhantasmaRequestException ex)
                 {
-                    if (rpcAvailablePhantasma > 0 && Settings.nexusKind == NexusKind.Main_Net)
+                    if (rpcAvailablePhantasma > 0 && Settings.nexusKind == NexusKind.Main_Net && ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
                     {
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                    }
-                    else
-                    {
-                        CurrentTokenCurrency = "";
-
-                        AccountManager.Instance.Settings.settingRequireReconfiguration = true;
-                        Status = "ok"; // We are launching with uninitialized tokens,
-                                       // to allow user to edit settings.
-                        
-                        Log.WriteWarning("Error: Launching with uninitialized tokens.");
+                        continue;
                     }
 
-                    Log.WriteWarning("Tokens initialization error: " + msg);
-                }, 10, 5));
+                    CurrentTokenCurrency = "";
+                    Settings.settingRequireReconfiguration = true;
+                    Status = "ok"; // We are launching with uninitialized tokens,
+                                   // to allow user to edit settings.
 
-                yield return coroutine;
+                    Log.WriteWarning("Error: Launching with uninitialized tokens.");
+                    Log.WriteWarning("Tokens initialization error: " + ex.Message);
+                    return Array.Empty<TokenResult>();
+                }
             }
-            while (!Ready);
         }
 
         private void TokensReinit()
@@ -587,13 +562,14 @@ The Phoenix team", "Notice");
             if (tokensReinitInProgress)
                 return;
 
-            StartCoroutine(TokensReinitRoutine());
+            TokensReinitRoutineAsync(CancellationToken.None).Forget(LogTaskException);
         }
 
-        private IEnumerator TokensReinitRoutine()
+        private async Task TokensReinitRoutineAsync(CancellationToken cancellationToken)
         {
             tokensReinitInProgress = true;
-            yield return StartCoroutine(GetTokens((tokens) =>
+            var tokens = await GetTokensAsync(cancellationToken);
+            if (tokens.Length > 0)
             {
                 lock (Tokens.__lockObj)
                 {
@@ -605,10 +581,11 @@ The Phoenix team", "Notice");
                     ResourceManager.Instance.UnloadTokens();
                 }
 
-                CurrentTokenCurrency = "";
+            }
 
-                Status = "ok";
-            }));
+            CurrentTokenCurrency = "";
+
+            Status = "ok";
             tokensReinitInProgress = false;
 
             if (refreshBalancesAfterTokenReload)
@@ -655,7 +632,7 @@ The Phoenix team", "Notice");
                 CurrentTokenCurrency = Settings.currency;
                 _lastPriceUpdate = DateTime.UtcNow;
 
-                StartCoroutine(FetchTokenPrices(Tokens.GetTokensForCoingecko(), CurrentTokenCurrency));
+                FetchTokenPricesAsync(Tokens.GetTokensForCoingecko(), CurrentTokenCurrency, CancellationToken.None).Forget(LogTaskException);
             }
         }
 
@@ -711,9 +688,9 @@ The Phoenix team", "Notice");
                 return 0;
             }
 
-            if(decimals < 0)
+            if (decimals < 0)
             {
-                throw new ($"Decimals for token are unavailable, cannot convert {str} amount");
+                throw new($"Decimals for token are unavailable, cannot convert {str} amount");
             }
 
             return UnitConversion.ToDecimal(str, decimals);
@@ -721,184 +698,240 @@ The Phoenix team", "Notice");
 
         public void SignAndSendTransaction(string chain, byte[] script, byte[] payload, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
         {
-            if (payload == null)
+            async Task ExecuteAsync()
             {
-                payload = System.Text.Encoding.UTF8.GetBytes(WalletIdentifier);
-            }
+                if (payload == null)
+                {
+                    payload = System.Text.Encoding.UTF8.GetBytes(WalletIdentifier);
+                }
 
-            switch (CurrentPlatform)
-            {
-                case PlatformKind.Phantasma:
-                    {
-                        StartCoroutine(phantasmaApi.SignAndSendTransaction(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, (hashText, encodedTx) =>
+                switch (CurrentPlatform)
+                {
+                    case PlatformKind.Phantasma:
                         {
-                            if (Settings.devMode)
+                            try
                             {
-                                Log.Write($"SignAndSendTransactionWithPayload(): Encoded tx: {encodedTx}");
-                            }
-                            if ( !string.IsNullOrEmpty(hashText) )
-                            {
-                                try
-                                {
-                                    callback(Hash.Parse(hashText), null);
+                                var result = await AsyncPhantasma.FromApi(
+                                    (Action<string, string> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
+                                        phantasmaApi.SignAndSendTransaction(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, onSuccess, onError, customSignFunction),
+                                    CancellationToken.None);
 
-                                }catch (Exception e)
+                                var hashText = result.Item1;
+                                var encodedTx = result.Item2;
+
+                                if (Settings.devMode)
                                 {
-                                    Log.WriteWarning("Error parsing hash: " + e.Message);
-                                    callback(Hash.Null,  $"Error: hashText={hashText}");
-                                    return;
+                                    Log.Write($"SignAndSendTransactionWithPayload(): Encoded tx: {encodedTx}");
+                                }
+
+                                if (!string.IsNullOrEmpty(hashText))
+                                {
+                                    try
+                                    {
+                                        callback(Hash.Parse(hashText), null);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Log.WriteWarning("Error parsing hash: " + e.Message);
+                                        callback(Hash.Null, $"Error: hashText={hashText}");
+                                    }
+                                }
+                                else
+                                {
+                                    callback(Hash.Null, "Failed to send transaction");
                                 }
                             }
-                            else
+                            catch (PhantasmaRequestException ex)
                             {
-                                callback(Hash.Null, "Failed to send transaction");
-                            }
-                        }, (error, msg) =>
-                        {
-                            if(error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                            {
-                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                            }
-                            callback(Hash.Null, msg);
-                        }, customSignFunction));
-                        break;
-                    }
+                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                                {
+                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                                }
 
-                default:
-                    {
-                        callback(Hash.Null, "not implemented for " + CurrentPlatform);
-                        break;
-                    }
+                                callback(Hash.Null, ex.Message);
+                            }
+
+                            break;
+                        }
+
+                    default:
+                        {
+                            callback(Hash.Null, "not implemented for " + CurrentPlatform);
+                            break;
+                        }
+                }
+
             }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public void SignAndSendCarbonTransaction(TxMsg tx, Action<Hash, string> callback)
         {
-            switch (CurrentPlatform)
+            async Task ExecuteAsync()
             {
-                case PlatformKind.Phantasma:
-                    {
-                        StartCoroutine(phantasmaApi.SignAndSendCarbonTransaction(PhantasmaKeys.FromWIF(CurrentWif), tx, (hashText, encodedTx) =>
+                switch (CurrentPlatform)
+                {
+                    case PlatformKind.Phantasma:
                         {
-                            if (Settings.devMode)
+                            try
                             {
-                                Log.Write($"SignAndSendCarbonTransaction(): Encoded tx: {encodedTx}");
-                            }
-                            if ( !string.IsNullOrEmpty(hashText) )
-                            {
-                                try
-                                {
-                                    callback(Hash.Parse(hashText), null);
+                                var result = await AsyncPhantasma.FromApi(
+                                    (Action<string, string> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
+                                        phantasmaApi.SignAndSendCarbonTransaction(PhantasmaKeys.FromWIF(CurrentWif), tx, onSuccess, onError),
+                                    CancellationToken.None);
 
-                                }catch (Exception e)
+                                var hashText = result.Item1;
+                                var encodedTx = result.Item2;
+
+                                if (Settings.devMode)
                                 {
-                                    Log.WriteWarning("Error parsing hash: " + e.Message);
-                                    callback(Hash.Null,  $"Error: hashText={hashText}");
-                                    return;
+                                    Log.Write($"SignAndSendCarbonTransaction(): Encoded tx: {encodedTx}");
+                                }
+
+                                if (!string.IsNullOrEmpty(hashText))
+                                {
+                                    try
+                                    {
+                                        callback(Hash.Parse(hashText), null);
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Log.WriteWarning("Error parsing hash: " + e.Message);
+                                        callback(Hash.Null, $"Error: hashText={hashText}");
+                                    }
+                                }
+                                else
+                                {
+                                    callback(Hash.Null, "Failed to send transaction");
                                 }
                             }
-                            else
+                            catch (PhantasmaRequestException ex)
                             {
-                                callback(Hash.Null, "Failed to send transaction");
-                            }
-                        }, (error, msg) =>
-                        {
-                            if(error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                            {
-                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                            }
-                            callback(Hash.Null, msg);
-                        }));
-                        break;
-                    }
+                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                                {
+                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                                }
 
-                default:
-                    {
-                        callback(Hash.Null, "not implemented for " + CurrentPlatform);
-                        break;
-                    }
+                                callback(Hash.Null, ex.Message);
+                            }
+
+                            break;
+                        }
+
+                    default:
+                        {
+                            callback(Hash.Null, "not implemented for " + CurrentPlatform);
+                            break;
+                        }
+                }
             }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public void InvokeScript(string chain, byte[] script, Action<string[], string> callback)
         {
-            var account = this.CurrentAccount;
-
-            switch (CurrentPlatform)
+            async Task ExecuteAsync()
             {
-                case PlatformKind.Phantasma:
-                    {
-                        Log.Write("InvokeScript: " + System.Text.Encoding.UTF8.GetString(script), Log.Level.Debug1);
-                        StartCoroutine(phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), (x) =>
+                switch (CurrentPlatform)
+                {
+                    case PlatformKind.Phantasma:
                         {
-                            Log.Write("InvokeScript result: " + x.Result, Log.Level.Debug1);
-                            callback(x.Results, null);
-                        }, (error, log) =>
-                        {
-                            if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                            Log.Write("InvokeScript: " + System.Text.Encoding.UTF8.GetString(script), Log.Level.Debug1);
+                            try
                             {
-                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                                var result = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.ScriptResult>(
+                                    (onSuccess, onError) => phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), onSuccess, onError),
+                                    CancellationToken.None);
+
+                                Log.Write("InvokeScript result: " + result.Result, Log.Level.Debug1);
+                                callback(result.Results, null);
                             }
-                            callback(null, log);
-                        }));
-                        break;
-                    }
-                default:
-                    {
-                        callback(null, "not implemented for " + CurrentPlatform);
-                        break;
-                    }
+                            catch (PhantasmaRequestException ex)
+                            {
+                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                                {
+                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                                }
+                                callback(null, ex.Message);
+                            }
+
+                            break;
+                        }
+                    default:
+                        {
+                            callback(null, "not implemented for " + CurrentPlatform);
+                            break;
+                        }
+                }
             }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public void InvokeScriptPhantasma(string chain, byte[] script, Action<byte[], string> callback)
         {
-            var account = this.CurrentAccount;
-
-            Log.Write("InvokeScriptPhantasma: " + System.Text.Encoding.UTF8.GetString(script), Log.Level.Debug1);
-            StartCoroutine(phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), (x) =>
+            async Task ExecuteAsync()
             {
-                Log.Write("InvokeScriptPhantasma result: " + x.Result, Log.Level.Debug1);
-                callback(Base16.Decode(x.Result), null);
-            }, (error, log) =>
-            {
-                if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                Log.Write("InvokeScriptPhantasma: " + System.Text.Encoding.UTF8.GetString(script), Log.Level.Debug1);
+                try
                 {
-                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                    var result = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.ScriptResult>(
+                        (onSuccess, onError) => phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), onSuccess, onError),
+                        CancellationToken.None);
+                    Log.Write("InvokeScriptPhantasma result: " + result.Result, Log.Level.Debug1);
+                    callback(Base16.Decode(result.Result), null);
                 }
-                callback(null, log);
-            }));
+                catch (PhantasmaRequestException ex)
+                {
+                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                    {
+                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                    }
+                    callback(null, ex.Message);
+                }
+            }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public void WriteArchive(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback)
         {
-            var account = this.CurrentAccount;
-
-            switch (CurrentPlatform)
+            async Task ExecuteAsync()
             {
-                case PlatformKind.Phantasma:
-                    {
-                        Log.Write("WriteArchive: " + hash, Log.Level.Debug1);
-                        StartCoroutine(phantasmaApi.WriteArchive(hash.ToString(), blockIndex, data, (result) =>
+                switch (CurrentPlatform)
+                {
+                    case PlatformKind.Phantasma:
                         {
-                            Log.Write("WriteArchive result: " + result, Log.Level.Debug1);
-                            callback(result, null);
-                        }, (error, log) =>
-                        {
-                            if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                            Log.Write("WriteArchive: " + hash, Log.Level.Debug1);
+                            try
                             {
-                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                                var result = await AsyncPhantasma.FromApi<bool>(
+                                    (onSuccess, onError) => phantasmaApi.WriteArchive(hash.ToString(), blockIndex, data, onSuccess, onError),
+                                    CancellationToken.None);
+                                Log.Write("WriteArchive result: " + result, Log.Level.Debug1);
+                                callback(result, null);
                             }
-                            callback(false, log);
-                        }));
-                        break;
-                    }
-                default:
-                    {
-                        callback(false, "not implemented for " + CurrentPlatform);
-                        break;
-                    }
+                            catch (PhantasmaRequestException ex)
+                            {
+                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                                {
+                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                                }
+                                callback(false, ex.Message);
+                            }
+                            break;
+                        }
+                    default:
+                        {
+                            callback(false, "not implemented for " + CurrentPlatform);
+                            break;
+                        }
+                }
             }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         // We use this to detect when account was just loaded
@@ -969,9 +1002,9 @@ The Phoenix team", "Notice");
                     flags = AccountFlags.None,
                     name = ValidationUtils.ANONYMOUS_NAME,
                 };
-                
+
                 SaveAccounts();
-                
+
                 platforms.Add(PlatformKind.Neo);
             }
 
@@ -1038,7 +1071,7 @@ The Phoenix team", "Notice");
 
                     _states[platform] = state;
                 }
-            
+
                 var temp = refreshStatus.BalanceRefreshCallback;
                 lock (_refreshStatus)
                 {
@@ -1114,136 +1147,150 @@ The Phoenix team", "Notice");
 
         public void RequestConfirmation(string transactionHash, int checkCount, Action<TransactionResult, string> callback)
         {
-            switch (CurrentPlatform)
+            async Task ExecuteAsync()
             {
-                case PlatformKind.Phantasma:
-                    StartCoroutine(phantasmaApi.GetTransaction(transactionHash, (txResult) =>
-                    {
-                        if (txResult.State == ExecutionState.Running)
+                switch (CurrentPlatform)
+                {
+                    case PlatformKind.Phantasma:
+                        try
                         {
-                            callback(txResult, "pending");
-                        }
-                        else if (txResult.State == ExecutionState.Break || txResult.State == ExecutionState.Fault)
-                        {
-                            if(string.IsNullOrEmpty(txResult.DebugComment) && checkCount <= 6)
+                            var txResult = await AsyncPhantasma.FromApi<TransactionResult>(
+                                (onSuccess, onError) => phantasmaApi.GetTransaction(transactionHash, onSuccess, onError),
+                                CancellationToken.None);
+
+                            if (txResult.State == ExecutionState.Running)
                             {
-                                // We wait a bit for additional information about failure to become available
                                 callback(txResult, "pending");
+                            }
+                            else if (txResult.State == ExecutionState.Break || txResult.State == ExecutionState.Fault)
+                            {
+                                if (string.IsNullOrEmpty(txResult.DebugComment) && checkCount <= 6)
+                                {
+                                    // We wait a bit for additional information about failure to become available
+                                    callback(txResult, "pending");
+                                }
+                                else
+                                {
+                                    callback(txResult, "Transaction failed");
+                                }
                             }
                             else
                             {
-                                callback(txResult, "Transaction failed");
+                                callback(txResult, null);
                             }
                         }
-                        else
+                        catch (PhantasmaRequestException ex)
                         {
-                            callback(txResult, null);
-                        }
-                    }, (error, msg) =>
-                    {
-                        if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                        {
-                            ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                            if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                            {
+                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                            }
+
+                            var msg = ex.Message;
+                            if (checkCount <= maxChecks)
+                            {
+                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON)
+                                {
+                                    msg = "Cannot determine if transaction was successful or not due to incorrect RPC response. " + msg;
+                                }
+                                else if (msg.ToUpperInvariant().Contains("PENDING") || msg.ToUpperInvariant().Contains("TRANSACTION NOT FOUND"))
+                                {
+                                    // If tx is PENDING or NOT FOUND, we want to wait till timeout
+                                    // to ensure that no new information about tx will appear.
+                                    msg = "pending";
+                                }
+                                callback(null, msg);
+                            }
+                            else
+                            {
+                                callback(null, "timeout");
+                            }
                         }
 
-                        if (checkCount <= maxChecks)
-                        {
-                            if (error == EPHANTASMA_SDK_ERROR_TYPE.FAILED_PARSING_JSON)
-                            {
-                                msg = "Cannot determine if transaction was successful or not due to incorrect RPC response. " + msg;
-                            }
-                            else if(msg.ToUpperInvariant().Contains("PENDING") || msg.ToUpperInvariant().Contains("TRANSACTION NOT FOUND"))
-                            {
-                                // If tx is PENDING or NOT FOUND, we want to wait till timeout
-                                // to ensure that no new information about tx will appear.
-                                msg = "pending";
-                            }
-                            callback(null, msg);
-                        }
-                        else
-                        {
-                            callback(null, "timeout");
-                        }
-                    }));
-                    break;
+                        break;
 
-                default:
-                    callback(null, "not implemented: " + CurrentPlatform);
-                    break;
+                    default:
+                        callback(null, "not implemented: " + CurrentPlatform);
+                        break;
+                }
             }
+
+            ExecuteAsync().Forget(LogTaskException);
 
         }
 
         public void RefreshBalances(bool force, PlatformKind platforms = PlatformKind.None, Action callback = null)
         {
-            if (!HasSelection)
+            async Task ExecuteAsync()
             {
-                Log.WriteWarning("RefreshBalances: skipped because no account is selected.");
-                return;
-            }
-
-            var currentAccount = CurrentAccount;
-            if (currentAccount.passwordProtected && string.IsNullOrEmpty(CurrentPasswordHash))
-            {
-                Log.WriteWarning("RefreshBalances: skipped because current account is locked.");
-                return;
-            }
-
-            List<PlatformKind> platformsList;
-            if(platforms == PlatformKind.None)
-                platformsList = currentAccount.platforms.Split();
-            else
-                platformsList = platforms.Split();
-
-            lock (_refreshStatus)
-            {
-                RefreshStatus refreshStatus;
-                var now = DateTime.UtcNow;
-                if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                if (!HasSelection)
                 {
-                    refreshStatus = _refreshStatus[PlatformKind.Phantasma];
-
-                    refreshStatus.BalanceRefreshing = true;
-                    refreshStatus.LastBalanceRefresh = now;
-                    refreshStatus.BalanceRefreshCallback = callback;
-
-                    _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                    Log.WriteWarning("RefreshBalances: skipped because no account is selected.");
+                    return;
                 }
+
+                var currentAccount = CurrentAccount;
+                if (currentAccount.passwordProtected && string.IsNullOrEmpty(CurrentPasswordHash))
+                {
+                    Log.WriteWarning("RefreshBalances: skipped because current account is locked.");
+                    return;
+                }
+
+                List<PlatformKind> platformsList;
+                if (platforms == PlatformKind.None)
+                    platformsList = currentAccount.platforms.Split();
                 else
+                    platformsList = platforms.Split();
+
+                lock (_refreshStatus)
                 {
-                    _refreshStatus.Add(PlatformKind.Phantasma,
-                        new RefreshStatus
-                        {
-                            BalanceRefreshing = true,
-                            LastBalanceRefresh = now,
-                            BalanceRefreshCallback = callback,
-                            HistoryRefreshing = false,
-                            LastHistoryRefresh = DateTime.MinValue
-                        });
+                    RefreshStatus refreshStatus;
+                    var now = DateTime.UtcNow;
+                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                    {
+                        refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+
+                        refreshStatus.BalanceRefreshing = true;
+                        refreshStatus.LastBalanceRefresh = now;
+                        refreshStatus.BalanceRefreshCallback = callback;
+
+                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                    }
+                    else
+                    {
+                        _refreshStatus.Add(PlatformKind.Phantasma,
+                            new RefreshStatus
+                            {
+                                BalanceRefreshing = true,
+                                LastBalanceRefresh = now,
+                                BalanceRefreshCallback = callback,
+                                HistoryRefreshing = false,
+                                LastHistoryRefresh = DateTime.MinValue
+                            });
+                    }
                 }
-            }
 
-            Log.Write($"[Balances] RefreshBalances start force={force} currentPlatform={CurrentPlatform} targets={string.Join(',', platformsList)}"); //TODO Check if still needed once refactoring is over
-            foreach (var platform in platformsList)
-            {
-                BalancesRefreshStarted?.Invoke(platform);
-            }
+                Log.Write($"[Balances] RefreshBalances start force={force} currentPlatform={CurrentPlatform} targets={string.Join(',', platformsList)}"); //TODO Check if still needed once refactoring is over
+                foreach (var platform in platformsList)
+                {
+                    BalancesRefreshStarted?.Invoke(platform);
+                }
 
-            var wif = CurrentWif;
-
-            lock (Tokens.__lockObj)
-            {
+                var wif = CurrentWif;
                 var keys = PhantasmaKeys.FromWIF(wif);
                 var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
                 UpdateOpenAccount();
-                StartCoroutine(phantasmaApi.GetAccount(keys.Address.Text, (acc) =>
+                try
                 {
+                    var acc = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.AccountResult>(
+                        (onSuccess, onError) => phantasmaApi.GetAccount(keys.Address.Text, onSuccess, onError),
+                        CancellationToken.None);
+
                     var balanceMap = new Dictionary<string, Balance>();
                     HashSet<string> missingTokens = null;
 
                     foreach (var entry in acc.Balances)
                     {
-
                         var token = Tokens.GetToken(entry.Symbol, PlatformKind.Phantasma);
                         if (token != null)
                             balanceMap[entry.Symbol] = new Balance()
@@ -1275,8 +1322,6 @@ The Phoenix team", "Notice");
                                 Ids = entry.Ids
                             };
                         }
-
-
                     }
 
                     var stakedAmount = AmountFromString(acc.Stakes.Amount,
@@ -1344,7 +1389,6 @@ The Phoenix team", "Notice");
                         .ThenBy(b => b.Key)
                         .ToDictionary(kv => kv.Key, kv => kv.Value);
 
-                    // State without swaps
                     var state = new AccountState()
                     {
                         platform = PlatformKind.Phantasma,
@@ -1379,19 +1423,21 @@ The Phoenix team", "Notice");
                         ScheduleBalanceRefreshAfterTokens();
                         TokensReinit();
                     }
-                },
-                (error, msg) =>
+                }
+                catch (PhantasmaRequestException ex)
                 {
-                    Log.WriteWarning($"RefreshBalances[PHA] {error}: {msg}");
+                    Log.WriteWarning($"RefreshBalances[PHA] {ex.ErrorType}: {ex.Message}");
 
-                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
                     {
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
                     }
 
                     ReportWalletBalance(PlatformKind.Phantasma, null);
-                }));
+                }
             }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public void BlankState()
@@ -1427,312 +1473,309 @@ The Phoenix team", "Notice");
 
         public void RefreshNft(bool force, string symbol)
         {
-            var now = DateTime.UtcNow;
-
-            lock (_refreshStatus)
+            async Task ExecuteAsync()
             {
-                if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
+                var now = DateTime.UtcNow;
+
+                lock (_refreshStatus)
                 {
-                    var refreshStatus = _refreshStatus[PlatformKind.Phantasma];
-                    refreshStatus.NftsRefreshing = true;
-                    _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
-                }
-                else
-                {
-                    _refreshStatus.Add(PlatformKind.Phantasma,
-                        new RefreshStatus
-                        {
-                            NftsRefreshing = true
-                        });
-                }
-            }
-
-            Log.Write($"[NFT] RefreshNft start force={force} symbol={symbol} currentPlatform={CurrentPlatform}"); //TODO Check if still needed once refactoring is over
-            foreach (var platform in CurrentAccount.platforms.Split())
-            {
-                NftsRefreshStarted?.Invoke(platform, symbol);
-            }
-
-            if (force)
-            {
-                // On force refresh we clear NFT symbol's cache.
-                if (symbol.ToUpper() == "TTRS")
-                    TtrsStore.Clear();
-                else if (symbol.ToUpper() == "GAME")
-                    GameStore.Clear();
-                else
-                    Cache.ClearDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, CurrentState.address);
-
-                NftImages.Clear(symbol);
-            }
-
-            var platforms = CurrentAccount.platforms.Split();
-
-            var wif = this.CurrentWif;
-
-            foreach (var platform in platforms)
-            {
-                // Reinitializing NFT dictionary if needed.
-                if (_nfts.ContainsKey(platform))
-                    _nfts[platform].Clear();
-
-                if (Tokens.GetToken(symbol, platform, out var tokenInfo))
-                {
-                    switch (platform)
+                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
                     {
-                        case PlatformKind.Phantasma:
+                        var refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+                        refreshStatus.NftsRefreshing = true;
+                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                    }
+                    else
+                    {
+                        _refreshStatus.Add(PlatformKind.Phantasma,
+                            new RefreshStatus
                             {
-                                var keys = PhantasmaKeys.FromWIF(wif);
+                                NftsRefreshing = true
+                            });
+                    }
+                }
 
-                                Log.Write("Getting NFTs...");
-                                foreach (var balanceEntry in CurrentState.balances)
+                Log.Write($"[NFT] RefreshNft start force={force} symbol={symbol} currentPlatform={CurrentPlatform}"); //TODO Check if still needed once refactoring is over
+                foreach (var platform in CurrentAccount.platforms.Split())
+                {
+                    NftsRefreshStarted?.Invoke(platform, symbol);
+                }
+
+                if (force)
+                {
+                    // On force refresh we clear NFT symbol's cache.
+                    if (symbol.ToUpper() == "TTRS")
+                        TtrsStore.Clear();
+                    else if (symbol.ToUpper() == "GAME")
+                        GameStore.Clear();
+                    else
+                        Cache.ClearDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, CurrentState.address);
+
+                    NftImages.Clear(symbol);
+                }
+
+                var platforms = CurrentAccount.platforms.Split();
+
+                var wif = this.CurrentWif;
+
+                foreach (var platform in platforms)
+                {
+                    // Reinitializing NFT dictionary if needed.
+                    if (_nfts.ContainsKey(platform))
+                        _nfts[platform].Clear();
+
+                    if (Tokens.GetToken(symbol, platform, out var tokenInfo))
+                    {
+                        switch (platform)
+                        {
+                            case PlatformKind.Phantasma:
                                 {
-                                    if (balanceEntry.Symbol == symbol && !tokenInfo.IsFungible())
+                                    var keys = PhantasmaKeys.FromWIF(wif);
+
+                                    Log.Write("Getting NFTs...");
+                                    foreach (var balanceEntry in CurrentState.balances)
                                     {
-                                        nftDescriptionsAreFullyLoaded = false;
-
-                                        // Initializing NFT dictionary if needed.
-                                        if (!_nfts.ContainsKey(platform))
+                                        if (balanceEntry.Symbol == symbol && !tokenInfo.IsFungible())
                                         {
-                                            _nfts.Add(platform, new List<TokenDataResult>());
-                                            _roms.Add(platform, new ());
-                                        }
+                                            nftDescriptionsAreFullyLoaded = false;
 
-                                        var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
-                                        if(cache == null)
-                                        {
-                                            cache = new TokenDataResult[]{};
-                                        }
-
-                                        int loadedTokenCounter = 0;
-
-                                        foreach (var id in balanceEntry.Ids)
-                                        {
-                                            // Checking if token is cached.
-                                            TokenDataResult? tokenData = Cache.FindTokenData(cache, id);
-
-                                            if (tokenData != null)
+                                            // Initializing NFT dictionary if needed.
+                                            if (!_nfts.ContainsKey(platform))
                                             {
-                                                // Loading token from cache.
-                                                var tokenId = tokenData.Id;
-
-                                                loadedTokenCounter++;
-
-                                                // Checking if token already loaded to dictionary.
-                                                if (!_nfts[platform].Exists(x => x.Id == tokenId))
-                                                {
-                                                    var rom = tokenData.ParseRom(symbol);
-                                                    _roms[platform][tokenId] = rom;
-                                                    var (hasError, error) = rom.HasParsingError();
-                                                    if (rom.IsEmpty())
-                                                    {
-                                                        Log.Write($"ROM is null or empty");
-                                                    }
-                                                    else if(hasError)
-                                                    {
-                                                        Log.Write(error);
-                                                    }
-
-                                                    _nfts[platform].Add(tokenData);
-
-                                                    // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, tokenData.GetPropertyValue("ImageURL"), id));
-                                                }
-
-                                                if (loadedTokenCounter == balanceEntry.Ids.Length)
-                                                {
-                                                    // We finished loading tokens.
-                                                    // Saving them in cache.
-                                                    Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
-
-                                                    if (symbol != "TTRS")
-                                                    {
-                                                        // For all NFTs except TTRS all needed information
-                                                        // is loaded by this moment.
-                                                        nftDescriptionsAreFullyLoaded = true;
-                                                    }
-                                                }
-                                                
-                                                if (loadedTokenCounter > 0)
-                                                {
-                                                    // We mark process as ready after first NFT loaded to make process async
-                                                    ReportWalletNft(platform, symbol);
-                                                }
+                                                _nfts.Add(platform, new List<TokenDataResult>());
+                                                _roms.Add(platform, new());
                                             }
-                                            else
+
+                                            var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
+                                            if (cache == null)
                                             {
-                                                if (symbol == "TTRS")
+                                                cache = new TokenDataResult[] { };
+                                            }
+
+                                            int loadedTokenCounter = 0;
+
+                                            foreach (var id in balanceEntry.Ids)
+                                            {
+                                                TokenDataResult? tokenData = Cache.FindTokenData(cache, id);
+
+                                                if (tokenData != null)
                                                 {
-                                                    // TODO: Load TokenData for TTRS too (add batch load method for TokenDatas).
-                                                    // For now we skip TokenData loading to speed up TTRS NFTs loading,
-                                                    // since it's not used for TTRS anyway.
-                                                    var tokenData2 = new TokenDataResult();
-                                                    tokenData2.Id = id;
-                                                    _nfts[platform].Add(tokenData2);
+                                                    var tokenId = tokenData.Id;
 
                                                     loadedTokenCounter++;
 
-                                                    if (loadedTokenCounter > 0)
+                                                    if (!_nfts[platform].Exists(x => x.Id == tokenId))
                                                     {
-                                                        // We mark process as ready after first NFT loaded to make process async
-                                                        ReportWalletNft(platform, symbol);
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    StartCoroutine(phantasmaApi.GetNFT(symbol, id, true, (tokenData2) =>
-                                                    {
-                                                        var rom = tokenData2.ParseRom(symbol);
-                                                        _roms[platform][id] = rom;
+                                                        var rom = tokenData.ParseRom(symbol);
+                                                        _roms[platform][tokenId] = rom;
                                                         var (hasError, error) = rom.HasParsingError();
                                                         if (rom.IsEmpty())
                                                         {
                                                             Log.Write($"ROM is null or empty");
                                                         }
-                                                        else if(hasError)
+                                                        else if (hasError)
                                                         {
                                                             Log.Write(error);
                                                         }
 
-                                                        // Downloading NFT images.
-                                                        StartCoroutine(NftImages.DownloadImage(symbol, tokenData2.GetPropertyValue("ImageURL"), id));
+                                                        _nfts[platform].Add(tokenData);
+
+                                                        NftImages.DownloadImageAsync(symbol, tokenData.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
+                                                    }
+
+                                                    if (loadedTokenCounter == balanceEntry.Ids.Length)
+                                                    {
+                                                        Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+
+                                                        if (symbol != "TTRS")
+                                                        {
+                                                            nftDescriptionsAreFullyLoaded = true;
+                                                        }
+                                                    }
+
+                                                    if (loadedTokenCounter > 0)
+                                                    {
+                                                        ReportWalletNft(platform, symbol);
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    if (symbol == "TTRS")
+                                                    {
+                                                        var tokenData2 = new TokenDataResult();
+                                                        tokenData2.Id = id;
+                                                        _nfts[platform].Add(tokenData2);
 
                                                         loadedTokenCounter++;
-
-                                                        _nfts[platform].Add(tokenData2);
-                                                        cache = cache.Append(tokenData2).ToArray();
-
-                                                        if (loadedTokenCounter == balanceEntry.Ids.Length)
-                                                        {
-                                                            // We finished loading tokens.
-                                                            // Saving them in cache.
-                                                            Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
-                                                        }
 
                                                         if (loadedTokenCounter > 0)
                                                         {
-                                                            // We mark process as ready after first NFT loaded to make process async
                                                             ReportWalletNft(platform, symbol);
                                                         }
-                                                    }, (error, msg) =>
+                                                    }
+                                                    else
                                                     {
-                                                        loadedTokenCounter++;
-                                                        Log.Write($"NFT loading error for {symbol}/{id}: {msg}");
-                                                    }));
+                                                        try
+                                                        {
+                                                            var tokenData2 = await AsyncPhantasma.FromApi<TokenDataResult>(
+                                                                (onSuccess, onError) => phantasmaApi.GetNFT(symbol, id, true, onSuccess, onError),
+                                                                CancellationToken.None);
+                                                            var rom = tokenData2.ParseRom(symbol);
+                                                            _roms[platform][id] = rom;
+                                                            var (hasError, error) = rom.HasParsingError();
+                                                            if (rom.IsEmpty())
+                                                            {
+                                                                Log.Write($"ROM is null or empty");
+                                                            }
+                                                            else if (hasError)
+                                                            {
+                                                                Log.Write(error);
+                                                            }
+
+                                                            NftImages.DownloadImageAsync(symbol, tokenData2.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
+
+                                                            loadedTokenCounter++;
+
+                                                            _nfts[platform].Add(tokenData2);
+                                                            cache = cache.Append(tokenData2).ToArray();
+
+                                                            if (loadedTokenCounter == balanceEntry.Ids.Length)
+                                                            {
+                                                                Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
+                                                            }
+
+                                                            if (loadedTokenCounter > 0)
+                                                            {
+                                                                ReportWalletNft(platform, symbol);
+                                                            }
+                                                        }
+                                                        catch (PhantasmaRequestException ex)
+                                                        {
+                                                            loadedTokenCounter++;
+                                                            Log.Write($"NFT loading error for {symbol}/{id}: {ex.Message}");
+                                                        }
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        if (balanceEntry.Ids.Length > 0)
-                                        {
-                                            // Getting NFT descriptions.
-                                            if (symbol == "TTRS")
+                                            if (balanceEntry.Ids.Length > 0)
                                             {
-                                                StartCoroutine(TtrsStore.LoadStoreNft(balanceEntry.Ids, (item) =>
+                                                if (symbol == "TTRS")
                                                 {
-                                                    // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.item_info.image_url, item.id));
-                                                }, () =>
-                                                {
+                                                    await TtrsStore.LoadStoreNftAsync(balanceEntry.Ids, (item) =>
+                                                        {
+                                                            NftImages.DownloadImageAsync(symbol, item.item_info.image_url, item.id, CancellationToken.None).Forget(LogTaskException);
+                                                        }, CancellationToken.None);
+
                                                     nftDescriptionsAreFullyLoaded = true;
-                                                }));
-                                            }
-                                            else if (symbol == "GAME")
-                                            {
-                                                StartCoroutine(GameStore.LoadStoreNft(balanceEntry.Ids, (item) =>
+                                                }
+                                                else if (symbol == "GAME")
                                                 {
-                                                    // Downloading NFT images.
-                                                    StartCoroutine(NftImages.DownloadImage(symbol, item.parsed_rom.img_url, item.ID));
-                                                }, () =>
-                                                {
+                                                    await GameStore.LoadStoreNftAsync(balanceEntry.Ids, (item) =>
+                                                        {
+                                                            NftImages.DownloadImageAsync(symbol, item.parsed_rom.img_url, item.ID, CancellationToken.None).Forget(LogTaskException);
+                                                        }, CancellationToken.None);
+
                                                     nftDescriptionsAreFullyLoaded = true;
-                                                }));
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                            break;
+                                break;
 
-                        default:
-                            ReportWalletNft(platform, symbol);
-                            break;
+                            default:
+                                ReportWalletNft(platform, symbol);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        ReportWalletNft(platform, symbol);
                     }
                 }
-                else
-                {
-                    ReportWalletNft(platform, symbol);
-                }
             }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public void RefreshHistory(bool force, PlatformKind platforms = PlatformKind.None)
         {
-            List<PlatformKind> platformsList;
-            if (platforms == PlatformKind.None)
-                platformsList = CurrentAccount.platforms.Split();
-            else
-                platformsList = platforms.Split();
-
-            lock (_refreshStatus)
+            async Task ExecuteAsync()
             {
-                RefreshStatus refreshStatus;
-                var now = DateTime.UtcNow;
-                if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
-                {
-                    refreshStatus = _refreshStatus[PlatformKind.Phantasma];
-
-                    refreshStatus.HistoryRefreshing = true;
-                    refreshStatus.LastHistoryRefresh = now;
-
-                    _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
-                }
+                List<PlatformKind> platformsList;
+                if (platforms == PlatformKind.None)
+                    platformsList = CurrentAccount.platforms.Split();
                 else
+                    platformsList = platforms.Split();
+
+                lock (_refreshStatus)
                 {
-                    _refreshStatus.Add(PlatformKind.Phantasma,
-                        new RefreshStatus
-                        {
-                            BalanceRefreshing = false,
-                            LastBalanceRefresh = DateTime.MinValue,
-                            BalanceRefreshCallback = null,
-                            HistoryRefreshing = true,
-                            LastHistoryRefresh = now
-                        });
-                }
-            }
-
-            foreach (var platform in platformsList)
-            {
-                HistoryRefreshStarted?.Invoke(platform);
-            }
-
-            var wif = this.CurrentWif;
-
-            var keys = PhantasmaKeys.FromWIF(wif);
-            StartCoroutine(phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, (x, page, max) =>
-            {
-                var history = new List<HistoryEntry>();
-
-                foreach (var tx in x.Txs)
-                {
-                    history.Add(new HistoryEntry()
+                    RefreshStatus refreshStatus;
+                    var now = DateTime.UtcNow;
+                    if (_refreshStatus.ContainsKey(PlatformKind.Phantasma))
                     {
-                        hash = tx.Hash,
-                        date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.Timestamp).ToLocalTime(),
-                        url = GetPhantasmaTransactionURL(tx.Hash)
-                    });
+                        refreshStatus = _refreshStatus[PlatformKind.Phantasma];
+
+                        refreshStatus.HistoryRefreshing = true;
+                        refreshStatus.LastHistoryRefresh = now;
+
+                        _refreshStatus[PlatformKind.Phantasma] = refreshStatus;
+                    }
+                    else
+                    {
+                        _refreshStatus.Add(PlatformKind.Phantasma,
+                            new RefreshStatus
+                            {
+                                BalanceRefreshing = false,
+                                LastBalanceRefresh = DateTime.MinValue,
+                                BalanceRefreshCallback = null,
+                                HistoryRefreshing = true,
+                                LastHistoryRefresh = now
+                            });
+                    }
                 }
 
-                ReportWalletHistory(PlatformKind.Phantasma, history);
-            },
-            (error, msg) =>
-            {
-                if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                foreach (var platform in platformsList)
                 {
-                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                    HistoryRefreshStarted?.Invoke(platform);
                 }
-                ReportWalletHistory(PlatformKind.Phantasma, null);
-            }));
+
+                var wif = this.CurrentWif;
+
+                var keys = PhantasmaKeys.FromWIF(wif);
+                try
+                {
+                    var result = await AsyncPhantasma.FromApi<AccountTransactionsResult, uint, uint>(
+                        (onSuccess, onError) => phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, onSuccess, onError),
+                        CancellationToken.None);
+                    var (transactions, _, _) = result;
+
+                    var history = new List<HistoryEntry>();
+
+                    foreach (var tx in transactions.Txs)
+                    {
+                        history.Add(new HistoryEntry()
+                        {
+                            hash = tx.Hash,
+                            date = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc).AddSeconds(tx.Timestamp).ToLocalTime(),
+                            url = GetPhantasmaTransactionURL(tx.Hash)
+                        });
+                    }
+
+                    ReportWalletHistory(PlatformKind.Phantasma, history);
+                }
+                catch (PhantasmaRequestException ex)
+                {
+                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                    {
+                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
+                    }
+                    ReportWalletHistory(PlatformKind.Phantasma, null);
+                }
+            }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public string GetPhantasmaTransactionURL(string hash)
@@ -1861,7 +1904,7 @@ The Phoenix team", "Notice");
 
         internal void DeleteAccount(int currentIndex)
         {
-            if (currentIndex<0 || currentIndex >= Accounts.Count())
+            if (currentIndex < 0 || currentIndex >= Accounts.Count())
             {
                 return;
             }
@@ -1890,7 +1933,7 @@ The Phoenix team", "Notice");
                 account.iv = iv;
             }
             account.misc = ""; // Migration does not guarantee that new account have current seed, but that's all that we can do with it.
-            
+
             // Initializing new public addresses.
             wif = account.GetWif(passwordHash); // Recreating to be sure all is good.
             var phaKeys = PhantasmaKeys.FromWIF(wif);
@@ -1904,9 +1947,9 @@ The Phoenix team", "Notice");
 
             Accounts[currentIndex] = account;
 
-            for(var i = 0; i < Accounts.Count; i++)
+            for (var i = 0; i < Accounts.Count; i++)
             {
-                if(i != currentIndex && Accounts[i].phaAddress == account.phaAddress)
+                if (i != currentIndex && Accounts[i].phaAddress == account.phaAddress)
                 {
                     deletedDuplicateWallet = Accounts[i].name;
                     Accounts.RemoveAt(i);
@@ -1934,22 +1977,38 @@ The Phoenix team", "Notice");
             return true;
         }
 
+        private void LogTaskException(Exception ex)
+        {
+            if (ex == null)
+            {
+                return;
+            }
+
+            Log.WriteWarning(ex.ToString());
+        }
+
         internal void ValidateAccountName(string name, Action<string> callback)
         {
-            StartCoroutine(
-                this.phantasmaApi.LookUpName(name, (address) =>
+            async Task ExecuteAsync()
+            {
+                try
                 {
+                    var address = await AsyncPhantasma.FromApi<string>(
+                        (onSuccess, onError) => phantasmaApi.LookUpName(name, onSuccess, onError),
+                        CancellationToken.None);
                     callback(address);
-                },
-                (error, msg) =>
+                }
+                catch (PhantasmaRequestException ex)
                 {
-                    if (error == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
                     {
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
                     }
                     callback(null);
-                })
-            );
+                }
+            }
+
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         public string GetAddress(int index, PlatformKind platform)
@@ -2099,7 +2158,7 @@ The Phoenix team", "Notice");
 
                 currentNftsSortMode = (NftSortMode)Settings.nftSortMode;
             }
-            
+
             currentNftsSortDirection = (SortDirection)Settings.nftSortDirection;
         }
 
@@ -2107,7 +2166,7 @@ The Phoenix team", "Notice");
         {
             return _nfts[CurrentPlatform].Where(x => x.Id == id).FirstOrDefault();
         }
-        
+
         public IRom GetNftRom(string id)
         {
             return _roms[CurrentPlatform][id];

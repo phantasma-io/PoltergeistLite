@@ -8,12 +8,15 @@ using PhantasmaPhoenix.Protocol.Carbon.Blockchain.Vm;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
+using Poltergeist.Wallet;
+using PhantasmaPhoenix.Unity.Core;
 
 namespace Poltergeist
 {
@@ -106,6 +109,29 @@ namespace Poltergeist
             methodTable[contractMethod] = paramCount;
         }
 
+        private static async Task LoadContractMethodsAsync(string contract, AccountManager accountManager, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var contractStruct = await AsyncPhantasma.FromApi(
+                    (Action<PhantasmaPhoenix.RPC.Models.ContractResult> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
+                        accountManager.phantasmaApi.GetContract(contract, onSuccess, onError),
+                    cancellationToken);
+
+                Log.Write($"Registering {contractStruct.Methods.Length} methods for {contract}");
+
+                foreach (var method in contractStruct.Methods)
+                {
+                    Log.Write($"Registering contract method {contract}.{method.Name} with {method.Parameters.Length} parameters");
+                    RegisterContractMethod($"{contract}.{method.Name}", method.Parameters.Length);
+                }
+            }
+            catch (PhantasmaRequestException)
+            {
+                Log.WriteWarning("Could not fetch contract info: " + contract);
+            }
+        }
+
         private static string ShortenTokenId(string tokenId)
         {
             if (String.IsNullOrEmpty(tokenId) || tokenId.Length <= 13)
@@ -114,7 +140,7 @@ namespace Poltergeist
             return tokenId.Substring(0, 5) + "..." + tokenId.Substring(tokenId.Length - 5);
         }
 
-        public static IEnumerator GetDescription(byte[] script, bool devMode, Action<string, string> callback)
+        public static async Task<(string Description, string Error)> GetDescriptionAsync(byte[] script, bool devMode, CancellationToken cancellationToken = default)
         {
             Debug.Log("disam methods: " + string.Join(", ", methodTable.Keys));
 
@@ -134,37 +160,11 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                callback(null, e.ToString());
-                yield break;
+                return (null, e.ToString());
             }
 
-            var contractsToLoad = contracts.Count();
-            var contractsProcessed = 0;
-            foreach (var contract in contracts)
-            {
-                WalletGUI.Instance.StartCoroutine(
-                    accountManager.phantasmaApi.GetContract(contract, (contractStruct) =>
-                    {
-                        Log.Write($"Registering {contractStruct.Methods.Length} methods for {contract}");
-
-                        foreach (var method in contractStruct.Methods)
-                        {
-                            Log.Write($"Registering contract method {contract}.{method.Name} with {method.Parameters.Length} parameters");
-                            DescriptionUtils.RegisterContractMethod($"{contract}.{method.Name}", method.Parameters.Length);
-                        }
-
-                        contractsProcessed++;
-                    }, (error, msg) =>
-                    {
-                        Log.WriteWarning("Could not fetch contract info: " + contract);
-                        contractsProcessed++;
-                    }));
-            }
-
-            while (contractsProcessed < contractsToLoad)
-            {
-                yield return null;
-            }
+            var contractLoadTasks = contracts.Select(contract => LoadContractMethodsAsync(contract, accountManager, cancellationToken)).ToArray();
+            await Task.WhenAll(contractLoadTasks);
 
             IEnumerable<DisasmMethodCall> disasm;
             try
@@ -173,8 +173,7 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                callback(null, e.ToString());
-                yield break;
+                return (null, e.ToString());
             }
 
             // Checking if all calls are "market.SellToken" calls only or "Runtime.TransferToken" only,
@@ -675,17 +674,16 @@ namespace Poltergeist
 
             if (sb.Length > 0)
             {
-                callback(sb.ToString(), null);
-                yield break;
+                return (sb.ToString(), null);
             }
 
-            callback(null, "Unknown transaction content.");
+            return (null, "Unknown transaction content.");
         }
 
         // TODO move to SDK, also we have 1 copy of this method in RPC
         private static string VmDynamicVariableToString(VmDynamicVariable v)
         {
-            switch(v.type)
+            switch (v.type)
             {
                 case VmType.String:
                     return v.GetString();
@@ -800,7 +798,7 @@ namespace Poltergeist
             return;
         }
 
-        public static IEnumerator GetCarbonDescription(TxMsg txMsg, bool devMode, Action<string, string> callback)
+        public static Task<(string Description, string Error)> GetCarbonDescriptionAsync(TxMsg txMsg, bool devMode, CancellationToken cancellationToken = default)
         {
             var sb = new StringBuilder();
 
@@ -863,11 +861,10 @@ namespace Poltergeist
 
             if (sb.Length > 0)
             {
-                callback(sb.ToString(), null);
-                yield break;
+                return Task.FromResult<(string, string)>((sb.ToString(), null));
             }
 
-            callback(null, "Unknown transaction content.");
+            return Task.FromResult<(string, string)>((null, "Unknown transaction content."));
         }
     }
 }

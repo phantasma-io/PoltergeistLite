@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Core.Extensions;
 using PhantasmaPhoenix.Cryptography;
@@ -56,7 +58,7 @@ namespace Poltergeist
         {
             var script = new ScriptBuilder().CallContract("consensus", "GetTransaction",
                 AccountManager.Instance.CurrentAccount.phaAddress, subject).EndScript();
-            
+
             InvokeScript("main", script, id, (result, error) =>
             {
                 if (error != null)
@@ -70,14 +72,14 @@ namespace Poltergeist
 
                 callback(tx);
             });
-            
-        } 
-        
+
+        }
+
         private void GetAddressesForTransaction(string subject, int id, Action<Address[]> callback)
         {
             var script = new ScriptBuilder().CallContract("consensus", "GetAddressesForTransaction",
                 AccountManager.Instance.CurrentAccount.phaAddress, subject).EndScript();
-            
+
             InvokeScript("main", script, id, (result, error) =>
             {
                 if (error != null)
@@ -87,7 +89,7 @@ namespace Poltergeist
                 }
 
                 List<Address> addresses = new List<Address>();
-                foreach ( var item in result)
+                foreach (var item in result)
                 {
                     var bytes = Base16.Decode(item);
                     var addr = Serialization.Unserialize<VMObject>(bytes).AsAddress();
@@ -96,7 +98,7 @@ namespace Poltergeist
 
                 callback(addresses.ToArray());
             });
-            
+
         }
 
         protected override void GetAccount(string platform, int version, Action<Account, string> callback)
@@ -144,7 +146,7 @@ namespace Poltergeist
                 {
                     state.balances = new Poltergeist.Balance[0];
                 }
-                
+
                 balances = state.balances.Select(x => new Balance()
                 {
                     symbol = x.Symbol,
@@ -163,12 +165,12 @@ namespace Poltergeist
                 platform = platform,
                 external = targetPlatform != PlatformKind.Phantasma ? state.address : ""
             };
-            
-            if ( version == 3 && targetPlatform == PlatformKind.Neo)
+
+            if (version == 3 && targetPlatform == PlatformKind.Neo)
             {
                 accountExport.external = account.neoAddressN3;
             }
-            
+
             callback(accountExport, null);
         }
 
@@ -176,12 +178,12 @@ namespace Poltergeist
         {
             callback(AccountManager.Instance.Settings.phantasmaRPCURL);
         }
-        
+
         protected override void GetNexus(Action<string> callback)
         {
             callback(AccountManager.Instance.Settings.nexusName);
         }
-        
+
         protected override void GetN3Address(Action<string> callback)
         {
             callback(AccountManager.Instance.CurrentAccount.neoAddressN3);
@@ -233,7 +235,7 @@ namespace Poltergeist
             });
         }
 
-         protected override void FetchAndMultiSignature(string subject, string platform, SignatureKind kind, int id, Action<bool, string> callback)
+        protected override void FetchAndMultiSignature(string subject, string platform, SignatureKind kind, int id, Action<bool, string> callback)
         {
             var accountManager = AccountManager.Instance;
 
@@ -252,30 +254,30 @@ namespace Poltergeist
             }
 
             var account = AccountManager.Instance.CurrentAccount;
-            
+
             WalletGUI.Instance.CallOnUIThread(() =>
             {
-                
+
                 GetTransactionBySubject(subject, id, transaction =>
                 {
                     GetAddressesForTransaction(subject, id, addresses =>
                     {
-                        if (  transaction.Signatures.Length >= addresses.Length)
+                        if (transaction.Signatures.Length >= addresses.Length)
                         {
                             callback(false, "Transaction already signed by all addresses");
                             return;
                         }
-                        
-                        if ( transaction.Signatures.Length + 1 == addresses.Length)
+
+                        if (transaction.Signatures.Length + 1 == addresses.Length)
                         {
                             // Sign and Execute.
                             //SignAndExecuteTransaction();
                             return;
                         }
-                        
+
                         // SignTransaction and Send to Dapp
                         // SignTransactionAndSendSignature();
-                        
+
                         var description = $"{transaction.Hash}\n{transaction.Expiration}\n{Encoding.UTF8.GetString(transaction.Payload)}\n{Encoding.UTF8.GetString(transaction.Script)}";
 
                         WalletGUI.Instance.Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
@@ -307,9 +309,9 @@ namespace Poltergeist
                                         callback(false, kind + " signatures unsupported");
                                         return;
                                 }
-                                
+
                                 // Send to dapp the signature and the addresses that were used to sign
-                                
+
 
                                 callback(true, "");
                             }
@@ -323,10 +325,10 @@ namespace Poltergeist
 
                 });
 
-               
+
             });
         }
-        
+
         protected override void SignTransactionSignature(PhantasmaPhoenix.Protocol.Transaction transaction, string platform, SignatureKind kind, Action<PhantasmaPhoenix.Cryptography.Signature, string> callback)
         {
             var accountManager = AccountManager.Instance;
@@ -437,15 +439,15 @@ namespace Poltergeist
 
             WalletGUI.Instance.CallOnUIThread(() =>
             {
-                try
+                async Task HandleDescriptionAsync()
                 {
-                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, accountManager.Settings.devMode, (description, error) =>
+                    try
                     {
+                        var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, accountManager.Settings.devMode, CancellationToken.None);
 
                         if (description == null)
                         {
                             Log.Write("Error during description parsing.\nDetails: " + error);
-                            //description = "Could not decode transaction contents. (Not an error)";
                         }
                         else
                         {
@@ -470,17 +472,18 @@ namespace Poltergeist
                                 callback(Hash.Null, "user rejected");
                             }
                         });
-                    }));
+                    }
+                    catch (Exception e)
+                    {
+                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
+                        callback(Hash.Null, "description parsing error");
+                    }
                 }
-                catch (Exception e)
-                {
-                    WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
-                    callback(Hash.Null, "description parsing error");
-                    return;
-                }
+
+                HandleDescriptionAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
             });
         }
-        
+
         protected override void SignCarbonTransactionAndBroadcast(byte[] txBytes, Action<Hash, string> callback)
         {
             var accountManager = AccountManager.Instance;
@@ -497,16 +500,16 @@ namespace Poltergeist
 
             WalletGUI.Instance.CallOnUIThread(() =>
             {
-                try
+                async Task HandleDescriptionAsync()
                 {
-                    var txMsg = CarbonBlob.New<TxMsg>(txBytes);
-                    WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetCarbonDescription(txMsg, accountManager.Settings.devMode, (description, error) =>
+                    try
                     {
+                        var txMsg = CarbonBlob.New<TxMsg>(txBytes);
+                        var (description, error) = await DescriptionUtils.GetCarbonDescriptionAsync(txMsg, accountManager.Settings.devMode, CancellationToken.None);
 
                         if (description == null)
                         {
                             Log.Write("Error during description parsing.\nDetails: " + error);
-                            //description = "Could not decode transaction contents. (Not an error)";
                         }
                         else
                         {
@@ -535,14 +538,15 @@ namespace Poltergeist
                                 callback(Hash.Null, "user rejected");
                             }
                         });
-                    }));
+                    }
+                    catch (Exception e)
+                    {
+                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
+                        callback(Hash.Null, "description parsing error");
+                    }
                 }
-                catch (Exception e)
-                {
-                    WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
-                    callback(Hash.Null, "description parsing error");
-                    return;
-                }
+
+                HandleDescriptionAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
             });
         }
 
@@ -594,10 +598,10 @@ namespace Poltergeist
 
                             case SignatureKind.ECDSA:
 
-                                if ( targetPlatform == PlatformKind.Ethereum || targetPlatform == PlatformKind.BSC)
+                                if (targetPlatform == PlatformKind.Ethereum || targetPlatform == PlatformKind.BSC)
                                 {
                                     var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
-                                
+
                                     var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
                                     signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
                                 }
@@ -671,9 +675,9 @@ namespace Poltergeist
                        state.RegisterDappToken(dapp, token);
                    }
 
-                   callback(result,  result ? null :"rejected");
+                   callback(result, result ? null : "rejected");
                });
-           });
+            });
 
         }
     }

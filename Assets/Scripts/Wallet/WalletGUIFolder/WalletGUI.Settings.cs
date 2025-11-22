@@ -8,6 +8,8 @@ using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Legacy;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist.Wallet;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Poltergeist
 {
@@ -423,10 +425,11 @@ namespace Poltergeist
                         }
                         else
                         {
-                            try
+                            async Task DescribeScriptAsync()
                             {
-                                WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(script, true, (description, error) =>
+                                try
                                 {
+                                    (string description, string error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
                                     if (!string.IsNullOrEmpty(error))
                                     {
                                         modalActions.Error("Error during script parsing.\nDetails: " + error);
@@ -435,13 +438,14 @@ namespace Poltergeist
                                     {
                                         modalActions.CopyableMessage("Script description", description, closeOnCopy: false);
                                     }
-                                }));
+                                }
+                                catch (Exception e)
+                                {
+                                    modalActions.Error("Error during script parsing.\nDetails: " + e.ToString());
+                                }
                             }
-                            catch (Exception e)
-                            {
-                                modalActions.Error("Error during script parsing.\nDetails: " + e.ToString());
-                                return;
-                            }
+
+                            DescribeScriptAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
                         }
                     }
                 });
@@ -471,10 +475,11 @@ namespace Poltergeist
                         }
                         else
                         {
-                            try
+                            async Task DescribeTransactionAsync()
                             {
-                                WalletGUI.Instance.StartCoroutine(DescriptionUtils.GetDescription(tx.Script, true, (description, error) =>
+                                try
                                 {
+                                    (string description, string error) = await DescriptionUtils.GetDescriptionAsync(tx.Script, true, CancellationToken.None);
                                     if (!string.IsNullOrEmpty(error))
                                     {
                                         modalActions.Error("Error during tx parsing.\nDetails: " + error);
@@ -502,13 +507,14 @@ namespace Poltergeist
 
                                         modalActions.CopyableMessage("Tx description", message, closeOnCopy: false);
                                     }
-                                }));
+                                }
+                                catch (Exception e)
+                                {
+                                    modalActions.Error("Error during script parsing.\nDetails: " + e.ToString());
+                                }
                             }
-                            catch (Exception e)
-                            {
-                                modalActions.Error("Error during script parsing.\nDetails: " + e.ToString());
-                                return;
-                            }
+
+                            DescribeTransactionAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
                         }
                     }
                 });

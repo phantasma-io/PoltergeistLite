@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using System.Threading;
+using System.Threading.Tasks;
+using Poltergeist.Wallet;
 
 // Parsing and storing data received from TTRS store.
 public static class TtrsStore
@@ -99,15 +101,15 @@ public static class TtrsStore
         }
     }
 
-    public static IEnumerator LoadStoreNft(string[] ids, Action<Nft> onItemLoadedCallback, Action onAllItemsLoadedCallback)
+    public static async Task LoadStoreNftAsync(string[] ids, Action<Nft> onItemLoadedCallback, CancellationToken cancellationToken = default)
     {
         var url = "https://www.22series.com/api/store/nft";
 
         var cacheContents = Cache.GetAsString("ttrs-store-nft", Cache.FileType.JSON, 60 * 24);
-        Dictionary<string, Nft>? storeNft = null;
+        Dictionary<string, Nft> storeNft = null;
         try
         {
-            storeNft = JsonConvert.DeserializeObject<Dictionary<string, Nft>?>(cacheContents);
+            storeNft = JsonConvert.DeserializeObject<Dictionary<string, Nft>>(cacheContents);
         }
         catch
         {
@@ -131,8 +133,7 @@ public static class TtrsStore
 
             if (ids.Length == 0)
             {
-                onAllItemsLoadedCallback();
-                yield break;
+                return;
             }
         }
 
@@ -145,12 +146,9 @@ public static class TtrsStore
                 idList += ",\"" + ids[i] + "\"";
         }
 
-        yield return WebClient.RESTPost<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", (error, msg) =>
+        try
         {
-            Log.Write("LoadStoreNft() error: " + error);
-        },
-        (response) =>
-        {
+            var response = await WebClientAsync.PostAsync<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", cancellationToken);
             if (response != null)
             {
                 LoadStoreNftFromApiResponse(response, onItemLoadedCallback);
@@ -167,11 +165,17 @@ public static class TtrsStore
                 {
                     storeNft = response;
                 }
+
                 if (storeNft != null)
+                {
                     Cache.Add("ttrs-store-nft", Cache.FileType.JSON, JsonConvert.SerializeObject(storeNft, Formatting.Indented));
+                }
             }
-            onAllItemsLoadedCallback();
-        });
+        }
+        catch (PhantasmaRequestException ex)
+        {
+            Log.Write("LoadStoreNft() error: " + ex.Message);
+        }
     }
 
     private static string NftToString(Nft nft)

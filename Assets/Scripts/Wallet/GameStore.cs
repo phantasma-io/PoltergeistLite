@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
-using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using System.Threading;
+using System.Threading.Tasks;
+using Poltergeist.Wallet;
 
 // Parsing and storing data received from GAME store.
 public static class GameStore
@@ -21,7 +23,7 @@ public static class GameStore
 
         public void Merge(GameNftApiResponse? source)
         {
-            if(source == null)
+            if (source == null)
             {
                 return;
             }
@@ -126,7 +128,7 @@ public static class GameStore
         LogStoreNft();
     }
 
-    public static IEnumerator LoadStoreNft(string[] ids, Action<GameNft> onItemLoadedCallback, Action onAllItemsLoadedCallback)
+    public static async Task LoadStoreNftAsync(string[] ids, Action<GameNft> onItemLoadedCallback, CancellationToken cancellationToken = default)
     {
         var url = "https://pavillionhub.com/api/nft_data?phantasma_ids=1&token=GAME&meta=1&ids=";
 
@@ -158,8 +160,7 @@ public static class GameStore
 
             if (ids.Length == 0)
             {
-                onAllItemsLoadedCallback();
-                yield break;
+                return;
             }
         }
 
@@ -172,12 +173,10 @@ public static class GameStore
                 idList += "," + ids[i];
         }
 
-        yield return WebClient.RESTGet<GameNftApiResponse>(url + idList, 0, (error, msg) =>
+        try
         {
-            Log.Write("LoadStoreNft() error: " + error);
-        },
-        (response) =>
-        {
+            var response = await WebClientAsync.GetAsync<GameNftApiResponse>(url + idList, 0, cancellationToken);
+
             LoadStoreNftFromApiResponse(response, onItemLoadedCallback);
 
             if (storeNft != null)
@@ -189,11 +188,16 @@ public static class GameStore
             {
                 storeNft = response;
             }
-            if (storeNft != null)
-                Cache.Add("game-store-nft", Cache.FileType.JSON, JsonConvert.SerializeObject(storeNft, Formatting.Indented));
 
-            onAllItemsLoadedCallback();
-        });
+            if (storeNft != null)
+            {
+                Cache.Add("game-store-nft", Cache.FileType.JSON, JsonConvert.SerializeObject(storeNft, Formatting.Indented));
+            }
+        }
+        catch (PhantasmaRequestException ex)
+        {
+            Log.Write("LoadStoreNft() error: " + ex.Message);
+        }
     }
 
     private static string NftToString(GameNft nft)

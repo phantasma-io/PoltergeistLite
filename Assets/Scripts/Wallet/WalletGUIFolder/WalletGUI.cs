@@ -6,14 +6,10 @@ using UnityEngine;
 using UnityEngine.UI;
 
 using ZXing;
-using ZXing.QrCode;
-using System.Globalization;
-using System.Collections;
 using System.Threading;
-using BigInteger = System.Numerics.BigInteger;
+using System.Threading.Tasks;
 using NBitcoin;
 using PhantasmaPhoenix.Cryptography;
-using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Extensions;
@@ -21,9 +17,6 @@ using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.NFT.Extensions;
-using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
-using PhantasmaPhoenix.Protocol.Carbon;
-using System.IO;
 using PhantasmaPhoenix.Core.Extensions;
 using Poltergeist.Wallet;
 
@@ -719,9 +712,9 @@ namespace Poltergeist
 
         // This code is needed for Android to quit wallet on 'Back' double press.
         int escClickCounter = 0;
-        IEnumerator escClickTime()
+        private async Task EscClickTimeAsync()
         {
-            yield return new WaitForSeconds(0.5f);
+            await Task.Delay(TimeSpan.FromSeconds(0.5));
             escClickCounter = 0;
         }
         private void Update()
@@ -761,7 +754,7 @@ namespace Poltergeist
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     escClickCounter++;
-                    StartCoroutine(escClickTime());
+                    EscClickTimeAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
 
                     if (escClickCounter > 1 && Application.platform == RuntimePlatform.Android)
                     {
@@ -2637,36 +2630,36 @@ namespace Poltergeist
 
                 case "KCAL":
                     if (balance.Claimable > 0)
+                    {
+                        secondaryAction = "Claim";
+                        secondaryEnabled = true;
+                        secondaryCallback = () =>
                         {
-                            secondaryAction = "Claim";
-                            secondaryEnabled = true;
-                            secondaryCallback = () =>
+                            var claimMessage = stakeService.BuildClaimKcalMessage(balance.Claimable);
+                            if (!claimMessage.Success)
                             {
-                                var claimMessage = stakeService.BuildClaimKcalMessage(balance.Claimable);
-                                if (!claimMessage.Success)
-                                {
-                                    modalActions.Error(claimMessage.Error);
-                                    return;
-                                }
+                                modalActions.Error(claimMessage.Error);
+                                return;
+                            }
 
-                                var messageText = string.IsNullOrEmpty(claimMessage.Message) ? claimMessage.Error : claimMessage.Message;
-                                modalActions.YesNo(messageText, (result) =>
+                            var messageText = string.IsNullOrEmpty(claimMessage.Message) ? claimMessage.Error : claimMessage.Message;
+                            modalActions.YesNo(messageText, (result) =>
+                            {
+                                if (result == PromptResult.Success)
                                 {
-                                    if (result == PromptResult.Success)
+                                    RequestKCAL("SOUL", (feeResult) =>
                                     {
-                                        RequestKCAL("SOUL", (feeResult) =>
-                                        {
                                         if (feeResult == PromptResult.Success)
                                         {
                                             var planResult = stakeService.BuildClaimKcalDraft(balance.Claimable);
 
                                             SendTransactionDraft(planResult, (hash, txResult, error) =>
-                                            {
-                                                TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                                            });
+                                                {
+                                            TxResultMessage(hash, txResult, error, "Your KCAL tokens were claimed!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                                        });
                                         }
                                         else
-                                        if (feeResult == PromptResult.Failure)
+                                            if (feeResult == PromptResult.Failure)
                                         {
                                             modalActions.Error("KCAL is required to make transactions!");
                                         }
@@ -3504,38 +3497,38 @@ namespace Poltergeist
                                                     {
                                                         var planResult = accountAdminService.BuildRegisterNameDraft(name, accountManager.CurrentState.address);
 
-                                                    SendTransactionDraft(planResult, (hash, txResult, error) =>
-                                                    {
-                                                        if (string.IsNullOrEmpty(error) && hash != Hash.Null)
+                                                        SendTransactionDraft(planResult, (hash, txResult, error) =>
                                                         {
-                                                            SetState(CurrentState); // force updating the current UI
-
-                                                            if (AccountManager.Instance.CurrentAccount.name != name)
-                                                        {
-                                                            modalActions.YesNo("The address name was set successfully.\nDo you also want to change the local name for the account?\nThe local name is only visible in this device.", (localChange) =>
+                                                            if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                                                             {
-                                                                if (localChange == PromptResult.Success)
+                                                                SetState(CurrentState); // force updating the current UI
+
+                                                                if (AccountManager.Instance.CurrentAccount.name != name)
                                                                 {
-                                                                    if (accountManager.RenameAccount(name))
+                                                                    modalActions.YesNo("The address name was set successfully.\nDo you also want to change the local name for the account?\nThe local name is only visible in this device.", (localChange) =>
+                                                                {
+                                                                    if (localChange == PromptResult.Success)
                                                                     {
-                                                                        modalActions.Info($"The local account name was renamed '{name}'.");
+                                                                        if (accountManager.RenameAccount(name))
+                                                                        {
+                                                                            modalActions.Info($"The local account name was renamed '{name}'.");
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            modalActions.Error("Was not possible to rename the local account.\nHowever the public address was renamed with success.");
+                                                                        }
                                                                     }
-                                                                    else
-                                                                    {
-                                                                        modalActions.Error("Was not possible to rename the local account.\nHowever the public address was renamed with success.");
-                                                                    }
+                                                                });
                                                                 }
-                                                            });
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        modalActions.Error("An error occured when trying to setup the address name.");
+                                                            }
+                                                            else
+                                                            {
+                                                                modalActions.Error("An error occured when trying to setup the address name.");
+                                                            }
+                                                        });
+
                                                     }
                                                 });
-
-                                            }
-                                        });
                                         }
                                         else
                                         {
@@ -3717,14 +3710,20 @@ namespace Poltergeist
 
                                                 var jsonMessage = "{\"message\": \"" + signedPoaBase64 + "\"}";
 
-                                                StartCoroutine(WebClient.RESTPost<string>(url, jsonMessage, (error, msg) =>
+                                                async Task SendPoaMessageAsync()
                                                 {
-                                                    modalActions.Error("Error occured. Please try later.");
-                                                },
-                                                (result) =>
-                                                {
-                                                    modalActions.Info("Message sent.");
-                                                }));
+                                                    try
+                                                    {
+                                                        await WebClientAsync.PostAsync<string>(url, jsonMessage, CancellationToken.None);
+                                                        modalActions.Info("Message sent.");
+                                                    }
+                                                    catch (Exception)
+                                                    {
+                                                        modalActions.Error("Error occured. Please try later.");
+                                                    }
+                                                }
+
+                                                SendPoaMessageAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
 
                                                 if (accountManager.Settings.devMode)
                                                 {
@@ -3970,13 +3969,13 @@ namespace Poltergeist
 
                 if (string.IsNullOrEmpty(transferToken.Flags))
                 {
-                        modalActions.Error($"Operations with token {transferSymbol} are not supported yet in this version.");
+                    modalActions.Error($"Operations with token {transferSymbol} are not supported yet in this version.");
                     return;
                 }
 
                 if (!transferToken.IsTransferable())
                 {
-                        modalActions.Error($"Transfers of {transferSymbol} tokens are not allowed.");
+                    modalActions.Error($"Transfers of {transferSymbol} tokens are not allowed.");
                     return;
                 }
 

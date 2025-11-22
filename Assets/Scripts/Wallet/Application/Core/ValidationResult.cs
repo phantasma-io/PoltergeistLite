@@ -1,5 +1,3 @@
-using System;
-
 namespace Poltergeist.Wallet
 {
     /// <summary>
@@ -49,7 +47,7 @@ namespace Poltergeist.Wallet
             return new ValidationResult<T>(true, null, message, data);
         }
 
-        public static ValidationResult<T> Fail(string error)
+        public new static ValidationResult<T> Fail(string error)
         {
             var fail = ValidationResult.Fail(error);
             return new ValidationResult<T>(false, fail.Error, fail.Message, default);
@@ -73,7 +71,7 @@ namespace Poltergeist.Wallet
             return new ValidationResult<T1, T2>(true, null, message, data1, data2);
         }
 
-        public static ValidationResult<T1, T2> Fail(string error)
+        public new static ValidationResult<T1, T2> Fail(string error)
         {
             var fail = ValidationResult.Fail(error);
             return new ValidationResult<T1, T2>(false, fail.Error, fail.Message, default, default);
