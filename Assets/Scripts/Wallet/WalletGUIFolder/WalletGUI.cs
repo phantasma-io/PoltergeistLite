@@ -65,6 +65,8 @@ namespace Poltergeist
         private WalletDataProvider dataProvider;
         private WalletBalancePresenter balancePresenter;
         private WalletHistoryPresenter historyPresenter;
+        private WalletAccountHintsService accountHintsService;
+        private WalletQrCodeGenerator qrCodeGenerator;
         private WalletTransferService transferService;
         private BalanceViewRenderer balanceRenderer;
         private HistoryViewRenderer historyRenderer;
@@ -244,6 +246,8 @@ namespace Poltergeist
             dataProvider = context.Data;
             balancePresenter = context.BalancePresenter;
             historyPresenter = context.HistoryPresenter;
+            accountHintsService = context.AccountHintsService;
+            qrCodeGenerator = context.QrCodeGenerator;
             transferService = context.TransferService;
             balanceRenderer = new BalanceViewRenderer(this);
             historyRenderer = new HistoryViewRenderer(this);
@@ -483,7 +487,7 @@ namespace Poltergeist
                         foreach (var platform in platforms)
                         {
                             var address = accountManager.GetAddress(accountManager.CurrentIndex, platform);
-                            var tex = GenerateQR($"{platform.ToString().ToLower()}://{address}");
+                            var tex = qrCodeGenerator.Generate($"{platform.ToString().ToLower()}://{address}");
                             QRCodeTextures[platform] = tex;
                         }
                     }
@@ -2841,7 +2845,9 @@ namespace Poltergeist
                         }
                     });
 
-                    modalContext.Hints = GenerateAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
+                    var hints = accountHintsService.BuildAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
+                    hints["Scan QR"] = $"|{GUIState.ScanQR}";
+                    modalContext.Hints = hints;
                 }
                 else if (mainAction == "SM reward")
                 {
@@ -4013,7 +4019,9 @@ namespace Poltergeist
                     }
                 });
 
-                modalContext.Hints = GenerateAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
+                var hints = accountHintsService.BuildAccountHints(accountManager.CurrentPlatform.GetTransferTargets(transferToken));
+                hints["Scan QR"] = $"|{GUIState.ScanQR}";
+                modalContext.Hints = hints;
             });
 
             return posY;
@@ -4145,93 +4153,6 @@ namespace Poltergeist
 
         #endregion
 
-        private Dictionary<string, string> GenerateAccountHints(PlatformKind targets)
-        {
-            var accountManager = AccountManager.Instance;
-            var hints = new Dictionary<string, string>();
-
-            hints["Scan QR"] = $"|{GUIState.ScanQR}";
-
-            // Adding this account addresses at the beggining of item list.
-            var platformsForCurrentAccount = accountManager.CurrentAccount.platforms.Split();
-
-            foreach (var platform in platformsForCurrentAccount)
-            {
-                if (platform == accountManager.CurrentPlatform)
-                {
-                    continue;
-                }
-            }
-
-            for (int index = 0; index < accountManager.Accounts.Count(); index++)
-            {
-                var account = accountManager.Accounts[index];
-                var platforms = account.platforms.Split();
-
-                foreach (var platform in platforms)
-                {
-                    if (account.name == accountManager.CurrentAccount.name)
-                    {
-                        continue;
-                    }
-
-                    if (targets.HasFlag(platform))
-                    {
-                        if (accountManager.CurrentPlatform == PlatformKind.Ethereum && platform == PlatformKind.Phantasma ||
-                            accountManager.CurrentPlatform == PlatformKind.BSC && platform == PlatformKind.Phantasma ||
-                            accountManager.CurrentPlatform == PlatformKind.Neo && platform == PlatformKind.Phantasma ||
-                            accountManager.CurrentPlatform == PlatformKind.Phantasma && platform != PlatformKind.Phantasma)
-                        {
-                            // In Poltergeist we support swaps only within same account.
-                            continue;
-                        }
-                        var addr = accountManager.GetAddress(index, platform);
-                        if (!string.IsNullOrEmpty(addr))
-                        {
-                            var shortenedPlatform = platform.ToString();
-                            switch (platform)
-                            {
-                                case PlatformKind.Phantasma:
-                                    shortenedPlatform = "Pha";
-                                    break;
-                                case PlatformKind.Ethereum:
-                                    shortenedPlatform = "Eth";
-                                    break;
-                            }
-                            var key = $"{account.name} [{shortenedPlatform}]";
-                            hints[key] = addr;
-                        }
-                    }
-                }
-            }
-
-            return hints;
-        }
-
-        #region QR CODES
-        public Texture2D GenerateQR(string text)
-        {
-            var encoded = new Texture2D(256, 256);
-            var color32 = EncodeQR(text, encoded.width, encoded.height);
-            encoded.SetPixels32(color32);
-            encoded.Apply();
-            return encoded;
-        }
-
-        private static Color32[] EncodeQR(string textForEncoding, int width, int height)
-        {
-            var writer = new BarcodeWriter
-            {
-                Format = BarcodeFormat.QR_CODE,
-                Options = new QrCodeEncodingOptions
-                {
-                    Height = height,
-                    Width = width
-                }
-            };
-            return writer.Write(textForEncoding);
-        }
-        #endregion
 
         static string BytesToString(long byteCount)
         {
