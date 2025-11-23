@@ -430,7 +430,7 @@ namespace Poltergeist
 
                 case GUIState.Balances:
                     currentTitle = "Balances for " + accountManager.CurrentAccount.name;
-                    balancePresenter.State.Scroll = Vector2.zero;
+                    balancePresenter.State.ScrollY = 0;
                     MarkBalancesDirty();
 
                     // We do this only when account was just opened.
@@ -457,7 +457,7 @@ namespace Poltergeist
 
                 case GUIState.History:
                     currentTitle = "History for " + accountManager.CurrentAccount.name;
-                    historyPresenter.State.Scroll = Vector2.zero;
+                    historyPresenter.State.ScrollY = 0;
                     MarkHistoryDirty();
 
                     // We do this only when account was just opened.
@@ -716,9 +716,9 @@ namespace Poltergeist
                         else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             accountScroll.y += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.Balances && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            balancePresenter.State.Scroll.y += touch.deltaPosition.y;
+                            balancePresenter.State.ScrollY += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.History && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            historyPresenter.State.Scroll.y += touch.deltaPosition.y;
+                            historyPresenter.State.ScrollY += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.NftView && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             nftScroll.y += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
@@ -2071,7 +2071,6 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             var viewState = nftViewPresenter.State;
             var filterName = viewState.FilterName;
-            var filterTypeIndex = viewState.FilterTypeIndex;
             var filterType = viewState.FilterType;
             var filterRarity = viewState.FilterRarity;
             var filterMinted = viewState.FilterMinted;
@@ -2145,11 +2144,15 @@ namespace Poltergeist
             if (transferSymbol == "TTRS")
             {
                 // #3: NFT rarity filter
-                DoNftToolComboBox(posX3, posY2, nftRarityComboBox, Enum.GetValues(typeof(ttrsNftRarity)).Cast<ttrsNftRarity>().ToList(), "Rarity: ", ref filterRarity);
+                var rarityIndex = (int)filterRarity;
+                DoNftToolComboBox(posX3, posY2, nftRarityComboBox, Enum.GetValues(typeof(ttrsNftRarity)).Cast<ttrsNftRarity>().ToList(), "Rarity: ", ref rarityIndex);
+                filterRarity = (ttrsNftRarity)rarityIndex;
             }
 
             // #4: NFT mint date filter
-            DoNftToolComboBox(posX4, posY2, nftMintedComboBox, Enum.GetValues(typeof(nftMinted)).Cast<nftMinted>().ToList().Select(x => x.ToString().Replace('_', ' ')).ToList(), "Minted: ", ref filterMinted);
+            var mintedIndex = (int)filterMinted;
+            DoNftToolComboBox(posX4, posY2, nftMintedComboBox, Enum.GetValues(typeof(nftMinted)).Cast<nftMinted>().ToList().Select(x => x.ToString().Replace('_', ' ')).ToList(), "Minted: ", ref mintedIndex);
+            filterMinted = (nftMinted)mintedIndex;
 
             // #1: NFT name filter
             DoNftToolTextField(posX1, posY, "Name: ", ref filterName);
@@ -2157,19 +2160,16 @@ namespace Poltergeist
             if (transferSymbol == "TTRS")
             {
                 // #2: NFT type filter
-                DoNftToolComboBox(posX2, posY, nftTypeComboBox, Enum.GetValues(typeof(ttrsNftType)).Cast<ttrsNftType>().ToList(), "Type: ", ref filterTypeIndex);
-                if (Enum.IsDefined(typeof(ttrsNftType), filterTypeIndex))
-                    filterType = ((ttrsNftType)filterTypeIndex).ToString();
-                else
-                    filterType = "All";
+                var typeIndex = (int)filterType;
+                DoNftToolComboBox(posX2, posY, nftTypeComboBox, Enum.GetValues(typeof(ttrsNftType)).Cast<ttrsNftType>().ToList(), "Type: ", ref typeIndex);
+                filterType = Enum.IsDefined(typeof(ttrsNftType), typeIndex) ? (ttrsNftType)typeIndex : ttrsNftType.All;
             }
             else
             {
-                filterType = "All";
-                filterTypeIndex = 0;
+                filterType = ttrsNftType.All;
             }
 
-            if (viewState.UpdateFilters(filterName, filterTypeIndex, filterType, filterRarity, filterMinted))
+            if (viewState.UpdateFilters(filterName, filterType, filterRarity, filterMinted))
             {
                 nftScroll = Vector2.zero;
                 nftViewPresenter.ClearSelection();
@@ -2477,7 +2477,7 @@ namespace Poltergeist
 
             var balancesModel = GetBalancesSnapshot();
 
-            balanceRenderer.Render(balancesModel, ref balancePresenter.State.Scroll, startY, endY);
+            balanceRenderer.Render(balancesModel, ref balancePresenter.State.ScrollY, startY, endY);
         }
 
         private void DoBalanceEntry(WalletBalanceEntry balance, int index, int curY, Rect rect)
@@ -3244,7 +3244,7 @@ namespace Poltergeist
 
             var historyModel = GetHistorySnapshot();
 
-            historyRenderer.Render(historyModel, ref historyPresenter.State.Scroll, startY, endY);
+            historyRenderer.Render(historyModel, ref historyPresenter.State.ScrollY, startY, endY);
         }
 
         private void DoHistoryEntry(WalletHistoryItem entry, int index, int curY, Rect rect)

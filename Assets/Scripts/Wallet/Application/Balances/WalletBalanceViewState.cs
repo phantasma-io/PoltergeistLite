@@ -5,6 +5,6 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletBalanceViewState
     {
-        public UnityEngine.Vector2 Scroll;
+        public float ScrollY;
     }
 }

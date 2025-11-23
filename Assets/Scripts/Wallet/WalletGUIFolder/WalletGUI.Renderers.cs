@@ -19,17 +19,21 @@ namespace Poltergeist
                 this.gui = gui;
             }
 
-            public void Render(WalletBalanceViewSnapshot model, ref Vector2 scroll, int startY, int endY)
+            public void Render(WalletBalanceViewSnapshot model, ref float scrollY, int startY, int endY)
             {
+                var scroll = new Vector2(0, scrollY);
+
                 if (model.IsRefreshing)
                 {
                     gui.DrawCenteredText("Fetching balances...");
+                    scrollY = scroll.y;
                     return;
                 }
 
                 if (model.HasError)
                 {
                     gui.DrawCenteredText(model.ErrorMessage);
+                    scrollY = scroll.y;
                     return;
                 }
 
@@ -58,6 +62,7 @@ namespace Poltergeist
                     return meetsThreshold;
                 });
                 var count = gui.DoScrollArea(ref scroll, startY, endY, gui.VerticalLayout ? Units(7) : Units(6), items, gui.DoBalanceEntry);
+                scrollY = scroll.y;
 
                 if (count == 0)
                 {
@@ -75,22 +80,27 @@ namespace Poltergeist
                 this.gui = gui;
             }
 
-            public void Render(WalletHistoryViewSnapshot model, ref Vector2 scroll, int startY, int endY)
+            public void Render(WalletHistoryViewSnapshot model, ref float scrollY, int startY, int endY)
             {
+                var scroll = new Vector2(0, scrollY);
+
                 if (model.IsRefreshing)
                 {
                     gui.DrawCenteredText("Fetching history...");
+                    scrollY = scroll.y;
                     return;
                 }
 
                 if (model.HasError)
                 {
                     gui.DrawCenteredText(model.ErrorMessage);
+                    scrollY = scroll.y;
                     return;
                 }
 
                 var history = model.Entries;
                 var count = gui.DoScrollArea(ref scroll, startY, endY, gui.VerticalLayout ? Units(4) : Units(3), history, gui.DoHistoryEntry);
+                scrollY = scroll.y;
 
                 if (count == 0)
                 {

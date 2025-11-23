@@ -22,7 +22,7 @@ namespace Poltergeist.Wallet
             return Build(source, symbol, viewState.FilterName, viewState.FilterType, viewState.FilterRarity, viewState.FilterMinted, viewState.PageSize, viewState.PageNumber);
         }
 
-        public WalletNftViewSnapshot Build(WalletNftSource source, string symbol, string filterName, string filterType, int filterRarity, int filterMinted, int pageSize, int pageNumber)
+        public WalletNftViewSnapshot Build(WalletNftSource source, string symbol, string filterName, ttrsNftType filterType, ttrsNftRarity filterRarity, nftMinted filterMinted, int pageSize, int pageNumber)
         {
             if (source == null)
             {
@@ -60,12 +60,12 @@ namespace Poltergeist.Wallet
                     continue;
                 }
 
-                if (filterType != "All" && !string.IsNullOrEmpty(filterType) && !string.Equals(meta.Type, filterType, StringComparison.Ordinal))
+                if (filterType != ttrsNftType.All && !string.Equals(meta.Type, filterType.ToString(), StringComparison.Ordinal))
                 {
                     continue;
                 }
 
-                if (filterRarity != (int)ttrsNftRarity.All && meta.Rarity != filterRarity)
+                if (filterRarity != ttrsNftRarity.All && meta.Rarity != (int)filterRarity)
                 {
                     continue;
                 }
@@ -89,34 +89,34 @@ namespace Poltergeist.Wallet
             return new WalletNftViewSnapshot(isRefreshing, false, string.Empty, total, clampedPage, pageCount, filtered, pageIds);
         }
 
-        private bool MintedFilterMatch(int filterMinted, DateTime date)
+        private bool MintedFilterMatch(nftMinted filterMinted, DateTime date)
         {
-            if (filterMinted == (int)nftMinted.All)
+            if (filterMinted == nftMinted.All)
             {
                 return true;
             }
 
-            if (filterMinted == (int)nftMinted.Last_15_Mins && DateTime.Compare(date, DateTime.Now.AddMinutes(-15)) >= 0)
+            if (filterMinted == nftMinted.Last_15_Mins && DateTime.Compare(date, DateTime.Now.AddMinutes(-15)) >= 0)
             {
                 return true;
             }
 
-            if (filterMinted == (int)nftMinted.Last_Hour && DateTime.Compare(date, DateTime.Now.AddHours(-1)) >= 0)
+            if (filterMinted == nftMinted.Last_Hour && DateTime.Compare(date, DateTime.Now.AddHours(-1)) >= 0)
             {
                 return true;
             }
 
-            if (filterMinted == (int)nftMinted.Last_24_Hours && DateTime.Compare(date, DateTime.Now.AddDays(-1)) >= 0)
+            if (filterMinted == nftMinted.Last_24_Hours && DateTime.Compare(date, DateTime.Now.AddDays(-1)) >= 0)
             {
                 return true;
             }
 
-            if (filterMinted == (int)nftMinted.Last_Week && DateTime.Compare(date, DateTime.Now.AddDays(-7)) >= 0)
+            if (filterMinted == nftMinted.Last_Week && DateTime.Compare(date, DateTime.Now.AddDays(-7)) >= 0)
             {
                 return true;
             }
 
-            if (filterMinted == (int)nftMinted.Last_Month && DateTime.Compare(date, DateTime.Now.AddMonths(-1)) >= 0)
+            if (filterMinted == nftMinted.Last_Month && DateTime.Compare(date, DateTime.Now.AddMonths(-1)) >= 0)
             {
                 return true;
             }

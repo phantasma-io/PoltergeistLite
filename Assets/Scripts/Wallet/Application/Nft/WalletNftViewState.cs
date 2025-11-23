@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using Poltergeist;
 
 namespace Poltergeist.Wallet
 {
@@ -11,10 +12,9 @@ namespace Poltergeist.Wallet
         private readonly HashSet<string> _selectedIds = new HashSet<string>();
 
         public string FilterName = string.Empty;
-        public int FilterTypeIndex = 0;
-        public string FilterType = "All";
-        public int FilterRarity = 0;
-        public int FilterMinted = 0;
+        public ttrsNftType FilterType = ttrsNftType.All;
+        public ttrsNftRarity FilterRarity = ttrsNftRarity.All;
+        public nftMinted FilterMinted = nftMinted.All;
 
         public int PageSize = 25;
         public int PageNumber = 0;
@@ -24,10 +24,9 @@ namespace Poltergeist.Wallet
         public IReadOnlyCollection<string> SelectedIds => _selectedIds;
         public int SelectedCount => _selectedIds.Count;
 
-        public bool UpdateFilters(string filterName, int filterTypeIndex, string filterType, int filterRarity, int filterMinted)
+        public bool UpdateFilters(string filterName, ttrsNftType filterType, ttrsNftRarity filterRarity, nftMinted filterMinted)
         {
             var changed = FilterName != filterName ||
-                          FilterTypeIndex != filterTypeIndex ||
                           FilterType != filterType ||
                           FilterRarity != filterRarity ||
                           FilterMinted != filterMinted;
@@ -38,7 +37,6 @@ namespace Poltergeist.Wallet
             }
 
             FilterName = filterName;
-            FilterTypeIndex = filterTypeIndex;
             FilterType = filterType;
             FilterRarity = filterRarity;
             FilterMinted = filterMinted;
@@ -77,10 +75,9 @@ namespace Poltergeist.Wallet
         public void ResetFilters()
         {
             FilterName = string.Empty;
-            FilterTypeIndex = 0;
-            FilterType = "All";
-            FilterRarity = 0;
-            FilterMinted = 0;
+            FilterType = ttrsNftType.All;
+            FilterRarity = ttrsNftRarity.All;
+            FilterMinted = nftMinted.All;
         }
 
         public void ResetPagination()

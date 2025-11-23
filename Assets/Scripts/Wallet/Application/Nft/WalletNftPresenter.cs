@@ -28,9 +28,9 @@ namespace Poltergeist.Wallet
             return builder.Build(nftSource, symbol, state);
         }
 
-        public bool UpdateFilters(string filterName, int filterTypeIndex, string filterType, int filterRarity, int filterMinted)
+        public bool UpdateFilters(string filterName, ttrsNftType filterType, ttrsNftRarity filterRarity, nftMinted filterMinted)
         {
-            return state.UpdateFilters(filterName, filterTypeIndex, filterType, filterRarity, filterMinted);
+            return state.UpdateFilters(filterName, filterType, filterRarity, filterMinted);
         }
 
         public void Refresh(string symbol, bool force)
