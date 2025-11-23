@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Numerics;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.RPC.Models;
 
@@ -21,11 +22,11 @@ namespace Poltergeist
 
         public Dictionary<string, string> dappTokens = new Dictionary<string, string>();
 
-        public decimal GetAvailableAmount(string symbol)
+        public BigInteger GetAvailableAmount(string symbol)
         {
             if (balances == null)
             {
-                return 0;
+                return BigInteger.Zero;
             }
             
             for (int i = 0; i < balances.Length; i++)
@@ -33,11 +34,11 @@ namespace Poltergeist
                 var entry = balances[i];
                 if (entry.Symbol == symbol)
                 {
-                    return entry.AvailableDecimal;
+                    return entry.Available;
                 }
             }
 
-            return 0;
+            return BigInteger.Zero;
         }
 
         public void RegisterDappToken(string dapp, string token)

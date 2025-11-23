@@ -161,12 +161,17 @@ namespace Poltergeist
             Poltergeist.Wallet.WalletApplicationContext.Instance?.UiSignals?.EnsureSubscribed();
         }
 
-        public string GetTokenWorth(string symbol, decimal amount)
+        public string GetTokenWorth(string symbol, BigInteger amount, uint decimals)
         {
+            if (!WalletAmountFormatter.TryToDecimal(amount, decimals, out var decimalAmount))
+            {
+                return null;
+            }
+
             bool hasLocalCurrency = !string.IsNullOrEmpty(CurrentTokenCurrency) && _currencyMap.ContainsKey(CurrentTokenCurrency);
             if (_tokenPrices.ContainsKey(symbol) && hasLocalCurrency)
             {
-                var price = _tokenPrices[symbol] * amount;
+                var price = _tokenPrices[symbol] * decimalAmount;
                 var ch = _currencyMap[CurrentTokenCurrency];
                 return $"{WalletAmountFormatter.Format(price, MoneyFormatType.Short)} {ch}";
             }
@@ -714,78 +719,24 @@ The Phoenix team", "Notice");
 
         }
 
-        private readonly struct TokenAmount
+        private static BigInteger ParseTokenAmount(string amount, uint decimals)
         {
-            public TokenAmount(BigInteger raw, decimal value, bool overflow)
+            if (string.IsNullOrWhiteSpace(amount))
             {
-                Raw = raw;
-                Value = value;
-                Overflow = overflow;
+                return BigInteger.Zero;
             }
 
-            public BigInteger Raw { get; }
-            public decimal Value { get; }
-            public bool Overflow { get; }
-        }
-
-        private static TokenAmount ParseTokenAmount(string amount, uint decimals)
-        {
-            if (string.IsNullOrEmpty(amount))
+            if (amount.Contains(".") || amount.Contains(","))
             {
-                return new TokenAmount(BigInteger.Zero, 0, false);
+                throw new FormatException($"Unexpected fractional amount '{amount}' for token with {decimals} decimals.");
             }
 
-            BigInteger raw;
-            if (!BigInteger.TryParse(amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out raw))
+            if (!BigInteger.TryParse(amount, NumberStyles.Integer, CultureInfo.InvariantCulture, out var raw))
             {
-                if (decimal.TryParse(amount, NumberStyles.Number, CultureInfo.InvariantCulture, out var decimalAmount))
-                {
-                    raw = UnitConversion.ToBigInteger(decimalAmount, decimals);
-                }
-                else
-                {
-                    throw new FormatException($"Cannot parse amount '{amount}'");
-                }
+                throw new FormatException($"Cannot parse amount '{amount}'");
             }
 
-            var value = ToDecimalSafe(raw, decimals, out var overflow);
-            return new TokenAmount(raw, value, overflow);
-        }
-
-        private static decimal ToDecimalSafe(BigInteger raw, uint decimals, out bool overflowed)
-        {
-            var scale = BigInteger.Pow(10, (int)decimals);
-            var quotient = BigInteger.DivRem(raw, scale, out var remainder);
-
-            var max = (BigInteger)decimal.MaxValue;
-            var min = (BigInteger)decimal.MinValue;
-
-            if (quotient > max)
-            {
-                overflowed = true;
-                return decimal.MaxValue;
-            }
-
-            if (quotient < min)
-            {
-                overflowed = true;
-                return decimal.MinValue;
-            }
-
-            var value = (decimal)quotient;
-            if (remainder != 0)
-            {
-                var fraction = (decimal)remainder / (decimal)scale;
-                value += fraction;
-            }
-
-            overflowed = false;
-            return value;
-        }
-
-        public decimal AmountFromString(string str, uint decimals)
-        {
-            return ParseTokenAmount(str, decimals).Value;
+            return raw;
         }
 
         public void SignAndSendTransaction(string chain, byte[] script, byte[] payload, Action<Hash, string> callback, Func<byte[], byte[], byte[], byte[]> customSignFunction = null)
@@ -1384,7 +1335,6 @@ The Phoenix team", "Notice");
 
                     var balanceMap = new Dictionary<string, Balance>();
                     HashSet<string> missingTokens = null;
-                    var overflowDetected = false;
 
                     foreach (var entry in acc.Balances)
                     {
@@ -1401,7 +1351,7 @@ The Phoenix team", "Notice");
                         balanceMap[entry.Symbol] = new Balance()
                         {
                             Symbol = entry.Symbol,
-                            Available = availableAmount.Raw,
+                            Available = availableAmount,
                             Staked = BigInteger.Zero,
                             Claimable = BigInteger.Zero,
                             Chain = entry.Chain,
@@ -1411,30 +1361,23 @@ The Phoenix team", "Notice");
                             Ids = entry.Ids
                         };
 
-                        if (availableAmount.Overflow)
-                        {
-                            overflowDetected = true;
-                        }
                     }
 
-                    var stakedAmount = ParseTokenAmount(acc.Stakes.Amount,
-                        Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma));
-                    var claimableAmount = ParseTokenAmount(acc.Stakes.Unclaimed,
-                        Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma));
+                    var soulDecimals = Tokens.GetTokenDecimals("SOUL", PlatformKind.Phantasma);
+                    var kcalDecimals = Tokens.GetTokenDecimals("KCAL", PlatformKind.Phantasma);
+
+                    var stakedAmount = ParseTokenAmount(acc.Stakes.Amount, soulDecimals);
+                    var claimableAmount = ParseTokenAmount(acc.Stakes.Unclaimed, kcalDecimals);
 
                     var stakeTimestamp = new Timestamp(acc.Stakes.Time);
 
-                    if (stakedAmount.Value > 0)
+                    if (stakedAmount > 0)
                     {
                         var symbol = "SOUL";
                         if (balanceMap.ContainsKey(symbol))
                         {
                             var entry = balanceMap[symbol];
-                            entry.Staked = stakedAmount.Raw;
-                            if (stakedAmount.Overflow)
-                            {
-                                overflowDetected = true;
-                            }
+                            entry.Staked = stakedAmount;
                         }
                         else
                         {
@@ -1443,31 +1386,23 @@ The Phoenix team", "Notice");
                             {
                                 Symbol = symbol,
                                 Chain = "main",
-                                Staked = stakedAmount.Raw,
+                                Staked = stakedAmount,
                                 Claimable = BigInteger.Zero,
                                 Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible()
                             };
                             balanceMap[symbol] = entry;
-                            if (stakedAmount.Overflow)
-                            {
-                                overflowDetected = true;
-                            }
                         }
                     }
 
-                    if (claimableAmount.Value > 0)
+                    if (claimableAmount > 0)
                     {
                         var symbol = "KCAL";
                         if (balanceMap.ContainsKey(symbol))
                         {
                             var entry = balanceMap[symbol];
-                            entry.Claimable = claimableAmount.Raw;
-                            if (claimableAmount.Overflow)
-                            {
-                                overflowDetected = true;
-                            }
+                            entry.Claimable = claimableAmount;
                         }
                         else
                         {
@@ -1477,16 +1412,12 @@ The Phoenix team", "Notice");
                                 Symbol = symbol,
                                 Chain = "main",
                                 Staked = BigInteger.Zero,
-                                Claimable = claimableAmount.Raw,
+                                Claimable = claimableAmount,
                                 Decimals = token.Decimals,
                                 Burnable = token.IsBurnable(),
                                 Fungible = token.IsFungible()
                             };
                             balanceMap[symbol] = entry;
-                            if (claimableAmount.Overflow)
-                            {
-                                overflowDetected = true;
-                            }
                         }
                     }
 
@@ -1505,7 +1436,8 @@ The Phoenix team", "Notice");
                         flags = AccountFlags.None
                     };
 
-                    if (stakedAmount.Value >= SoulMasterStakeAmount)
+                    var soulMasterThreshold = WalletAmountParser.FromDecimal(SoulMasterStakeAmount, soulDecimals);
+                    if (stakedAmount >= soulMasterThreshold)
                     {
                         state.flags |= AccountFlags.Master;
                     }
@@ -1523,7 +1455,7 @@ The Phoenix team", "Notice");
                     state.avatarData = acc.Storage.Avatar;
 
                     ReportWalletBalance(PlatformKind.Phantasma, state);
-                    SetBalanceError(PlatformKind.Phantasma, overflowDetected ? "Balance is too large to display accurately." : null);
+                    SetBalanceError(PlatformKind.Phantasma, null);
 
                     if (missingTokens != null && missingTokens.Count > 0)
                     {
@@ -1542,6 +1474,12 @@ The Phoenix team", "Notice");
                     }
 
                     SetBalanceError(PlatformKind.Phantasma, $"Phantasma request failed: {ex.Message}");
+                    ReportWalletBalance(PlatformKind.Phantasma, null);
+                }
+                catch (FormatException ex)
+                {
+                    Log.WriteWarning($"RefreshBalances[PHA] parse error: {ex.Message}");
+                    SetBalanceError(PlatformKind.Phantasma, $"Error while parsing balances: {ex.Message}");
                     ReportWalletBalance(PlatformKind.Phantasma, null);
                 }
                 catch (Exception ex)
@@ -2420,9 +2358,12 @@ The Phoenix team", "Notice");
                                                                         }
                                                                         else
                                                                         {
-                                                                            var unclaimed = unclaimedResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(unclaimedResult).AsNumber(), 10) : -1;
-                                                                            var stake = stakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(stakeResult).AsNumber(), 8) : -1;
-                                                                            var storageStake = storageStakeResult != null ? UnitConversion.ToDecimal(VMObject.FromBytes(storageStakeResult).AsNumber(), 8) : -1;
+                                                                            var unclaimedRaw = unclaimedResult != null ? VMObject.FromBytes(unclaimedResult).AsNumber() : -1;
+                                                                            var stakeRaw = stakeResult != null ? VMObject.FromBytes(stakeResult).AsNumber() : -1;
+                                                                            var storageStakeRaw = storageStakeResult != null ? VMObject.FromBytes(storageStakeResult).AsNumber() : -1;
+                                                                            var unclaimed = WalletAmountFormatter.Format(unclaimedRaw, 10);
+                                                                            var stake = WalletAmountFormatter.Format(stakeRaw, 8);
+                                                                            var storageStake = WalletAmountFormatter.Format(storageStakeRaw, 8);
                                                                             var votingPower = votingPowerResult != null ? VMObject.FromBytes(votingPowerResult).AsNumber() : -1;
                                                                             var stakeTimestamp = stakeTimestampResult != null ? VMObject.FromBytes(stakeTimestampResult).AsTimestamp() : 0;
                                                                             var stakeTimestampLocal = stakeTimestamp != null ? ((DateTime)stakeTimestamp).ToLocalTime() : DateTime.MinValue;

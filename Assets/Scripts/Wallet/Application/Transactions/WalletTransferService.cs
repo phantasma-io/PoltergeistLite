@@ -27,35 +27,37 @@ namespace Poltergeist.Wallet
             _feeRequirement = feeRequirement ?? throw new ArgumentNullException(nameof(feeRequirement));
         }
 
-        public ValidationResult<decimal, decimal> GetFungibleAvailability(string symbol)
+        public ValidationResult<BigInteger, BigInteger> GetFungibleAvailability(string symbol)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                return ValidationResult<decimal, decimal>.Fail("Account manager is not available yet.");
+                return ValidationResult<BigInteger, BigInteger>.Fail("Account manager is not available yet.");
             }
 
             var state = accountManager.CurrentState;
             if (state == null)
             {
-                return ValidationResult<decimal, decimal>.Fail("Account state is unavailable.");
+                return ValidationResult<BigInteger, BigInteger>.Fail("Account state is unavailable.");
             }
 
             if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
             {
-                return ValidationResult<decimal, decimal>.Fail($"Current platform must be {PlatformKind.Phantasma}");
+                return ValidationResult<BigInteger, BigInteger>.Fail($"Current platform must be {PlatformKind.Phantasma}");
             }
 
+            var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
+            var minAmount = WalletAmountParser.FromDecimal(MinimumFungibleAmount, decimals);
             var available = state.GetAvailableAmount(symbol);
-            if (available < MinimumFungibleAmount)
+            if (available < minAmount)
             {
-                return ValidationResult<decimal, decimal>.Fail($"Not enough {symbol}.");
+                return ValidationResult<BigInteger, BigInteger>.Fail($"Not enough {symbol}.");
             }
 
-            return ValidationResult<decimal, decimal>.Ok(MinimumFungibleAmount, available);
+            return ValidationResult<BigInteger, BigInteger>.Ok(minAmount, available);
         }
 
-        public WalletTransactionDraftResult BuildFungibleTransferDraft(string symbol, decimal requestedAmount, string destinationText)
+        public WalletTransactionDraftResult BuildFungibleTransferDraft(string symbol, BigInteger requestedAmount, string destinationText)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -68,7 +70,9 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail(validationError);
             }
 
-            if (!EnsureKcal(accountManager, 0.1m, out var feeError))
+            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
+            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
+            if (!EnsureKcal(accountManager, minFee, out var feeError))
             {
                 return WalletTransactionDraftResult.Fail(feeError);
             }
@@ -105,9 +109,9 @@ namespace Poltergeist.Wallet
                         }
                     };
 
-                    var description = BuildDescription(symbol, amount, destination);
+                    var description = BuildDescription(symbol, amount, decimals, destination);
                     var plan = WalletTransactionDraft.ForCarbon(description, tx, chain, gasPrice, gasLimit);
-                    return WalletTransactionDraftResult.CreateSuccess(plan, amount);
+                    return WalletTransactionDraftResult.CreateSuccess(plan, bigIntAmount);
                 }
                 catch (Exception e)
                 {
@@ -133,9 +137,9 @@ namespace Poltergeist.Wallet
                     sb.SpendGas(source);
                     var script = sb.EndScript();
 
-                    var description = BuildDescription(symbol, amount, destination);
+                    var description = BuildDescription(symbol, amount, decimals, destination);
                     var plan = WalletTransactionDraft.ForSingleScript(description, script, chain, gasPrice, gasLimit, ProofOfWork.None);
-                    return WalletTransactionDraftResult.CreateSuccess(plan, amount);
+                    return WalletTransactionDraftResult.CreateSuccess(plan, bigIntAmount);
                 }
                 catch (Exception e)
                 {
@@ -144,29 +148,12 @@ namespace Poltergeist.Wallet
             }
         }
 
-        private static bool ValidateDecimals(decimal amount, uint decimals)
+        private static string BuildDescription(string symbol, BigInteger amount, uint decimals, Address destination)
         {
-            if (decimals > 0)
-            {
-                return true;
-            }
-
-            var temp = amount - (long)amount;
-            return temp == 0;
+            return $"Transfer {WalletAmountFormatter.Format(amount, decimals)} {symbol}\nDestination: {destination}";
         }
 
-        private static string BuildDescription(string symbol, decimal amount, Address destination)
-        {
-            return $"Transfer {FormatAmount(amount)} {symbol}\nDestination: {destination}";
-        }
-
-        private static string FormatAmount(decimal amount)
-        {
-            amount -= amount % 0.000000000001M;
-            return amount.ToString("#,0.############");
-        }
-
-        private bool TryValidateTransferRequest(AccountManager accountManager, string symbol, decimal requestedAmount, string destinationText, out Address source, out Address destination, out decimal amount, out uint decimals, out BigInteger bigIntAmount, out decimal availableBalance, out string error)
+        private bool TryValidateTransferRequest(AccountManager accountManager, string symbol, BigInteger requestedAmount, string destinationText, out Address source, out Address destination, out BigInteger amount, out uint decimals, out BigInteger bigIntAmount, out BigInteger availableBalance, out string error)
         {
             source = Address.Null;
             destination = Address.Null;
@@ -236,26 +223,12 @@ namespace Poltergeist.Wallet
             }
 
             decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-            if (!ValidateDecimals(amount, decimals))
-            {
-                error = $"Invalid {symbol} amount.";
-                return false;
-            }
-
-            try
-            {
-                bigIntAmount = UnitConversion.ToBigInteger(amount, decimals);
-            }
-            catch (Exception e)
-            {
-                error = $"Failed to convert amount: {e.Message}";
-                return false;
-            }
+            bigIntAmount = amount;
 
             return true;
         }
 
-        private bool EnsureKcal(AccountManager accountManager, decimal minAmount, out string error)
+        private bool EnsureKcal(AccountManager accountManager, BigInteger minAmount, out string error)
         {
             var success = true;
             string localError = null;

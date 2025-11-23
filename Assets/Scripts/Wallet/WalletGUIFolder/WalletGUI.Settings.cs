@@ -3,6 +3,7 @@ using System.Linq;
 using System.Numerics;
 using UnityEngine;
 using PhantasmaPhoenix.VM;
+using Poltergeist.Wallet;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Legacy;
@@ -366,7 +367,7 @@ namespace Poltergeist
                                                 var masterClaimDate = VMObject.FromBytes(masterClaimDateResult).AsTimestamp();
                                                 var claimMasterCount = VMObject.FromBytes(claimMasterCountResult).AsNumber();
                                                 var masterCount = VMObject.FromBytes(masterCountResult).AsNumber();
-                                                var masterThreshold = UnitConversion.ToDecimal(VMObject.FromBytes(masterThresholdResult).AsNumber(), 8);
+                                                var masterThreshold = WalletAmountFormatter.Format(VMObject.FromBytes(masterThresholdResult).AsNumber(), 8);
 
                                                 modalActions.CopyableMessage("Account information",
                                                     $"Phantasma staking information:\n\n" +

@@ -8,7 +8,7 @@ namespace Poltergeist.Wallet
     /// </summary>
     public static class WalletAmountFormatter
     {
-        public static decimal ToDecimal(BigInteger raw, uint decimals, out bool overflowed)
+        public static bool TryToDecimal(BigInteger raw, uint decimals, out decimal value)
         {
             var scale = BigInteger.Pow(10, (int)decimals);
             var quotient = BigInteger.DivRem(raw, scale, out var remainder);
@@ -18,25 +18,24 @@ namespace Poltergeist.Wallet
 
             if (quotient > max)
             {
-                overflowed = true;
-                return decimal.MaxValue;
+                value = 0;
+                return false;
             }
 
             if (quotient < min)
             {
-                overflowed = true;
-                return decimal.MinValue;
+                value = 0;
+                return false;
             }
 
-            var value = (decimal)quotient;
+            value = (decimal)quotient;
             if (remainder != 0)
             {
                 var fraction = (decimal)remainder / (decimal)scale;
                 value += fraction;
             }
 
-            overflowed = false;
-            return value;
+            return true;
         }
 
         public static string Format(BigInteger raw, uint decimals, MoneyFormatType formatType = MoneyFormatType.Standard)

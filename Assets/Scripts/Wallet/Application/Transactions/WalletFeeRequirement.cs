@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 using PhantasmaPhoenix.Protocol;
 
 namespace Poltergeist.Wallet
@@ -15,7 +16,7 @@ namespace Poltergeist.Wallet
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
-        public void EnsureKcal(decimal minAmount, Action<PromptResult, string> callback)
+        public void EnsureKcal(BigInteger minAmount, Action<PromptResult, string> callback)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -37,7 +38,7 @@ namespace Poltergeist.Wallet
                 return;
             }
 
-            var feeBalance = state.GetAvailableAmount("KCAL");
+            var feeBalance = state.GetAvailableAmount(DomainSettings.FuelTokenSymbol);
             callback?.Invoke(feeBalance >= minAmount ? PromptResult.Success : PromptResult.Failure, feeBalance >= minAmount ? null : "KCAL is required to make transactions!");
         }
     }

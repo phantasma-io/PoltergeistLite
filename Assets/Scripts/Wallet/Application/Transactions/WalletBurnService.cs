@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
@@ -24,7 +25,7 @@ namespace Poltergeist.Wallet
             _feeRequirement = feeRequirement ?? throw new ArgumentNullException(nameof(feeRequirement));
         }
 
-        public ValidationResult<WalletTransactionDraft> PrepareFungibleBurn(string symbol, decimal availableAmount, decimal requestedAmount)
+        public ValidationResult<WalletTransactionDraft> PrepareFungibleBurn(string symbol, BigInteger availableAmount, BigInteger requestedAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -48,7 +49,9 @@ namespace Poltergeist.Wallet
                 return ValidationResult<WalletTransactionDraft>.Fail("Invalid burn amount.");
             }
 
-            var feeCheck = EnsureKcal(accountManager, 0.1m);
+            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
+            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
+            var feeCheck = EnsureKcal(accountManager, minFee);
             if (!feeCheck.Success)
             {
                 return ValidationResult<WalletTransactionDraft>.Fail(feeCheck.Error);
@@ -60,18 +63,19 @@ namespace Poltergeist.Wallet
                 return ValidationResult<WalletTransactionDraft>.Fail(draftResult.Error);
             }
 
-            var message = $"Are you sure you want to burn {draftResult.Amount} {symbol} tokens?";
+            var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
+            var message = $"Are you sure you want to burn {WalletAmountFormatter.Format(draftResult.Amount, decimals)} {symbol} tokens?";
             return ValidationResult<WalletTransactionDraft>.Ok(draftResult.Draft, message);
         }
 
-        public WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, decimal amount)
+        public WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, BigInteger amount)
         {
             var accountManager = _accountProvider();
             var state = accountManager?.CurrentState;
             return BuildFungibleBurnDraft(symbol, amount, state, accountManager);
         }
 
-        private WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, decimal amount, AccountState state, AccountManager accountManager)
+        private WalletTransactionDraftResult BuildFungibleBurnDraft(string symbol, BigInteger amount, AccountState state, AccountManager accountManager)
         {
             if (accountManager == null)
             {
@@ -89,7 +93,7 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail($"{symbol} balance is not available.");
             }
 
-            var available = balance.AvailableDecimal;
+            var available = balance.Available;
             var burnAmount = amount;
             if (burnAmount > available && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
             {
@@ -106,11 +110,11 @@ namespace Poltergeist.Wallet
 
             var sb = new ScriptBuilder();
             sb.AllowGas(target, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-            sb.CallInterop("Runtime.BurnTokens", target, symbol, UnitConversion.ToBigInteger(burnAmount, decimals));
+            sb.CallInterop("Runtime.BurnTokens", target, symbol, burnAmount);
             sb.SpendGas(target);
             var script = sb.EndScript();
 
-            var plan = WalletTransactionDraft.ForSingleScript($"Burn {burnAmount} {symbol} tokens", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Burn {WalletAmountFormatter.Format(burnAmount, decimals)} {symbol} tokens", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, burnAmount);
         }
 
@@ -139,7 +143,9 @@ namespace Poltergeist.Wallet
                 return ValidationResult<WalletTransactionDraft>.Fail("No NFTs selected.");
             }
 
-            var feeCheck = EnsureKcal(accountManager, 0.1m);
+            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
+            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
+            var feeCheck = EnsureKcal(accountManager, minFee);
             if (!feeCheck.Success)
             {
                 return ValidationResult<WalletTransactionDraft>.Fail(feeCheck.Error);
@@ -161,7 +167,7 @@ namespace Poltergeist.Wallet
             return ValidationResult<WalletTransactionDraft>.Ok(plan, message);
         }
 
-        public ValidationResult EnsureKcal(AccountManager accountManager, decimal minAmount)
+        public ValidationResult EnsureKcal(AccountManager accountManager, BigInteger minAmount)
         {
             var result = ValidationResult.Ok();
             _feeRequirement.EnsureKcal(minAmount, (feeResult, error) =>

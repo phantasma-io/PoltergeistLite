@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using UnityEngine;
 using Poltergeist;
 
@@ -81,9 +82,9 @@ namespace Poltergeist.Wallet
             }, closeOnCopy);
         }
 
-        public void RequireAmount(string description, string destination, string symbol, decimal min, decimal max, Action<decimal> callback)
+        public void RequireAmount(string description, string destination, string symbol, BigInteger min, BigInteger max, uint decimals, Action<BigInteger> callback)
         {
-            var caption = $"Enter {symbol} amount:\nMax: {WalletAmountFormatter.Format(max, MoneyFormatType.Long)} {symbol}";
+            var caption = $"Enter {symbol} amount:\nMax: {WalletAmountFormatter.Format(max, decimals)} {symbol}";
             if (!string.IsNullOrEmpty(destination))
             {
                 caption += $"\nDestination: {destination}";
@@ -108,7 +109,7 @@ namespace Poltergeist.Wallet
 
             _service.Context.Hints = new Dictionary<string, string>
             {
-                { $"Max ({WalletAmountFormatter.Format(max, MoneyFormatType.Short)} {symbol})", max.ToString() }
+                { $"Max ({WalletAmountFormatter.Format(max, decimals)} {symbol})", WalletAmountFormatter.Format(max, decimals) }
             };
         }
 

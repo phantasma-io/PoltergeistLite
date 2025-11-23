@@ -75,7 +75,9 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail("No NFTs selected for transfer.");
             }
 
-            var feeCheck = EnsureKcal(accountManager, 0.1m);
+            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
+            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
+            var feeCheck = EnsureKcal(accountManager, minFee);
             if (!feeCheck.Success)
             {
                 return feeCheck;
@@ -93,7 +95,7 @@ namespace Poltergeist.Wallet
             }
         }
 
-        private WalletTransactionDraftResult EnsureKcal(AccountManager accountManager, decimal minAmount)
+        private WalletTransactionDraftResult EnsureKcal(AccountManager accountManager, BigInteger minAmount)
         {
             var result = WalletTransactionDraftResult.CreateSuccess(null);
             _feeRequirement.EnsureKcal(minAmount, (feeResult, error) =>

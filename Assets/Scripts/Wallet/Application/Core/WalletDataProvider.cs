@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PhantasmaPhoenix.NFT.Extensions;
+using Poltergeist;
 
 namespace Poltergeist.Wallet
 {
@@ -43,7 +44,7 @@ namespace Poltergeist.Wallet
 
             var balances = state.balances?.Select(b =>
             {
-                var fiatWorth = b.AvailableOverflow ? null : accountManager.GetTokenWorth(b.Symbol, b.AvailableDecimal);
+                var fiatWorth = accountManager.GetTokenWorth(b.Symbol, b.Available, b.Decimals);
                 return new WalletBalanceEntry(b.Symbol, b.Available, b.Staked, b.Claimable, b.Chain, b.Decimals, b.Burnable, b.Fungible, b.Ids, fiatWorth);
             }).ToList() ?? new List<WalletBalanceEntry>();
 

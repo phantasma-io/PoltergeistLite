@@ -150,7 +150,7 @@ namespace Poltergeist.Wallet
 
                 var estimatedFee = usedGas * draft.GasPrice;
                 var feeDecimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
-                description += $"\nEstimated fee: {UnitConversion.ToDecimal(estimatedFee, feeDecimals)} KCAL";
+                description += $"\nEstimated fee: {WalletAmountFormatter.Format(estimatedFee, feeDecimals)} KCAL";
             }
 
             return description;

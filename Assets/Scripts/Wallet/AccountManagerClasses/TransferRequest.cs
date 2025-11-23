@@ -5,7 +5,7 @@ namespace Poltergeist
         public PlatformKind platform;
         public string destination;
         public string symbol;
-        public decimal amount;
+        public System.Numerics.BigInteger amount;
         public string interop;
     }
 }

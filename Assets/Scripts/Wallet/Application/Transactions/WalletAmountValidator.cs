@@ -2,6 +2,7 @@ using System;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using Poltergeist;
+using System.Numerics;
 
 namespace Poltergeist.Wallet
 {
@@ -17,12 +18,12 @@ namespace Poltergeist.Wallet
             _accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
         }
 
-        public ValidationResult<decimal> ParseAndValidate(string input, string symbol, decimal minAmount, decimal maxAmount)
+        public ValidationResult<BigInteger> ParseAndValidate(string input, string symbol, BigInteger minAmount, BigInteger maxAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                return ValidationResult<decimal>.Fail("Account manager is not available yet.");
+                return ValidationResult<BigInteger>.Fail("Account manager is not available yet.");
             }
 
             uint decimals;
@@ -32,55 +33,36 @@ namespace Poltergeist.Wallet
             }
             catch (Exception e)
             {
-                return ValidationResult<decimal>.Fail($"Cannot load token decimals for {symbol}. {e.Message}");
+                return ValidationResult<BigInteger>.Fail($"Cannot load token decimals for {symbol}. {e.Message}");
             }
 
-            var amount = ParseNumber(input);
+            if (!WalletAmountParser.TryParse(input, decimals, out var amount))
+            {
+                return ValidationResult<BigInteger>.Fail($"Invalid {symbol} amount.");
+            }
+
             if (accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation)
             {
-                return ValidationResult<decimal>.Ok(amount);
+                return ValidationResult<BigInteger>.Ok(amount);
             }
 
-            if (amount <= 0 || !ValidDecimals(amount, decimals))
+            if (amount <= 0)
             {
-                return ValidationResult<decimal>.Fail("Invalid amount!");
+                return ValidationResult<BigInteger>.Fail("Invalid amount!");
             }
 
             if (amount > maxAmount)
             {
-                return ValidationResult<decimal>.Fail($"Not enough {symbol}!");
+                return ValidationResult<BigInteger>.Fail($"Not enough {symbol}!");
             }
 
             if (amount < minAmount)
             {
-                return ValidationResult<decimal>.Fail($"Amount is too small.\nMinimum accepted is {minAmount} {symbol}!");
+                return ValidationResult<BigInteger>.Fail($"Amount is too small.\nMinimum accepted is {WalletAmountFormatter.Format(minAmount, decimals)} {symbol}!");
             }
 
-            return ValidationResult<decimal>.Ok(amount);
+            return ValidationResult<BigInteger>.Ok(amount);
         }
 
-        private static bool ValidDecimals(decimal amount, uint decimals)
-        {
-            if (decimals > 0)
-            {
-                return true;
-            }
-
-            var temp = amount - (long)amount;
-            return temp == 0;
-        }
-
-        private static decimal ParseNumber(string s)
-        {
-            s = s.Trim().Replace(" ", "").Replace("_", "");
-            s = s.Replace(",", System.Globalization.CultureInfo.InvariantCulture.NumberFormat.NumberDecimalSeparator);
-            decimal result;
-            if (decimal.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out result))
-            {
-                return result;
-            }
-
-            return -1;
-        }
     }
 }

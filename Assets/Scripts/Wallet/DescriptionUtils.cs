@@ -11,6 +11,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Poltergeist.Wallet;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -343,7 +345,7 @@ namespace Poltergeist
 
                             var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
 
-                            var total = UnitConversion.ToDecimal(amount, token.Decimals);
+                            var total = WalletAmountFormatter.Format(amount, token.Decimals);
 
                             sb.AppendLine($"\u2605 Transfer {total} {symbol} from {src} to {dst}.");
                             break;
@@ -374,7 +376,7 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(priceSymbol, PlatformKind.Phantasma);
 
-                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
+                            var price = WalletAmountFormatter.Format(GetNumberArg(entry, 4), priceToken.Decimals);
 
                             var untilDate = GetTimestampArg(entry, 5);
 
@@ -416,8 +418,8 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(priceSymbol, PlatformKind.Phantasma);
 
-                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
-                            var endPrice = UnitConversion.ToDecimal(GetNumberArg(entry, 5), priceToken.Decimals);
+                            var price = WalletAmountFormatter.Format(GetNumberArg(entry, 4), priceToken.Decimals);
+                            var endPrice = WalletAmountFormatter.Format(GetNumberArg(entry, 5), priceToken.Decimals);
 
                             var startDate = GetTimestampArg(entry, 6);
                             var untilDate = GetTimestampArg(entry, 7);
@@ -435,8 +437,8 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(priceSymbol, PlatformKind.Phantasma);
 
-                            var price = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
-                            var endPrice = UnitConversion.ToDecimal(GetNumberArg(entry, 5), priceToken.Decimals);
+                            var price = WalletAmountFormatter.Format(GetNumberArg(entry, 4), priceToken.Decimals);
+                            var endPrice = WalletAmountFormatter.Format(GetNumberArg(entry, 5), priceToken.Decimals);
 
                             var startDate = GetTimestampArg(entry, 6);
                             var untilDate = GetTimestampArg(entry, 7);
@@ -499,7 +501,7 @@ namespace Poltergeist
 
                             var priceToken = Tokens.GetToken(tokenSymbol, PlatformKind.Phantasma);
 
-                            var purchase = UnitConversion.ToDecimal(GetNumberArg(entry, 4), priceToken.Decimals);
+                            var purchase = WalletAmountFormatter.Format(GetNumberArg(entry, 4), priceToken.Decimals);
 
                             sb.AppendLine($"\u2605 Participate to sale {saleHash} with {purchase} {tokenSymbol}.");
                             break;
@@ -522,7 +524,7 @@ namespace Poltergeist
 
                             var token = Tokens.GetToken(symbol, PlatformKind.Phantasma);
 
-                            var total = UnitConversion.ToDecimal(amount, token.Decimals);
+                            var total = WalletAmountFormatter.Format(amount, token.Decimals);
 
                             sb.AppendLine($"\u2605 Burn {total} {symbol} from {address}.");
                             break;
@@ -547,7 +549,7 @@ namespace Poltergeist
 
                             var infuseToken = Tokens.GetToken(infuseSymbol, PlatformKind.Phantasma);
 
-                            sb.AppendLine($"\u2605 Infuse {targetSymbol} NFT #{ShortenTokenId(tokenID)} with " + (infuseToken.IsFungible() ? $"{UnitConversion.ToDecimal(amount, infuseToken.Decimals)} {infuseSymbol}." : $"{infuseSymbol} NFT #{ShortenTokenId(amountString)}."));
+                            sb.AppendLine($"\u2605 Infuse {targetSymbol} NFT #{ShortenTokenId(tokenID)} with " + (infuseToken.IsFungible() ? $"{WalletAmountFormatter.Format(amount, infuseToken.Decimals)} {infuseSymbol}." : $"{infuseSymbol} NFT #{ShortenTokenId(amountString)}."));
                             break;
                         }
                     case "Nexus.CreateToken":
@@ -640,14 +642,16 @@ namespace Poltergeist
                             if (infusedAmount > 0)
                             {
                                 var infusedToken = Tokens.GetToken(infusedAsset, PlatformKind.Phantasma);
-                                var infusedAmountWithDecimals = infusedToken.IsFungible() ? UnitConversion.ToDecimal(infusedAmount, infusedToken.Decimals) : 0;
+                                var infusedAmountFormatted = infusedToken.IsFungible()
+                                    ? WalletAmountFormatter.Format(infusedAmount, infusedToken.Decimals)
+                                    : infusedAmount.ToString();
 
-                                sb.AppendLine($"\u2605 Infuse {numOfNfts}x {mintTicker} with {(infusedAmountWithDecimals > 0 ? infusedAmountWithDecimals.ToString() : infusedAmount.ToString())} {infusedAsset} each.");
+                                sb.AppendLine($"\u2605 Infuse {numOfNfts}x {mintTicker} with {infusedAmountFormatted} {infusedAsset} each.");
                             }
                             if (listPrice > 0)
                             {
                                 var listPriceToken = Tokens.GetToken(listPriceCurrency, PlatformKind.Phantasma);
-                                var listPriceWithDecimals = (listPrice > 0) ? UnitConversion.ToDecimal(listPrice, listPriceToken.Decimals) : 0;
+                                var listPriceWithDecimals = (listPrice > 0) ? WalletAmountFormatter.Format(listPrice, listPriceToken.Decimals) : "0";
 
                                 sb.AppendLine($"\u2605 Sell {numOfNfts}x {mintTicker}, for {listPriceWithDecimals} {listPriceCurrency}, offer valid until {listLastEndDate}.");
                             }

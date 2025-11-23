@@ -60,7 +60,7 @@ namespace Poltergeist.Wallet
 
     public sealed class WalletTransactionDraftResult
     {
-        private WalletTransactionDraftResult(bool success, WalletTransactionDraft draft, string error, decimal amount)
+        private WalletTransactionDraftResult(bool success, WalletTransactionDraft draft, string error, BigInteger amount)
         {
             Success = success;
             Draft = draft;
@@ -71,9 +71,9 @@ namespace Poltergeist.Wallet
         public bool Success { get; }
         public WalletTransactionDraft Draft { get; }
         public string Error { get; }
-        public decimal Amount { get; }
+        public BigInteger Amount { get; }
 
-        public static WalletTransactionDraftResult CreateSuccess(WalletTransactionDraft draft, decimal amount = 0)
+        public static WalletTransactionDraftResult CreateSuccess(WalletTransactionDraft draft, BigInteger amount = default)
         {
             return new WalletTransactionDraftResult(true, draft, null, amount);
         }

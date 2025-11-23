@@ -1,6 +1,8 @@
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 using UnityEngine;
+using Vector2 = UnityEngine.Vector2;
 using Poltergeist.Wallet;
 
 namespace Poltergeist
@@ -36,7 +38,17 @@ namespace Poltergeist
                     return;
                 }
 
-                var items = model.Balances.Where(x => x.Total >= 0.001m);
+                var items = model.Balances.Where(x =>
+                {
+                    if (!WalletAmountParser.TryParse("0.001", x.Decimals, out var threshold))
+                    {
+                        threshold = BigInteger.Zero;
+                    }
+
+                    var positive = x.Total > BigInteger.Zero;
+                    var meetsThreshold = threshold == BigInteger.Zero ? positive : x.Total >= threshold;
+                    return meetsThreshold;
+                });
                 var count = gui.DoScrollArea(ref scroll, startY, endY, gui.VerticalLayout ? Units(7) : Units(6), items, gui.DoBalanceEntry);
 
                 if (count == 0)

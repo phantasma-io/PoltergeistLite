@@ -2179,14 +2179,14 @@ namespace Poltergeist
             return nftTypeComboBox.DropDownIsOpened() || nftMintedComboBox.DropDownIsOpened() || nftRarityComboBox.DropDownIsOpened();
         }
 
-        private void DrawBalanceLine(ref Rect subRect, string symbol, string displayAmount, decimal amountForFiat, string caption)
+        private void DrawBalanceLine(ref Rect subRect, string symbol, string displayAmount, System.Numerics.BigInteger amount, uint decimals, string caption)
         {
             if (!string.IsNullOrEmpty(displayAmount) && displayAmount != "0")
             {
                 var style = GUI.skin.label;
                 style.fontSize -= VerticalLayout ? 4 : 2;
 
-                var value = amountForFiat > 0 ? AccountManager.Instance.GetTokenWorth(symbol, amountForFiat) : null;
+                var value = amount > System.Numerics.BigInteger.Zero ? AccountManager.Instance.GetTokenWorth(symbol, amount, decimals) : null;
                 GUI.Label(subRect, $"{displayAmount} {symbol} {caption}" + (value == null ? "" : $" ({value})"));
                 style.fontSize += VerticalLayout ? 4 : 2;
 
@@ -2499,8 +2499,8 @@ namespace Poltergeist
             style.fontSize += VerticalLayout ? 0 : 4;
 
             var subRect = new Rect(posX, posY + Units(1) + 4, Units(20), Units(2));
-            DrawBalanceLine(ref subRect, balance.Symbol, balance.StakedText, balance.Staked, "staked");
-            DrawBalanceLine(ref subRect, balance.Symbol, balance.ClaimableText, balance.Claimable, "claimable");
+            DrawBalanceLine(ref subRect, balance.Symbol, balance.StakedText, balance.Staked, balance.Decimals, "staked");
+            DrawBalanceLine(ref subRect, balance.Symbol, balance.ClaimableText, balance.Claimable, balance.Decimals, "claimable");
 
             string secondaryAction = null;
             bool secondaryEnabled = false;
@@ -2541,39 +2541,53 @@ namespace Poltergeist
                         else
                         {
                             secondaryAction = "Stake";
-                            secondaryEnabled = balance.Available > 1.2m;
+                            var soulDecimals = Tokens.GetTokenDecimals(DomainSettings.StakingTokenSymbol, accountManager.CurrentPlatform);
+                            var minStakeForButton = WalletAmountParser.FromDecimal(1.2m, soulDecimals);
+                            secondaryEnabled = balance.Available > minStakeForButton;
                             secondaryCallback = () =>
                             {
-                                modalActions.RequireAmount("Stake SOUL", null, "SOUL", 0.1m, balance.Available, (selectedAmount) =>
+                                var minStake = WalletAmountParser.FromDecimal(0.1m, Tokens.GetTokenDecimals(DomainSettings.StakingTokenSymbol, accountManager.CurrentPlatform));
+                                var maxStake = balance.Available;
+                                modalActions.RequireAmount("Stake SOUL", null, "SOUL", minStake, maxStake, soulDecimals, (selectedAmount) =>
                                 {
-                                    var crownMultiplier = 1m;
-                                    var crownBalance = state.balances.Where(x => x.Symbol.ToUpper() == "CROWN").FirstOrDefault();
-                                    if (crownBalance != default(Balance))
+                                    decimal? expectedDailyKCAL = null;
+
+                                    if (WalletAmountFormatter.TryToDecimal(selectedAmount + balance.Staked, soulDecimals, out var totalStakeDec))
                                     {
-                                        crownMultiplier += crownBalance.AvailableDecimal * 0.05m;
+                                        var crownMultiplier = 1m;
+                                        var crownBalance = state.balances.Where(x => x.Symbol.ToUpper() == "CROWN").FirstOrDefault();
+                                        if (crownBalance != default(Balance) && WalletAmountFormatter.TryToDecimal(crownBalance.Available, crownBalance.Decimals, out var crownAmount))
+                                        {
+                                            crownMultiplier += crownAmount * 0.05m;
+                                        }
+
+                                        expectedDailyKCAL = totalStakeDec * 0.002m * crownMultiplier;
                                     }
-                                    var expectedDailyKCAL = (selectedAmount + balance.Staked) * 0.002m * crownMultiplier;
 
                                     var twoSmsWarning = "";
-                                    if (selectedAmount >= 100000)
+                                    var hundredKSoul = WalletAmountParser.FromDecimal(100000m, soulDecimals);
+                                    if (selectedAmount >= hundredKSoul)
                                     {
                                         twoSmsWarning = "\n\nSoul Master rewards are distributed evenly to every wallet with 50K or more SOUL. As you are staking over 100K SOUL, to maximise your rewards, you may wish to stake each 50K SOUL in a separate wallet.";
                                     }
 
                                     var kcalBalance = accountManager.CurrentState.balances.Where(s => s.Symbol == "KCAL").FirstOrDefault();
-                                    decimal kcalClaimable = 0;
-                                    if (kcalBalance != default)
+                                    var kcalDecimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
+                                    WalletAmountFormatter.TryToDecimal(kcalBalance?.Claimable ?? System.Numerics.BigInteger.Zero, kcalDecimals, out var kcalClaimable);
+
+                                    var message = $"Do you want to stake {WalletAmountFormatter.Format(selectedAmount, soulDecimals)} SOUL?";
+                                    if (expectedDailyKCAL.HasValue)
                                     {
-                                        kcalClaimable = kcalBalance.ClaimableDecimal;
+                                        var fmt = expectedDailyKCAL.Value >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long;
+                                        message += $"\nYou will be able to claim {WalletAmountFormatter.Format(expectedDailyKCAL.Value, fmt)} KCAL per day.";
                                     }
 
-                                    var message = $"Do you want to stake {selectedAmount} SOUL?" +
-                            $"\nYou will be able to claim {WalletAmountFormatter.Format(expectedDailyKCAL, selectedAmount >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL per day." +
-                            $"\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
+                                    message += "\n\nPlease note, after staking you won't be able to unstake SOUL tokens for next 24 hours.";
 
                                     if (kcalClaimable > 0)
                                     {
-                                        message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                                        var fmt = kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long;
+                                        message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, fmt)} KCAL.";
                                     }
 
                                     StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
@@ -2591,7 +2605,9 @@ namespace Poltergeist
                             tertiaryEnabled = unstakeAvailability.Success;
                             tertiaryCallback = () =>
                             {
-                                modalActions.RequireAmount("Unstake SOUL", null, "SOUL", 0.1m, balance.Staked,
+                                var soulDecimals = Tokens.GetTokenDecimals(DomainSettings.StakingTokenSymbol, accountManager.CurrentPlatform);
+                                var minUnstake = WalletAmountParser.FromDecimal(0.1m, soulDecimals);
+                                modalActions.RequireAmount("Unstake SOUL", null, "SOUL", minUnstake, balance.Staked, soulDecimals,
                                     (amount) =>
                                     {
                                         var unstakeMessage = stakeService.BuildUnstakeMessage(amount);
@@ -2851,7 +2867,9 @@ namespace Poltergeist
                 }
                 else if (mainAction == "Burn")
                 {
-                    modalActions.RequireAmount($"Burn {balance.Symbol} tokens", null, balance.Symbol, 0.1m, balance.Available, (amountToBurn) =>
+                    var decimals = balance.Decimals;
+                    var minBurn = WalletAmountParser.FromDecimal(0.1m, decimals);
+                    modalActions.RequireAmount($"Burn {balance.Symbol} tokens", null, balance.Symbol, minBurn, balance.Available, decimals, (amountToBurn) =>
                     {
                         var burnPrep = burnService.PrepareFungibleBurn(balance.Symbol, balance.Available, amountToBurn);
                         if (!burnPrep.Success)
@@ -2860,7 +2878,8 @@ namespace Poltergeist
                             return;
                         }
 
-                        var confirmMessage = string.IsNullOrEmpty(burnPrep.Message) ? $"Are you sure you want to burn {amountToBurn} {balance.Symbol} tokens?" : burnPrep.Message;
+                        var confirmAmount = WalletAmountFormatter.Format(amountToBurn, decimals);
+                        var confirmMessage = string.IsNullOrEmpty(burnPrep.Message) ? $"Are you sure you want to burn {confirmAmount} {balance.Symbol} tokens?" : burnPrep.Message;
 
                         modalActions.ConfirmCancel(confirmMessage, (result) =>
                         {
@@ -2868,7 +2887,7 @@ namespace Poltergeist
                             {
                                 SendTransactionDraft(burnPrep.Data, (hash, txResult, error) =>
                                 {
-                                    TxResultMessage(hash, txResult, error, $"You burned {amountToBurn} {balance.Symbol} tokens!");
+                                    TxResultMessage(hash, txResult, error, $"You burned {confirmAmount} {balance.Symbol} tokens!");
                                 });
                             }
                         }, 10);
@@ -2985,7 +3004,7 @@ namespace Poltergeist
                 {
                     infusionDescription = VerticalLayout ? "" : "Infusions: ";
 
-                    var fungibleInfusions = new Dictionary<string, decimal>();
+                    var fungibleInfusions = new Dictionary<string, string>();
                     var nftInfusions = new Dictionary<string, int>();
                     for (var i = 0; i < item.Infusion.Length; i++)
                     {
@@ -2995,7 +3014,13 @@ namespace Poltergeist
                         if (Tokens.GetToken(symbol, accountManager.CurrentPlatform, out var token))
                         {
                             if (token.IsFungible())
-                                fungibleInfusions.Add(symbol, UnitConversion.ToDecimal(amountOrId, token.Decimals));
+                            {
+                                if (!System.Numerics.BigInteger.TryParse(amountOrId, out var rawAmount))
+                                {
+                                    rawAmount = System.Numerics.BigInteger.Zero;
+                                }
+                                fungibleInfusions.Add(symbol, WalletAmountFormatter.Format(rawAmount, token.Decimals));
+                            }
                             else
                             {
                                 if (nftInfusions.ContainsKey(symbol))
@@ -3481,9 +3506,11 @@ namespace Poltergeist
                     case 2:
                         {
                             var state = accountManager.CurrentState;
-                            decimal stake = state != null ? state.balances.Where(x => x.Symbol == DomainSettings.StakingTokenSymbol).Select(x => x.StakedDecimal).FirstOrDefault() : 0;
+                            var stakeAmount = state != null ? state.balances.Where(x => x.Symbol == DomainSettings.StakingTokenSymbol).Select(x => x.Staked).FirstOrDefault() : System.Numerics.BigInteger.Zero;
+                            var soulDecimals = Tokens.GetTokenDecimals(DomainSettings.StakingTokenSymbol, accountManager.CurrentPlatform);
+                            var oneSoul = WalletAmountParser.FromDecimal(1m, soulDecimals);
 
-                            if (stake >= 1)
+                            if (stakeAmount >= oneSoul)
                             {
                                 ShowModal("Setup Name", $"Enter a name for the chain address.\nOther users will be able to transfer assets directly to this name.", ModalState.Input, AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, modalActions.ConfirmCancelOptions, 1, (result, name) =>
                                 {
@@ -3741,7 +3768,7 @@ namespace Poltergeist
             });
         }
 
-        private void StakeSOUL(decimal selectedAmount, string msg, Action<Hash, TransactionResult, string> callback)
+        private void StakeSOUL(System.Numerics.BigInteger selectedAmount, string msg, Action<Hash, TransactionResult, string> callback)
         {
             modalActions.YesNo(msg, (result) =>
             {
@@ -4097,7 +4124,8 @@ namespace Poltergeist
                 return;
             }
 
-            modalActions.RequireAmount(transferName, destAddress, symbol, availability.Data1, availability.Data2, (amount) =>
+            var decimals = Tokens.GetTokenDecimals(symbol, AccountManager.Instance.CurrentPlatform);
+            modalActions.RequireAmount(transferName, destAddress, symbol, availability.Data1, availability.Data2, decimals, (amount) =>
             {
                 var planResult = transferService.BuildFungibleTransferDraft(symbol, amount, destAddress);
                 if (!planResult.Success)
@@ -4109,9 +4137,10 @@ namespace Poltergeist
                 var plan = planResult.Draft;
                 var amountSent = planResult.Amount;
 
+                var decimals = Tokens.GetTokenDecimals(symbol, AccountManager.Instance.CurrentPlatform);
                 SendTransactionDraft(plan, (hash, txResult, error) =>
                 {
-                    TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(amountSent, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                    TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(amountSent, decimals, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                 });
             });
         }
@@ -4131,7 +4160,7 @@ namespace Poltergeist
             {
                 if (string.IsNullOrEmpty(error) && hash != Hash.Null)
                 {
-                    TxResultMessage(hash, txResult, error, $"You transferred {WalletAmountFormatter.Format(planResult.Amount, MoneyFormatType.Long)} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                    TxResultMessage(hash, txResult, error, $"You transferred {planResult.Amount} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
                     // Removing sent NFTs from current NFT list.
                     var nfts = accountManager.CurrentNfts;
@@ -4154,7 +4183,9 @@ namespace Poltergeist
 
         private void RequestKCAL(string forSymbol, Action<PromptResult> callback)
         {
-            feeRequirement.EnsureKcal(0.1m, (result, error) =>
+            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, AccountManager.Instance.CurrentPlatform);
+            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
+            feeRequirement.EnsureKcal(minFee, (result, error) =>
             {
                 if (result == PromptResult.Failure && !string.IsNullOrEmpty(error))
                 {
@@ -4231,7 +4262,27 @@ namespace Poltergeist
 
         public Dictionary<string, decimal> GetBalances(string chain)
         {
-            throw new NotImplementedException();
+            var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            var state = AccountManager.Instance.CurrentState;
+            if (state?.balances == null)
+            {
+                return result;
+            }
+
+            foreach (var balance in state.balances)
+            {
+                if (!string.IsNullOrEmpty(chain) && !string.Equals(balance.Chain, chain, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (WalletAmountFormatter.TryToDecimal(balance.Available, balance.Decimals, out var availableDec))
+                {
+                    result[balance.Symbol] = availableDec;
+                }
+            }
+
+            return result;
         }
 
         public void InvokeScript(string chain, byte[] script, Action<string[], string> callback)

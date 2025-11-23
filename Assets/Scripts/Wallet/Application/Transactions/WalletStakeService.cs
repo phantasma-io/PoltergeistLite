@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Numerics;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
@@ -48,7 +49,7 @@ namespace Poltergeist.Wallet
             return ValidationResult.Ok();
         }
 
-        public ValidationResult<string> BuildUnstakeMessage(decimal requestedAmount)
+        public ValidationResult<string> BuildUnstakeMessage(BigInteger requestedAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -74,7 +75,7 @@ namespace Poltergeist.Wallet
             }
 
             var stakingBalance = state.balances?.FirstOrDefault(x => string.Equals(x.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase));
-            var stakedAmount = stakingBalance?.StakedDecimal ?? 0;
+            var stakedAmount = stakingBalance?.Staked ?? BigInteger.Zero;
             if (stakingBalance == null || stakedAmount <= 0)
             {
                 return ValidationResult<string>.Fail("No SOUL is currently staked.");
@@ -85,18 +86,21 @@ namespace Poltergeist.Wallet
                 return ValidationResult<string>.Fail("Invalid unstake amount.");
             }
 
-            var kcalBalance = state.balances?.FirstOrDefault(s => s.Symbol == "KCAL");
-            var kcalClaimable = kcalBalance?.ClaimableDecimal ?? 0;
+            var kcalBalance = state.balances?.FirstOrDefault(s => s.Symbol == DomainSettings.FuelTokenSymbol);
+            var kcalClaimable = kcalBalance?.Claimable ?? BigInteger.Zero;
+            var soulDecimals = Tokens.GetTokenDecimals(DomainSettings.StakingTokenSymbol, accountManager.CurrentPlatform);
+            var kcalDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
 
-            var message = $"Do you want to unstake {requestedAmount} SOUL?";
+            var message = $"Do you want to unstake {WalletAmountFormatter.Format(requestedAmount, soulDecimals)} SOUL?";
 
             if (kcalClaimable > 0)
             {
-                message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalClaimable >= 1 ? MoneyFormatType.Standard : MoneyFormatType.Long)} KCAL.";
+                message += $"\n\nAll unclaimed KCAL will be claimed: {WalletAmountFormatter.Format(kcalClaimable, kcalDecimals)} KCAL.";
             }
 
             var nameRegistered = !string.Equals(state.name, ValidationUtils.ANONYMOUS_NAME, StringComparison.OrdinalIgnoreCase);
-            if (requestedAmount > stakedAmount - 2 && nameRegistered)
+            var twoSoul = WalletAmountParser.Parse("2", soulDecimals);
+            if (requestedAmount > stakedAmount - twoSoul && nameRegistered)
             {
                 message += "\n\nYour account will also lose the current registered name.\nKeep 2 SOUL staked if you want to keep your registered name.";
             }
@@ -104,7 +108,7 @@ namespace Poltergeist.Wallet
             return ValidationResult<string>.Ok(message, message);
         }
 
-        public ValidationResult<string> BuildClaimKcalMessage(decimal claimableAmount)
+        public ValidationResult<string> BuildClaimKcalMessage(BigInteger claimableAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -122,11 +126,12 @@ namespace Poltergeist.Wallet
                 return ValidationResult<string>.Fail("No KCAL available to claim.");
             }
 
-            var message = $"Do you want to claim KCAL?\nThere is {claimableAmount} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.";
+            var decimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
+            var message = $"Do you want to claim KCAL?\nThere is {WalletAmountFormatter.Format(claimableAmount, decimals)} KCAL available.\n\nPlease note, after claiming KCAL you won't be able to unstake SOUL for next 24 hours.";
             return ValidationResult<string>.Ok(message, message);
         }
 
-        public WalletTransactionDraftResult BuildStakeDraft(decimal requestedAmount)
+        public WalletTransactionDraftResult BuildStakeDraft(BigInteger requestedAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -151,7 +156,7 @@ namespace Poltergeist.Wallet
                 return WalletTransactionDraftResult.Fail("SOUL balance is not available.");
             }
 
-            var available = balance.AvailableDecimal;
+            var available = balance.Available;
             var amount = requestedAmount;
             if (amount > available && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
             {
@@ -168,15 +173,15 @@ namespace Poltergeist.Wallet
 
             var sb = new ScriptBuilder();
             sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-            sb.CallContract("stake", "Stake", address, UnitConversion.ToBigInteger(amount, decimals));
+            sb.CallContract("stake", "Stake", address, amount);
             sb.SpendGas(address);
             var script = sb.EndScript();
 
-            var plan = WalletTransactionDraft.ForSingleScript($"Stake {amount} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Stake {WalletAmountFormatter.Format(amount, decimals)} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, amount);
         }
 
-        public WalletTransactionDraftResult BuildUnstakeDraft(decimal amount)
+        public WalletTransactionDraftResult BuildUnstakeDraft(BigInteger amount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -200,15 +205,15 @@ namespace Poltergeist.Wallet
 
             var sb = new ScriptBuilder();
             sb.AllowGas(address, Address.Null, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-            sb.CallContract("stake", "Unstake", address, UnitConversion.ToBigInteger(amount, decimals));
+            sb.CallContract("stake", "Unstake", address, amount);
             sb.SpendGas(address);
             var script = sb.EndScript();
 
-            var plan = WalletTransactionDraft.ForSingleScript($"Unstake {amount} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Unstake {WalletAmountFormatter.Format(amount, decimals)} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, amount);
         }
 
-        public WalletTransactionDraftResult BuildClaimKcalDraft(decimal claimableAmount)
+        public WalletTransactionDraftResult BuildClaimKcalDraft(BigInteger claimableAmount)
         {
             var accountManager = _accountProvider();
             if (accountManager == null)
@@ -235,7 +240,8 @@ namespace Poltergeist.Wallet
             sb.SpendGas(address);
 
             var script = sb.EndScript();
-            var plan = WalletTransactionDraft.ForSingleScript($"Claim {claimableAmount} KCAL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var decimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
+            var plan = WalletTransactionDraft.ForSingleScript($"Claim {WalletAmountFormatter.Format(claimableAmount, decimals)} {DomainSettings.FuelTokenSymbol}", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, claimableAmount);
         }
 
