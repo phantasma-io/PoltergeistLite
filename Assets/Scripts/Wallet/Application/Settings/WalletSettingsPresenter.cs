@@ -14,14 +14,18 @@ namespace Poltergeist.Wallet
         private readonly WalletSettingsService settingsService;
         private readonly Func<AccountManager> accountProvider;
         private WalletSettingsOptions options;
+        private readonly WalletSettingsViewState state;
 
-        public WalletSettingsPresenter(WalletSettingsViewBuilder builder, WalletSettingsService settingsService, Func<AccountManager> accountProvider, WalletSettingsOptions options = null)
+        public WalletSettingsPresenter(WalletSettingsViewBuilder builder, WalletSettingsService settingsService, Func<AccountManager> accountProvider, WalletSettingsOptions options = null, WalletSettingsViewState state = null)
         {
             this.builder = builder ?? throw new ArgumentNullException(nameof(builder));
             this.settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             this.accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
             this.options = options;
+            this.state = state ?? new WalletSettingsViewState();
         }
+
+        public WalletSettingsViewState State => state;
 
         public WalletSettingsViewSnapshot BuildSnapshot()
         {
@@ -33,7 +37,21 @@ namespace Poltergeist.Wallet
 
             var opts = EnsureOptions();
             opts.RefreshCurrencyOptions();
-            return builder.Build(accountManager.Settings, opts);
+            var snapshot = builder.Build(accountManager.Settings, opts);
+            EnsureStateInitialized(snapshot);
+            return snapshot;
+        }
+
+        public void ResetStateFromSettings()
+        {
+            var snapshot = BuildSnapshot();
+            state.Currency = snapshot.CurrencyOptions.Length > 0 ? snapshot.CurrencyOptions[snapshot.CurrencyIndex] : state.Currency;
+            state.NexusKind = snapshot.NexusKind;
+            state.MnemonicLength = snapshot.MnemonicOptions.Length > 0 ? snapshot.MnemonicOptions[snapshot.MnemonicIndex] : state.MnemonicLength;
+            state.PasswordMode = snapshot.PasswordModes.Length > 0 ? snapshot.PasswordModes[snapshot.PasswordModeIndex] : state.PasswordMode;
+            state.LogLevel = snapshot.LogLevels.Length > 0 ? snapshot.LogLevels[snapshot.LogLevelIndex] : state.LogLevel;
+            state.UiTheme = snapshot.UiThemes.Length > 0 ? snapshot.UiThemes[snapshot.UiThemeIndex] : state.UiTheme;
+            state.ScrollY = 0f;
         }
 
         public bool ValidateAndApply(Action<string> onError)
@@ -51,7 +69,9 @@ namespace Poltergeist.Wallet
             }
 
             var clampedIndex = Mathf.Clamp(index, 0, opts.CurrencyOptions.Length - 1);
-            settings.currency = opts.CurrencyOptions[clampedIndex];
+            var value = opts.CurrencyOptions[clampedIndex];
+            settings.currency = value;
+            state.Currency = value;
         }
 
         public void SetNexusIndex(int index)
@@ -68,6 +88,7 @@ namespace Poltergeist.Wallet
             }
 
             settings.nexusKind = nextKind;
+            state.NexusKind = nextKind;
 
             if (nextKind != NexusKind.Custom)
             {
@@ -80,7 +101,9 @@ namespace Poltergeist.Wallet
             var settings = GetSettings();
             var opts = EnsureOptions();
             var clampedIndex = Mathf.Clamp(index, 0, opts.MnemonicOptions.Length - 1);
-            settings.mnemonicPhraseLength = opts.MnemonicOptions[clampedIndex];
+            var value = opts.MnemonicOptions[clampedIndex];
+            settings.mnemonicPhraseLength = value;
+            state.MnemonicLength = value;
         }
 
         public void SetPasswordModeIndex(int index)
@@ -88,7 +111,9 @@ namespace Poltergeist.Wallet
             var settings = GetSettings();
             var opts = EnsureOptions();
             var clampedIndex = Mathf.Clamp(index, 0, opts.PasswordModes.Length - 1);
-            settings.passwordMode = opts.PasswordModes[clampedIndex];
+            var value = opts.PasswordModes[clampedIndex];
+            settings.passwordMode = value;
+            state.PasswordMode = value;
         }
 
         public void SetLogLevelIndex(int index)
@@ -96,7 +121,9 @@ namespace Poltergeist.Wallet
             var settings = GetSettings();
             var opts = EnsureOptions();
             var clampedIndex = Mathf.Clamp(index, 0, opts.LogLevels.Length - 1);
-            settings.logLevel = opts.LogLevels[clampedIndex];
+            var value = opts.LogLevels[clampedIndex];
+            settings.logLevel = value;
+            state.LogLevel = value;
         }
 
         public void SetUiThemeIndex(int index)
@@ -104,7 +131,9 @@ namespace Poltergeist.Wallet
             var settings = GetSettings();
             var opts = EnsureOptions();
             var clampedIndex = Mathf.Clamp(index, 0, opts.UiThemes.Length - 1);
-            settings.uiThemeName = opts.UiThemes[clampedIndex].ToString();
+            var value = opts.UiThemes[clampedIndex];
+            settings.uiThemeName = value.ToString();
+            state.UiTheme = value;
         }
 
         public void SetPhantasmaRpcUrl(string value)
@@ -262,6 +291,16 @@ namespace Poltergeist.Wallet
 
             options ??= new WalletSettingsOptions(accountManager);
             return options;
+        }
+
+        private void EnsureStateInitialized(WalletSettingsViewSnapshot snapshot)
+        {
+            state.Currency = snapshot.CurrencyOptions.Length > 0 ? snapshot.CurrencyOptions[snapshot.CurrencyIndex] : state.Currency;
+            state.NexusKind = snapshot.NexusKind;
+            state.MnemonicLength = snapshot.MnemonicOptions.Length > 0 ? snapshot.MnemonicOptions[snapshot.MnemonicIndex] : state.MnemonicLength;
+            state.PasswordMode = snapshot.PasswordModes.Length > 0 ? snapshot.PasswordModes[snapshot.PasswordModeIndex] : state.PasswordMode;
+            state.LogLevel = snapshot.LogLevels.Length > 0 ? snapshot.LogLevels[snapshot.LogLevelIndex] : state.LogLevel;
+            state.UiTheme = snapshot.UiThemes.Length > 0 ? snapshot.UiThemes[snapshot.UiThemeIndex] : state.UiTheme;
         }
     }
 }

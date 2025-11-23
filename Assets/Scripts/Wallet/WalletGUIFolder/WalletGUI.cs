@@ -491,7 +491,8 @@ namespace Poltergeist
 
                 case GUIState.Settings:
                     {
-                        var snapshot = settingsPresenter.BuildSnapshot();
+                        settingsPresenter.ResetStateFromSettings();
+                        var state = settingsPresenter.State;
 
                         if (accountManager.Settings.nexusKind == NexusKind.Unknown)
                         {
@@ -506,13 +507,12 @@ namespace Poltergeist
                             currentTitle = "Settings";
                         }
 
-                        settingsScroll = Vector2.zero;
-                        currencyComboBox.SelectedItemIndex = snapshot.CurrencyIndex;
-                        nexusComboBox.SelectedItemIndex = snapshot.NexusIndex;
-                        mnemonicPhraseLengthComboBox.SelectedItemIndex = snapshot.MnemonicIndex;
-                        passwordModeComboBox.SelectedItemIndex = snapshot.PasswordModeIndex;
-                        logLevelComboBox.SelectedItemIndex = snapshot.LogLevelIndex;
-                        uiThemeComboBox.SelectedItemIndex = snapshot.UiThemeIndex;
+                        currencyComboBox.SelectedItemIndex = Math.Max(0, Array.IndexOf(settingsPresenter.BuildSnapshot().CurrencyOptions, state.Currency));
+                        nexusComboBox.SelectedItemIndex = Math.Max(0, Array.IndexOf(settingsPresenter.BuildSnapshot().NexusOptions, state.NexusKind));
+                        mnemonicPhraseLengthComboBox.SelectedItemIndex = Math.Max(0, Array.IndexOf(settingsPresenter.BuildSnapshot().MnemonicOptions, state.MnemonicLength));
+                        passwordModeComboBox.SelectedItemIndex = Math.Max(0, Array.IndexOf(settingsPresenter.BuildSnapshot().PasswordModes, state.PasswordMode));
+                        logLevelComboBox.SelectedItemIndex = Math.Max(0, Array.IndexOf(settingsPresenter.BuildSnapshot().LogLevels, state.LogLevel));
+                        uiThemeComboBox.SelectedItemIndex = Math.Max(0, Array.IndexOf(settingsPresenter.BuildSnapshot().UiThemes, state.UiTheme));
 
                         break;
                     }
@@ -724,7 +724,7 @@ namespace Poltergeist
                         else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             nftTransferListScroll.y += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.Settings && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            settingsScroll.y += touch.deltaPosition.y;
+                            settingsPresenter.State.ScrollY += touch.deltaPosition.y;
                     }
                 }
 
@@ -1495,7 +1495,6 @@ namespace Poltergeist
         private Vector2 accountScroll;
         private Vector2 nftScroll;
         private Vector2 nftTransferListScroll;
-        private Vector2 settingsScroll;
 
         private void DoWalletsScreen()
         {

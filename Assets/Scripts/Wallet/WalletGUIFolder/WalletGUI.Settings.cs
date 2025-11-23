@@ -14,22 +14,16 @@ namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour
     {
-        private int currencyIndex;
         private ComboBox currencyComboBox = new ComboBox();
 
-        private int nexusIndex;
         private ComboBox nexusComboBox = new ComboBox();
 
-        private int mnemonicPhraseLengthIndex;
         private ComboBox mnemonicPhraseLengthComboBox = new ComboBox();
 
-        private int passwordModeIndex;
         private ComboBox passwordModeComboBox = new ComboBox();
 
-        private int logLevelIndex;
         private ComboBox logLevelComboBox = new ComboBox();
 
-        private int uiThemeIndex;
         private ComboBox uiThemeComboBox = new ComboBox();
 
         private void DoSettingsScreen()
@@ -37,6 +31,7 @@ namespace Poltergeist
             var accountManager = AccountManager.Instance;
             var settings = accountManager.Settings;
             var snapshot = settingsPresenter.BuildSnapshot();
+            var state = settingsPresenter.State;
 
             int curY = Units(7);
 
@@ -92,7 +87,9 @@ namespace Poltergeist
                 insideRect.width -= Border;
             }
 
-            settingsScroll = GUI.BeginScrollView(outsideRect, settingsScroll, insideRect);
+            var scroll = new Vector2(0, state.ScrollY);
+            scroll = GUI.BeginScrollView(outsideRect, scroll, insideRect);
+            state.ScrollY = scroll.y;
 
             var posX = Units(3);
 
@@ -100,21 +97,27 @@ namespace Poltergeist
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Currency");
             var currencyOptions = snapshot.CurrencyOptions;
-            currencyIndex = currencyComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), currencyOptions, 0, out dropHeight);
+            var currentCurrencyIndex = Math.Max(0, Array.IndexOf(currencyOptions, state.Currency));
+            state.Currency = currencyOptions.Length > 0 && currentCurrencyIndex >= 0 ? currencyOptions[currentCurrencyIndex] : state.Currency;
+            var selectedCurrency = currencyComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), currencyOptions, 0, out dropHeight);
             if (currencyOptions.Length > 0)
             {
-                settingsPresenter.SetCurrencyIndex(currencyIndex);
+                settingsPresenter.SetCurrencyIndex(selectedCurrency);
+                state.Currency = currencyOptions[selectedCurrency];
             }
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Nexus");
             var nexusList = snapshot.NexusDisplayOptions;
             var prevNexusKind = settings.nexusKind;
-            nexusIndex = nexusComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), nexusList, 0, out dropHeight, null, 1);
-            settingsPresenter.SetNexusIndex(nexusIndex);
+            var currentNexusIndex = Math.Max(0, Array.IndexOf(snapshot.NexusOptions, state.NexusKind));
+            var nexusSelection = nexusComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), nexusList, 0, out dropHeight, null, 1);
+            settingsPresenter.SetNexusIndex(nexusSelection);
+            state.NexusKind = snapshot.NexusOptions[Math.Max(0, nexusSelection)];
             if (settings.nexusKind != prevNexusKind)
             {
                 snapshot = settingsPresenter.BuildSnapshot();
+                state = settingsPresenter.State;
             }
             curY += dropHeight + Units(1);
 
@@ -131,15 +134,19 @@ namespace Poltergeist
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Seed length");
             var mnemonicPhraseLengthsList = snapshot.MnemonicDisplayOptions;
-            mnemonicPhraseLengthIndex = mnemonicPhraseLengthComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), mnemonicPhraseLengthsList, 0, out dropHeight, null, 0);
-            settingsPresenter.SetMnemonicIndex(mnemonicPhraseLengthIndex);
+            var mnemonicIndex = Math.Max(0, Array.IndexOf(snapshot.MnemonicOptions, state.MnemonicLength));
+            var selectedMnemonic = mnemonicPhraseLengthComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), mnemonicPhraseLengthsList, 0, out dropHeight, null, mnemonicIndex);
+            settingsPresenter.SetMnemonicIndex(selectedMnemonic);
+            state.MnemonicLength = snapshot.MnemonicOptions[Math.Max(0, selectedMnemonic)];
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Password mode");
             var passwordModesList = snapshot.PasswordDisplayOptions;
             var prevPasswordModeIndex = snapshot.PasswordModeIndex;
-            passwordModeIndex = passwordModeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), passwordModesList, 0, out dropHeight, null, 0);
-            settingsPresenter.SetPasswordModeIndex(passwordModeIndex);
+            var passwordModeIndex = Math.Max(0, Array.IndexOf(snapshot.PasswordModes, state.PasswordMode));
+            var selectedPasswordMode = passwordModeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), passwordModesList, 0, out dropHeight, null, passwordModeIndex);
+            settingsPresenter.SetPasswordModeIndex(selectedPasswordMode);
+            state.PasswordMode = snapshot.PasswordModes[Math.Max(0, selectedPasswordMode)];
             curY += dropHeight + Units(1);
 
             if (prevPasswordModeIndex != passwordModeIndex)
@@ -203,8 +210,10 @@ namespace Poltergeist
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");
-            logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), snapshot.LogLevelDisplayOptions, WalletGUI.Units(2) * 3, out dropHeight);
-            settingsPresenter.SetLogLevelIndex(logLevelIndex);
+            var logLevelIndex = Math.Max(0, Array.IndexOf(snapshot.LogLevels, state.LogLevel));
+            var selectedLogLevel = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), snapshot.LogLevelDisplayOptions, WalletGUI.Units(2) * 3, out dropHeight, null, logLevelIndex);
+            settingsPresenter.SetLogLevelIndex(selectedLogLevel);
+            state.LogLevel = snapshot.LogLevels[Math.Max(0, selectedLogLevel)];
             curY += dropHeight + Units(1);
 
             var overwriteMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), snapshot.LogOverwriteMode, "");
@@ -213,8 +222,10 @@ namespace Poltergeist
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "UI theme");
-            uiThemeIndex = uiThemeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), snapshot.UiThemeDisplayOptions, WalletGUI.Units(2) * 2, out dropHeight);
-            settingsPresenter.SetUiThemeIndex(uiThemeIndex);
+            var uiThemeIndex = Math.Max(0, Array.IndexOf(snapshot.UiThemes, state.UiTheme));
+            var selectedUiTheme = uiThemeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), snapshot.UiThemeDisplayOptions, WalletGUI.Units(2) * 2, out dropHeight, null, uiThemeIndex);
+            settingsPresenter.SetUiThemeIndex(selectedUiTheme);
+            state.UiTheme = snapshot.UiThemes[Math.Max(0, selectedUiTheme)];
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "UI framerate");

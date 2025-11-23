@@ -45,8 +45,9 @@ namespace Poltergeist.Wallet
             AccountAdminService = new WalletAccountAdminService(() => AccountManager.Instance);
             AmountValidator = new WalletAmountValidator(() => AccountManager.Instance);
             SettingsService = new WalletSettingsService(() => AccountManager.Instance);
+            SettingsViewState = new WalletSettingsViewState();
             SettingsViewBuilder = new WalletSettingsViewBuilder();
-            SettingsPresenter = new WalletSettingsPresenter(SettingsViewBuilder, SettingsService, () => AccountManager.Instance);
+            SettingsPresenter = new WalletSettingsPresenter(SettingsViewBuilder, SettingsService, () => AccountManager.Instance, null, SettingsViewState);
 
             if (AccountManager.Instance == null)
             {
@@ -107,6 +108,8 @@ namespace Poltergeist.Wallet
         public WalletFeeRequirement FeeRequirement { get; }
 
         public WalletSettingsService SettingsService { get; }
+
+        public WalletSettingsViewState SettingsViewState { get; }
 
         public WalletSettingsViewBuilder SettingsViewBuilder { get; }
 
