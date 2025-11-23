@@ -147,8 +147,10 @@ namespace Poltergeist
 
                 var endY = gui.DoBottomMenuForNft();
 
-                var nftOnPageCount = gui.DoScrollArea(ref gui.nftScroll, startY, endY, gui.VerticalLayout ? WalletGUI.Units(5) : WalletGUI.Units(4), nftSnapshot.PageIds,
+                var nftScroll = new Vector2(0, gui.viewState.NftScrollY);
+                var nftOnPageCount = gui.DoScrollArea(ref nftScroll, startY, endY, gui.VerticalLayout ? WalletGUI.Units(5) : WalletGUI.Units(4), nftSnapshot.PageIds,
                     gui.DoNftEntry);
+                gui.viewState.NftScrollY = nftScroll.y;
 
                 if (nftOnPageCount == 0)
                 {
@@ -193,8 +195,10 @@ namespace Poltergeist
                     : accountManager.CurrentNfts.Where(x => selectionSet.Contains(x.Id)).Select(x => x.Id).ToList();
                 gui.nftViewPresenter.PruneSelection(orderedSelection);
 
-                var nftTransferCount = gui.DoScrollArea(ref gui.nftTransferListScroll, startY, endY, gui.VerticalLayout ? WalletGUI.Units(5) : WalletGUI.Units(4), orderedSelection,
+                var transferScroll = new Vector2(0, gui.viewState.NftTransferScrollY);
+                var nftTransferCount = gui.DoScrollArea(ref transferScroll, startY, endY, gui.VerticalLayout ? WalletGUI.Units(5) : WalletGUI.Units(4), orderedSelection,
                     gui.DoNftEntry);
+                gui.viewState.NftTransferScrollY = transferScroll.y;
 
                 if (nftTransferCount == 0)
                 {

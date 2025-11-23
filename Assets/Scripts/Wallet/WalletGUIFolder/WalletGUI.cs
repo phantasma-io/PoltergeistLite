@@ -115,8 +115,6 @@ namespace Poltergeist
         // NFT pagination and selection.
         private List<TokenDataResult> nftFilteredList = new List<TokenDataResult>(); // List of displayed NFT items (after applying filters).
 
-        private List<string> accountManagementSelectedList = new List<string>();
-
         private bool initialized;
 
         private int virtualWidth;
@@ -431,7 +429,7 @@ namespace Poltergeist
 
                 case GUIState.NftTransferList:
                     currentTitle = TransferSymbol + " NFTs transfer list for " + accountManager.CurrentAccount.name;
-                    nftTransferListScroll = Vector2.zero;
+                    viewState.NftTransferScrollY = 0f;
                     MarkNftDirty(TransferSymbol);
                     break;
 
@@ -466,7 +464,7 @@ namespace Poltergeist
 
                 case GUIState.WalletsManagement:
                     currentTitle = "Wallets Management";
-                    accountManagementSelectedList.Clear();
+                    viewState.ClearAccountSelection();
                     break;
 
                 case GUIState.Settings:
@@ -694,15 +692,27 @@ namespace Poltergeist
                         if (hintComboBox.DropDownIsOpened())
                             hintComboBox.ListScroll.y += touch.deltaPosition.y;
                         else if ((CurrentState == GUIState.Wallets || CurrentState == GUIState.WalletsManagement) && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            accountScroll.y += touch.deltaPosition.y;
+                        {
+                            var scrollY = viewState.AccountScrollY;
+                            scrollY += touch.deltaPosition.y;
+                            viewState.AccountScrollY = scrollY;
+                        }
                         else if (CurrentState == GUIState.Balances && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             balancePresenter.State.ScrollY += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.History && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             historyPresenter.State.ScrollY += touch.deltaPosition.y;
                         else if (CurrentState == GUIState.NftView && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            nftScroll.y += touch.deltaPosition.y;
+                        {
+                            var scrollY = viewState.NftScrollY;
+                            scrollY += touch.deltaPosition.y;
+                            viewState.NftScrollY = scrollY;
+                        }
                         else if (CurrentState == GUIState.NftTransferList && !(modalContext.State != ModalState.None && !modalContext.Redirected))
-                            nftTransferListScroll.y += touch.deltaPosition.y;
+                        {
+                            var scrollY = viewState.NftTransferScrollY;
+                            scrollY += touch.deltaPosition.y;
+                            viewState.NftTransferScrollY = scrollY;
+                        }
                         else if (CurrentState == GUIState.Settings && !(modalContext.State != ModalState.None && !modalContext.Redirected))
                             settingsPresenter.State.ScrollY += touch.deltaPosition.y;
                     }
@@ -1443,10 +1453,6 @@ namespace Poltergeist
 
         private string[] walletsManagementOptions = new string[] { "Export", "Import", "Delete", "Cancel", "Save and Close" };
 
-        private Vector2 accountScroll;
-        private Vector2 nftScroll;
-        private Vector2 nftTransferListScroll;
-
         private void DoWalletsScreen()
         {
             var accountManager = AccountManager.Instance;
@@ -1597,6 +1603,7 @@ namespace Poltergeist
 
             int panelHeight = Units(6);
 
+            var accountScroll = new Vector2(0, viewState.AccountScrollY);
             DoScrollArea<Account>(ref accountScroll, startY, endY, panelHeight, accountsCopy,
                 (account, index, curY, rect) =>
                 {
@@ -1620,6 +1627,7 @@ namespace Poltergeist
                         LoginIntoAccount(index);
                     });
                 });
+            viewState.AccountScrollY = accountScroll.y;
         }
 
         private void DoWalletsManagementScreen()
@@ -1630,7 +1638,7 @@ namespace Poltergeist
             DoButtonGrid<int>(true, walletsManagementOptions.Length, Units(2), 0, out endY, (index) =>
             {
                 var enabled = true;
-                if (index == 2 && accountManagementSelectedList.Count() == 0) // We disable Delete button if nothing is selected.
+                if (index == 2 && viewState.SelectedAccountCount == 0) // We disable Delete button if nothing is selected.
                     enabled = false;
                 return new MenuEntry(index, walletsManagementOptions[index], enabled);
             },
@@ -1641,7 +1649,7 @@ namespace Poltergeist
                     case 0:
                         {
                             ShowModal("Wallets Export",
-                                ((accountManagementSelectedList.Count() == 0) ? $"All {accountManager.Accounts.Count()} wallets will be exported.\n\n" : $"Selected {accountManagementSelectedList.Count()} wallets will be exported.\n\n") +
+                                ((viewState.SelectedAccountCount == 0) ? $"All {accountManager.Accounts.Count()} wallets will be exported.\n\n" : $"Selected {viewState.SelectedAccountCount} wallets will be exported.\n\n") +
                                 "Do you want to protect exported data with a password?\nIf not, leave this field blank.",
                                  ModalState.Password,
                                  -1, -1,
@@ -1653,8 +1661,8 @@ namespace Poltergeist
                                 accountsExport.accountsVersion = PlayerPrefs.GetInt(AccountManager.WalletVersionTag, 1);
 
                                 List<Account> accountsToExport;
-                                if (accountManagementSelectedList.Count() > 0)
-                                    accountsToExport = accountManager.Accounts.Where(x => accountManagementSelectedList.Contains(x.phaAddress)).ToList();
+                                if (viewState.SelectedAccountCount > 0)
+                                    accountsToExport = accountManager.Accounts.Where(x => viewState.IsAccountSelected(x.phaAddress)).ToList();
                                 else
                                     accountsToExport = accountManager.Accounts;
 
@@ -1806,18 +1814,18 @@ namespace Poltergeist
 
                     case 2:
                         {
-                            modalActions.ConfirmCancel($"{accountManagementSelectedList.Count()} selected wallets will be deleted.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", (result) =>
+                            modalActions.ConfirmCancel($"{viewState.SelectedAccountCount} selected wallets will be deleted.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", (result) =>
                             {
                                 if (result == PromptResult.Success)
                                 {
                                     var counter = 0;
-                                    foreach (var accountToDelete in accountManagementSelectedList)
+                                    foreach (var accountToDelete in viewState.SelectedAccounts.ToList())
                                     {
                                         accountManager.Accounts.Remove(accountManager.Accounts.Where(x => x.phaAddress.ToUpper() == accountToDelete.ToUpper()).First());
                                         counter++;
                                     }
 
-                                    accountManagementSelectedList.Clear();
+                                    viewState.ClearAccountSelection();
 
                                     modalActions.Info($"{counter} wallets removed from this device.");
                                 }
@@ -1848,6 +1856,7 @@ namespace Poltergeist
             var accountsListCopy = new List<Account>();
             accountManager.Accounts.ForEach(x => accountsListCopy.Add(x));
 
+            var accountScroll = new Vector2(0, viewState.AccountScrollY);
             DoScrollArea<Account>(ref accountScroll, startY, endY, panelHeight, accountsListCopy,
                 (account, index, curY, rect) =>
                 {
@@ -1887,19 +1896,19 @@ namespace Poltergeist
                         btnRectToggle = new Rect(rect.width - (btnWidth + Units(1) + 4) * 3 - Units(2), curY + Units(1) + 4, Units(1), Units(1));
                     }
 
-                    var accountIsSelected = accountManagementSelectedList.Exists(x => x == account.phaAddress);
+                    var accountIsSelected = viewState.IsAccountSelected(account.phaAddress);
                     if (GUI.Toggle(btnRectToggle, accountIsSelected, ""))
                     {
                         if (!accountIsSelected)
                         {
-                            accountManagementSelectedList.Add(account.phaAddress);
+                            viewState.SelectAccount(account.phaAddress);
                         }
                     }
                     else
                     {
                         if (accountIsSelected)
                         {
-                            accountManagementSelectedList.Remove(accountManagementSelectedList.Single(x => x == account.phaAddress));
+                            viewState.UnselectAccount(account.phaAddress);
                         }
                     }
 
@@ -1942,6 +1951,7 @@ namespace Poltergeist
                         });
                     });
                 });
+            viewState.AccountScrollY = accountScroll.y;
         }
 
         private void ImportSeedPhrase(string mnemonicPhrase)
@@ -2020,11 +2030,11 @@ namespace Poltergeist
         private void DrawNftTools(int posY)
         {
             var accountManager = AccountManager.Instance;
-            var viewState = nftViewPresenter.State;
-            var filterName = viewState.FilterName;
-            var filterType = viewState.FilterType;
-            var filterRarity = viewState.FilterRarity;
-            var filterMinted = viewState.FilterMinted;
+            var nftState = nftViewPresenter.State;
+            var filterName = nftState.FilterName;
+            var filterType = nftState.FilterType;
+            var filterRarity = nftState.FilterRarity;
+            var filterMinted = nftState.FilterMinted;
             var prevSortMode = accountManager.Settings.nftSortMode;
             var prevTtrsSortMode = accountManager.Settings.ttrsNftSortMode;
             var prevSortDirection = accountManager.Settings.nftSortDirection;
@@ -2120,9 +2130,9 @@ namespace Poltergeist
                 filterType = ttrsNftType.All;
             }
 
-            if (viewState.UpdateFilters(filterName, filterType, filterRarity, filterMinted))
+            if (nftState.UpdateFilters(filterName, filterType, filterRarity, filterMinted))
             {
-                nftScroll = Vector2.zero;
+                viewState.NftScrollY = 0f;
                 nftViewPresenter.ClearSelection();
                 MarkNftDirty(TransferSymbol);
             }
@@ -2680,7 +2690,7 @@ namespace Poltergeist
 
                                 // We should do this initialization here and not in PushState,
                                 // to allow "Back" button to work properly.
-                                nftScroll = Vector2.zero;
+                                viewState.NftScrollY = 0f;
                                 nftViewPresenter.ClearSelection();
                                 nftViewPresenter.ResetFiltersAndPagination();
                                 nftViewPresenter.ResetSorting();
@@ -2762,7 +2772,7 @@ namespace Poltergeist
                     {
                         // We should do this initialization here and not in PushState,
                         // to allow "Back" button to work properly.
-                        nftScroll = Vector2.zero;
+                        viewState.NftScrollY = 0f;
                         nftViewPresenter.ClearSelection();
                         nftViewPresenter.ResetFiltersAndPagination();
                         nftViewPresenter.ResetSorting();
@@ -4133,7 +4143,7 @@ namespace Poltergeist
                     }
 
                     // Returning to NFT's first screen.
-                    nftScroll = Vector2.zero;
+                    viewState.NftScrollY = 0f;
                     nftViewPresenter.ClearSelection();
                     PushState(GUIState.Nft);
                 }
