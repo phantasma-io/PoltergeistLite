@@ -47,7 +47,7 @@ namespace Poltergeist.Wallet
             }
 
             var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-            var minAmount = WalletAmountParser.FromDecimal(MinimumFungibleAmount, decimals);
+            var minAmount = decimals == 0 ? BigInteger.One : WalletAmountParser.FromDecimal(MinimumFungibleAmount, decimals);
             var available = state.GetAvailableAmount(symbol);
             if (available < minAmount)
             {

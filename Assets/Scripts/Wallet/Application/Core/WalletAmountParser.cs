@@ -82,6 +82,17 @@ namespace Poltergeist.Wallet
 
         public static BigInteger FromDecimal(decimal amount, uint decimals)
         {
+            if (decimals == 0)
+            {
+                var truncated = decimal.Truncate(amount);
+                if (truncated != amount)
+                {
+                    throw new FormatException($"Cannot parse amount '{amount}' with 0 decimals.");
+                }
+
+                return new BigInteger(truncated);
+            }
+
             return Parse(amount.ToString(CultureInfo.InvariantCulture), decimals);
         }
     }
