@@ -26,11 +26,6 @@ namespace Poltergeist
     {
         private static WalletApplicationContext SharedContext => WalletApplicationContext.Instance;
 
-        public static void MessageForUser(string message, string title = "Warning", MessageKind kind = MessageKind.Default)
-        {
-            SharedContext.Messages.Push(message, title, kind);
-        }
-
         public Font monoFont;
         public RawImage background;
         private Texture2D soulMasterLogo;
@@ -51,8 +46,6 @@ namespace Poltergeist
 
         private WalletNavigation navigation;
         private WalletMessageQueue messageQueue;
-        private WalletUserMessage? activeUserMessage;
-        private bool activeUserMessageLogged;
         private WalletModalService modalService;
         private WalletModalActions modalActions;
         private WalletDataProvider dataProvider;
@@ -393,11 +386,6 @@ namespace Poltergeist
                         camTexture = null;
                     }
                     break;
-
-                case GUIState.MessageForUser:
-                    activeUserMessage = null;
-                    activeUserMessageLogged = false;
-                    break;
             }
 
             if (newState == GUIState.Exit)
@@ -414,10 +402,6 @@ namespace Poltergeist
             {
                 case GUIState.Fatal:
                     currentTitle = "Fatal Error";
-                    break;
-
-                case GUIState.MessageForUser:
-                    currentTitle = activeUserMessage?.Title ?? "Message";
                     break;
 
                 case GUIState.Wallets:
@@ -979,16 +963,9 @@ namespace Poltergeist
                 modalRect = GUI.ModalWindow(0, modalRect, DoModalWindow, modalContext.Title);
             }
 
-            if (!activeUserMessage.HasValue && messageQueue.TryDequeue(out var pendingMessage))
+            if (modalContext.State == ModalState.None && messageQueue != null && messageQueue.TryDequeue(out var pendingMessage))
             {
-                activeUserMessage = pendingMessage;
-                activeUserMessageLogged = false;
-            }
-
-            if (activeUserMessage.HasValue && CurrentState != GUIState.MessageForUser)
-            {
-                SetState(GUIState.MessageForUser);
-                return;
+                ShowUserMessage(pendingMessage);
             }
 
             if (AccountManager.Instance.ReportGetPeersFailure)
@@ -1144,10 +1121,6 @@ namespace Poltergeist
 
                 case GUIState.Fatal:
                     DoFatalScreen();
-                    break;
-
-                case GUIState.MessageForUser:
-                    DoMessageForUserScreen();
                     break;
             }
 
@@ -2417,29 +2390,20 @@ namespace Poltergeist
             });
         }
 
-        private void DoMessageForUserScreen()
+        private void ShowUserMessage(in WalletUserMessage message)
         {
-            if (activeUserMessage.HasValue && !activeUserMessageLogged)
+            switch (message.Kind)
             {
-                Log.WriteWarning(activeUserMessage.Value.Body);
-                activeUserMessageLogged = true;
+                case MessageKind.Error:
+                    modalActions.Error(message.Body);
+                    break;
+                case MessageKind.Success:
+                    modalActions.Success(message.Body);
+                    break;
+                default:
+                    modalActions.Info(message.Body);
+                    break;
             }
-
-            int curY;
-
-            curY = Units(5);
-            var messageBody = activeUserMessage?.Body ?? string.Empty;
-            GUI.Label(new Rect(Border, curY, windowRect.width - Border * 2, windowRect.height - (Border + curY)), messageBody);
-
-            var btnWidth = Units(12);
-            curY = (int)(windowRect.height - Units(VerticalLayout ? 6 : 7));
-            DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)),
-                "Continue", () =>
-            {
-                PopState();
-                activeUserMessage = null;
-                activeUserMessageLogged = false;
-            });
         }
 
         private void DoBalanceScreen()
