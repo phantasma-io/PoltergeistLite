@@ -31,7 +31,7 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletBalanceEntry
     {
-        public WalletBalanceEntry(string symbol, BigInteger available, BigInteger staked, BigInteger claimable, string chain, uint decimals, bool burnable, bool fungible, IReadOnlyList<string> ids, string fiatWorth)
+        public WalletBalanceEntry(string symbol, BigInteger available, BigInteger staked, BigInteger claimable, string chain, uint decimals, bool burnable, bool fungible, IReadOnlyList<string> ids, string fiatWorth, int displayPrecision)
         {
             Symbol = symbol ?? string.Empty;
             Decimals = decimals;
@@ -39,9 +39,9 @@ namespace Poltergeist.Wallet
             Staked = staked;
             Claimable = claimable;
 
-            AvailableText = WalletAmountFormatter.Format(Available, decimals);
-            StakedText = WalletAmountFormatter.Format(Staked, decimals);
-            ClaimableText = WalletAmountFormatter.Format(Claimable, decimals);
+            AvailableText = WalletAmountFormatter.Format(Available, decimals, displayPrecision);
+            StakedText = WalletAmountFormatter.Format(Staked, decimals, displayPrecision);
+            ClaimableText = WalletAmountFormatter.Format(Claimable, decimals, displayPrecision);
 
             Chain = chain ?? string.Empty;
             Burnable = burnable;

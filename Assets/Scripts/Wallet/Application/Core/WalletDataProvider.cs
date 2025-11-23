@@ -42,10 +42,12 @@ namespace Poltergeist.Wallet
                 return new WalletBalancesModel(accountName, accountManager.CurrentPlatform, isRefreshing, Array.Empty<WalletBalanceEntry>(), error);
             }
 
+            var displayPrecision = accountManager.Settings.balanceDisplayPrecision;
+
             var balances = state.balances?.Select(b =>
             {
                 var fiatWorth = accountManager.GetTokenWorth(b.Symbol, b.Available, b.Decimals);
-                return new WalletBalanceEntry(b.Symbol, b.Available, b.Staked, b.Claimable, b.Chain, b.Decimals, b.Burnable, b.Fungible, b.Ids, fiatWorth);
+                return new WalletBalanceEntry(b.Symbol, b.Available, b.Staked, b.Claimable, b.Chain, b.Decimals, b.Burnable, b.Fungible, b.Ids, fiatWorth, displayPrecision);
             }).ToList() ?? new List<WalletBalanceEntry>();
 
             return new WalletBalancesModel(state.name, accountManager.CurrentPlatform, isRefreshing, balances, balanceError ?? string.Empty);

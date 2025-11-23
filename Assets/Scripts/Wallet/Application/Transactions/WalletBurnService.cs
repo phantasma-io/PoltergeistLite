@@ -64,7 +64,7 @@ namespace Poltergeist.Wallet
             }
 
             var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-            var message = $"Are you sure you want to burn {WalletAmountFormatter.Format(draftResult.Amount, decimals)} {symbol} tokens?";
+            var message = $"Are you sure you want to burn {WalletAmountFormatter.Format(draftResult.Amount, decimals, accountManager.Settings.balanceDisplayPrecision)} {symbol} tokens?";
             return ValidationResult<WalletTransactionDraft>.Ok(draftResult.Draft, message);
         }
 
@@ -114,7 +114,7 @@ namespace Poltergeist.Wallet
             sb.SpendGas(target);
             var script = sb.EndScript();
 
-            var plan = WalletTransactionDraft.ForSingleScript($"Burn {WalletAmountFormatter.Format(burnAmount, decimals)} {symbol} tokens", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Burn {WalletAmountFormatter.Format(burnAmount, decimals, accountManager.Settings.balanceDisplayPrecision)} {symbol} tokens", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, burnAmount);
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using UnityEngine;
@@ -218,6 +219,22 @@ namespace Poltergeist
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee limit");
             var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feeLimit.ToString());
             BigInteger.TryParse(limit, out settings.feeLimit);
+            curY += Units(3);
+
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Bal. threshold (0: Off)");
+            var minBalanceText = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.balanceDisplayThreshold.ToString(CultureInfo.InvariantCulture));
+            if (decimal.TryParse(minBalanceText.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out var minBalance))
+            {
+                settings.balanceDisplayThreshold = minBalance < 0 ? 0 : minBalance;
+            }
+            curY += Units(3);
+
+            GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Bal. decimals (0-18)");
+            var balancePrecisionText = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.balanceDisplayPrecision.ToString());
+            if (int.TryParse(balancePrecisionText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var precision))
+            {
+                settings.balanceDisplayPrecision = Mathf.Clamp(precision, 0, 18);
+            }
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");

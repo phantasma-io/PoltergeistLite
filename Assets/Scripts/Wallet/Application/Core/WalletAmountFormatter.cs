@@ -64,6 +64,19 @@ namespace Poltergeist.Wallet
                 MoneyFormatType.Long => 12,
                 _ => 4
             };
+            return Format(raw, decimals, precision);
+        }
+
+        public static string Format(BigInteger raw, uint decimals, int precision)
+        {
+            if (precision < 0)
+            {
+                precision = 0;
+            }
+            if (precision > 18)
+            {
+                precision = 18;
+            }
 
             var negative = raw < 0;
             var abs = BigInteger.Abs(raw);

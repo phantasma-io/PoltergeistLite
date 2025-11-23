@@ -4,6 +4,7 @@ using System.Numerics;
 using System.Text.RegularExpressions;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using System.Globalization;
 
 namespace Poltergeist
 {
@@ -116,6 +117,8 @@ namespace Poltergeist
         public const string PreferScriptlessTxesTag = "prefer.scriptless.txes";
         public const string ScriptlessMaxGasTag = "scriptless.max.gas";
         public const string ScriptlessMaxDataTag = "scriptless.max.data";
+        public const string BalanceDisplayThresholdTag = "balance.display.threshold";
+        public const string BalanceDisplayPrecisionTag = "balance.display.precision";
 
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
@@ -145,6 +148,8 @@ namespace Poltergeist
         public bool preferScriptlessTxes;
         public BigInteger scriptlessMaxGas;
         public BigInteger scriptlessMaxData;
+        public decimal balanceDisplayThreshold;
+        public int balanceDisplayPrecision;
 
         public override string ToString()
         {
@@ -170,7 +175,9 @@ namespace Poltergeist
                 "Developer mode (no validation): " + this.devMode_NoValidation +
                 "Prefer scriptless txes: " + this.preferScriptlessTxes + "\n" +
                 "Scriptless max gas: " + this.scriptlessMaxGas + "\n" +
-                "Scriptless max data: " + this.scriptlessMaxData;
+                "Scriptless max data: " + this.scriptlessMaxData + "\n" +
+                "Balance min: " + this.balanceDisplayThreshold + "\n" +
+                "Balance precision: " + this.balanceDisplayPrecision;
         }
 
         public void LoadLogSettings()
@@ -214,6 +221,19 @@ namespace Poltergeist
             }
 
             this.currency = PlayerPrefs.GetString(CurrencyTag, "USD");
+            var defaultBalanceThreshold = 0.001m;
+            var balanceThresholdText = PlayerPrefs.GetString(BalanceDisplayThresholdTag, defaultBalanceThreshold.ToString(CultureInfo.InvariantCulture));
+            if (!decimal.TryParse(balanceThresholdText, NumberStyles.Number, CultureInfo.InvariantCulture, out balanceDisplayThreshold) || balanceDisplayThreshold < 0)
+            {
+                balanceDisplayThreshold = defaultBalanceThreshold;
+            }
+
+            var defaultBalancePrecision = 4;
+            balanceDisplayPrecision = PlayerPrefs.GetInt(BalanceDisplayPrecisionTag, defaultBalancePrecision);
+            if (balanceDisplayPrecision < 0 || balanceDisplayPrecision > 18)
+            {
+                balanceDisplayPrecision = defaultBalancePrecision;
+            }
 
             var defaultGasPrice = 100000;
             if (!BigInteger.TryParse(PlayerPrefs.GetString(GasPriceTag, defaultGasPrice.ToString()), out feePrice))
@@ -418,6 +438,8 @@ namespace Poltergeist
 
             PlayerPrefs.SetString(NexusNameTag, this.nexusName);
             PlayerPrefs.SetString(CurrencyTag, this.currency);
+            PlayerPrefs.SetString(BalanceDisplayThresholdTag, this.balanceDisplayThreshold.ToString(CultureInfo.InvariantCulture));
+            PlayerPrefs.SetInt(BalanceDisplayPrecisionTag, this.balanceDisplayPrecision);
             PlayerPrefs.SetString(UiThemeNameTag, this.uiThemeName);
             PlayerPrefs.SetInt(UiFramerateTag, this.uiFramerate);
             PlayerPrefs.SetInt(InitialWindowWidthTag, this.initialWindowWidth);
@@ -443,6 +465,8 @@ namespace Poltergeist
             PlayerPrefs.SetInt(NftSortModeTag, this.nftSortMode);
             PlayerPrefs.SetInt(NftSortDirectionTag, this.nftSortDirection);
             PlayerPrefs.SetString(PhantasmaRPCTag, this.phantasmaRPCURL);
+            PlayerPrefs.SetString(BalanceDisplayThresholdTag, this.balanceDisplayThreshold.ToString(CultureInfo.InvariantCulture));
+            PlayerPrefs.SetInt(BalanceDisplayPrecisionTag, this.balanceDisplayPrecision);
             PlayerPrefs.SetString(LastVisitedFolderTag, this.lastVisitedFolder);
             PlayerPrefs.SetInt(LastShownInformationScreenTag, this.lastShownInformationScreen);
             PlayerPrefs.Save();

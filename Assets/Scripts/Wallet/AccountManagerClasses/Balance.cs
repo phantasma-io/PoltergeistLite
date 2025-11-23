@@ -19,9 +19,10 @@ namespace Poltergeist
         public string PendingHash;
         public string[] Ids;
 
-        public string AvailableText => WalletAmountFormatter.Format(Available, Decimals);
-        public string StakedText => WalletAmountFormatter.Format(Staked, Decimals);
-        public string ClaimableText => WalletAmountFormatter.Format(Claimable, Decimals);
+        private static int DisplayPrecision => AccountManager.Instance?.Settings?.balanceDisplayPrecision ?? 4;
+        public string AvailableText => WalletAmountFormatter.Format(Available, Decimals, DisplayPrecision);
+        public string StakedText => WalletAmountFormatter.Format(Staked, Decimals, DisplayPrecision);
+        public string ClaimableText => WalletAmountFormatter.Format(Claimable, Decimals, DisplayPrecision);
         public BigInteger Total => Available + Staked + Claimable;
     }
 }

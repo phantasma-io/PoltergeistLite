@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using UnityEngine;
@@ -38,11 +39,18 @@ namespace Poltergeist
                     return;
                 }
 
+                var minBalanceSetting = AccountManager.Instance.Settings.balanceDisplayThreshold;
+
                 var items = model.Balances.Where(x =>
                 {
-                    if (!WalletAmountParser.TryParse("0.001", x.Decimals, out var threshold))
+                    var threshold = BigInteger.Zero;
+                    if (minBalanceSetting > 0)
                     {
-                        threshold = BigInteger.Zero;
+                        var thresholdText = minBalanceSetting.ToString(CultureInfo.InvariantCulture);
+                        if (!WalletAmountParser.TryParse(thresholdText, x.Decimals, out threshold))
+                        {
+                            threshold = BigInteger.Zero;
+                        }
                     }
 
                     var positive = x.Total > BigInteger.Zero;

@@ -177,7 +177,7 @@ namespace Poltergeist.Wallet
             sb.SpendGas(address);
             var script = sb.EndScript();
 
-            var plan = WalletTransactionDraft.ForSingleScript($"Stake {WalletAmountFormatter.Format(amount, decimals)} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Stake {WalletAmountFormatter.Format(amount, decimals, accountManager.Settings.balanceDisplayPrecision)} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, amount);
         }
 
@@ -209,7 +209,7 @@ namespace Poltergeist.Wallet
             sb.SpendGas(address);
             var script = sb.EndScript();
 
-            var plan = WalletTransactionDraft.ForSingleScript($"Unstake {WalletAmountFormatter.Format(amount, decimals)} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Unstake {WalletAmountFormatter.Format(amount, decimals, accountManager.Settings.balanceDisplayPrecision)} SOUL", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, amount);
         }
 
@@ -241,7 +241,7 @@ namespace Poltergeist.Wallet
 
             var script = sb.EndScript();
             var decimals = Tokens.GetTokenDecimals("KCAL", accountManager.CurrentPlatform);
-            var plan = WalletTransactionDraft.ForSingleScript($"Claim {WalletAmountFormatter.Format(claimableAmount, decimals)} {DomainSettings.FuelTokenSymbol}", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
+            var plan = WalletTransactionDraft.ForSingleScript($"Claim {WalletAmountFormatter.Format(claimableAmount, decimals, accountManager.Settings.balanceDisplayPrecision)} {DomainSettings.FuelTokenSymbol}", script, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None);
             return WalletTransactionDraftResult.CreateSuccess(plan, claimableAmount);
         }
 
