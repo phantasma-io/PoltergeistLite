@@ -76,6 +76,7 @@ namespace Poltergeist
         private WalletTransactionOrchestrator transactionOrchestrator;
         private WalletUiSignals uiSignals;
         private WalletSettingsService settingsService;
+        private WalletSettingsPresenter settingsPresenter;
         private WalletBalanceViewSnapshot balancesSnapshot;
         private WalletHistoryViewSnapshot historySnapshot;
         private readonly Dictionary<string, WalletNftViewSnapshot> nftViewSnapshots = new Dictionary<string, WalletNftViewSnapshot>();
@@ -257,6 +258,7 @@ namespace Poltergeist
             transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, this);
             uiSignals = context.UiSignals;
             settingsService = context.SettingsService;
+            settingsPresenter = context.SettingsPresenter;
 
             ResetSnapshots();
             SubscribeToSignals();
@@ -314,7 +316,6 @@ namespace Poltergeist
             navigation.Reset(GUIState.Loading);
 
             Log.Write(Screen.width + " x " + Screen.height);
-            settingsOptions = new WalletSettingsOptions(AccountManager.Instance);
 
             // We will use this RawImage object to set/change background image.
             background = GameObject.Find("Background").GetComponent<RawImage>();
@@ -493,8 +494,7 @@ namespace Poltergeist
 
                 case GUIState.Settings:
                     {
-                        settingsOptions ??= new WalletSettingsOptions(accountManager);
-                        settingsOptions.RefreshCurrencyOptions();
+                        var snapshot = settingsPresenter.BuildSnapshot();
 
                         if (accountManager.Settings.nexusKind == NexusKind.Unknown)
                         {
@@ -510,25 +510,12 @@ namespace Poltergeist
                         }
 
                         settingsScroll = Vector2.zero;
-                        currencyIndex = settingsOptions.GetCurrencyIndex(accountManager.Settings.currency);
-                        currencyComboBox.SelectedItemIndex = currencyIndex;
-
-                        nexusIndex = settingsOptions.GetNexusIndex(accountManager.Settings.nexusKind);
-                        nexusComboBox.SelectedItemIndex = nexusIndex;
-
-                        mnemonicPhraseLengthIndex = settingsOptions.GetMnemonicIndex(accountManager.Settings.mnemonicPhraseLength);
-                        mnemonicPhraseLengthComboBox.SelectedItemIndex = mnemonicPhraseLengthIndex;
-
-                        passwordModeIndex = settingsOptions.GetPasswordModeIndex(accountManager.Settings.passwordMode);
-                        passwordModeComboBox.SelectedItemIndex = passwordModeIndex;
-
-                        logLevelIndex = settingsOptions.GetLogLevelIndex(accountManager.Settings.logLevel);
-                        logLevelComboBox.SelectedItemIndex = logLevelIndex;
-
-                        uiThemeIndex = settingsOptions.GetUiThemeIndex(accountManager.Settings.uiThemeName);
-                        uiThemeComboBox.SelectedItemIndex = uiThemeIndex;
-
-
+                        currencyComboBox.SelectedItemIndex = snapshot.CurrencyIndex;
+                        nexusComboBox.SelectedItemIndex = snapshot.NexusIndex;
+                        mnemonicPhraseLengthComboBox.SelectedItemIndex = snapshot.MnemonicIndex;
+                        passwordModeComboBox.SelectedItemIndex = snapshot.PasswordModeIndex;
+                        logLevelComboBox.SelectedItemIndex = snapshot.LogLevelIndex;
+                        uiThemeComboBox.SelectedItemIndex = snapshot.UiThemeIndex;
 
                         break;
                     }

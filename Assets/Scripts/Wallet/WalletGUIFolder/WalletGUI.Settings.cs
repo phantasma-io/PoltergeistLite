@@ -1,10 +1,7 @@
 using System;
-using System.Globalization;
 using System.Linq;
-using System.Numerics;
 using UnityEngine;
 using PhantasmaPhoenix.VM;
-using Poltergeist.Wallet;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography.Legacy;
@@ -35,14 +32,11 @@ namespace Poltergeist
         private int uiThemeIndex;
         private ComboBox uiThemeComboBox = new ComboBox();
 
-        private WalletSettingsOptions settingsOptions;
-
         private void DoSettingsScreen()
         {
             var accountManager = AccountManager.Instance;
             var settings = accountManager.Settings;
-
-            settingsOptions ??= new WalletSettingsOptions(accountManager);
+            var snapshot = settingsPresenter.BuildSnapshot();
 
             int curY = Units(7);
 
@@ -105,22 +99,26 @@ namespace Poltergeist
             curY = Units(1); // Vertical position inside scroll view.
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Currency");
-            var currencyOptions = settingsOptions.CurrencyOptions;
+            var currencyOptions = snapshot.CurrencyOptions;
             currencyIndex = currencyComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), currencyOptions, 0, out dropHeight);
             if (currencyOptions.Length > 0)
             {
-                settings.currency = currencyOptions[currencyIndex];
+                settingsPresenter.SetCurrencyIndex(currencyIndex);
             }
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Nexus");
-            var nexusList = settingsOptions.NexusDisplayOptions;
-            var prevNexus = nexusIndex;
+            var nexusList = snapshot.NexusDisplayOptions;
+            var prevNexusKind = settings.nexusKind;
             nexusIndex = nexusComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), nexusList, 0, out dropHeight, null, 1);
-            settings.nexusKind = settingsOptions.NexusOptions[nexusIndex];
+            settingsPresenter.SetNexusIndex(nexusIndex);
+            if (settings.nexusKind != prevNexusKind)
+            {
+                snapshot = settingsPresenter.BuildSnapshot();
+            }
             curY += dropHeight + Units(1);
 
-            if (settings.nexusKind != NexusKind.Main_Net && settings.nexusKind != NexusKind.Custom && settings.nexusKind != NexusKind.Unknown)
+            if (snapshot.ShouldShowNetworkWarning)
             {
                 var style = GUI.skin.label;
                 var tempStyle = style.fontStyle;
@@ -131,22 +129,17 @@ namespace Poltergeist
                 curY += warningHeight + Units(1);
             }
 
-            if (prevNexus != nexusIndex && settings.nexusKind != NexusKind.Custom)
-            {
-                settings.RestoreEndpoints(true);
-            }
-
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Seed length");
-            var mnemonicPhraseLengthsList = settingsOptions.MnemonicDisplayOptions;
+            var mnemonicPhraseLengthsList = snapshot.MnemonicDisplayOptions;
             mnemonicPhraseLengthIndex = mnemonicPhraseLengthComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), mnemonicPhraseLengthsList, 0, out dropHeight, null, 0);
-            settings.mnemonicPhraseLength = settingsOptions.MnemonicOptions[mnemonicPhraseLengthIndex];
+            settingsPresenter.SetMnemonicIndex(mnemonicPhraseLengthIndex);
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Password mode");
-            var passwordModesList = settingsOptions.PasswordDisplayOptions;
-            var prevPasswordModeIndex = passwordModeIndex;
+            var passwordModesList = snapshot.PasswordDisplayOptions;
+            var prevPasswordModeIndex = snapshot.PasswordModeIndex;
             passwordModeIndex = passwordModeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), passwordModesList, 0, out dropHeight, null, 0);
-            settings.passwordMode = settingsOptions.PasswordModes[passwordModeIndex];
+            settingsPresenter.SetPasswordModeIndex(passwordModeIndex);
             curY += dropHeight + Units(1);
 
             if (prevPasswordModeIndex != passwordModeIndex)
@@ -155,157 +148,115 @@ namespace Poltergeist
                 masterPassword = null;
             }
 
-            bool hasCustomEndPoints = false;
-            bool hasCustomName = settings.nexusKind == NexusKind.Custom;
-
-            switch (settings.nexusKind)
-            {
-                case NexusKind.Custom:
-                case NexusKind.Local_Net:
-                    {
-                        hasCustomEndPoints = true;
-                        break;
-                    }
-
-                case NexusKind.Test_Net:
-                case NexusKind.Dev_Net:
-                    {
-                        break;
-                    }
-
-                default:
-                    {
-                        hasCustomEndPoints = false;
-                        hasCustomName = false;
-                        break;
-                    }
-            }
+            bool hasCustomEndPoints = snapshot.HasCustomEndpoints;
+            bool hasCustomName = snapshot.HasCustomName;
 
             if (hasCustomEndPoints)
             {
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma RPC URL");
-                settings.phantasmaRPCURL = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaRPCURL);
+                var phantasmaRpc = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.PhantasmaRpcUrl);
+                settingsPresenter.SetPhantasmaRpcUrl(phantasmaRpc);
                 curY += Units(3);
 
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma Explorer URL");
-                settings.phantasmaExplorer = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaExplorer);
+                var explorerUrl = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.PhantasmaExplorerUrl);
+                settingsPresenter.SetPhantasmaExplorerUrl(explorerUrl);
                 curY += Units(3);
 
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma NFT URL");
-                settings.phantasmaNftExplorer = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaNftExplorer);
+                var nftExplorerUrl = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.PhantasmaNftExplorerUrl);
+                settingsPresenter.SetPhantasmaNftExplorerUrl(nftExplorerUrl);
                 curY += Units(3);
 
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma POA URL");
-                settings.phantasmaPoaUrl = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.phantasmaPoaUrl);
+                var poaUrl = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.PhantasmaPoaUrl);
+                settingsPresenter.SetPhantasmaPoaUrl(poaUrl);
                 curY += Units(3);
-            }
-            else
-            {
-                settings.RestoreEndpoints(!hasCustomName);
             }
 
             if (hasCustomName)
             {
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Nexus Name");
-                settings.nexusName = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.nexusName);
+                var nexusName = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.NexusName);
+                settingsPresenter.SetNexusName(nexusName);
                 curY += Units(3);
             }
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee price");
-            var fee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feePrice.ToString());
-            BigInteger.TryParse(fee, out settings.feePrice);
+            var fee = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.FeePriceText);
+            settingsPresenter.SetFeePrice(fee);
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Phantasma fee limit");
-            var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.feeLimit.ToString());
-            BigInteger.TryParse(limit, out settings.feeLimit);
+            var limit = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.FeeLimitText);
+            settingsPresenter.SetFeeLimit(limit);
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Bal. threshold (0: Off)");
-            var minBalanceText = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.balanceDisplayThreshold.ToString(CultureInfo.InvariantCulture));
-            if (decimal.TryParse(minBalanceText.Replace(',', '.'), NumberStyles.Number, CultureInfo.InvariantCulture, out var minBalance))
-            {
-                settings.balanceDisplayThreshold = minBalance < 0 ? 0 : minBalance;
-            }
+            var minBalanceText = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.BalanceDisplayThresholdText);
+            settingsPresenter.SetBalanceDisplayThreshold(minBalanceText);
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Bal. decimals (0-18)");
-            var balancePrecisionText = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.balanceDisplayPrecision.ToString());
-            if (int.TryParse(balancePrecisionText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var precision))
-            {
-                settings.balanceDisplayPrecision = Mathf.Clamp(precision, 0, 18);
-            }
+            var balancePrecisionText = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.BalanceDisplayPrecisionText);
+            settingsPresenter.SetBalanceDisplayPrecision(balancePrecisionText);
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Log level");
-            logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), settingsOptions.LogLevelDisplayOptions, WalletGUI.Units(2) * 3, out dropHeight);
-            settings.logLevel = settingsOptions.LogLevels[logLevelIndex];
+            logLevelIndex = logLevelComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), snapshot.LogLevelDisplayOptions, WalletGUI.Units(2) * 3, out dropHeight);
+            settingsPresenter.SetLogLevelIndex(logLevelIndex);
             curY += dropHeight + Units(1);
 
-            settings.logOverwriteMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.logOverwriteMode, "");
+            var overwriteMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), snapshot.LogOverwriteMode, "");
+            settingsPresenter.SetLogOverwriteMode(overwriteMode);
             GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Overwrite log");
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "UI theme");
-            uiThemeIndex = uiThemeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), settingsOptions.UiThemeDisplayOptions, WalletGUI.Units(2) * 2, out dropHeight);
-            settings.uiThemeName = settingsOptions.UiThemes[uiThemeIndex].ToString();
+            uiThemeIndex = uiThemeComboBox.Show(new Rect(fieldComboX, curY, comboWidth, Units(2)), snapshot.UiThemeDisplayOptions, WalletGUI.Units(2) * 2, out dropHeight);
+            settingsPresenter.SetUiThemeIndex(uiThemeIndex);
             curY += dropHeight + Units(1);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "UI framerate");
-            var uiFramerate = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.uiFramerate.ToString());
-            if (int.TryParse(uiFramerate, out var uiFramerateInt))
-            {
-                if (uiFramerateInt is -1 or (>= 1 and <= 120))
-                {
-                    settings.uiFramerate = uiFramerateInt;
-
-                    if (settings.uiFramerate > 0)
-                    {
-                        QualitySettings.vSyncCount = 0;
-                        Application.targetFrameRate = settings.uiFramerate;
-                    }
-                }
-            }
+            var uiFramerate = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.UiFramerateText);
+            settingsPresenter.SetUiFramerate(uiFramerate);
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial width");
-            var initialWindowWidth = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.initialWindowWidth.ToString());
-            if (int.TryParse(initialWindowWidth, out var initialWindowWidthInt))
-            {
-                settings.initialWindowWidth = initialWindowWidthInt;
-            }
+            var initialWindowWidth = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.InitialWindowWidthText);
+            settingsPresenter.SetInitialWindowWidth(initialWindowWidth);
             curY += Units(3);
 
             GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Initial height");
-            var initialWindowHeight = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.initialWindowHeight.ToString());
-            if (int.TryParse(initialWindowHeight, out var initialWindowHeightInt))
-            {
-                settings.initialWindowHeight = initialWindowHeightInt;
-            }
+            var initialWindowHeight = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), snapshot.InitialWindowHeightText);
+            settingsPresenter.SetInitialWindowHeight(initialWindowHeight);
             curY += Units(3);
 
-            settings.devMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode, "");
+            var devMode = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode, "");
+            settingsPresenter.SetDevMode(devMode);
             GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Developer mode");
             curY += Units(3);
 
             if (settings.devMode)
             {
-                settings.devMode_NoValidation = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode_NoValidation, "");
+                var noValidation = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.devMode_NoValidation, "");
+                settingsPresenter.SetDevModeNoValidation(noValidation);
                 GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "No validation mode");
                 curY += Units(3);
 
-                settings.preferScriptlessTxes = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.preferScriptlessTxes, "");
+                var preferScriptless = GUI.Toggle(new Rect(posX, curY, Units(2), Units(2)), settings.preferScriptlessTxes, "");
+                settingsPresenter.SetPreferScriptlessTxes(preferScriptless);
                 GUI.Label(new Rect(posX + Units(2), curY, Units(9), labelHeight), "Use scriptless txes");
                 curY += Units(3);
 
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max gas");
                 var scriptlessMaxGas = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxGas.ToString());
-                BigInteger.TryParse(scriptlessMaxGas, out settings.scriptlessMaxGas);
+                settingsPresenter.SetScriptlessMaxGas(scriptlessMaxGas);
                 curY += Units(3);
 
                 GUI.Label(new Rect(posX, curY, labelWidth, labelHeight), "Scriptless: Max data");
                 var scriptlessMaxData = GUI.TextField(new Rect(fieldX, curY, fieldWidth, Units(2)), settings.scriptlessMaxData.ToString());
-                BigInteger.TryParse(scriptlessMaxData, out settings.scriptlessMaxData);
+                settingsPresenter.SetScriptlessMaxData(scriptlessMaxData);
                 curY += Units(3);
             }
 
@@ -783,7 +734,7 @@ namespace Poltergeist
 
         private bool ValidateSettings()
         {
-            return settingsService.ValidateAndApply(error => modalActions.Error(error));
+            return settingsPresenter.ValidateAndApply(error => modalActions.Error(error));
         }
     }
 }
