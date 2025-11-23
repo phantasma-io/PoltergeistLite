@@ -92,7 +92,9 @@ namespace Poltergeist.Wallet
                 caption += $"\nDestination: {destination}";
             }
 
-            _service.ShowModal(description, caption, ModalState.Input, 1, 64, ConfirmCancelOptions, 1, (result, input) =>
+            var maxInputLength = Math.Max(64, formattedMax.Length + (int)decimals + 2);
+
+            _service.ShowModal(description, caption, ModalState.Input, 1, maxInputLength, ConfirmCancelOptions, 1, (result, input) =>
             {
                 if (result == PromptResult.Failure)
                 {
