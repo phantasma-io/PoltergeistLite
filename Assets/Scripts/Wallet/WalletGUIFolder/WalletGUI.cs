@@ -22,7 +22,7 @@ using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
-    public partial class WalletGUI : MonoBehaviour, IWalletTransactionUi, IWalletUiBridge
+    public partial class WalletGUI : MonoBehaviour, IWalletTransactionUi, IWalletUiBridge, IWalletAuthUi
     {
         private static WalletApplicationContext SharedContext => WalletApplicationContext.Instance;
 
@@ -73,6 +73,7 @@ namespace Poltergeist
         private WalletAccountAdminService accountAdminService;
         private WalletNftPresenter nftViewPresenter;
         private WalletNftTransactionBuilder nftTxBuilder;
+        private WalletAuthService authService;
         private WalletTransactionOrchestrator transactionOrchestrator;
         private WalletUiSignals uiSignals;
         private WalletSettingsService settingsService;
@@ -258,6 +259,7 @@ namespace Poltergeist
                 accountAdminService = context.AccountAdminService;
                 nftViewPresenter = context.NftViewPresenter;
                 nftTxBuilder = context.NftTransactions;
+                authService = context.AuthService;
                 transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, this);
                 uiSignals = context.UiSignals;
                 settingsService = context.SettingsService;
@@ -4251,7 +4253,12 @@ namespace Poltergeist
         #region Transaction UI bridge
         public void RequestPassword(string description, PlatformKind platform, Action<PromptResult> callback)
         {
-            RequestPassword(description, platform, false, false, callback, false);
+            authService.RequestPassword(description, platform, false, true, this, callback, false);
+        }
+
+        private void RequestPassword(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, Action<PromptResult> callback, bool ignoreStoredPassword = false)
+        {
+            authService.RequestPassword(description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, this, callback, ignoreStoredPassword);
         }
 
         public void ShowSendProgress(string description, int txCount, Action<PromptResult> callback)
@@ -4279,6 +4286,16 @@ namespace Poltergeist
             modalActions.Error(message);
         }
         #endregion
+
+        void IWalletAuthUi.PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback)
+        {
+            ShowModal(title, caption, ModalState.Password, minLength, maxLength, ModalConfirmCancel, 1, callback);
+        }
+
+        void IWalletAuthUi.ShowError(string message, Action onClosed)
+        {
+            modalActions.Error(message, onClosed);
+        }
         #endregion
 
         #region DAPP Interface

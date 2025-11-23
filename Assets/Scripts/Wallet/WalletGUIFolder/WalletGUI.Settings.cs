@@ -152,7 +152,7 @@ namespace Poltergeist
             if (prevPasswordModeIndex != passwordModeIndex)
             {
                 // Password mode is changed.
-                masterPassword = null;
+                authService.ClearCachedMasterPassword();
             }
 
             bool hasCustomEndPoints = snapshot.HasCustomEndpoints;
