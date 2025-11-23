@@ -85,7 +85,7 @@ namespace Poltergeist.Wallet
 
         public void RequireAmount(string description, string destination, string symbol, BigInteger min, BigInteger max, uint decimals, Action<BigInteger> callback)
         {
-            var formattedMax = WalletAmountFormatter.Format(max, decimals);
+            var formattedMax = WalletAmountFormatter.Format(max, decimals, (int)Math.Min(decimals, 18));
             var caption = $"Enter {symbol} amount:\nMax: {formattedMax} {symbol}";
             if (!string.IsNullOrEmpty(destination))
             {

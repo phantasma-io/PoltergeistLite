@@ -165,7 +165,14 @@ namespace Poltergeist.Wallet
 
             if (amount <= 0)
             {
-                return WalletTransactionDraftResult.Fail("Not enough SOUL to stake.");
+                if (accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation && requestedAmount > 0)
+                {
+                    amount = requestedAmount;
+                }
+                else
+                {
+                    return WalletTransactionDraftResult.Fail("Not enough SOUL to stake.");
+                }
             }
 
             var address = Address.Parse(state.address);

@@ -16,8 +16,6 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletTransferService
     {
-        public const decimal MinimumFungibleAmount = 0.001m;
-
         private readonly Func<AccountManager> _accountProvider;
         private readonly WalletFeeRequirement _feeRequirement;
 
@@ -47,9 +45,9 @@ namespace Poltergeist.Wallet
             }
 
             var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
-            var minAmount = decimals == 0 ? BigInteger.One : WalletAmountParser.FromDecimal(MinimumFungibleAmount, decimals);
+            var minAmount = ComputeMinAmount(decimals, accountManager.Settings.balanceDisplayPrecision);
             var available = state.GetAvailableAmount(symbol);
-            if (available < minAmount)
+            if (available < minAmount && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
             {
                 return ValidationResult<BigInteger, BigInteger>.Fail($"Not enough {symbol}.");
             }
@@ -212,12 +210,12 @@ namespace Poltergeist.Wallet
             availableBalance = state.GetAvailableAmount(symbol);
             amount = requestedAmount;
 
-            if (amount > availableBalance && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
+            if (!(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation) && amount > availableBalance)
             {
                 amount = availableBalance;
             }
 
-            if (amount <= 0)
+            if (amount <= 0 && !(accountManager.Settings.devMode && accountManager.Settings.devMode_NoValidation))
             {
                 error = $"Not enough {symbol}.";
                 return false;
@@ -227,6 +225,18 @@ namespace Poltergeist.Wallet
             bigIntAmount = amount;
 
             return true;
+        }
+
+        private static BigInteger ComputeMinAmount(uint decimals, int displayPrecision)
+        {
+            if (decimals == 0)
+            {
+                return BigInteger.One;
+            }
+
+            var clampedPrecision = Math.Max(0, Math.Min(displayPrecision, (int)decimals));
+            var exponent = (int)decimals - clampedPrecision;
+            return BigInteger.Pow(10, exponent);
         }
 
         private bool EnsureKcal(AccountManager accountManager, BigInteger minAmount, out string error)
