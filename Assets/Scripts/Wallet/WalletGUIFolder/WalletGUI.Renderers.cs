@@ -152,7 +152,7 @@ namespace Poltergeist
 
                 if (nftOnPageCount == 0)
                 {
-                    gui.DrawCenteredText($"No {gui.transferSymbol} NFTs found for this {accountManager.CurrentPlatform} account.");
+                    gui.DrawCenteredText($"No {gui.TransferSymbol} NFTs found for this {accountManager.CurrentPlatform} account.");
                 }
 
                 gui.DrawNftTools(nftToolsY);
@@ -160,10 +160,10 @@ namespace Poltergeist
                 gui.DrawPlatformTopMenu(() =>
                 {
                     accountManager.RefreshBalances(false, accountManager.CurrentPlatform);
-                    gui.nftViewPresenter.Refresh(gui.transferSymbol, false);
+                    gui.nftViewPresenter.Refresh(gui.TransferSymbol, false);
                     gui.nftViewPresenter.ResetSorting();
                     gui.MarkBalancesDirty();
-                    gui.MarkNftDirty(gui.transferSymbol);
+                    gui.MarkNftDirty(gui.TransferSymbol);
                 }, false);
             }
         }

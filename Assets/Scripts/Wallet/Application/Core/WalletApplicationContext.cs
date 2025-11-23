@@ -18,6 +18,7 @@ namespace Poltergeist.Wallet
             Modals = new WalletModalContext();
             Data = new WalletDataProvider(() => AccountManager.Instance);
             AccountHintsService = new WalletAccountHintsService(() => AccountManager.Instance);
+            ViewState = new WalletViewState();
             QrCodeGenerator = new WalletQrCodeGenerator();
             NftSource = new WalletNftSource(() => AccountManager.Instance, new INftMetadataProvider[]
             {
@@ -65,6 +66,8 @@ namespace Poltergeist.Wallet
         public WalletDataProvider Data { get; }
 
         public WalletAccountHintsService AccountHintsService { get; }
+
+        public WalletViewState ViewState { get; }
 
         public WalletQrCodeGenerator QrCodeGenerator { get; }
 
