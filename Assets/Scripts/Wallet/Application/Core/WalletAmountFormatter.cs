@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.Numerics;
 
@@ -16,13 +17,13 @@ namespace Poltergeist.Wallet
             var max = (BigInteger)decimal.MaxValue;
             var min = (BigInteger)decimal.MinValue;
 
-            if (quotient > max)
+            if (quotient > max || quotient < min)
             {
                 value = 0;
                 return false;
             }
 
-            if (quotient < min)
+            if ((quotient == max || quotient == min) && remainder != 0)
             {
                 value = 0;
                 return false;
@@ -32,7 +33,24 @@ namespace Poltergeist.Wallet
             if (remainder != 0)
             {
                 var fraction = (decimal)remainder / (decimal)scale;
-                value += fraction;
+                decimal candidate;
+                try
+                {
+                    candidate = value + fraction;
+                }
+                catch (OverflowException)
+                {
+                    value = 0;
+                    return false;
+                }
+
+                if (candidate == decimal.MaxValue || candidate == decimal.MinValue)
+                {
+                    value = 0;
+                    return false;
+                }
+
+                value = candidate;
             }
 
             return true;
