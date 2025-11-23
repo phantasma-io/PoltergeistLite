@@ -231,94 +231,65 @@ namespace Poltergeist
 
         private void Awake()
         {
-            Instance = this;
-            var context = WalletApplicationContext.Instance;
-            navigation = context.Navigation;
-            messageQueue = context.Messages;
-            modalService = new WalletModalService(context.Modals);
-            modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints, context.AmountValidator);
-            dataProvider = context.Data;
-            balancePresenter = context.BalancePresenter;
-            historyPresenter = context.HistoryPresenter;
-            accountHintsService = context.AccountHintsService;
-            qrCodeGenerator = context.QrCodeGenerator;
-            transferService = context.TransferService;
-            balanceRenderer = new BalanceViewRenderer(this);
-            historyRenderer = new HistoryViewRenderer(this);
-            nftRenderer = new NftListRenderer(this);
-            nftTransferRenderer = new NftTransferListRenderer(this);
-            feeService = context.FeeService;
-            feeRequirement = context.FeeRequirement;
-            stakeService = context.StakeService;
-            burnService = context.BurnService;
-            nftTransferService = context.NftTransferService;
-            accountAdminService = context.AccountAdminService;
-            nftViewPresenter = context.NftViewPresenter;
-            nftTxBuilder = context.NftTransactions;
-            transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, this);
-            uiSignals = context.UiSignals;
-            settingsService = context.SettingsService;
-            settingsPresenter = context.SettingsPresenter;
+            try
+            {
+                Instance = this;
+                var context = WalletApplicationContext.Instance;
+                navigation = context.Navigation;
+                messageQueue = context.Messages;
+                modalService = new WalletModalService(context.Modals);
+                modalActions = new WalletModalActions(modalService, () => VerticalLayout, ResetModalUiHints, context.AmountValidator);
+                dataProvider = context.Data;
+                balancePresenter = context.BalancePresenter;
+                historyPresenter = context.HistoryPresenter;
+                accountHintsService = context.AccountHintsService;
+                qrCodeGenerator = context.QrCodeGenerator;
+                transferService = context.TransferService;
+                balanceRenderer = new BalanceViewRenderer(this);
+                historyRenderer = new HistoryViewRenderer(this);
+                nftRenderer = new NftListRenderer(this);
+                nftTransferRenderer = new NftTransferListRenderer(this);
+                feeService = context.FeeService;
+                feeRequirement = context.FeeRequirement;
+                stakeService = context.StakeService;
+                burnService = context.BurnService;
+                nftTransferService = context.NftTransferService;
+                accountAdminService = context.AccountAdminService;
+                nftViewPresenter = context.NftViewPresenter;
+                nftTxBuilder = context.NftTransactions;
+                transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, this);
+                uiSignals = context.UiSignals;
+                settingsService = context.SettingsService;
+                settingsPresenter = context.SettingsPresenter;
 
-            ResetSnapshots();
-            SubscribeToSignals();
+                ResetSnapshots();
+                SubscribeToSignals();
+            }
+            catch (Exception e)
+            {
+                HandleFatalStartup("Awake", e);
+            }
         }
 
         void Start()
         {
-            // Getting wallet's command line args.
-            string[] _args = System.Environment.GetCommandLineArgs();
-
-            // We have to get these settings prior to Settings.Load() call,
-            // to initialize log properly.
-            AccountManager.Instance.Settings.LoadLogSettings();
-
-            Log.Level _logLevel = AccountManager.Instance.Settings.logLevel;
-            var _logOverwriteMode = AccountManager.Instance.Settings.logOverwriteMode;
-            bool _logForceWorkingFolderUsage = false;
-
-            // Checking if log options are set in command line.
-            // They override settings (for debug purposes).
-            for (int i = 0; i < _args.Length; i++)
+            try
             {
-                switch (_args[i])
-                {
-                    case "--log-level":
-                        {
-                            if (i + 1 < _args.Length)
-                            {
-                                Enum.TryParse<Log.Level>(_args[i + 1], true, out _logLevel);
-                            }
+                Cache.Init("cache");
 
-                            break;
-                        }
+                initialized = false;
 
-                    case "--log-force-working-folder-usage":
-                        {
-                            _logForceWorkingFolderUsage = true;
+                navigation.Reset(GUIState.Loading);
 
-                            break;
-                        }
-                }
+                Log.Write(Screen.width + " x " + Screen.height);
+
+                // We will use this RawImage object to set/change background image.
+                background = GameObject.Find("Background").GetComponent<RawImage>();
             }
-
-            Log.Init("poltergeist.log", _logLevel, _logForceWorkingFolderUsage, _logOverwriteMode);
-            Log.Write("********************************************************\n" +
-                       "************** Poltergeist Wallet started **************\n" +
-                       "********************************************************\n" +
-                       "Wallet version: " + UnityEngine.Application.version + $" built on: {Poltergeist.Build.Info.Instance.BuildTime} UTC\n" +
-                       "Log level: " + _logLevel.ToString());
-
-            Cache.Init("cache");
-
-            initialized = false;
-
-            navigation.Reset(GUIState.Loading);
-
-            Log.Write(Screen.width + " x " + Screen.height);
-
-            // We will use this RawImage object to set/change background image.
-            background = GameObject.Find("Background").GetComponent<RawImage>();
+            catch (Exception e)
+            {
+                HandleFatalStartup("Start", e);
+            }
         }
 
         void OnEnable()
@@ -344,6 +315,23 @@ namespace Poltergeist
 
             UnsubscribeFromSignals();
             Log.Write("[GUI] OnDisable"); //TODO Check if still needed once refactoring is over
+        }
+
+        private void HandleFatalStartup(string location, Exception e)
+        {
+            fatalError = $"{location} failed: {e}";
+            Debug.LogError(fatalError);
+            try
+            {
+                Log.Write(fatalError);
+            }
+            catch
+            {
+                // swallow logging errors during fatal startup
+            }
+
+            navigation ??= new WalletNavigation();
+            navigation.Reset(GUIState.Fatal);
         }
 
         #region UTILS
@@ -927,6 +915,10 @@ namespace Poltergeist
                 if (!AccountManager.Instance.Ready)
                 {
                     DrawCenteredText(AccountManager.Instance.Status);
+                }
+                else if (!string.IsNullOrEmpty(fatalError))
+                {
+                    SetState(GUIState.Fatal);
                 }
             }
             else
@@ -2394,7 +2386,10 @@ namespace Poltergeist
             DoButton(true, new Rect((windowRect.width - btnWidth) / 2, curY, btnWidth, Units(2)), "Copy to Clipboard", () =>
             {
                 GUIUtility.systemCopyBuffer = fatalError;
-                modalActions.Info("Error log copied to clipboard.");
+                if (modalActions != null)
+                {
+                    modalActions.Info("Error log copied to clipboard.");
+                }
             });
         }
 

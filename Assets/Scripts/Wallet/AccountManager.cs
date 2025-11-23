@@ -12,11 +12,11 @@ using PhantasmaPhoenix.Core.Extensions;
 using Newtonsoft.Json.Linq;
 using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.Unity.Core;
-using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.NFT;
 using PhantasmaPhoenix.NFT.Extensions;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using Poltergeist.Wallet;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Globalization;
@@ -137,7 +137,7 @@ namespace Poltergeist
         private void Awake()
         {
             Instance = this;
-            Settings = new Settings();
+            Settings = WalletRuntime.GetSettings();
 
             Status = "Initializing wallet...";
 
