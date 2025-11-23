@@ -503,39 +503,18 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Verify proof of addresses", () =>
             {
-                ShowModal("Verify proof of addresses", "Enter proof of addresses messages", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, input) =>
+                ShowModal("Verify proof of addresses", settingsActions.ProofOfAddressesPrompt, ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, input) =>
                 {
                     if (result == PromptResult.Success)
                     {
-                        var verifier = new ProofOfAddressesVerifier(input);
-
-
-                        if (settings.devMode)
+                        var verifyResult = settingsActions.VerifyProofOfAddresses(input, settings.devMode);
+                        if (!verifyResult.Success)
                         {
-                            Log.Write("signedMessage: '" + verifier.SignedMessage + "'");
-                        }
-
-                        if (settings.devMode)
-                        {
-                            Log.Write("phaAddress: '" + verifier.PhaAddress + "'");
-                            Log.Write("ethAddress: '" + verifier.EthAddress + "'");
-                            Log.Write("ethPublicKey: '" + verifier.EthPublicKey + "'");
-                            Log.Write("neo2Address: '" + verifier.Neo2Address + "'");
-                            Log.Write("neo2PublicKey: '" + verifier.Neo2PublicKey + "'");
-                            Log.Write("phaSignature: '" + verifier.PhaSignature + "'");
-                            Log.Write("ethSignature: '" + verifier.EthSignature + "'");
-                            Log.Write("neo2Signature: '" + verifier.Neo2Signature + "'");
-                        }
-
-                        var (success, errorMessage) = verifier.VerifyMessage();
-
-                        if (!success)
-                        {
-                            modalActions.Error(errorMessage);
+                            modalActions.Error(verifyResult.Error);
                             return;
                         }
 
-                        modalActions.Info("Proof of addresses message was validated successfully");
+                        modalActions.Info(verifyResult.Data);
                     }
                 });
             });
@@ -543,15 +522,15 @@ namespace Poltergeist
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Old seed to WIF", () =>
             {
-                ShowModal("Old seed to WIF", "Enter your old seed phrase (created with Poltergeist 2.3 or older)", ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, legacySeed) =>
+                ShowModal("Old seed to WIF", settingsActions.LegacySeedPrompt, ModalState.Input, 2, -1, modalActions.ConfirmCancelOptions, 4, (result, legacySeed) =>
                 {
-                    if (result != PromptResult.Success)
+                    if (result != PromptResult.Success || string.IsNullOrWhiteSpace(legacySeed))
                     {
                         return;
                     }
 
                     ShowModal("Legacy seed password",
-                        "For wallets created with Poltergeist v1.0-v1.2: Enter seed password.\nIf you put a wrong password, wrong WIF will be generated.\n\nFor wallets created with v1.3 or later (without a seed password), you must leave this field blank.\n\nThis is NOT your wallet password used to log into the wallet.\n",
+                        settingsActions.LegacySeedPasswordPrompt,
                         ModalState.Input, 0, 64, modalActions.ConfirmCancelOptions, 1, (pwdResult, legacySeedPassword) =>
                         {
                             if (pwdResult != PromptResult.Success)
@@ -559,19 +538,14 @@ namespace Poltergeist
                                 return;
                             }
 
-                            string wif;
-                            try
+                            var conversionResult = settingsActions.ConvertLegacySeedToWif(legacySeed, legacySeedPassword);
+                            if (!conversionResult.Success)
                             {
-                                wif = MnemonicsLegacy.DecodeLegacySeedToWif(legacySeed, legacySeedPassword);
-                            }
-                            catch (Exception e)
-                            {
-                                Log.Write("Legacy seed decoding exception: " + e);
-                                modalActions.Error("Legacy seed cannot be decoded");
+                                modalActions.Error(conversionResult.Error);
                                 return;
                             }
 
-                            modalActions.CopyableMessage("WIF", wif, (copyResult, input) =>
+                            modalActions.CopyableMessage("WIF", conversionResult.Data, (copyResult, input) =>
                             {
                                 if (copyResult != PromptResult.Success)
                                 {
@@ -586,12 +560,12 @@ namespace Poltergeist
             curY += Units(1);
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Clear cache", () =>
             {
-                modalActions.ConfirmCancel("Are you sure you want to clear wallet's cache?", (result) =>
+                modalActions.ConfirmCancel(settingsActions.ClearCacheConfirmation, (result) =>
                 {
                     if (result == PromptResult.Success)
                     {
-                        Cache.Clear();
-                        modalActions.Info("Cache cleared.");
+                        settingsActions.ClearCache();
+                        modalActions.Info(settingsActions.ClearCacheSuccess);
                     }
                 });
             });
@@ -600,39 +574,36 @@ namespace Poltergeist
             curY += Units(1);
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Reset notifications", () =>
             {
-                accountManager.Settings.lastShownInformationScreen = 0;
-                accountManager.Settings.SaveOnExit(); // Required on Android
-                modalActions.Info("Startup notifications will be shown again on next wallet start.");
+                var resetResult = settingsActions.ResetNotifications();
+                if (!resetResult.Success)
+                {
+                    modalActions.Error(resetResult.Error);
+                    return;
+                }
+
+                modalActions.Info(settingsActions.ResetNotificationsSuccess);
             });
             curY += Units(3);
 
             DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Reset settings", () =>
             {
-                modalActions.ConfirmCancel("All settings will be set to default values.\nMake sure you have backups of your private keys!", (result) =>
+                modalActions.ConfirmCancel(settingsActions.ResetSettingsConfirmation, (result) =>
                 {
                     if (result == PromptResult.Success)
                     {
-                        // Saving wallets before settings reset.
-                        var walletsVersion = PlayerPrefs.GetInt(AccountManager.WalletVersionTag);
-                        var wallets = PlayerPrefs.GetString(AccountManager.WalletTag, "");
-
-                        PlayerPrefs.DeleteAll();
-
-                        // Restoring wallets before settings reset.
-                        PlayerPrefs.SetInt(AccountManager.WalletVersionTag, walletsVersion);
-                        PlayerPrefs.SetString(AccountManager.WalletTag, wallets);
-
-                        // Loading default settings.
-                        accountManager.Settings.Load();
-
-                        // Finding fastest Phantasma and Neo RPCs.
-                        accountManager.UpdateRPCURL();
+                        var resetResult = settingsActions.ResetSettingsToDefaults();
+                        if (!resetResult.Success)
+                        {
+                            modalActions.Error(resetResult.Error);
+                            return;
+                        }
 
                         // Restoring combos' selected items.
                         // If they are not restored, following calls of DoSettingsScreen() will change them again.
+                        settingsPresenter.ResetStateFromSettings();
                         SetState(GUIState.Settings);
 
-                        modalActions.Info("All settings set to default values.", () =>
+                        modalActions.Info(settingsActions.ResetSettingsSuccess, () =>
                         {
                             CloseCurrentStack();
                         });
@@ -646,14 +617,18 @@ namespace Poltergeist
                 curY += Units(1);
                 DoButton(true, new Rect(posX, curY, Units(16), Units(2)), "Delete everything", () =>
                 {
-                    modalActions.ConfirmCancel("All wallets and settings stored in this device will be lost.\nMake sure you have backups of your private keys!\nOtherwise you will lose access to your funds.", (result) =>
+                    modalActions.ConfirmCancel(settingsActions.DeleteEverythingConfirmation, (result) =>
                     {
                         if (result == PromptResult.Success)
                         {
-                            accountManager.DeleteAll();
-                            PlayerPrefs.DeleteAll();
-                            accountManager.Settings.Load();
-                            modalActions.Info("All data removed from this device.", () =>
+                            var deleteResult = settingsActions.DeleteEverything();
+                            if (!deleteResult.Success)
+                            {
+                                modalActions.Error(deleteResult.Error);
+                                return;
+                            }
+
+                            modalActions.Info(settingsActions.DeleteEverythingSuccess, () =>
                             {
                                 CloseCurrentStack();
                             });
@@ -701,7 +676,7 @@ namespace Poltergeist
                 {
                     case 0:
                         {
-                            var currentSettings = accountManager.Settings.ToString();
+                            var currentSettings = settingsActions.GetDisplaySettings();
                             modalActions.CopyableMessage("Display Settings", currentSettings, closeOnCopy: false, copyValue: currentSettings);
 
                             break;
@@ -709,10 +684,23 @@ namespace Poltergeist
                     case 1:
                         {
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
-                            string path = System.IO.Path.GetDirectoryName(Log.FilePath).TrimEnd(new[] { '\\', '/' }); // Mac doesn't like trailing slash
+                            var path = settingsActions.GetLogFolderPath();
+                            if (string.IsNullOrWhiteSpace(path))
+                            {
+                                modalActions.Error("Log file path is not available.");
+                                break;
+                            }
+
                             System.Diagnostics.Process.Start(path);
 #else
-                            modalActions.CopyableMessage("Log file path", Log.FilePath, closeOnCopy: false, copyValue: Log.FilePath);
+                            var logPath = settingsActions.GetLogFolderPath();
+                            if (string.IsNullOrWhiteSpace(logPath))
+                            {
+                                modalActions.Error("Log file path is not available.");
+                                break;
+                            }
+
+                            modalActions.CopyableMessage("Log file path", logPath, closeOnCopy: false, copyValue: logPath);
 #endif
                             break;
                         }

@@ -50,6 +50,7 @@ namespace Poltergeist.Wallet
             SettingsViewState = new WalletSettingsViewState();
             SettingsViewBuilder = new WalletSettingsViewBuilder();
             SettingsPresenter = new WalletSettingsPresenter(SettingsViewBuilder, SettingsService, () => AccountManager.Instance, null, SettingsViewState);
+            SettingsActions = new WalletSettingsActions(() => AccountManager.Instance);
 
             if (AccountManager.Instance == null)
             {
@@ -120,5 +121,7 @@ namespace Poltergeist.Wallet
         public WalletSettingsViewBuilder SettingsViewBuilder { get; }
 
         public WalletSettingsPresenter SettingsPresenter { get; }
+
+        public WalletSettingsActions SettingsActions { get; }
     }
 }

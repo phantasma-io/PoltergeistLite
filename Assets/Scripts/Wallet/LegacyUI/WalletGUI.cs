@@ -71,6 +71,7 @@ namespace Poltergeist
         private WalletUiSignals uiSignals;
         private WalletSettingsService settingsService;
         private WalletSettingsPresenter settingsPresenter;
+        private WalletSettingsActions settingsActions;
         private WalletViewState viewState;
         private bool signalsSubscribed;
         private GUIState CurrentState => navigation.CurrentState;
@@ -247,6 +248,7 @@ namespace Poltergeist
                 uiSignals = context.UiSignals;
                 settingsService = context.SettingsService;
                 settingsPresenter = context.SettingsPresenter;
+                settingsActions = context.SettingsActions;
                 viewState = context.ViewState;
 
                 ResetSnapshots();
