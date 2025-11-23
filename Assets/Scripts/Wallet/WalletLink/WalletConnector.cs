@@ -12,6 +12,7 @@ using PhantasmaPhoenix.Cryptography.Extensions;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Protocol.Carbon;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
+using PhantasmaPhoenix.RPC.Models;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using UnityEngine;
@@ -21,6 +22,8 @@ namespace Poltergeist
 {
     public class WalletConnector : WalletLink
     {
+        private IWalletUiBridge Ui => WalletUiBridge.Current;
+
         public override string Nexus => AccountManager.Instance.Settings.nexusName;
         public override string Name => "Poltergeist Lite";
 
@@ -28,6 +31,82 @@ namespace Poltergeist
 
         public WalletConnector() : base()
         {
+        }
+
+        private void RunOnUi(Action action)
+        {
+            var ui = Ui;
+            if (ui != null)
+            {
+                ui.PostToMainThread(action);
+            }
+            else
+            {
+                UnityTaskRunner.PostToMainThread(action);
+            }
+        }
+
+        private void Prompt(string text, Action<bool> callback)
+        {
+            var ui = Ui;
+            if (ui != null)
+            {
+                ui.Prompt(text, callback);
+            }
+            else
+            {
+                callback(false);
+            }
+        }
+
+        private void SendDraft(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true)
+        {
+            var ui = Ui;
+            if (ui != null)
+            {
+                ui.SendTransactionDraft(draft, callback, refreshBalanceAfterConfirmation);
+            }
+            else
+            {
+                callback(Hash.Null, null, "UI bridge is unavailable.");
+            }
+        }
+
+        private void ShowTxResult(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
+        {
+            Ui?.TxResultMessage(hash, txResult, error, successCustomMessage, failureCustomMessage);
+        }
+
+        private void InvokeScriptOnMain(string chain, byte[] script, Action<string[], string> callback)
+        {
+            RunOnUi(() =>
+            {
+                var ui = Ui;
+                if (ui != null)
+                {
+                    ui.InvokeScript(chain, script, callback);
+                }
+                else
+                {
+                    AccountManager.Instance.InvokeScript(chain, script, callback);
+                }
+            });
+        }
+
+        private void WriteArchiveOnMain(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback)
+        {
+            RunOnUi(() =>
+            {
+                var ui = Ui;
+                if (ui != null)
+                {
+                    ui.WriteArchive(hash, blockIndex, data, callback);
+                }
+                else
+                {
+                    AccountManager.Instance.WriteArchive(hash, blockIndex, data, (result, error) => callback(result, error));
+                }
+            });
         }
 
         private void PushMessage(string title, string body, MessageKind kind)
@@ -204,40 +283,12 @@ namespace Poltergeist
 
         protected override void InvokeScript(string chain, byte[] script, int id, Action<string[], string> callback)
         {
-            WalletGUI.Instance.CallOnUIThread(() =>
-            {
-                try
-                {
-                    WalletGUI.Instance.InvokeScript(chain, script, (results, msg) =>
-                    {
-                        callback(results, msg);
-                    });
-                }
-                catch (Exception e)
-                {
-                    callback(null, "InvokeScript call error: " + e.Message);
-                    return;
-                }
-            });
+            InvokeScriptOnMain(chain, script, callback);
         }
 
         protected override void WriteArchive(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback)
         {
-            WalletGUI.Instance.CallOnUIThread(() =>
-            {
-                try
-                {
-                    WalletGUI.Instance.WriteArchive(hash, blockIndex, data, (result, msg) =>
-                    {
-                        callback(result, msg);
-                    });
-                }
-                catch (Exception e)
-                {
-                    callback(false, "WriteArchive call error: " + e.Message);
-                    return;
-                }
-            });
+            WriteArchiveOnMain(hash, blockIndex, data, callback);
         }
 
         protected override void FetchAndMultiSignature(string subject, string platform, SignatureKind kind, int id, Action<bool, string> callback)
@@ -260,7 +311,7 @@ namespace Poltergeist
 
             var account = AccountManager.Instance.CurrentAccount;
 
-            WalletGUI.Instance.CallOnUIThread(() =>
+            RunOnUi(() =>
             {
 
                 GetTransactionBySubject(subject, id, transaction =>
@@ -285,7 +336,7 @@ namespace Poltergeist
 
                         var description = $"{transaction.Hash}\n{transaction.Expiration}\n{Encoding.UTF8.GetString(transaction.Payload)}\n{Encoding.UTF8.GetString(transaction.Script)}";
 
-                        WalletGUI.Instance.Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
+                        Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
                         {
                             AppFocus.Instance.EndFocus();
 
@@ -354,11 +405,11 @@ namespace Poltergeist
 
             var account = AccountManager.Instance.CurrentAccount;
 
-            WalletGUI.Instance.CallOnUIThread(() =>
+            RunOnUi(() =>
             {
                 var description = $"{transaction.Hash}\n{transaction.Expiration}\n{Encoding.UTF8.GetString(transaction.Payload)}\n{Encoding.UTF8.GetString(transaction.Script)}";
 
-                WalletGUI.Instance.Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
+                Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
                 {
                     AppFocus.Instance.EndFocus();
 
@@ -442,7 +493,7 @@ namespace Poltergeist
             var nexus = accountManager.Settings.nexusName;
             var account = accountManager.CurrentAccount;
 
-            WalletGUI.Instance.CallOnUIThread(() =>
+            RunOnUi(() =>
             {
                 async Task HandleDescriptionAsync()
                 {
@@ -459,12 +510,12 @@ namespace Poltergeist
                             Log.Write("Script description: " + description);
                         }
 
-                        WalletGUI.Instance.Prompt("Allow dapp to send a transaction on your behalf?\n" + description, (success) =>
+                        Prompt("Allow dapp to send a transaction on your behalf?\n" + description, (success) =>
                         {
                             if (success)
                             {
                                 var draft = WalletTransactionDraft.ForSingleScript(description, script, chain, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, pow, payload);
-                                WalletGUI.Instance.SendTransactionDraft(draft, (hash, txResult, error) =>
+                                SendDraft(draft, (hash, txResult, error) =>
                                 {
                                     AppFocus.Instance.EndFocus();
 
@@ -503,7 +554,7 @@ namespace Poltergeist
             var nexus = accountManager.Settings.nexusName;
             var account = accountManager.CurrentAccount;
 
-            WalletGUI.Instance.CallOnUIThread(() =>
+            RunOnUi(() =>
             {
                 async Task HandleDescriptionAsync()
                 {
@@ -521,20 +572,20 @@ namespace Poltergeist
                             Log.Write("Script description: " + description);
                         }
 
-                        WalletGUI.Instance.Prompt(
+                        Prompt(
                             $"Allow dapp to send a transaction on your behalf?\n\nCurrent nexus: {nexus}, chain: main\n\n"
                             + description, (success) =>
                         {
                             if (success)
                             {
                                 var draft = WalletTransactionDraft.ForCarbon(description, txMsg, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                WalletGUI.Instance.SendTransactionDraft(draft, (hash, txResult, error) =>
+                                SendDraft(draft, (hash, txResult, error) =>
                                 {
                                     AppFocus.Instance.EndFocus();
 
                                     callback(hash, error);
 
-                                    WalletGUI.Instance.TxResultMessage(hash, txResult, error, $"The transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                                    ShowTxResult(hash, txResult, error, $"The transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                                 });
                             }
                             else
@@ -575,11 +626,11 @@ namespace Poltergeist
 
             var account = AccountManager.Instance.CurrentAccount;
 
-            WalletGUI.Instance.CallOnUIThread(() =>
+            RunOnUi(() =>
             {
                 var description = System.Text.Encoding.UTF8.GetString(data);
 
-                WalletGUI.Instance.Prompt($"The dapp wants to sign the following data with your {platform} keys. Accept?\n{description}", (success) =>
+                Prompt($"The dapp wants to sign the following data with your {platform} keys. Accept?\n{description}", (success) =>
                 {
                     AppFocus.Instance.EndFocus();
 
@@ -669,9 +720,9 @@ namespace Poltergeist
                 return;
             }
 
-            WalletGUI.Instance.CallOnUIThread(() =>
+            RunOnUi(() =>
             {
-                WalletGUI.Instance.Prompt($"Give access to dApp \"{dapp}\" to your \"{state.name}\" account?", (result) =>
+                Prompt($"Give access to dApp \"{dapp}\" to your \"{state.name}\" account?", (result) =>
                {
                    AppFocus.Instance.EndFocus();
 

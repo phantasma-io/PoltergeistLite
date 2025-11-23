@@ -22,7 +22,7 @@ using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
-    public partial class WalletGUI : MonoBehaviour, IWalletTransactionUi
+    public partial class WalletGUI : MonoBehaviour, IWalletTransactionUi, IWalletUiBridge
     {
         private static WalletApplicationContext SharedContext => WalletApplicationContext.Instance;
 
@@ -234,6 +234,7 @@ namespace Poltergeist
             try
             {
                 Instance = this;
+                WalletUiBridge.Register(this);
                 var context = WalletApplicationContext.Instance;
                 navigation = context.Navigation;
                 messageQueue = context.Messages;
@@ -4240,6 +4241,11 @@ namespace Poltergeist
             {
                 _uiCallbacks.Add(callback);
             }
+        }
+
+        public void PostToMainThread(Action action)
+        {
+            CallOnUIThread(action);
         }
 
         #region Transaction UI bridge

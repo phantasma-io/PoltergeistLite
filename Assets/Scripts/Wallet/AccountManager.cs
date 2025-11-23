@@ -8,6 +8,7 @@ using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.VM;
+using Poltergeist.Wallet;
 using PhantasmaPhoenix.Core.Extensions;
 using Newtonsoft.Json.Linq;
 using PhantasmaPhoenix.RPC.Models;
@@ -527,8 +528,8 @@ namespace Poltergeist
             {
                 Settings.lastShownInformationScreen = 1;
 
-                WalletGUI.MessageForUser(@"A note for existing Poltergeist wallet users!
- 
+                WalletApplicationContext.Instance.Messages.Push(@"A note for existing Poltergeist wallet users!
+
 If you already have a previous (older, not 'Light') version of Poltergeist installed on your device, then you will need to:
 
 1. Open your previous version of Poltergeist
@@ -539,7 +540,7 @@ If you already have a previous (older, not 'Light') version of Poltergeist insta
 4. Open the new version of Poltergeist Lite
 5. Import wallets data:
   * Press 'Manage' on main screen and then press 'Import'. Paste exported accounts from clipboard and press 'Confirm'. You will need to enter password which you used in the previous step. You will be presented with a list of accounts being imported, press 'Confirm'
- 
+
 Happy Poltergeisting!
 
 Regards,

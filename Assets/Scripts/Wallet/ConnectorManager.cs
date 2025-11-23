@@ -4,6 +4,7 @@ using PhantasmaPhoenix.Link;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
@@ -22,7 +23,7 @@ namespace Poltergeist
             server = new LinkServer(PhantasmaLink);
 
             // redirect UI callbacks to Unity
-            server.OnUI = action => WalletGUI.Instance.CallOnUIThread(action);
+            server.OnUI = action => PostToUi(action);
 
             // message back to Android intent
             server.OnMessageBack = json =>
@@ -33,7 +34,7 @@ namespace Poltergeist
             // user messages (e.g. port conflict)
             server.OnUserMessage = msg =>
             {
-                WalletGUI.MessageForUser(msg);
+                WalletApplicationContext.Instance.Messages.Push(msg);
             };
 
             server.Start();
@@ -52,7 +53,7 @@ namespace Poltergeist
         public void OnIntentInteraction(string msg)
         {
 #if UNITY_ANDROID
-            WalletGUI.Instance.CallOnUIThread(() =>
+            PostToUi(() =>
             {
                 PhantasmaLink.Execute(msg, (id, root, success) =>
                 {
@@ -72,6 +73,18 @@ namespace Poltergeist
                 });
             });
 #endif
+        }
+
+        private static void PostToUi(Action action)
+        {
+            var ui = WalletUiBridge.Current;
+            if (ui != null)
+            {
+                ui.PostToMainThread(action);
+                return;
+            }
+
+            UnityTaskRunner.PostToMainThread(action);
         }
     }
 }
