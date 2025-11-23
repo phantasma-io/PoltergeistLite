@@ -751,24 +751,6 @@ namespace Poltergeist
 
                 UpdatePrompt();
 
-                lock (_uiCallbacks)
-                {
-                    if (_uiCallbacks.Count > 0)
-                    {
-                        Action[] temp;
-                        lock (_uiCallbacks)
-                        {
-                            temp = _uiCallbacks.ToArray();
-                        }
-                        _uiCallbacks.Clear();
-
-                        foreach (var callback in temp)
-                        {
-                            callback.Invoke();
-                        }
-                    }
-                }
-
                 if (Screen.width > Screen.height && Screen.width > MaxResolution)
                 {
                     virtualWidth = MaxResolution;
@@ -895,7 +877,7 @@ namespace Poltergeist
             }
             catch (Exception e)
             {
-                WalletGUI.MessageForUser($"Unknown error: {e.ToString()}");
+                WalletApplicationContext.Instance.Messages.Push($"Unknown error: {e}", "Warning", MessageKind.Error);
             }
         }
 
@@ -4235,19 +4217,9 @@ namespace Poltergeist
         }
 
         #region UI THREAD UTILS
-        private List<Action> _uiCallbacks = new List<Action>();
-
-        public void CallOnUIThread(Action callback)
-        {
-            lock (_uiCallbacks)
-            {
-                _uiCallbacks.Add(callback);
-            }
-        }
-
         public void PostToMainThread(Action action)
         {
-            CallOnUIThread(action);
+            UnityTaskRunner.PostToMainThread(action);
         }
 
         #region Transaction UI bridge
