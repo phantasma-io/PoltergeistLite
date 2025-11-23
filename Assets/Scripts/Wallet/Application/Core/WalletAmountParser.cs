@@ -1,6 +1,8 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
+using System.Text;
 
 namespace Poltergeist.Wallet
 {
@@ -18,26 +20,55 @@ namespace Poltergeist.Wallet
                 return false;
             }
 
-            var normalized = input.Trim();
+            var trimmed = input.Trim().Replace(" ", string.Empty).Replace("_", string.Empty);
 
-            var decimalSeparator = CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator;
-            var allowComma = decimalSeparator == ",";
+            var lastDot = trimmed.LastIndexOf('.');
+            var lastComma = trimmed.LastIndexOf(',');
+            char? decimalSep = null;
 
-            if (normalized.Contains(".") && normalized.Contains(","))
+            if (lastDot >= 0 && lastComma >= 0)
             {
-                return false; // mixed separators not allowed
+                decimalSep = lastDot > lastComma ? '.' : ',';
+            }
+            else if (lastDot >= 0)
+            {
+                decimalSep = decimals > 0 ? '.' : (char?)null;
+            }
+            else if (lastComma >= 0)
+            {
+                if (decimals > 0)
+                {
+                    var commaCount = trimmed.Count(c => c == ',');
+                    var digitsAfter = trimmed.Length - lastComma - 1;
+                    decimalSep = (digitsAfter == 3 && commaCount >= 1) ? (char?)null : ',';
+                }
+                else
+                {
+                    decimalSep = null;
+                }
             }
 
-            if (!allowComma && normalized.Contains(","))
+            var sb = new StringBuilder(trimmed.Length);
+
+            for (int i = 0; i < trimmed.Length; i++)
             {
-                return false; // comma not accepted in this locale
+                var c = trimmed[i];
+
+                if (c == '.' || c == ',')
+                {
+                    if (decimalSep.HasValue && c == decimalSep.Value && i == (decimalSep == '.' ? lastDot : lastComma))
+                    {
+                        sb.Append('.');
+                    }
+
+                    // treat all other separators as thousands separators; skip them
+                    continue;
+                }
+
+                sb.Append(c);
             }
 
-            if (allowComma)
-            {
-                normalized = normalized.Replace(',', '.');
-            }
-
+            var normalized = sb.ToString();
             var parts = normalized.Split('.');
             if (parts.Length > 2)
             {
