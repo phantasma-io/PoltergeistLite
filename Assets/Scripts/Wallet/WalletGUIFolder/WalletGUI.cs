@@ -909,12 +909,39 @@ namespace Poltergeist
             }
 
             var uiThemeName = AccountManager.Instance.Settings.uiThemeName;
-            GUI.skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
+            var skin = Resources.Load($"Skins/{uiThemeName}/{uiThemeName}") as GUISkin;
+            if (skin == null)
+            {
+                fatalError = $"UI skin '{uiThemeName}' is missing. Please check Resources/Skins/{uiThemeName}.";
+                SetState(GUIState.Fatal);
+            }
+            else
+            {
+                GUI.skin = skin;
+            }
 
             if (VerticalLayout)
-                background.texture = Resources.Load<Texture2D>($"Skins/{uiThemeName}/mobile_background");
+            {
+                var tex = Resources.Load<Texture2D>($"Skins/{uiThemeName}/mobile_background");
+                if (tex == null)
+                {
+                    fatalError = $"Background texture 'mobile_background' for theme '{uiThemeName}' is missing.";
+                    SetState(GUIState.Fatal);
+                    return;
+                }
+                background.texture = tex;
+            }
             else
-                background.texture = Resources.Load<Texture2D>($"Skins/{uiThemeName}/background");
+            {
+                var tex = Resources.Load<Texture2D>($"Skins/{uiThemeName}/background");
+                if (tex == null)
+                {
+                    fatalError = $"Background texture 'background' for theme '{uiThemeName}' is missing.";
+                    SetState(GUIState.Fatal);
+                    return;
+                }
+                background.texture = tex;
+            }
             soulMasterLogo = Resources.Load<Texture2D>($"Skins/{AccountManager.Instance.Settings.uiThemeName}/soul_master");
 
             GUI.enabled = true;

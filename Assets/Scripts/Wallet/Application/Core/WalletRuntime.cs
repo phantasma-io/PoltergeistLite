@@ -85,6 +85,7 @@ namespace Poltergeist.Wallet
 
                     Settings = settings;
                     RegisterGlobalExceptionHandlers();
+                    Log.Write("[Startup] WalletRuntime initialized.");
                 }
                 catch (Exception e)
                 {

@@ -47,6 +47,11 @@ namespace Poltergeist.Wallet
             SettingsService = new WalletSettingsService(() => AccountManager.Instance);
             SettingsViewBuilder = new WalletSettingsViewBuilder();
             SettingsPresenter = new WalletSettingsPresenter(SettingsViewBuilder, SettingsService, () => AccountManager.Instance);
+
+            if (AccountManager.Instance == null)
+            {
+                PhantasmaPhoenix.Unity.Core.Logging.Log.WriteWarning("[Startup] WalletApplicationContext constructed before AccountManager.Instance was ready. Check initialization order.");
+            }
         }
 
         public WalletNavigation Navigation { get; }
