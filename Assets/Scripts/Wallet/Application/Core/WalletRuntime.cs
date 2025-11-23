@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist.Build;
+using System.Threading.Tasks;
 
 namespace Poltergeist.Wallet
 {
@@ -14,6 +15,8 @@ namespace Poltergeist.Wallet
         private static bool _initialized;
 
         public static Settings Settings { get; private set; }
+        public static string StartupError { get; private set; }
+        public static bool HasStartupError => !string.IsNullOrEmpty(StartupError);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Bootstrap()
@@ -81,15 +84,49 @@ namespace Poltergeist.Wallet
                                "Log level: " + logLevel);
 
                     Settings = settings;
+                    RegisterGlobalExceptionHandlers();
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError($"[Startup] Logging bootstrap failed: {e}");
+                    StartupError = $"Logging bootstrap failed: {e}";
+                    Debug.LogError($"[Startup] {StartupError}");
                 }
                 finally
                 {
                     _initialized = true;
                 }
+            }
+        }
+
+        private static void RegisterGlobalExceptionHandlers()
+        {
+            AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            {
+                var ex = args.ExceptionObject as Exception;
+                if (ex != null)
+                {
+                    ReportFatal("UnhandledException", ex);
+                }
+            };
+
+            TaskScheduler.UnobservedTaskException += (_, args) =>
+            {
+                ReportFatal("UnobservedTaskException", args.Exception);
+            };
+        }
+
+        public static void ReportFatal(string location, Exception ex)
+        {
+            var message = $"Fatal {location}: {ex}";
+            StartupError = message;
+            Debug.LogError("[Startup] " + message);
+            try
+            {
+                Log.Write(message);
+            }
+            catch
+            {
+                // ignore logging failures
             }
         }
     }

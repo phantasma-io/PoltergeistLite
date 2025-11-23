@@ -330,6 +330,15 @@ namespace Poltergeist
                 // swallow logging errors during fatal startup
             }
 
+            try
+            {
+                WalletRuntime.ReportFatal(location, e);
+            }
+            catch
+            {
+                // ignore
+            }
+
             navigation ??= new WalletNavigation();
             navigation.Reset(GUIState.Fatal);
         }
@@ -916,8 +925,12 @@ namespace Poltergeist
                 {
                     DrawCenteredText(AccountManager.Instance.Status);
                 }
-                else if (!string.IsNullOrEmpty(fatalError))
+                else if (!string.IsNullOrEmpty(fatalError) || WalletRuntime.HasStartupError)
                 {
+                    if (string.IsNullOrEmpty(fatalError) && WalletRuntime.HasStartupError)
+                    {
+                        fatalError = WalletRuntime.StartupError;
+                    }
                     SetState(GUIState.Fatal);
                 }
             }
