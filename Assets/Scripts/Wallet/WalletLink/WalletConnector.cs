@@ -14,8 +14,8 @@ using PhantasmaPhoenix.Protocol.Carbon;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
+using UnityEngine;
 using Poltergeist.Wallet;
-using UnityEngine.Device;
 
 namespace Poltergeist
 {
@@ -28,6 +28,11 @@ namespace Poltergeist
 
         public WalletConnector() : base()
         {
+        }
+
+        private void PushMessage(string title, string body, MessageKind kind)
+        {
+            WalletApplicationContext.Instance.Messages.Push(body, title, kind);
         }
 
         private PlatformKind RequestPlatform(string platform)
@@ -115,7 +120,7 @@ namespace Poltergeist
             if (accountManager.CurrentPlatform != targetPlatform)
             {
                 accountManager.CurrentPlatform = targetPlatform;
-                WalletGUI.Instance.MessageBox(MessageKind.Default, "Phantasma Link changed current platform to :" + targetPlatform);
+                PushMessage("Phantasma Link", $"Changed current platform to: {targetPlatform}", MessageKind.Default);
             }
 
             var account = accountManager.CurrentAccount;
@@ -475,7 +480,7 @@ namespace Poltergeist
                     }
                     catch (Exception e)
                     {
-                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
+                        PushMessage("WalletLink", $"Error during description parsing.\nContact the developers.\nDetails: {e.Message}", MessageKind.Error);
                         callback(Hash.Null, "description parsing error");
                     }
                 }
@@ -541,7 +546,7 @@ namespace Poltergeist
                     }
                     catch (Exception e)
                     {
-                        WalletGUI.Instance.MessageBox(MessageKind.Error, "Error during description parsing.\nContact the developers.\nDetails: " + e.Message);
+                        PushMessage("WalletLink", $"Error during description parsing.\nContact the developers.\nDetails: {e.Message}", MessageKind.Error);
                         callback(Hash.Null, "description parsing error");
                     }
                 }
