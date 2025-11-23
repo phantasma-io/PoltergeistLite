@@ -27,8 +27,7 @@ namespace Poltergeist.Wallet
         ScanQR,
         Backup,
         Exit,
-        Fatal,
-        MessageForUser
+        Fatal
     }
 
     public enum PromptResult
