@@ -38,6 +38,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private int listIndexBeforeDetach = -1;
         private PickingMode listPickingModeBeforeModal;
         private bool listVisibilityBeforeModal;
+        private EventCallback<KeyUpEvent> modalKeyHandler;
 
         public WalletAccountsView(VisualElement host, WalletApplicationContext context, Action onLoginSuccess)
         {
@@ -229,13 +230,52 @@ namespace Poltergeist.UiToolkit.Accounts
             list.visible = true;
             list.verticalScrollerVisibility = ScrollerVisibility.Auto;
             list.contentContainer.style.paddingBottom = 80;
+            // Manual wheel handling avoids UITK's ScrollView null deref in ReadSingleLineHeight and keeps modal wheel swallowed.
             list.RegisterCallback<WheelEvent>(evt =>
             {
                 if (modalOverlay != null && modalOverlay.style.display == DisplayStyle.Flex)
                 {
                     evt.StopImmediatePropagation();
                     evt.PreventDefault();
+                    return;
                 }
+
+                var scroller = list.verticalScroller;
+                if (scroller == null || list.contentContainer == null)
+                {
+                    evt.StopImmediatePropagation();
+                    evt.PreventDefault();
+                    return;
+                }
+
+                const float scrollStep = 120f;
+                var delta = Mathf.Clamp(evt.delta.y, -1f, 1f);
+                var low = scroller.lowValue;
+                var high = scroller.highValue;
+                // High value can be stale before layout; recompute a safer fallback using bounds when available.
+                if ((double)high <= (double)low)
+                {
+                    var viewportHeight = list.contentViewport?.worldBound.height ?? 0f;
+                    var contentHeight = list.contentContainer.worldBound.height;
+                    if (viewportHeight > 0f && contentHeight > viewportHeight)
+                    {
+                        high = contentHeight - viewportHeight;
+                    }
+                }
+
+                if (high < low)
+                {
+                    high = low;
+                }
+
+                // UI Toolkit delta is positive when scrolling down; add delta to move the view in the same direction.
+                var target = Mathf.Clamp(scroller.value + delta * scrollStep, low, high);
+                scroller.value = target;
+                var offset = list.scrollOffset;
+                offset.y = target;
+                list.scrollOffset = offset;
+                evt.StopImmediatePropagation();
+                evt.PreventDefault();
             }, TrickleDown.TrickleDown);
             ApplyDefaultFont(list);
 
@@ -352,7 +392,7 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(title);
 
-            versionLabel = new Label(Application.version)
+            versionLabel = new Label(BuildVersionLabel())
             {
                 style =
                 {
@@ -723,6 +763,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 if (result == PromptResult.Success)
                 {
                     Log.Write($"{LogPrefix}Account '{am.CurrentAccount.name}' opened, refreshing balances + switching view.");
+                    am.RefreshTokenPrices();
                     context.BalancePresenter.Refresh(true);
                     onLoginSuccess?.Invoke();
                 }
@@ -833,6 +874,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     isPasswordField = true,
                     maskChar = '*',
+                    maxLength = maxLength > 0 ? maxLength : int.MaxValue,
                     style =
                     {
                         marginBottom = 12,
@@ -938,7 +980,9 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             panel.RegisterCallback<KeyUpEvent>(keyHandler, TrickleDown.TrickleDown);
-            modalOverlay.RegisterCallback<KeyUpEvent>(keyHandler, TrickleDown.TrickleDown);
+            UnregisterModalKeyHandler();
+            modalKeyHandler = keyHandler;
+            modalOverlay.RegisterCallback<KeyUpEvent>(modalKeyHandler, TrickleDown.TrickleDown);
 
             buttonRow.Add(cancel);
             buttonRow.Add(ok);
@@ -949,6 +993,15 @@ namespace Poltergeist.UiToolkit.Accounts
             Log.Write($"{LogPrefix}ShowModal '{title}' isError={isError} minLen={minLength} maxLen={maxLength} detached={listDetachedForModal}");
         }
 
+        private void UnregisterModalKeyHandler()
+        {
+            if (modalOverlay != null && modalKeyHandler != null)
+            {
+                modalOverlay.UnregisterCallback<KeyUpEvent>(modalKeyHandler, TrickleDown.TrickleDown);
+                modalKeyHandler = null;
+            }
+        }
+
         private void HideModal()
         {
             HideModal(keepCallback: false);
@@ -956,6 +1009,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void HideModal(bool keepCallback)
         {
+            UnregisterModalKeyHandler();
             modalOverlay.style.display = DisplayStyle.None;
             modalOverlay.Clear();
             if (list != null)
@@ -994,8 +1048,8 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private string BuildVersionLabel()
         {
-            // Mirror legacy header: app version + build timestamp.
-            return $"Poltergeist Lite v{Application.version} - Built {Build.Info.Instance.BuildTime} UTC";
+            // Header already shows the app name; show version + build time only.
+            return $"{Application.version} - Built {Build.Info.Instance.BuildTime} UTC";
         }
 
         private string BuildNetworkLabel(string name, NexusKind kind)

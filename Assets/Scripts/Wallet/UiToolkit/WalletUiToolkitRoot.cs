@@ -24,6 +24,7 @@ namespace Poltergeist.UiToolkit
         private PanelSettings panelSettings;
         private VisualElement accountsRoot;
         private VisualElement balancesRoot;
+        private bool initializationFailed;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -44,25 +45,52 @@ namespace Poltergeist.UiToolkit
                 DisableLegacyUi("UITK bootstrap");
                 EnsurePanelSettings();
                 EnsureDocument();
-                InitializeViewsSafe();
+                if (!InitializeViewsSafe())
+                {
+                    return;
+                }
                 StartCoroutine(WaitForAccountsReady());
             }
             catch (Exception e)
             {
+                initializationFailed = true;
                 Log.WriteWarning($"{FatalPrefix}Failed to initialize UITK root: {e}");
+
+                if (document == null)
+                {
+                    try
+                    {
+                        EnsurePanelSettings();
+                        EnsureDocument();
+                    }
+                    catch (Exception ensureEx)
+                    {
+                        Log.WriteWarning($"{FatalPrefix}Unable to ensure UIDocument after failure: {ensureEx}");
+                    }
+                }
+
                 ShowFatal($"UITK failed to start:\n{e.Message}");
-                Destroy(gameObject);
             }
         }
 
         private void OnEnable()
         {
+            if (initializationFailed)
+            {
+                return;
+            }
+
             Log.Write($"{LogPrefix}OnEnable");
             Application.logMessageReceived += OnLogMessageReceived;
         }
 
         private void OnDestroy()
         {
+            if (initializationFailed)
+            {
+                return;
+            }
+
             Log.Write($"{LogPrefix}OnDestroy");
             Application.logMessageReceived -= OnLogMessageReceived;
             accountsView?.Dispose();
@@ -98,7 +126,7 @@ namespace Poltergeist.UiToolkit
             Log.Write($"{LogPrefix}Spawned AccountManagerHost_UITK.");
         }
 
-        private void InitializeViewsSafe()
+        private bool InitializeViewsSafe()
         {
             try
             {
@@ -106,11 +134,14 @@ namespace Poltergeist.UiToolkit
                 WalletApplicationContext.Instance.UiSignals?.EnsureSubscribed();
                 EnsureInitialScreen();
                 Log.Write($"{LogPrefix}UI initialized (no wait). Accounts ready: {AccountManager.Instance?.AccountsAreReadyToBeUsed}");
+                return true;
             }
             catch (Exception e)
             {
                 Log.WriteWarning($"{FatalPrefix}InitializeViews failed: {e}");
                 ShowFatal($"UITK failed to start:\n{e.Message}");
+                initializationFailed = true;
+                return false;
             }
         }
 
