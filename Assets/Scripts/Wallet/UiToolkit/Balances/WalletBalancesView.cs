@@ -23,6 +23,10 @@ namespace Poltergeist.UiToolkit.Balances
         private readonly WalletUiSignals uiSignals;
         private readonly Action onReady;
         private readonly Font defaultFont;
+        private readonly Action onShowBalances;
+        private readonly Action onShowHistory;
+        private readonly Action onShowAccount;
+        private readonly Action onExit;
         private DropdownField accountDropdown;
 
         private Label statusLabel;
@@ -31,20 +35,29 @@ namespace Poltergeist.UiToolkit.Balances
         private ScrollView listView;
         private VisualElement root;
         private bool readyNotified;
+        private Button navBalances;
+        private Button navHistory;
+        private Button navAccount;
+        private Button navExit;
 
-        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady)
+        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onExit)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             presenter = context.BalancePresenter ?? throw new ArgumentNullException(nameof(context.BalancePresenter));
             viewState = presenter.State ?? throw new ArgumentNullException(nameof(presenter.State));
             uiSignals = context.UiSignals ?? throw new ArgumentNullException(nameof(context.UiSignals));
             this.onReady = onReady;
+            this.onShowBalances = onShowBalances ?? throw new ArgumentNullException(nameof(onShowBalances));
+            this.onShowHistory = onShowHistory ?? throw new ArgumentNullException(nameof(onShowHistory));
+            this.onShowAccount = onShowAccount ?? throw new ArgumentNullException(nameof(onShowAccount));
+            this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
             defaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
             BuildLayout(host);
             Subscribe();
             RequestInitialRefresh();
             RefreshView();
+            UpdateNavSelection(NavTarget.Balances);
         }
 
         public void Dispose()
@@ -161,6 +174,9 @@ namespace Poltergeist.UiToolkit.Balances
             listView.verticalScroller.valueChanged += v => viewState.ScrollY = v;
 
             root.Add(listView);
+
+            var footer = BuildFooterNav();
+            root.Add(footer);
         }
 
         private void Subscribe()
@@ -317,6 +333,11 @@ namespace Poltergeist.UiToolkit.Balances
         public void ForceRefresh()
         {
             RefreshView();
+        }
+
+        public void MarkAsActive()
+        {
+            UpdateNavSelection(NavTarget.Balances);
         }
 
         public void OnAccountsReady()
@@ -571,6 +592,116 @@ namespace Poltergeist.UiToolkit.Balances
             }
         }
 
+        private VisualElement BuildFooterNav()
+        {
+            var bar = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.SpaceBetween,
+                    alignItems = Align.Center,
+                    paddingTop = 12,
+                    paddingBottom = 12,
+                    paddingLeft = 10,
+                    paddingRight = 10,
+                    marginTop = 10,
+                    minHeight = 68,
+                    backgroundColor = WalletUiTheme.HeaderBackground,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopColor = WalletUiTheme.HeaderBorder,
+                    borderBottomColor = WalletUiTheme.HeaderBorder,
+                    borderLeftColor = WalletUiTheme.HeaderBorder,
+                    borderRightColor = WalletUiTheme.HeaderBorder,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium
+                }
+            };
+
+            navBalances = MakeNavButton("Balances", () => onShowBalances?.Invoke());
+            navHistory = MakeNavButton("History", () => onShowHistory?.Invoke());
+            navAccount = MakeNavButton("Account", () => onShowAccount?.Invoke());
+            navExit = MakeNavButton("Exit", () => onExit?.Invoke());
+
+            // Account view not implemented yet in UITK; keep button visible but disabled to mirror legacy layout.
+            navAccount.SetEnabled(false);
+            navAccount.style.backgroundColor = WalletUiTheme.SecondaryButton;
+            navAccount.style.color = WalletUiTheme.TextPrimary;
+
+            var buttons = new[] { navBalances, navHistory, navAccount, navExit };
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                var btn = buttons[i];
+                btn.style.flexGrow = 1;
+                if (i > 0)
+                {
+                    btn.style.marginLeft = 8;
+                }
+                bar.Add(btn);
+            }
+
+            return bar;
+        }
+
+        private Button MakeNavButton(string text, Action onClick)
+        {
+            var btn = new Button
+            {
+                text = text,
+                style =
+                {
+                    backgroundColor = WalletUiTheme.ActionButton,
+                    color = WalletUiTheme.ActionButtonText,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 16,
+                    minHeight = 44,
+                    paddingLeft = 18,
+                    paddingRight = 18,
+                    paddingTop = 12,
+                    paddingBottom = 12,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.ActionButtonBorder,
+                    borderRightColor = WalletUiTheme.ActionButtonBorder,
+                    borderTopColor = WalletUiTheme.ActionButtonBorder,
+                    borderBottomColor = WalletUiTheme.ActionButtonBorder
+                }
+            };
+            ApplyDefaultFont(btn);
+            btn.clicked += () => onClick?.Invoke();
+            return btn;
+        }
+
+        private void UpdateNavSelection(NavTarget target)
+        {
+            SetNavState(navBalances, target == NavTarget.Balances);
+            SetNavState(navHistory, target == NavTarget.History);
+            SetNavState(navExit, false);
+        }
+
+        private void SetNavState(Button btn, bool isActive)
+        {
+            if (btn == null)
+            {
+                return;
+            }
+
+            btn.SetEnabled(!isActive);
+            btn.style.backgroundColor = isActive ? WalletUiTheme.SecondaryButton : WalletUiTheme.ActionButton;
+            btn.style.color = isActive ? WalletUiTheme.TextPrimary : WalletUiTheme.ActionButtonText;
+        }
+
         private void ApplyDefaultFont(VisualElement element)
         {
             if (element == null || defaultFont == null)
@@ -580,6 +711,13 @@ namespace Poltergeist.UiToolkit.Balances
 
             element.style.unityFont = defaultFont;
             element.style.unityFontDefinition = FontDefinition.FromFont(defaultFont);
+        }
+
+        private enum NavTarget
+        {
+            Balances,
+            History,
+            Account
         }
     }
 }

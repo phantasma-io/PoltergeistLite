@@ -7,6 +7,7 @@ using Poltergeist.UiToolkit.Accounts;
 using UnityEngine.UIElements;
 using Poltergeist;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using Poltergeist.UiToolkit.History;
 
 namespace Poltergeist.UiToolkit
 {
@@ -20,10 +21,12 @@ namespace Poltergeist.UiToolkit
 
         private WalletAccountsView accountsView;
         private WalletBalancesView balancesView;
+        private WalletHistoryView historyView;
         private UIDocument document;
         private PanelSettings panelSettings;
         private VisualElement accountsRoot;
         private VisualElement balancesRoot;
+        private VisualElement historyRoot;
         private bool initializationFailed;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -95,8 +98,10 @@ namespace Poltergeist.UiToolkit
             Application.logMessageReceived -= OnLogMessageReceived;
             accountsView?.Dispose();
             balancesView?.Dispose();
+            historyView?.Dispose();
             accountsView = null;
             balancesView = null;
+            historyView = null;
         }
 
         private void EnsureAccountManagerHost()
@@ -161,6 +166,7 @@ namespace Poltergeist.UiToolkit
                     {
                         ShowBalances();
                         balancesView?.OnAccountsReady();
+                        historyView?.OnAccountsReady();
                     }
                     else
                     {
@@ -215,14 +221,17 @@ namespace Poltergeist.UiToolkit
 
             accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = WalletUiTheme.ScreenBackground } };
             balancesRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = WalletUiTheme.ScreenBackground } };
+            historyRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = WalletUiTheme.ScreenBackground } };
 
             accountsView = new WalletAccountsView(accountsRoot, context, ShowBalances);
-            balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi);
+            balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccountNotImplemented, ExitToWallets);
+            historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccountNotImplemented, ExitToWallets);
 
             root.Add(accountsRoot);
             root.Add(balancesRoot);
+            root.Add(historyRoot);
 
-            Log.Write($"{LogPrefix}Views initialized (accounts + balances).");
+            Log.Write($"{LogPrefix}Views initialized (accounts + balances + history).");
         }
 
         private void DisableLegacyUi()
@@ -323,10 +332,54 @@ namespace Poltergeist.UiToolkit
                 balancesRoot.style.display = DisplayStyle.Flex;
             }
 
+            if (historyRoot != null)
+            {
+                historyRoot.style.display = DisplayStyle.None;
+            }
+
             Log.Write($"{LogPrefix}ShowBalances invoked; refreshing balances view.");
+            balancesView?.MarkAsActive();
             balancesView?.OnAccountsReady();
             balancesView?.ForceRefresh();
             Log.Write($"{LogPrefix}ShowBalances done. balancesVisible={balancesRoot?.style.display} accountsVisible={accountsRoot?.style.display}");
+        }
+
+        private void ShowHistory()
+        {
+            if (accountsRoot != null)
+            {
+                accountsRoot.style.display = DisplayStyle.None;
+            }
+
+            if (balancesRoot != null)
+            {
+                balancesRoot.style.display = DisplayStyle.None;
+            }
+
+            if (historyRoot != null)
+            {
+                historyRoot.style.display = DisplayStyle.Flex;
+            }
+
+            historyView?.MarkAsActive();
+            historyView?.ForceRefresh();
+            historyView?.OnAccountsReady();
+            Log.Write($"{LogPrefix}ShowHistory done. historyVisible={historyRoot?.style.display} balancesVisible={balancesRoot?.style.display}");
+        }
+
+        private void ExitToWallets()
+        {
+            var am = AccountManager.Instance;
+            am?.UnselectAcount();
+            WalletApplicationContext.Instance.ViewState.ResetSnapshots();
+            accountsRoot.style.display = DisplayStyle.Flex;
+            balancesRoot.style.display = DisplayStyle.None;
+            historyRoot.style.display = DisplayStyle.None;
+        }
+
+        private void ShowAccountNotImplemented()
+        {
+            Log.WriteWarning($"{LogPrefix}Account view not yet implemented in UITK.");
         }
 
         private void ShowFatal(string message)

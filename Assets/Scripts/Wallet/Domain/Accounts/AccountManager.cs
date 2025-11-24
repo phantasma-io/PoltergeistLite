@@ -1757,6 +1757,19 @@ The Phoenix team", "Notice");
         {
             async Task ExecuteAsync()
             {
+                if (!HasSelection)
+                {
+                    Log.WriteWarning("RefreshHistory: skipped because no account is selected.");
+                    return;
+                }
+
+                var currentAccount = CurrentAccount;
+                if (currentAccount.passwordProtected && string.IsNullOrEmpty(CurrentPasswordHash))
+                {
+                    Log.WriteWarning("RefreshHistory: skipped because current account is locked.");
+                    return;
+                }
+
                 List<PlatformKind> platformsList;
                 if (platforms == PlatformKind.None)
                     platformsList = CurrentAccount.platforms.Split();
