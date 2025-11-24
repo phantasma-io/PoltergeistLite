@@ -47,7 +47,7 @@ namespace Poltergeist
         public string CurrentPasswordHash;
         public string CurrentWif => Accounts[_selectedAccountIndex].GetWif(CurrentPasswordHash);
 
-        public bool HasSelection => _selectedAccountIndex >= 0 && _selectedAccountIndex < Accounts.Count();
+        public bool HasSelection => Accounts != null && _selectedAccountIndex >= 0 && _selectedAccountIndex < Accounts.Count();
 
         private Dictionary<PlatformKind, AccountState> _states = new Dictionary<PlatformKind, AccountState>();
         private Dictionary<PlatformKind, List<TokenDataResult>> _nfts = new Dictionary<PlatformKind, List<TokenDataResult>>();

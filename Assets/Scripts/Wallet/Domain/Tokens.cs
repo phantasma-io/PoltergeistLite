@@ -82,7 +82,7 @@ public static class Tokens
 
             Tokens.LoadCoinGeckoSymbols();
 
-            Log.Write($"{Tokens.GetTokens().Length} tokens supported");
+            Log.Write($"{Tokens.GetTokens().Length} tokens supported", Log.Level.Debug1);
 
             Tokens.ToLog();
     }
@@ -190,6 +190,6 @@ public static class Tokens
         {
             tokens += $"Symbol {token.Symbol} ({token.Name}), decimals {token.Decimals}, supplies {token.CurrentSupply}/{token.MaxSupply}/{token.BurnedSupply}, flags '{token.Flags}', coinGeckoId '{GetCGSymbol(token)}'\n";
         }
-        Log.Write("Supported tokens:\n" + tokens);
+        Log.Write("Supported tokens:\n" + tokens, Log.Level.Debug1);
     }
 }

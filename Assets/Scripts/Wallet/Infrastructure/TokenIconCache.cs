@@ -86,19 +86,19 @@ public static class TokenIconCache
 
         if (!TryParseDataUri(iconValue, out var mimeType, out var imageBytes))
         {
-            Log.WriteWarning($"Token icon rejected for {token.Symbol}: invalid data URI.");
+            Log.Write($"Token icon rejected for {token.Symbol}: invalid data URI.", Log.Level.Debug1);
             return;
         }
 
         if (!AllowedMimeTypes.Contains(mimeType))
         {
-            Log.WriteWarning($"Token icon rejected for {token.Symbol}: unsupported MIME type '{mimeType}'.");
+            Log.Write($"Token icon rejected for {token.Symbol}: unsupported MIME type '{mimeType}'.", Log.Level.Debug1);
             return;
         }
 
         if (imageBytes.Length == 0 || imageBytes.Length > MaxIconBytes)
         {
-            Log.WriteWarning($"Token icon rejected for {token.Symbol}: size {imageBytes.Length} bytes is outside allowed range.");
+            Log.Write($"Token icon rejected for {token.Symbol}: size {imageBytes.Length} bytes is outside allowed range.", Log.Level.Debug1);
             return;
         }
 
@@ -108,13 +108,13 @@ public static class TokenIconCache
             if (!ImageConversion.LoadImage(texture, imageBytes, false))
             {
                 UnityEngine.Object.Destroy(texture);
-                Log.WriteWarning($"Token icon rejected for {token.Symbol}: failed to decode texture.");
+                Log.Write($"Token icon rejected for {token.Symbol}: failed to decode texture.", Log.Level.Debug1);
                 return;
             }
 
             if (texture.width > MaxIconDimension || texture.height > MaxIconDimension)
             {
-                Log.WriteWarning($"Token icon rejected for {token.Symbol}: resolution {texture.width}x{texture.height} exceeds {MaxIconDimension}px limit.");
+                Log.Write($"Token icon rejected for {token.Symbol}: resolution {texture.width}x{texture.height} exceeds {MaxIconDimension}px limit.", Log.Level.Debug1);
                 UnityEngine.Object.Destroy(texture);
                 return;
             }
@@ -126,7 +126,7 @@ public static class TokenIconCache
         }
         catch (Exception e)
         {
-            Log.WriteWarning($"Token icon rejected for {token?.Symbol}: {e.Message}");
+            Log.Write($"Token icon rejected for {token?.Symbol}: {e.Message}", Log.Level.Debug1);
         }
     }
 
