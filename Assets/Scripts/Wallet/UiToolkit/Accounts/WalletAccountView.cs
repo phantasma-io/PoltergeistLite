@@ -837,59 +837,17 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void BuildModal(VisualElement parent)
         {
-            modalOverlay = new VisualElement
-            {
-                style =
-                {
-                    position = Position.Absolute,
-                    left = 0,
-                    right = 0,
-                    top = 0,
-                    bottom = 0,
-                    backgroundColor = WalletUiTheme.Overlay,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center,
-                    display = DisplayStyle.None
-                }
-            };
-            modalOverlay.pickingMode = PickingMode.Position;
-            ApplyDefaultFont(modalOverlay);
+            modalOverlay = WalletUiCommon.CreateModalOverlay();
 
-            var modalWindow = new VisualElement
-            {
-                style =
-                {
-                    width = 540,
-                    maxWidth = new Length(95, LengthUnit.Percent),
-                    backgroundColor = WalletUiTheme.ModalBackground,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.ModalBorder,
-                    borderRightColor = WalletUiTheme.ModalBorder,
-                    borderTopColor = WalletUiTheme.ModalBorder,
-                    borderBottomColor = WalletUiTheme.ModalBorder,
-                    paddingLeft = 18,
-                    paddingRight = 18,
-                    paddingTop = 14,
-                    paddingBottom = 14,
-                    flexDirection = FlexDirection.Column,
-                    alignItems = Align.Stretch
-                }
-            };
-            ApplyDefaultFont(modalWindow);
+            var modalWindow = WalletUiCommon.CreateModalPanel(540, 900);
+            modalWindow.style.maxWidth = new Length(95, LengthUnit.Percent);
 
             modalTitle = new Label("Input")
             {
                 style =
                 {
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 18,
+                    fontSize = 20,
                     color = WalletUiTheme.TextPrimary,
                     unityTextAlign = TextAnchor.MiddleCenter,
                     marginBottom = 8
@@ -903,10 +861,10 @@ namespace Poltergeist.UiToolkit.Accounts
                 style =
                 {
                     color = WalletUiTheme.TextPrimary,
-                    fontSize = 14,
+                    fontSize = 15,
                     unityTextAlign = TextAnchor.MiddleCenter,
                     whiteSpace = WhiteSpace.Normal,
-                    marginBottom = 8
+                    marginBottom = 10
                 }
             };
             ApplyDefaultFont(modalCaption);
@@ -917,33 +875,8 @@ namespace Poltergeist.UiToolkit.Accounts
                 multiline = true,
                 isPasswordField = false,
                 maskChar = '*',
-                style =
-                {
-                    fontSize = 14,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginBottom = 10,
-                    minHeight = 60,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 6,
-                    paddingBottom = 6,
-                    backgroundColor = WalletUiTheme.InputBackground,
-                    color = WalletUiTheme.TextPrimary,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.InputBorder,
-                    borderRightColor = WalletUiTheme.InputBorder,
-                    borderTopColor = WalletUiTheme.InputBorder,
-                    borderBottomColor = WalletUiTheme.InputBorder,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall
-                }
             };
-            ApplyDefaultFont(modalInput);
+            WalletUiCommon.StyleModalInput(modalInput, true, 60);
             modalWindow.Add(modalInput);
 
             var modalButtons = new VisualElement
@@ -958,11 +891,11 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(modalButtons);
 
-            modalSecondary = WalletUiCommon.CreateSecondaryButton("Cancel", OnModalSecondary, 14, 32);
-            modalSecondary.style.minWidth = 100;
-            modalPrimary = WalletUiCommon.CreatePrimaryButton("Confirm", OnModalPrimary, 14, 32);
-            modalPrimary.style.minWidth = 100;
-            modalPrimary.style.marginLeft = 8;
+            modalSecondary = WalletUiCommon.CreateSecondaryButton("Cancel", OnModalSecondary, 16, 36);
+            modalSecondary.style.minWidth = 110;
+            modalPrimary = WalletUiCommon.CreateOutlineButton("Confirm", OnModalPrimary, 16, 36);
+            modalPrimary.style.minWidth = 110;
+            modalPrimary.style.marginLeft = 10;
             modalButtons.Add(modalSecondary);
             modalButtons.Add(modalPrimary);
             modalWindow.Add(modalButtons);

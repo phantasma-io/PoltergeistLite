@@ -266,22 +266,7 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             listWrapper.Add(list);
 
-            modalOverlay = new VisualElement
-            {
-                style =
-                {
-                    position = Position.Absolute,
-                    left = 0,
-                    right = 0,
-                    top = 0,
-                    bottom = 0,
-                    backgroundColor = WalletUiTheme.Overlay,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center,
-                    display = DisplayStyle.None
-                }
-            };
-            modalOverlay.pickingMode = PickingMode.Position;
+            modalOverlay = WalletUiCommon.CreateModalOverlay();
             modalOverlay.RegisterCallback<WheelEvent>(evt => evt.StopPropagation());
             modalOverlay.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
             modalOverlay.RegisterCallback<PointerMoveEvent>(evt => evt.StopPropagation());
@@ -672,31 +657,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 modalCallback = null;
             }
 
-            var panel = new VisualElement
-            {
-                style =
-                {
-                    width = 720,
-                    maxWidth = 900,
-                    backgroundColor = WalletUiTheme.ModalBackground,
-                    paddingLeft = 22,
-                    paddingRight = 22,
-                    paddingTop = 18,
-                    paddingBottom = 18,
-                    borderTopLeftRadius = WalletUiTheme.RadiusLarge,
-                    borderTopRightRadius = WalletUiTheme.RadiusLarge,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusLarge,
-                    borderBottomRightRadius = WalletUiTheme.RadiusLarge,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.ModalBorder,
-                    borderRightColor = WalletUiTheme.ModalBorder,
-                    borderTopColor = WalletUiTheme.ModalBorder,
-                    borderBottomColor = WalletUiTheme.ModalBorder
-                }
-            };
+            var panel = WalletUiCommon.CreateModalPanel(720, 900);
 
             var titleLabel = new Label(title ?? string.Empty)
             {
@@ -731,27 +692,9 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     isPasswordField = true,
                     maskChar = '*',
-                    maxLength = maxLength > 0 ? maxLength : int.MaxValue,
-                    style =
-                    {
-                        marginBottom = 12,
-                        backgroundColor = WalletUiTheme.InputBackground,
-                        color = WalletUiTheme.TextPrimary,
-                        borderLeftWidth = 1,
-                        borderRightWidth = 1,
-                        borderTopWidth = 1,
-                        borderBottomWidth = 1,
-                        borderLeftColor = WalletUiTheme.InputBorder,
-                        borderRightColor = WalletUiTheme.InputBorder,
-                        borderTopColor = WalletUiTheme.InputBorder,
-                        borderBottomColor = WalletUiTheme.InputBorder,
-                        paddingLeft = 8,
-                        paddingRight = 8,
-                        paddingTop = 6,
-                        paddingBottom = 6
-                    }
+                    maxLength = maxLength > 0 ? maxLength : int.MaxValue
                 };
-                ApplyDefaultFont(passwordField);
+                WalletUiCommon.StyleModalInput(passwordField, false, 40);
                 passwordField.schedule.Execute(() => passwordField.Focus()).StartingIn(50);
                 panel.Add(passwordField);
             }
@@ -768,45 +711,12 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
 
-            var cancel = new Button { text = "Cancel" };
-            ApplyDefaultFont(cancel);
-            cancel.style.backgroundColor = WalletUiTheme.SecondaryButton;
-            cancel.style.color = WalletUiTheme.TextPrimary;
-            cancel.style.borderLeftWidth = 1;
-            cancel.style.borderRightWidth = 1;
-            cancel.style.borderTopWidth = 1;
-            cancel.style.borderBottomWidth = 1;
-            cancel.style.borderLeftColor = WalletUiTheme.SecondaryButtonBorder;
-            cancel.style.borderRightColor = WalletUiTheme.SecondaryButtonBorder;
-            cancel.style.borderTopColor = WalletUiTheme.SecondaryButtonBorder;
-            cancel.style.borderBottomColor = WalletUiTheme.SecondaryButtonBorder;
-            cancel.style.paddingLeft = 14;
-            cancel.style.paddingRight = 14;
-            cancel.style.paddingTop = 8;
-            cancel.style.paddingBottom = 8;
-            Action cancelAction = () => CloseAs(PromptResult.Failure, string.Empty);
-            cancel.clicked += () =>
-            {
-                cancelAction();
-            };
+            var cancel = WalletUiCommon.CreateSecondaryButton("Cancel", () => CloseAs(PromptResult.Failure, string.Empty), 16, 36);
+            cancel.style.minWidth = 110;
 
-            var ok = new Button { text = isError ? "Close" : "OK" };
-            ApplyDefaultFont(ok);
-            ok.style.marginLeft = 8;
-            ok.style.backgroundColor = WalletUiTheme.ActionButton;
-            ok.style.color = WalletUiTheme.ActionButtonText;
-            ok.style.borderLeftWidth = 1;
-            ok.style.borderRightWidth = 1;
-            ok.style.borderTopWidth = 1;
-            ok.style.borderBottomWidth = 1;
-            ok.style.borderLeftColor = WalletUiTheme.ActionButtonBorder;
-            ok.style.borderRightColor = WalletUiTheme.ActionButtonBorder;
-            ok.style.borderTopColor = WalletUiTheme.ActionButtonBorder;
-            ok.style.borderBottomColor = WalletUiTheme.ActionButtonBorder;
-            ok.style.paddingLeft = 16;
-            ok.style.paddingRight = 16;
-            ok.style.paddingTop = 8;
-            ok.style.paddingBottom = 8;
+            var ok = WalletUiCommon.CreateOutlineButton(isError ? "Close" : "OK", () => CloseAs(isError ? PromptResult.Failure : PromptResult.Success, passwordField?.text ?? string.Empty), 16, 36);
+            ok.style.marginLeft = 10;
+            ok.style.minWidth = 110;
             Action submitAction = () =>
             {
                 var input = passwordField?.text ?? string.Empty;
@@ -832,7 +742,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 else if (evt.keyCode == KeyCode.Escape)
                 {
                     Log.Write($"{LogPrefix}Escape pressed in modal.");
-                    cancelAction();
+                    CloseAs(PromptResult.Failure, string.Empty);
                     evt.StopImmediatePropagation();
                 }
             };

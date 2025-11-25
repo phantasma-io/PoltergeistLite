@@ -600,6 +600,97 @@ namespace Poltergeist.UiToolkit
                 : $"{label} for {name} @ {platformText}";
         }
 
+        internal static VisualElement CreateModalOverlay()
+        {
+            var overlay = new VisualElement
+            {
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    right = 0,
+                    top = 0,
+                    bottom = 0,
+                    backgroundColor = WalletUiTheme.Overlay,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center,
+                    display = DisplayStyle.None
+                }
+            };
+            ApplyDefaultFont(overlay);
+            overlay.pickingMode = PickingMode.Position;
+            return overlay;
+        }
+
+        internal static VisualElement CreateModalPanel(float width = 720f, float maxWidth = 900f)
+        {
+            var panel = new VisualElement
+            {
+                style =
+                {
+                    width = width,
+                    maxWidth = maxWidth,
+                    backgroundColor = WalletUiTheme.PanelBackground,
+                    backgroundImage = new StyleBackground(WalletUiTheme.GetPanelGradientTexture()),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
+                    paddingLeft = 22,
+                    paddingRight = 22,
+                    paddingTop = 18,
+                    paddingBottom = 18,
+                    borderTopLeftRadius = WalletUiTheme.RadiusLarge,
+                    borderTopRightRadius = WalletUiTheme.RadiusLarge,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusLarge,
+                    borderBottomRightRadius = WalletUiTheme.RadiusLarge,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.CardBorder,
+                    borderRightColor = WalletUiTheme.CardBorder,
+                    borderTopColor = WalletUiTheme.HighlightEdge,
+                    borderBottomColor = WalletUiTheme.CardBorder,
+                    flexDirection = FlexDirection.Column,
+                    alignItems = Align.Stretch
+                }
+            };
+            ApplyDefaultFont(panel);
+            return panel;
+        }
+
+        internal static void StyleModalInput(TextField field, bool multiline = false, int minHeight = 40)
+        {
+            if (field == null)
+            {
+                return;
+            }
+
+            var s = field.style;
+            s.fontSize = 14;
+            s.unityTextAlign = TextAnchor.UpperLeft;
+            s.marginBottom = 12;
+            s.minHeight = minHeight;
+            s.paddingLeft = 10;
+            s.paddingRight = 10;
+            s.paddingTop = 10;
+            s.paddingBottom = 10;
+            s.backgroundColor = WalletUiTheme.InputBackground;
+            s.color = WalletUiTheme.TextPrimary;
+            s.borderLeftWidth = 1;
+            s.borderRightWidth = 1;
+            s.borderTopWidth = 1;
+            s.borderBottomWidth = 1;
+            s.borderLeftColor = WalletUiTheme.InputBorder;
+            s.borderRightColor = WalletUiTheme.InputBorder;
+            s.borderTopColor = WalletUiTheme.HighlightEdge;
+            s.borderBottomColor = WalletUiTheme.InputBorder;
+            s.borderTopLeftRadius = WalletUiTheme.RadiusSmall;
+            s.borderTopRightRadius = WalletUiTheme.RadiusSmall;
+            s.borderBottomLeftRadius = WalletUiTheme.RadiusSmall;
+            s.borderBottomRightRadius = WalletUiTheme.RadiusSmall;
+            field.multiline = multiline;
+            ApplyDefaultFont(field);
+        }
+
         internal static Color GetNetworkColor(NexusKind kind)
         {
             Color c = WalletUiTheme.AccentPrimarySoft;
