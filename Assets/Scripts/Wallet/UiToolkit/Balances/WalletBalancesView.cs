@@ -140,9 +140,9 @@ namespace Poltergeist.UiToolkit.Balances
                     marginBottom = 6
                 }
             };
-            var copyHeaderBtn = WalletUiCommon.CreatePrimaryButton("Copy Address", CopyAddress, 14, 32);
+            var copyHeaderBtn = WalletUiCommon.CreateSecondaryButton("Copy Address", CopyAddress, 14, 32);
             copyHeaderBtn.style.minWidth = 140;
-            var explorerHeaderBtn = WalletUiCommon.CreatePrimaryButton("Explorer", OpenExplorer, 14, 32);
+            var explorerHeaderBtn = WalletUiCommon.CreateSecondaryButton("Explorer", OpenExplorer, 14, 32);
             explorerHeaderBtn.style.minWidth = 140;
             explorerHeaderBtn.style.marginLeft = 10;
             headerButtons.Add(copyHeaderBtn);
@@ -377,8 +377,7 @@ namespace Poltergeist.UiToolkit.Balances
                     return;
                 }
 
-                var displayName = string.IsNullOrEmpty(snapshot.AccountName) ? "Wallet" : snapshot.AccountName;
-                var headerSubtitle = $"Balances for {displayName} @ {snapshot.Platform}";
+                var headerSubtitle = WalletUiCommon.BuildContextSubtitle("Balances", snapshot.AccountName, snapshot.Platform);
                 subtitleLabel.text = headerSubtitle;
                 WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
                 headerAddressLabel.text = accountManager.CurrentAccount.phaAddress ?? string.Empty;

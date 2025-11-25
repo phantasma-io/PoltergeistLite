@@ -196,9 +196,9 @@ namespace Poltergeist.UiToolkit.History
                     marginBottom = 6
                 }
             };
-            var copyHeaderBtn = WalletUiCommon.CreatePrimaryButton("Copy Address", CopyAddress, 14, 32);
+            var copyHeaderBtn = WalletUiCommon.CreateSecondaryButton("Copy Address", CopyAddress, 14, 32);
             copyHeaderBtn.style.minWidth = 140;
-            var explorerHeaderBtn = WalletUiCommon.CreatePrimaryButton("Explorer", OpenExplorer, 14, 32);
+            var explorerHeaderBtn = WalletUiCommon.CreateSecondaryButton("Explorer", OpenExplorer, 14, 32);
             explorerHeaderBtn.style.minWidth = 140;
             explorerHeaderBtn.style.marginLeft = 10;
             headerButtons.Add(copyHeaderBtn);
@@ -484,8 +484,7 @@ namespace Poltergeist.UiToolkit.History
                 return;
             }
 
-            var accountName = string.IsNullOrWhiteSpace(snapshot.AccountName) ? "Wallet" : snapshot.AccountName;
-            var subtitle = $"History for {accountName} @ {snapshot.Platform}";
+            var subtitle = WalletUiCommon.BuildContextSubtitle("History", snapshot.AccountName, snapshot.Platform);
             var settings = accountManager.Settings;
             var nexusName = settings?.nexusName;
             var nexusKind = settings?.nexusKind ?? NexusKind.Main_Net;
@@ -555,7 +554,8 @@ namespace Poltergeist.UiToolkit.History
             ApplyDefaultFont(date);
             row.Add(date);
 
-            var view = WalletUiCommon.CreateListActionButton("View", () => OpenHistoryUrl(entry), 110, 40);
+            var view = WalletUiCommon.CreateOutlineButton("View", () => OpenHistoryUrl(entry), 18, 44);
+            view.style.minWidth = 110;
             view.style.marginLeft = 12;
             view.style.marginRight = 4;
             view.style.alignSelf = Align.Center;

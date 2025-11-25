@@ -306,11 +306,11 @@ namespace Poltergeist.UiToolkit
                 }
             };
 
-            var copy = CreatePrimaryButton("Copy Address", onCopy, 14, 36);
+            var copy = CreateSecondaryButton("Copy Address", onCopy, 14, 36);
             copy.style.minWidth = 140;
             buttons.Add(copy);
 
-            var explorer = CreatePrimaryButton("Explorer", onExplorer, 14, 36);
+            var explorer = CreateSecondaryButton("Explorer", onExplorer, 14, 36);
             explorer.style.marginLeft = 10;
             explorer.style.minWidth = 140;
             buttons.Add(explorer);
@@ -376,7 +376,38 @@ namespace Poltergeist.UiToolkit
 
         internal static Button CreateNavButton(string text, Action onClick)
         {
-            return CreatePrimaryButton(text, onClick, 16, 44);
+            var btn = new Button
+            {
+                text = text,
+                style =
+                {
+                    backgroundColor = WalletUiTheme.SecondaryButton,
+                    color = Color.white,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 18,
+                    minHeight = 52,
+                    paddingLeft = 18,
+                    paddingRight = 18,
+                    paddingTop = 12,
+                    paddingBottom = 12,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderRightColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderTopColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder
+                }
+            };
+            ApplyDefaultFont(btn);
+            btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            btn.clicked += () => onClick?.Invoke();
+            return btn;
         }
 
         internal static Button CreatePrimaryButton(string text, Action onClick, int fontSize = 16, int minHeight = 44)
@@ -407,6 +438,42 @@ namespace Poltergeist.UiToolkit
                     borderRightColor = WalletUiTheme.ActionButtonBorder,
                     borderTopColor = WalletUiTheme.ActionButtonBorder,
                     borderBottomColor = WalletUiTheme.ActionButtonBorder
+                }
+            };
+            ApplyDefaultFont(btn);
+            btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            btn.clicked += () => onClick?.Invoke();
+            return btn;
+        }
+
+        internal static Button CreateOutlineButton(string text, Action onClick, int fontSize = 18, int minHeight = 44)
+        {
+            var btn = new Button
+            {
+                text = text,
+                style =
+                {
+                    backgroundColor = Color.clear,
+                    color = WalletUiTheme.AccentPrimarySoft,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = fontSize,
+                    minHeight = minHeight,
+                    paddingLeft = 18,
+                    paddingRight = 18,
+                    paddingTop = 10,
+                    paddingBottom = 10,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
+                    borderLeftWidth = 2,
+                    borderRightWidth = 2,
+                    borderTopWidth = 2,
+                    borderBottomWidth = 2,
+                    borderLeftColor = WalletUiTheme.AccentPrimarySoft,
+                    borderRightColor = WalletUiTheme.AccentPrimarySoft,
+                    borderTopColor = WalletUiTheme.AccentPrimarySoft,
+                    borderBottomColor = WalletUiTheme.AccentPrimarySoft
                 }
             };
             ApplyDefaultFont(btn);
@@ -475,13 +542,18 @@ namespace Poltergeist.UiToolkit
             }
 
             btn.SetEnabled(!isActive);
-            var border = isActive ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.ActionButtonBorder;
-            btn.style.backgroundColor = isActive ? WalletUiTheme.AccentPrimary : WalletUiTheme.ActionButton;
-            btn.style.color = isActive ? WalletUiTheme.ScreenBackgroundTop : WalletUiTheme.ActionButtonText;
+            var border = isActive ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.SecondaryButtonBorder;
+            var borderWidth = isActive ? 2 : 1;
+            btn.style.backgroundColor = WalletUiTheme.SecondaryButton;
+            btn.style.color = Color.white;
             btn.style.borderLeftColor = border;
             btn.style.borderRightColor = border;
             btn.style.borderTopColor = border;
             btn.style.borderBottomColor = border;
+            btn.style.borderLeftWidth = borderWidth;
+            btn.style.borderRightWidth = borderWidth;
+            btn.style.borderTopWidth = borderWidth;
+            btn.style.borderBottomWidth = borderWidth;
         }
 
         internal static void ApplyDefaultFont(VisualElement element)
@@ -517,6 +589,15 @@ namespace Poltergeist.UiToolkit
             var source = string.IsNullOrWhiteSpace(name) ? kind.ToString() : name;
             source = source.Replace("_", string.Empty).Replace(" ", string.Empty);
             return $"[{source.ToUpperInvariant()}]";
+        }
+
+        internal static string BuildContextSubtitle(string label, string accountName, object platform)
+        {
+            var name = string.IsNullOrWhiteSpace(accountName) ? "Wallet" : accountName;
+            var platformText = platform?.ToString() ?? string.Empty;
+            return string.IsNullOrWhiteSpace(platformText)
+                ? $"{label} for {name}"
+                : $"{label} for {name} @ {platformText}";
         }
 
         internal static Color GetNetworkColor(NexusKind kind)

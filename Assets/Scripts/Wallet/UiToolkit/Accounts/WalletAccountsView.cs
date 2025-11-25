@@ -485,40 +485,14 @@ namespace Poltergeist.UiToolkit.Accounts
             quickActions.Add(explorerBtn);
             text.Add(quickActions);
 
-            var openButton = new Button
-            {
-                text = "Open",
-                style =
-                {
-                    minWidth = 140,
-                    maxWidth = 200,
-                    minHeight = 54,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 22,
-                    backgroundColor = Color.clear,
-                    color = WalletUiTheme.AccentPrimarySoft,
-                    borderTopWidth = 2,
-                    borderBottomWidth = 2,
-                    borderLeftWidth = 2,
-                    borderRightWidth = 2,
-                    borderTopColor = WalletUiTheme.AccentPrimarySoft,
-                    borderBottomColor = WalletUiTheme.AccentPrimarySoft,
-                    borderLeftColor = WalletUiTheme.AccentPrimarySoft,
-                    borderRightColor = WalletUiTheme.AccentPrimarySoft,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    paddingLeft = 24,
-                    paddingRight = 24,
-                    paddingTop = 14,
-                    paddingBottom = 14,
-                    alignSelf = Align.Center
-                }
-            };
-            ApplyDefaultFont(openButton);
-            openButton.style.unityTextAlign = TextAnchor.MiddleCenter;
-            openButton.clicked += () => OnOpenClicked(index);
+            var openButton = WalletUiCommon.CreateOutlineButton("Open", () => OnOpenClicked(index), 22, 54);
+            openButton.style.minWidth = 140;
+            openButton.style.maxWidth = 200;
+            openButton.style.paddingLeft = 24;
+            openButton.style.paddingRight = 24;
+            openButton.style.paddingTop = 14;
+            openButton.style.paddingBottom = 14;
+            openButton.style.alignSelf = Align.Center;
 
             row.Add(text);
             row.Add(openButton);

@@ -110,7 +110,8 @@ namespace Poltergeist.UiToolkit.Accounts
             var nexusName = settings?.nexusName;
             var nexusKind = settings?.nexusKind ?? NexusKind.Main_Net;
 
-            subtitleLabel.text = "Account";
+            subtitleLabel.text = WalletUiCommon.BuildContextSubtitle("Account", accountName, AccountManager.Instance?.CurrentPlatform);
+            subHeader.LeftLabel.text = string.Empty;
             WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, nexusName, nexusKind);
             UpdateLabels(accountName, address, nexusKind, nexusName);
             UpdateQr(accountManager);
@@ -177,23 +178,23 @@ namespace Poltergeist.UiToolkit.Accounts
                     height = 220,
                     alignSelf = Align.Center,
                     marginBottom = 12,
-                    backgroundColor = WalletUiTheme.PanelBackground,
+                    backgroundColor = Color.clear,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
                     borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.CardBorder,
-                    borderBottomColor = WalletUiTheme.CardBorder,
-                    paddingTop = 6,
-                    paddingBottom = 6,
-                    paddingLeft = 6,
-                    paddingRight = 6
+                    borderLeftWidth = 0,
+                    borderRightWidth = 0,
+                    borderTopWidth = 0,
+                    borderBottomWidth = 0,
+                    borderLeftColor = Color.clear,
+                    borderRightColor = Color.clear,
+                    borderTopColor = Color.clear,
+                    borderBottomColor = Color.clear,
+                    paddingTop = 0,
+                    paddingBottom = 0,
+                    paddingLeft = 0,
+                    paddingRight = 0
                 }
             };
             ApplyDefaultFont(qrImage);
@@ -213,9 +214,9 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(actionsRow);
 
-            var exportWifBtn = WalletUiCommon.CreatePrimaryButton("Copy WIF", ExportWif, 14, 36);
+            var exportWifBtn = WalletUiCommon.CreateSecondaryButton("Copy WIF", ExportWif, 14, 36);
             exportWifBtn.style.minWidth = 140;
-            var exportHexBtn = WalletUiCommon.CreatePrimaryButton("Copy HEX", ExportHex, 14, 36);
+            var exportHexBtn = WalletUiCommon.CreateSecondaryButton("Copy HEX", ExportHex, 14, 36);
             exportHexBtn.style.minWidth = 140;
             exportHexBtn.style.marginLeft = 10;
 
