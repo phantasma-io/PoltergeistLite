@@ -31,7 +31,7 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletBalanceEntry
     {
-        public WalletBalanceEntry(string symbol, BigInteger available, BigInteger staked, BigInteger claimable, string chain, uint decimals, bool burnable, bool fungible, IReadOnlyList<string> ids, string fiatWorth, int displayPrecision)
+        public WalletBalanceEntry(string symbol, BigInteger available, BigInteger staked, BigInteger claimable, string chain, uint decimals, bool burnable, bool fungible, IReadOnlyList<string> ids, string fiatWorth, string stakedFiatWorth, int displayPrecision)
         {
             Symbol = symbol ?? string.Empty;
             Decimals = decimals;
@@ -48,6 +48,7 @@ namespace Poltergeist.Wallet
             Fungible = fungible;
             Ids = ids ?? Array.Empty<string>();
             FiatWorth = fiatWorth;
+            StakedFiatWorth = stakedFiatWorth;
             Total = Available + Staked + Claimable;
         }
 
@@ -65,5 +66,6 @@ namespace Poltergeist.Wallet
         public bool Fungible { get; }
         public IReadOnlyList<string> Ids { get; }
         public string FiatWorth { get; }
+        public string StakedFiatWorth { get; }
     }
 }

@@ -6,7 +6,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
 using PhantasmaPhoenix.Unity.Core.Logging;
-using Font = UnityEngine.Font;
+using Poltergeist.UiToolkit;
 
 namespace Poltergeist.UiToolkit.Balances
 {
@@ -22,16 +22,19 @@ namespace Poltergeist.UiToolkit.Balances
         private readonly WalletBalanceViewState viewState;
         private readonly WalletUiSignals uiSignals;
         private readonly Action onReady;
-        private readonly Font defaultFont;
         private readonly Action onShowBalances;
         private readonly Action onShowHistory;
         private readonly Action onShowAccount;
         private readonly Action onExit;
-        private DropdownField accountDropdown;
+        private HeaderElements header;
+        private SubHeaderElements subHeader;
 
+        private Label summaryLabel;
         private Label statusLabel;
-        private Label platformLabel;
         private Button refreshButton;
+        private Label subtitleLabel;
+        private Label subtitleNetworkLabel;
+        private Label headerAddressLabel;
         private ScrollView listView;
         private VisualElement root;
         private bool readyNotified;
@@ -51,7 +54,6 @@ namespace Poltergeist.UiToolkit.Balances
             this.onShowHistory = onShowHistory ?? throw new ArgumentNullException(nameof(onShowHistory));
             this.onShowAccount = onShowAccount ?? throw new ArgumentNullException(nameof(onShowAccount));
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
-            defaultFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
             BuildLayout(host);
             Subscribe();
@@ -70,59 +72,85 @@ namespace Poltergeist.UiToolkit.Balances
             root = host ?? throw new ArgumentNullException(nameof(host));
             root.style.flexDirection = FlexDirection.Column;
             root.style.flexGrow = 1;
+            root.style.flexBasis = 0;
             root.style.width = new Length(100, LengthUnit.Percent);
             root.style.height = new Length(100, LengthUnit.Percent);
-            root.style.backgroundColor = new Color(0.08f, 0.09f, 0.11f);
+            root.style.minHeight = 0;
+            root.style.backgroundColor = WalletUiTheme.ScreenBackground;
             root.style.paddingLeft = 16;
             root.style.paddingRight = 16;
             root.style.paddingTop = 16;
             root.style.paddingBottom = 16;
-            root.style.color = Color.white;
+            root.style.color = WalletUiTheme.TextPrimary;
             root.style.alignItems = Align.Stretch;
+            root.style.overflow = Overflow.Hidden;
             ApplyDefaultFont(root);
 
-            var header = new VisualElement
+            var content = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = 1680,
+                    alignSelf = Align.Center,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    paddingLeft = 8,
+                    paddingRight = 8
+                }
+            };
+            ApplyDefaultFont(content);
+
+            refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
+            refreshButton.style.minWidth = 120;
+
+            header = WalletUiCommon.BuildHeader("Balances", refreshButton, showSubtitle: false);
+            header.Root.style.marginBottom = 10;
+            content.Add(header.Root);
+
+            subHeader = WalletUiCommon.BuildSubHeader("Balances");
+            subtitleLabel = subHeader.SubtitleLabel;
+            subtitleNetworkLabel = subHeader.NetworkLabel;
+            summaryLabel = subHeader.LeftLabel;
+            subHeader.Root.style.marginBottom = 6;
+            content.Add(subHeader.Root);
+
+            headerAddressLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    fontSize = 14,
+                    color = WalletUiTheme.TextSecondary,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    alignSelf = Align.Center,
+                    marginBottom = 6
+                }
+            };
+            ApplyDefaultFont(headerAddressLabel);
+            content.Add(headerAddressLabel);
+
+            var headerButtons = new VisualElement
             {
                 style =
                 {
                     flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.SpaceBetween,
                     alignItems = Align.Center,
-                    marginBottom = 12
-                },
-                focusable = false
-            };
-
-            var titleBlock = BuildAccountBlock();
-
-            refreshButton = new Button
-            {
-                text = "Refresh",
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    paddingLeft = 12,
-                    paddingRight = 12,
-                    backgroundColor = new Color(0.22f, 0.27f, 0.32f),
-                    color = Color.white,
-                    borderBottomWidth = 1,
-                    borderTopWidth = 1,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderBottomColor = new Color(0.32f, 0.37f, 0.42f),
-                    borderTopColor = new Color(0.32f, 0.37f, 0.42f),
-                    borderLeftColor = new Color(0.32f, 0.37f, 0.42f),
-                    borderRightColor = new Color(0.32f, 0.37f, 0.42f),
-                    minHeight = 30
+                    justifyContent = Justify.Center,
+                    alignSelf = Align.Center,
+                    marginBottom = 6
                 }
             };
-            ApplyDefaultFont(refreshButton);
-            refreshButton.clicked += OnRefreshClicked;
-
-            header.Add(titleBlock);
-            header.Add(refreshButton);
-
-            root.Add(header);
+            var copyHeaderBtn = WalletUiCommon.CreatePrimaryButton("Copy Address", CopyAddress, 14, 32);
+            copyHeaderBtn.style.minWidth = 140;
+            var explorerHeaderBtn = WalletUiCommon.CreatePrimaryButton("Explorer", OpenExplorer, 14, 32);
+            explorerHeaderBtn.style.minWidth = 140;
+            explorerHeaderBtn.style.marginLeft = 10;
+            headerButtons.Add(copyHeaderBtn);
+            headerButtons.Add(explorerHeaderBtn);
+            content.Add(headerButtons);
 
             statusLabel = new Label
             {
@@ -131,52 +159,127 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     unityFontStyleAndWeight = FontStyle.Bold,
                     fontSize = 14,
-                    marginBottom = 10,
-                    color = Color.white,
-                    paddingLeft = 6,
-                    paddingRight = 6,
+                    marginTop = 0,
+                    marginBottom = 0,
+                    color = WalletUiTheme.TextSecondary,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    alignSelf = Align.Center,
+                    paddingLeft = 8,
+                    paddingRight = 8,
                     paddingTop = 4,
                     paddingBottom = 4,
-                    backgroundColor = new Color(0.12f, 0.13f, 0.16f),
-                    borderBottomLeftRadius = 4,
-                    borderBottomRightRadius = 4,
-                    borderTopLeftRadius = 4,
-                    borderTopRightRadius = 4
+                    backgroundColor = WalletUiTheme.PanelBackground,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
+                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
+                    minHeight = 24
                 }
             };
             ApplyDefaultFont(statusLabel);
-            root.Add(statusLabel);
+            statusLabel.style.visibility = Visibility.Hidden;
+            content.Add(statusLabel);
 
             listView = new ScrollView(ScrollViewMode.Vertical)
             {
                 style =
                 {
                     flexGrow = 1,
-                    backgroundColor = new Color(0.08f, 0.09f, 0.11f),
-                    borderTopLeftRadius = 6,
-                    borderTopRightRadius = 6,
-                    borderBottomLeftRadius = 6,
-                    borderBottomRightRadius = 6,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    backgroundColor = WalletUiTheme.PanelBackground,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
                     borderLeftWidth = 1,
                     borderRightWidth = 1,
                     borderTopWidth = 1,
                     borderBottomWidth = 1,
-                    borderLeftColor = new Color(0.12f, 0.14f, 0.17f),
-                    borderRightColor = new Color(0.12f, 0.14f, 0.17f),
-                    borderTopColor = new Color(0.12f, 0.14f, 0.17f),
-                    borderBottomColor = new Color(0.12f, 0.14f, 0.17f),
+                    borderLeftColor = WalletUiTheme.CardBorder,
+                    borderRightColor = WalletUiTheme.CardBorder,
+                    borderTopColor = WalletUiTheme.CardBorder,
+                    borderBottomColor = WalletUiTheme.CardBorder,
                     paddingLeft = 8,
                     paddingRight = 8,
                     paddingTop = 8,
-                    paddingBottom = 8
+                    paddingBottom = 80,
+                    marginTop = 6,
+                    marginBottom = 10,
+                    alignSelf = Align.Center,
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = 1680,
+                    overflow = Overflow.Hidden
                 }
             };
-            listView.verticalScroller.valueChanged += v => viewState.ScrollY = v;
+            listView.verticalScrollerVisibility = ScrollerVisibility.Auto;
+            if (listView.verticalScroller != null)
+            {
+                listView.verticalScroller.valueChanged += v => viewState.ScrollY = v;
+            }
+            // Manual wheel handling avoids UITK ScrollView.ReadSingleLineHeight null refs and keeps scrolling above the footer.
+            listView.RegisterCallback<WheelEvent>(evt =>
+            {
+                var scroller = listView.verticalScroller;
+                if (scroller == null || listView.contentContainer == null)
+                {
+                    evt.StopImmediatePropagation();
+                    evt.PreventDefault();
+                    return;
+                }
 
-            root.Add(listView);
+                const float scrollStep = 120f;
+                var delta = Mathf.Clamp(evt.delta.y, -1f, 1f);
+                var low = scroller.lowValue;
+                var high = scroller.highValue;
+                if ((double)high <= (double)low)
+                {
+                    var viewportHeight = listView.contentViewport?.worldBound.height ?? 0f;
+                    var contentHeight = listView.contentContainer.worldBound.height;
+                    if (viewportHeight > 0f && contentHeight > viewportHeight)
+                    {
+                        high = contentHeight - viewportHeight;
+                    }
+                }
 
-            var footer = BuildFooterNav();
-            root.Add(footer);
+                if (high < low)
+                {
+                    high = low;
+                }
+
+                var target = Mathf.Clamp(scroller.value + delta * scrollStep, low, high);
+                scroller.value = target;
+                var offset = listView.scrollOffset;
+                offset.y = target;
+                listView.scrollOffset = offset;
+                evt.StopImmediatePropagation();
+                evt.PreventDefault();
+            }, TrickleDown.TrickleDown);
+            // Keep the scroll view from pushing the footer off-screen (same fix as accounts list).
+            var listWrapper = new VisualElement
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    flexDirection = FlexDirection.Column,
+                    overflow = Overflow.Hidden
+                }
+            };
+            listWrapper.Add(listView);
+            ApplyDefaultFont(listView);
+            content.Add(listWrapper);
+
+            var footer = WalletUiCommon.BuildNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
+            navAccount.SetEnabled(false);
+            navAccount.style.backgroundColor = WalletUiTheme.SecondaryButton;
+            navAccount.style.color = WalletUiTheme.TextPrimary;
+            content.Add(footer);
+
+            root.Add(content);
         }
 
         private void Subscribe()
@@ -225,43 +328,76 @@ namespace Poltergeist.UiToolkit.Balances
             RefreshView();
         }
 
+        private void SetStatus(string text)
+        {
+            // Keep a tiny reserved strip and toggle visibility instead of display so the list top never jumps when switching tabs.
+            var hasText = !string.IsNullOrEmpty(text);
+            statusLabel.style.marginTop = hasText ? 6 : 0;
+            statusLabel.style.marginBottom = hasText ? 10 : 0;
+            statusLabel.style.minHeight = hasText ? 24 : 0;
+            statusLabel.text = text ?? string.Empty;
+            statusLabel.style.visibility = hasText ? Visibility.Visible : Visibility.Hidden;
+            statusLabel.style.display = DisplayStyle.Flex;
+        }
+
         private void RefreshView()
         {
             try
             {
+                UpdateNavSelection(NavTarget.Balances);
+                subtitleLabel.text = "Balances";
+                subtitleNetworkLabel.text = string.Empty;
+                summaryLabel.text = string.Empty;
+
                 var snapshot = context.ViewState.GetBalancesSnapshot(() => presenter.BuildSnapshot());
-                statusLabel.text = "Loading balances...";
+                SetStatus("Loading balances...");
                 var accountManager = AccountManager.Instance;
-                UpdateAccountDropdown(accountManager);
+                var settings = accountManager?.Settings;
                 Log.Write($"{LogPrefix}RefreshView snapshot built. accountsReady={accountManager?.AccountsAreReadyToBeUsed} accounts={accountManager?.Accounts?.Count} selection={accountManager?.CurrentIndex}");
                 if (accountManager == null || accountManager.Accounts == null || accountManager.Accounts.Count == 0)
                 {
-                    statusLabel.text = "No accounts loaded yet...";
+                    SetStatus("No accounts loaded yet...");
+                    summaryLabel.text = "0 assets";
                     listView.Clear();
+                    subtitleLabel.text = "Balances";
+                    subtitleNetworkLabel.text = string.Empty;
                     NotifyReady("no accounts");
                     return;
                 }
 
-                if (accountManager.Settings == null)
+                if (settings == null)
                 {
-                    statusLabel.text = "Settings are not loaded yet.";
+                    SetStatus("Settings are not loaded yet.");
                     listView.Clear();
+                    subtitleLabel.text = "Balances";
+                    subtitleNetworkLabel.text = string.Empty;
                     NotifyReady("settings missing");
                     return;
                 }
 
-                var displayName = string.IsNullOrEmpty(snapshot.AccountName) ? "Wallet" : snapshot.AccountName;
-                if (accountDropdown != null && accountDropdown.choices != null && accountDropdown.choices.Count > 0)
+                if (!accountManager.HasSelection)
                 {
-                    accountDropdown.SetValueWithoutNotify(displayName);
+                    SetStatus("Select a wallet to see balances.");
+                    listView.Clear();
+                    subtitleLabel.text = "Balances";
+                    subtitleNetworkLabel.text = string.Empty;
+                    NotifyReady("no selection");
+                    return;
                 }
 
-                platformLabel.text = snapshot.Platform.ToString();
+                var displayName = string.IsNullOrEmpty(snapshot.AccountName) ? "Wallet" : snapshot.AccountName;
+                var headerSubtitle = $"Balances for {displayName} @ {snapshot.Platform}";
+                subtitleLabel.text = headerSubtitle;
+                WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
+                headerAddressLabel.text = accountManager.CurrentAccount.phaAddress ?? string.Empty;
 
                 if (accountManager.CurrentAccount.passwordProtected && string.IsNullOrEmpty(accountManager.CurrentPasswordHash))
                 {
-                    statusLabel.text = "Wallet is locked. Open it from the wallet list.";
+                    SetStatus("Wallet is locked. Open it from the wallet list.");
                     listView.Clear();
+                    subtitleLabel.text = "Balances";
+                    subtitleNetworkLabel.text = string.Empty;
+                    summaryLabel.text = string.Empty;
                     NotifyReady("locked");
                     return;
                 }
@@ -274,19 +410,26 @@ namespace Poltergeist.UiToolkit.Balances
 
                 if (snapshot.IsRefreshing)
                 {
-                    statusLabel.text = "Fetching balances...";
+                    SetStatus("Fetching balances...");
+                    subtitleLabel.text = "Balances";
+                    subtitleNetworkLabel.text = string.Empty;
+                    summaryLabel.text = string.Empty;
                     NotifyReady("refreshing");
                     return;
                 }
 
                 if (snapshot.HasError)
                 {
-                    statusLabel.text = snapshot.ErrorMessage;
+                    SetStatus(snapshot.ErrorMessage);
+                    subtitleLabel.text = "Balances";
+                    subtitleNetworkLabel.text = string.Empty;
+                    summaryLabel.text = string.Empty;
                     NotifyReady("error");
                     return;
                 }
 
-                statusLabel.text = $"{filteredBalances.Count} assets";
+                SetStatus(string.Empty);
+                summaryLabel.text = filteredBalances.Count == 1 ? "1 asset" : $"{filteredBalances.Count} assets";
 
                 foreach (var entry in filteredBalances)
                 {
@@ -306,13 +449,16 @@ namespace Poltergeist.UiToolkit.Balances
                     });
                 }
 
-                listView.verticalScroller.value = Mathf.Max(0f, viewState.ScrollY);
+                if (listView.verticalScroller != null)
+                {
+                    listView.verticalScroller.value = Mathf.Max(0f, viewState.ScrollY);
+                }
 
                 NotifyReady("snapshot ready");
             }
             catch (Exception e)
             {
-                statusLabel.text = $"Error: {e.Message}";
+                SetStatus($"Error: {e.Message}");
                 Log.WriteWarning($"[UITK] Balances refresh failed: {e}\n{e.StackTrace}");
                 NotifyReady("exception");
             }
@@ -342,8 +488,6 @@ namespace Poltergeist.UiToolkit.Balances
 
         public void OnAccountsReady()
         {
-            var accountManager = AccountManager.Instance;
-            UpdateAccountDropdown(accountManager);
             RefreshView();
         }
 
@@ -381,24 +525,35 @@ namespace Poltergeist.UiToolkit.Balances
 
         private VisualElement CreateBalanceRow(WalletBalanceEntry entry, PlatformKind platform)
         {
+            // Keep row sizing in sync with history entries to avoid vertical misalignment when switching tabs.
             var row = new VisualElement
             {
                 style =
                 {
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 6,
-                    paddingBottom = 6,
-                    marginBottom = 6,
-                    backgroundColor = new Color(0.12f, 0.13f, 0.16f),
-                    borderTopLeftRadius = 4,
-                    borderTopRightRadius = 4,
-                    borderBottomLeftRadius = 4,
-                    borderBottomRightRadius = 4
+                    paddingLeft = 18,
+                    paddingRight = 18,
+                    paddingTop = 16,
+                    paddingBottom = 16,
+                    marginBottom = 10,
+                    minHeight = 90,
+                    backgroundColor = WalletUiTheme.CardBackground,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.CardBorder,
+                    borderRightColor = WalletUiTheme.CardBorder,
+                    borderTopColor = WalletUiTheme.CardBorder,
+                    borderBottomColor = WalletUiTheme.CardBorder
                 }
             };
+            ApplyDefaultFont(row);
 
             var iconTexture = ResourceManager.Instance?.GetToken(entry.Symbol, platform) as Texture2D;
             if (iconTexture != null)
@@ -409,9 +564,9 @@ namespace Poltergeist.UiToolkit.Balances
                     scaleMode = ScaleMode.ScaleToFit,
                     style =
                     {
-                        width = 32,
-                        height = 32,
-                        marginRight = 10
+                        width = 42,
+                        height = 42,
+                        marginRight = 12
                     }
                 };
                 row.Add(icon);
@@ -422,41 +577,38 @@ namespace Poltergeist.UiToolkit.Balances
                 style =
                 {
                     flexDirection = FlexDirection.Column,
-                    flexGrow = 1
+                    flexGrow = 1,
+                    marginLeft = 2
                 }
             };
 
-            var title = new Label($"{entry.AvailableText} {entry.Symbol}")
+            var fiat = string.IsNullOrEmpty(entry.FiatWorth) ? string.Empty : $" ({entry.FiatWorth})";
+            var title = new Label($"{entry.AvailableText} {entry.Symbol}{fiat}")
             {
                 style =
                 {
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 14
+                    fontSize = 16,
+                    color = WalletUiTheme.TextPrimary
                 }
             };
+            ApplyDefaultFont(title);
             textBlock.Add(title);
 
-            var secondary = new Label(BuildSecondaryLine(entry))
+            var secondaryText = BuildSecondaryLine(entry);
+            if (!string.IsNullOrEmpty(secondaryText))
             {
-                style =
-                {
-                    color = new Color(0.7f, 0.75f, 0.8f),
-                    fontSize = 11
-                }
-            };
-            textBlock.Add(secondary);
-
-            if (!string.IsNullOrEmpty(entry.FiatWorth))
-            {
-                var fiat = new Label(entry.FiatWorth)
+                var secondary = new Label(secondaryText)
                 {
                     style =
                     {
-                        color = new Color(0.55f, 0.8f, 0.6f),
-                        fontSize = 11
+                        color = WalletUiTheme.TextSecondary,
+                        fontSize = 13,
+                        unityFontStyleAndWeight = FontStyle.Bold
                     }
                 };
-                textBlock.Add(fiat);
+                ApplyDefaultFont(secondary);
+                textBlock.Add(secondary);
             }
 
             row.Add(textBlock);
@@ -467,9 +619,12 @@ namespace Poltergeist.UiToolkit.Balances
         private string BuildSecondaryLine(WalletBalanceEntry entry)
         {
             var parts = new List<string>();
+            var accountManager = AccountManager.Instance;
+
             if (entry.Staked > System.Numerics.BigInteger.Zero)
             {
-                parts.Add($"Staked {entry.StakedText}");
+            var fiat = string.IsNullOrEmpty(entry.StakedFiatWorth) ? string.Empty : $" ({entry.StakedFiatWorth})";
+            parts.Add($"Staked {entry.StakedText}{fiat}");
             }
 
             if (entry.Claimable > System.Numerics.BigInteger.Zero)
@@ -477,240 +632,66 @@ namespace Poltergeist.UiToolkit.Balances
                 parts.Add($"Claimable {entry.ClaimableText}");
             }
 
-            return parts.Count == 0 ? entry.Chain : $"{entry.Chain} | {string.Join(" | ", parts)}";
+            return parts.Count == 0 ? string.Empty : string.Join(" | ", parts);
         }
 
-        private VisualElement BuildAccountBlock()
+        private void CopyAddress()
         {
-            var block = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Column,
-                    flexGrow = 1
-                }
-            };
-
-            accountDropdown = new DropdownField
-            {
-                label = string.Empty,
-                style =
-                {
-                    flexGrow = 0,
-                    width = 240,
-                    maxWidth = 260,
-                    marginRight = 10
-                }
-            };
-            accountDropdown.choices = new List<string>();
-            accountDropdown.SetValueWithoutNotify(string.Empty);
-            ApplyDefaultFont(accountDropdown);
-            accountDropdown.RegisterValueChangedCallback(OnAccountChanged);
-            block.Add(accountDropdown);
-
-            platformLabel = new Label
-            {
-                text = "Platform",
-                style =
-                {
-                    color = new Color(0.7f, 0.75f, 0.8f),
-                    fontSize = 12,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginTop = -4
-                }
-            };
-            ApplyDefaultFont(platformLabel);
-            block.Add(platformLabel);
-
-            return block;
-        }
-
-        private void OnAccountChanged(ChangeEvent<string> evt)
-        {
-            var newValue = evt.newValue;
             var accountManager = AccountManager.Instance;
-            if (accountManager == null || accountManager.Accounts == null || accountManager.Accounts.Count == 0)
+            if (accountManager == null || !accountManager.HasSelection)
             {
+                SetStatus("No address to copy.");
                 return;
             }
 
-            if (accountDropdown == null || accountDropdown.choices == null || accountDropdown.choices.Count == 0)
+            var address = accountManager.CurrentAccount.phaAddress;
+            if (string.IsNullOrWhiteSpace(address))
             {
+                SetStatus("No address to copy.");
                 return;
             }
 
-            var index = accountDropdown.choices.IndexOf(newValue);
-            if (index < 0 || index >= accountManager.Accounts.Count)
-            {
-                return;
-            }
-
-            var alreadySelected = accountManager.HasSelection && accountManager.CurrentIndex == index;
-            if (alreadySelected)
-            {
-                return;
-            }
-
-            accountManager.SelectAccount(index);
-            context.ViewState.ResetSnapshots();
-            context.ViewState.MarkBalancesDirty();
-            presenter.Refresh(true);
-            RefreshView();
+            GUIUtility.systemCopyBuffer = address;
+            SetStatus("Address copied.");
         }
 
-        private void UpdateAccountDropdown(AccountManager accountManager)
+        private void OpenExplorer()
         {
-            if (accountDropdown == null)
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null || !accountManager.HasSelection)
             {
+                SetStatus("No address to open.");
                 return;
             }
 
-            if (accountManager == null || accountManager.Accounts == null || accountManager.Accounts.Count == 0)
+            var address = accountManager.CurrentAccount.phaAddress;
+            if (string.IsNullOrWhiteSpace(address))
             {
-                accountDropdown.choices = new List<string>();
-                accountDropdown.SetValueWithoutNotify("No accounts");
-                accountDropdown.SetEnabled(false);
+                SetStatus("No address to open.");
                 return;
             }
 
-            var names = accountManager.Accounts.Select((a, i) =>
+            var url = accountManager.GetPhantasmaAddressURL(address);
+            if (string.IsNullOrWhiteSpace(url))
             {
-                var name = string.IsNullOrWhiteSpace(a.name) ? $"Account {i + 1}" : a.name.Trim();
-                return name;
-            }).ToList();
-
-            accountDropdown.choices = names;
-            accountDropdown.SetEnabled(true);
-
-            if (accountManager.HasSelection && accountManager.CurrentIndex >= 0 && accountManager.CurrentIndex < names.Count)
-            {
-                accountDropdown.SetValueWithoutNotify(names[accountManager.CurrentIndex]);
-            }
-            else
-            {
-                accountDropdown.SetValueWithoutNotify(string.Empty);
-            }
-        }
-
-        private VisualElement BuildFooterNav()
-        {
-            var bar = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.SpaceBetween,
-                    alignItems = Align.Center,
-                    paddingTop = 12,
-                    paddingBottom = 12,
-                    paddingLeft = 10,
-                    paddingRight = 10,
-                    marginTop = 10,
-                    minHeight = 68,
-                    backgroundColor = WalletUiTheme.HeaderBackground,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopColor = WalletUiTheme.HeaderBorder,
-                    borderBottomColor = WalletUiTheme.HeaderBorder,
-                    borderLeftColor = WalletUiTheme.HeaderBorder,
-                    borderRightColor = WalletUiTheme.HeaderBorder,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium
-                }
-            };
-
-            navBalances = MakeNavButton("Balances", () => onShowBalances?.Invoke());
-            navHistory = MakeNavButton("History", () => onShowHistory?.Invoke());
-            navAccount = MakeNavButton("Account", () => onShowAccount?.Invoke());
-            navExit = MakeNavButton("Exit", () => onExit?.Invoke());
-
-            // Account view not implemented yet in UITK; keep button visible but disabled to mirror legacy layout.
-            navAccount.SetEnabled(false);
-            navAccount.style.backgroundColor = WalletUiTheme.SecondaryButton;
-            navAccount.style.color = WalletUiTheme.TextPrimary;
-
-            var buttons = new[] { navBalances, navHistory, navAccount, navExit };
-            for (var i = 0; i < buttons.Length; i++)
-            {
-                var btn = buttons[i];
-                btn.style.flexGrow = 1;
-                if (i > 0)
-                {
-                    btn.style.marginLeft = 8;
-                }
-                bar.Add(btn);
+                SetStatus("Explorer URL is not configured.");
+                return;
             }
 
-            return bar;
-        }
-
-        private Button MakeNavButton(string text, Action onClick)
-        {
-            var btn = new Button
-            {
-                text = text,
-                style =
-                {
-                    backgroundColor = WalletUiTheme.ActionButton,
-                    color = WalletUiTheme.ActionButtonText,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 16,
-                    minHeight = 44,
-                    paddingLeft = 18,
-                    paddingRight = 18,
-                    paddingTop = 12,
-                    paddingBottom = 12,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.ActionButtonBorder,
-                    borderRightColor = WalletUiTheme.ActionButtonBorder,
-                    borderTopColor = WalletUiTheme.ActionButtonBorder,
-                    borderBottomColor = WalletUiTheme.ActionButtonBorder
-                }
-            };
-            ApplyDefaultFont(btn);
-            btn.clicked += () => onClick?.Invoke();
-            return btn;
+            Application.OpenURL(url);
+            SetStatus("Opening explorer...");
         }
 
         private void UpdateNavSelection(NavTarget target)
         {
-            SetNavState(navBalances, target == NavTarget.Balances);
-            SetNavState(navHistory, target == NavTarget.History);
-            SetNavState(navExit, false);
-        }
-
-        private void SetNavState(Button btn, bool isActive)
-        {
-            if (btn == null)
-            {
-                return;
-            }
-
-            btn.SetEnabled(!isActive);
-            btn.style.backgroundColor = isActive ? WalletUiTheme.SecondaryButton : WalletUiTheme.ActionButton;
-            btn.style.color = isActive ? WalletUiTheme.TextPrimary : WalletUiTheme.ActionButtonText;
+            WalletUiCommon.SetNavState(navBalances, target == NavTarget.Balances);
+            WalletUiCommon.SetNavState(navHistory, target == NavTarget.History);
+            WalletUiCommon.SetNavState(navExit, false);
         }
 
         private void ApplyDefaultFont(VisualElement element)
         {
-            if (element == null || defaultFont == null)
-            {
-                return;
-            }
-
-            element.style.unityFont = defaultFont;
-            element.style.unityFontDefinition = FontDefinition.FromFont(defaultFont);
+            WalletUiCommon.ApplyDefaultFont(element);
         }
 
         private enum NavTarget
@@ -721,3 +702,4 @@ namespace Poltergeist.UiToolkit.Balances
         }
     }
 }
+

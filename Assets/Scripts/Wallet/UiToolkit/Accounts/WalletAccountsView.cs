@@ -19,15 +19,15 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly WalletApplicationContext context;
         private readonly WalletAuthService authService;
         private readonly Action onLoginSuccess;
-        private readonly Font defaultFont;
-
+        private HeaderElements header;
+        private SubHeaderElements subHeader;
+        private Label subtitleLabel;
+        private Label subtitleNetworkLabel;
+        private Label walletsLabel;
         private VisualElement root;
         private ScrollView list;
         private VisualElement listWrapper;
         private Label statusLabel;
-        private Label networkLabel;
-        private Label networkPrefixLabel;
-        private Label versionLabel;
         private VisualElement modalOverlay;
         private VisualElement footerBar;
         private Action<PromptResult, string> modalCallback;
@@ -46,12 +46,6 @@ namespace Poltergeist.UiToolkit.Accounts
             authService = context.AuthService ?? throw new ArgumentNullException(nameof(context.AuthService));
             this.onLoginSuccess = onLoginSuccess;
 
-            // Rendering note: IMGUI skin auto-applied fonts/colors; UITK does NOT inherit those,
-            // so labels default to Editor styles and can become invisible on dark backgrounds.
-            // Always apply an explicit font/color to every VisualElement (see ApplyDefaultFont + styles below),
-            // otherwise text may not render as expected on builds. Font choice is arbitrary here.
-            defaultFont = WalletUiTheme.DefaultFont;
-
             BuildLayout(host ?? throw new ArgumentNullException(nameof(host)));
             Refresh();
         }
@@ -66,9 +60,22 @@ namespace Poltergeist.UiToolkit.Accounts
             var am = AccountManager.Instance;
             list.Clear();
 
+            subtitleLabel.text = "Wallet List";
+            var headerSettings = AccountManager.Instance?.Settings;
+            if (headerSettings != null)
+            {
+                WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, headerSettings.nexusName, headerSettings.nexusKind);
+            }
+            else
+            {
+                subtitleNetworkLabel.text = string.Empty;
+                subtitleNetworkLabel.style.color = WalletUiTheme.TextSecondary;
+            }
+
             if (am == null || am.Accounts == null || am.Accounts.Count == 0)
             {
-                statusLabel.text = "No wallets found. Import or create one first.";
+                walletsLabel.text = "0 wallets";
+                SetStatus("No wallets found. Import or create one first.");
                 var empty = new Label("No wallets available.")
                 {
                     style =
@@ -81,23 +88,19 @@ namespace Poltergeist.UiToolkit.Accounts
                 };
                 ApplyDefaultFont(empty);
                 list.Add(empty);
-                networkLabel.text = string.Empty;
                 return;
             }
 
-            statusLabel.text = $"{am.Accounts.Count} wallet(s)";
+            walletsLabel.text = $"{am.Accounts.Count} wallet(s)";
+            SetStatus(string.Empty);
             var settings = am.Settings;
-            if (settings != null)
+            if (settings != null && header != null)
             {
-                var networkName = BuildNetworkLabel(settings.nexusName, settings.nexusKind);
-                networkPrefixLabel.text = "Wallet List";
-                networkLabel.text = $"[{networkName}]";
-                ApplyNetworkColor(settings.nexusKind);
+                WalletUiCommon.ApplyNetworkBadge(header.NetworkLabel, settings.nexusName, settings.nexusKind);
             }
-            else
+            else if (header != null)
             {
-                networkPrefixLabel.text = string.Empty;
-                networkLabel.text = string.Empty;
+                header.NetworkLabel.text = string.Empty;
             }
 
             for (var i = 0; i < am.Accounts.Count; i++)
@@ -106,13 +109,19 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
+        private void SetStatus(string text)
+        {
+            statusLabel.text = text ?? string.Empty;
+            statusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
         private void BuildLayout(VisualElement host)
         {
             root = host;
             root.Clear();
             // Layout hygiene (keep this to avoid regressions):
             // - minHeight=0 + flexBasis=0 + overflow hidden on wrappers/scroll prevents the list from pushing the footer off-screen.
-            // - Keep header/network separate so text never overlaps; network badge lives in the status row, not inside the header frame.
+            // - Keep content centered to mirror the legacy layout proportions.
             root.style.flexDirection = FlexDirection.Column;
             root.style.flexGrow = 1;
             root.style.height = new Length(100, LengthUnit.Percent);
@@ -146,66 +155,29 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(content);
 
-            var topBar = BuildTopBar();
+            header = WalletUiCommon.BuildHeader("Wallet List");
+            var topBar = header.Root;
+            topBar.style.marginBottom = 12;
 
-            var statusRow = new VisualElement
+            subHeader = WalletUiCommon.BuildSubHeader("Wallet List");
+            subtitleLabel = subHeader.SubtitleLabel;
+            subtitleNetworkLabel = subHeader.NetworkLabel;
+            walletsLabel = subHeader.LeftLabel;
+            subHeader.Root.style.marginBottom = 6;
+
+            statusLabel = new Label(string.Empty)
             {
                 style =
                 {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.FlexStart,
-                    marginTop = 8,
-                    marginBottom = 10
-                }
-            };
-            statusLabel = new Label("Loading wallets...")
-            {
-                style =
-                {
-                    fontSize = 14,
+                    fontSize = 13,
                     color = WalletUiTheme.TextSecondary,
-                    unityFontStyleAndWeight = FontStyle.Bold
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 8
                 }
             };
             ApplyDefaultFont(statusLabel);
-            statusRow.Add(statusLabel);
-
-            var networkRow = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    flexGrow = 1,
-                    marginLeft = 8
-                }
-            };
-            networkPrefixLabel = new Label("Wallet List")
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 16,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(networkPrefixLabel);
-            networkLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 16,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    marginLeft = 6
-                }
-            };
-            ApplyDefaultFont(networkLabel);
-            networkRow.Add(networkPrefixLabel);
-            networkRow.Add(networkLabel);
-            statusRow.Add(networkRow);
+            statusLabel.style.display = DisplayStyle.None;
 
             list = new ScrollView(ScrollViewMode.Vertical)
             {
@@ -327,114 +299,14 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             content.Add(topBar);
-            content.Add(statusRow);
+            content.Add(subHeader.Root);
+            content.Add(statusLabel);
             content.Add(listWrapper);
             footerBar = BuildFooterBar();
             content.Add(footerBar);
 
             root.Add(content);
             root.Add(modalOverlay);
-        }
-
-        private VisualElement BuildTopBar()
-        {
-            var bar = new VisualElement
-            {
-                style =
-                {
-                    minHeight = 88,
-                    backgroundColor = WalletUiTheme.HeaderBackground,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.HeaderBorder,
-                    borderRightColor = WalletUiTheme.HeaderBorder,
-                    borderTopColor = WalletUiTheme.HeaderBorder,
-                    borderBottomColor = WalletUiTheme.HeaderBorder,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    marginBottom = 12,
-                    paddingLeft = 16,
-                    paddingRight = 16,
-                    paddingTop = 10,
-                    paddingBottom = 10,
-                    flexDirection = FlexDirection.Column,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center
-                }
-            };
-
-            var titleRow = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    flexGrow = 1,
-                    marginTop = 2,
-                    marginBottom = 2
-                }
-            };
-
-            var title = new Label("Poltergeist Lite")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 30,
-                    color = WalletUiTheme.TextPrimary,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(title);
-
-            versionLabel = new Label(BuildVersionLabel())
-            {
-                style =
-                {
-                    fontSize = 14,
-                    color = WalletUiTheme.TextSecondary,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginTop = 2,
-                    marginLeft = 10
-                }
-            };
-            ApplyDefaultFont(versionLabel);
-
-            titleRow.Add(title);
-            titleRow.Add(versionLabel);
-
-            var networkRow = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center,
-                    marginTop = 4
-                }
-            };
-            networkLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 16,
-                    color = WalletUiTheme.TextSecondary,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(networkLabel);
-            networkRow.Add(networkLabel);
-
-            bar.Add(titleRow);
-            bar.Add(networkRow);
-
-            return bar;
         }
 
         private VisualElement BuildFooterBar()
@@ -689,12 +561,12 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             if (string.IsNullOrWhiteSpace(address) || address == "(no address)")
             {
-                statusLabel.text = "No address to copy.";
+                SetStatus("No address to copy.");
                 return;
             }
 
             GUIUtility.systemCopyBuffer = address;
-            statusLabel.text = $"Copied {address}.";
+            SetStatus($"Copied {address}.");
             Log.Write($"{LogPrefix}Copied address to clipboard.");
         }
 
@@ -702,7 +574,7 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             if (string.IsNullOrWhiteSpace(address) || address == "(no address)")
             {
-                statusLabel.text = "No address to open.";
+                SetStatus("No address to open.");
                 return;
             }
 
@@ -710,37 +582,37 @@ namespace Poltergeist.UiToolkit.Accounts
             var url = am?.GetPhantasmaAddressURL(address);
             if (string.IsNullOrWhiteSpace(url))
             {
-                statusLabel.text = "Explorer URL is not configured.";
+                SetStatus("Explorer URL is not configured.");
                 Log.WriteWarning($"{LogPrefix}Explorer URL missing for address {address}");
                 return;
             }
 
             Application.OpenURL(url);
-            statusLabel.text = "Opening explorer…";
+            SetStatus("Opening explorer...");
             Log.Write($"{LogPrefix}Opening explorer for {address}: {url}");
         }
 
         private void OnNewWallet()
         {
-            statusLabel.text = "New wallet flow is not yet available in UITK.";
+            SetStatus("New wallet flow is not yet available in UITK.");
             Log.Write($"{LogPrefix}New wallet action pressed (not implemented).");
         }
 
         private void OnImportWallet()
         {
-            statusLabel.text = "Import flow is not yet available in UITK.";
+            SetStatus("Import flow is not yet available in UITK.");
             Log.Write($"{LogPrefix}Import wallet action pressed (not implemented).");
         }
 
         private void OnManageWallets()
         {
-            statusLabel.text = "Manage wallets is not yet available in UITK.";
+            SetStatus("Manage wallets is not yet available in UITK.");
             Log.Write($"{LogPrefix}Manage wallets action pressed (not implemented).");
         }
 
         private void OnSettings()
         {
-            statusLabel.text = "Settings are not yet available in UITK.";
+            SetStatus("Settings are not yet available in UITK.");
             Log.Write($"{LogPrefix}Settings action pressed (not implemented).");
         }
 
@@ -749,7 +621,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var am = AccountManager.Instance;
             if (am == null || am.Accounts == null || index < 0 || index >= am.Accounts.Count)
             {
-                statusLabel.text = "Account list is not ready.";
+                SetStatus("Account list is not ready.");
                 return;
             }
 
@@ -769,7 +641,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
                 else
                 {
-                    statusLabel.text = $"Failed to open '{am.CurrentAccount.name}'.";
+                    SetStatus($"Failed to open '{am.CurrentAccount.name}'.");
                 }
             });
         }
@@ -956,7 +828,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 if (!isError && input.Length < minLength)
                 {
                     Log.Write($"{LogPrefix}Submit rejected: len={input.Length} minLen={minLength}");
-                    statusLabel.text = $"Password must be at least {minLength} chars.";
+                    SetStatus($"Password must be at least {minLength} chars.");
                     return;
                 }
 
@@ -1037,50 +909,10 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void ApplyDefaultFont(VisualElement element)
         {
-            if (element == null || defaultFont == null)
-            {
-                return;
-            }
-
-            element.style.unityFont = defaultFont;
-            element.style.unityFontDefinition = FontDefinition.FromFont(defaultFont);
-        }
-
-        private string BuildVersionLabel()
-        {
-            // Header already shows the app name; show version + build time only.
-            return $"{Application.version} - Built {Build.Info.Instance.BuildTime} UTC";
-        }
-
-        private string BuildNetworkLabel(string name, NexusKind kind)
-        {
-            var source = string.IsNullOrWhiteSpace(name) ? kind.ToString() : name;
-            source = source.Replace("_", string.Empty).Replace(" ", string.Empty);
-            return source.ToUpperInvariant();
-        }
-
-        private void ApplyNetworkColor(NexusKind kind)
-        {
-            // Legacy IMGUI used colored badges for networks; match those values here.
-            Color c = new Color(0.7f, 0.75f, 0.8f);
-            switch (kind)
-            {
-                case NexusKind.Test_Net:
-                    ColorUtility.TryParseHtmlString("#FF8A00", out c);
-                    break;
-                case NexusKind.Dev_Net:
-                    ColorUtility.TryParseHtmlString("#FFD247", out c);
-                    break;
-                case NexusKind.Local_Net:
-                    ColorUtility.TryParseHtmlString("#4CAF50", out c);
-                    break;
-                case NexusKind.Custom:
-                    ColorUtility.TryParseHtmlString("#FF6F6F", out c);
-                    break;
-            }
-
-            networkLabel.style.color = c;
+            WalletUiCommon.ApplyDefaultFont(element);
         }
     }
 }
+
+
 
