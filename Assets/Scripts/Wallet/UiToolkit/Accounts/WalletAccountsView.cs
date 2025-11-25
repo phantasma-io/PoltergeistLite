@@ -131,7 +131,7 @@ namespace Poltergeist.UiToolkit.Accounts
             root.style.paddingRight = 16;
             root.style.paddingTop = 14;
             root.style.paddingBottom = 14;
-            root.style.backgroundColor = WalletUiTheme.ScreenBackground;
+            root.style.backgroundColor = Color.clear;
             root.style.color = WalletUiTheme.TextPrimary;
             root.style.alignItems = Align.Stretch;
             root.style.overflow = Overflow.Hidden;
@@ -187,7 +187,8 @@ namespace Poltergeist.UiToolkit.Accounts
                     flexShrink = 1,
                     flexBasis = 0,
                     minHeight = 0,
-                    backgroundColor = WalletUiTheme.ScreenBackground,
+                    backgroundColor = Color.clear,
+                    backgroundImage = new StyleBackground(),
                     paddingLeft = 6,
                     paddingRight = 6,
                     paddingTop = 8,
@@ -369,10 +370,10 @@ namespace Poltergeist.UiToolkit.Accounts
                 text = text,
                 style =
                 {
-                    backgroundColor = WalletUiTheme.ActionButton,
-                    color = WalletUiTheme.ActionButtonText,
+                    backgroundColor = WalletUiTheme.SecondaryButton,
+                    color = Color.white,
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 18,
+                    fontSize = 22,
                     minHeight = 56,
                     paddingLeft = 20,
                     paddingRight = 20,
@@ -386,10 +387,10 @@ namespace Poltergeist.UiToolkit.Accounts
                     borderRightWidth = 1,
                     borderTopWidth = 1,
                     borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.ActionButtonBorder,
-                    borderRightColor = WalletUiTheme.ActionButtonBorder,
-                    borderTopColor = WalletUiTheme.ActionButtonBorder,
-                    borderBottomColor = WalletUiTheme.ActionButtonBorder,
+                    borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderRightColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderTopColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder,
                     flexGrow = 1
                 }
             };
@@ -414,6 +415,8 @@ namespace Poltergeist.UiToolkit.Accounts
                     marginBottom = 18,
                     minHeight = 150,
                     backgroundColor = WalletUiTheme.CardBackground,
+                    backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
@@ -424,7 +427,7 @@ namespace Poltergeist.UiToolkit.Accounts
                     borderBottomWidth = 1,
                     borderLeftColor = WalletUiTheme.CardBorder,
                     borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.CardBorder,
+                    borderTopColor = WalletUiTheme.HighlightEdge,
                     borderBottomColor = WalletUiTheme.CardBorder
                 }
             };
@@ -491,16 +494,17 @@ namespace Poltergeist.UiToolkit.Accounts
                     maxWidth = 200,
                     minHeight = 54,
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    backgroundColor = WalletUiTheme.ActionButton,
-                    color = WalletUiTheme.ActionButtonText,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopColor = WalletUiTheme.ActionButtonBorder,
-                    borderBottomColor = WalletUiTheme.ActionButtonBorder,
-                    borderLeftColor = WalletUiTheme.ActionButtonBorder,
-                    borderRightColor = WalletUiTheme.ActionButtonBorder,
+                    fontSize = 22,
+                    backgroundColor = Color.clear,
+                    color = WalletUiTheme.AccentPrimarySoft,
+                    borderTopWidth = 2,
+                    borderBottomWidth = 2,
+                    borderLeftWidth = 2,
+                    borderRightWidth = 2,
+                    borderTopColor = WalletUiTheme.AccentPrimarySoft,
+                    borderBottomColor = WalletUiTheme.AccentPrimarySoft,
+                    borderLeftColor = WalletUiTheme.AccentPrimarySoft,
+                    borderRightColor = WalletUiTheme.AccentPrimarySoft,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,

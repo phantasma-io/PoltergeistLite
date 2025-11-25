@@ -126,7 +126,7 @@ namespace Poltergeist.UiToolkit.Accounts
             root.style.width = new Length(100, LengthUnit.Percent);
             root.style.height = new Length(100, LengthUnit.Percent);
             root.style.minHeight = 0;
-            root.style.backgroundColor = WalletUiTheme.ScreenBackground;
+            root.style.backgroundColor = Color.clear;
             root.style.paddingLeft = 16;
             root.style.paddingRight = 16;
             root.style.paddingTop = 16;

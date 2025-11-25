@@ -220,14 +220,17 @@ namespace Poltergeist.UiToolkit
 
             var root = document.rootVisualElement;
             root.Clear();
+            root.style.position = Position.Relative;
             root.style.flexDirection = FlexDirection.Column;
             root.style.flexGrow = 1;
             root.style.backgroundColor = WalletUiTheme.ScreenBackground;
+            root.style.backgroundImage = new StyleBackground(WalletUiTheme.GetScreenGradientTexture());
+            root.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
 
-            accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = WalletUiTheme.ScreenBackground } };
-            balancesRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = WalletUiTheme.ScreenBackground } };
-            historyRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = WalletUiTheme.ScreenBackground } };
-            accountRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = WalletUiTheme.ScreenBackground } };
+            accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = Color.clear } };
+            balancesRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
+            historyRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
+            accountRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
 
             accountsView = new WalletAccountsView(accountsRoot, context, ShowBalances);
             balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ExitToWallets);

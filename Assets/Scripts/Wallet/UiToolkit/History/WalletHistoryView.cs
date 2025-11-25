@@ -132,7 +132,7 @@ namespace Poltergeist.UiToolkit.History
             root.style.width = new Length(100, LengthUnit.Percent);
             root.style.height = new Length(100, LengthUnit.Percent);
             root.style.minHeight = 0;
-            root.style.backgroundColor = WalletUiTheme.ScreenBackground;
+            root.style.backgroundColor = Color.clear;
             root.style.paddingLeft = 16;
             root.style.paddingRight = 16;
             root.style.paddingTop = 16;
@@ -240,19 +240,17 @@ namespace Poltergeist.UiToolkit.History
                     flexShrink = 1,
                     flexBasis = 0,
                     minHeight = 0,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.CardBorder,
-                    borderBottomColor = WalletUiTheme.CardBorder,
+                    backgroundColor = Color.clear,
+                    backgroundImage = new StyleBackground(),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
+                    borderTopLeftRadius = 0,
+                    borderTopRightRadius = 0,
+                    borderBottomLeftRadius = 0,
+                    borderBottomRightRadius = 0,
+                    borderLeftWidth = 0,
+                    borderRightWidth = 0,
+                    borderTopWidth = 0,
+                    borderBottomWidth = 0,
                     paddingLeft = 8,
                     paddingRight = 8,
                     paddingTop = 8,
@@ -512,6 +510,8 @@ namespace Poltergeist.UiToolkit.History
                     marginBottom = 10,
                     minHeight = 90,
                     backgroundColor = WalletUiTheme.CardBackground,
+                    backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
@@ -522,7 +522,7 @@ namespace Poltergeist.UiToolkit.History
                     borderBottomWidth = 1,
                     borderLeftColor = WalletUiTheme.CardBorder,
                     borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.CardBorder,
+                    borderTopColor = WalletUiTheme.HighlightEdge,
                     borderBottomColor = WalletUiTheme.CardBorder
                 }
             };

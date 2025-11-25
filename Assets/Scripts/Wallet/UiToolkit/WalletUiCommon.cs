@@ -16,32 +16,33 @@ namespace Poltergeist.UiToolkit
 
         internal static HeaderElements BuildHeader(string subtitleText, VisualElement rightContent = null, bool showSubtitle = false)
         {
-            // Subheaders must stay outside of the header bar (legacy layout places them under the bar).
             var header = new VisualElement
             {
                 style =
                 {
-                    minHeight = 88,
+                    minHeight = 76,
                     backgroundColor = WalletUiTheme.HeaderBackground,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.HeaderBorder,
-                    borderRightColor = WalletUiTheme.HeaderBorder,
-                    borderTopColor = WalletUiTheme.HeaderBorder,
-                    borderBottomColor = WalletUiTheme.HeaderBorder,
+                    borderLeftWidth = 0,
+                    borderRightWidth = 0,
+                    borderTopWidth = 0,
+                    borderBottomWidth = 0,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
                     borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    paddingLeft = 16,
-                    paddingRight = 16,
-                    paddingTop = 10,
-                    paddingBottom = 10,
+                    paddingLeft = 18,
+                    paddingRight = 18,
+                    paddingTop = 8,
+                    paddingBottom = 8,
                     flexDirection = FlexDirection.Column,
                     justifyContent = Justify.Center,
-                    position = Position.Relative
+                    position = Position.Relative,
+                    backgroundImage = new StyleBackground(),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
+                    borderTopColor = WalletUiTheme.HeaderBorder,
+                    borderBottomColor = WalletUiTheme.HeaderBorder,
+                    borderLeftColor = WalletUiTheme.HeaderBorder,
+                    borderRightColor = WalletUiTheme.HeaderBorder
                 }
             };
             ApplyDefaultFont(header);
@@ -72,7 +73,7 @@ namespace Poltergeist.UiToolkit
                 style =
                 {
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 28,
+                    fontSize = 30,
                     color = WalletUiTheme.TextPrimary,
                     unityTextAlign = TextAnchor.MiddleLeft
                 }
@@ -83,7 +84,7 @@ namespace Poltergeist.UiToolkit
             {
                 style =
                 {
-                    fontSize = 14,
+                    fontSize = 15,
                     color = WalletUiTheme.TextSecondary,
                     unityTextAlign = TextAnchor.MiddleLeft,
                     marginLeft = 10
@@ -126,7 +127,7 @@ namespace Poltergeist.UiToolkit
                     alignItems = Align.Center,
                     justifyContent = Justify.FlexStart,
                     width = new Length(100, LengthUnit.Percent),
-                    marginBottom = 12,
+                    marginBottom = 14,
                     position = Position.Relative
                 }
             };
@@ -137,11 +138,11 @@ namespace Poltergeist.UiToolkit
                 style =
                 {
                     color = WalletUiTheme.TextSecondary,
-                    fontSize = 13,
+                    fontSize = 14,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     unityTextAlign = TextAnchor.MiddleLeft,
-                    minWidth = 200,
-                    maxWidth = 320,
+                    minWidth = 220,
+                    maxWidth = 360,
                     marginRight = 16
                 }
             };
@@ -165,7 +166,7 @@ namespace Poltergeist.UiToolkit
                 style =
                 {
                     color = WalletUiTheme.TextPrimary,
-                    fontSize = 16,
+                    fontSize = 18,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     unityTextAlign = TextAnchor.MiddleCenter
                 }
@@ -177,7 +178,7 @@ namespace Poltergeist.UiToolkit
                 style =
                 {
                     color = WalletUiTheme.TextSecondary,
-                    fontSize = 14,
+                    fontSize = 15,
                     unityTextAlign = TextAnchor.MiddleCenter,
                     marginLeft = 8
                 }
@@ -194,7 +195,7 @@ namespace Poltergeist.UiToolkit
         }
 
         // Shared header + subheader block so all screens stay consistent; callers can tweak margins for edge cases.
-        internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 10f, float subHeaderMarginTop = 6f, float subHeaderMarginBottom = 6f)
+        internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 12f, float subHeaderMarginTop = 8f, float subHeaderMarginBottom = 10f)
         {
             var container = new VisualElement
             {
@@ -334,11 +335,13 @@ namespace Poltergeist.UiToolkit
                     paddingRight = 10,
                     marginTop = 10,
                     minHeight = 68,
-                    backgroundColor = WalletUiTheme.HeaderBackground,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
+                    backgroundColor = Color.clear,
+                    backgroundImage = new StyleBackground(),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
+                    borderTopWidth = 0,
+                    borderBottomWidth = 0,
+                    borderLeftWidth = 0,
+                    borderRightWidth = 0,
                     borderTopColor = WalletUiTheme.HeaderBorder,
                     borderBottomColor = WalletUiTheme.HeaderBorder,
                     borderLeftColor = WalletUiTheme.HeaderBorder,
@@ -436,7 +439,7 @@ namespace Poltergeist.UiToolkit
                 style =
                 {
                     backgroundColor = WalletUiTheme.SecondaryButton,
-                    color = WalletUiTheme.TextPrimary,
+                    color = Color.white,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     fontSize = fontSize,
                     minHeight = minHeight,
@@ -472,8 +475,13 @@ namespace Poltergeist.UiToolkit
             }
 
             btn.SetEnabled(!isActive);
-            btn.style.backgroundColor = isActive ? WalletUiTheme.SecondaryButton : WalletUiTheme.ActionButton;
-            btn.style.color = isActive ? WalletUiTheme.TextPrimary : WalletUiTheme.ActionButtonText;
+            var border = isActive ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.ActionButtonBorder;
+            btn.style.backgroundColor = isActive ? WalletUiTheme.AccentPrimary : WalletUiTheme.ActionButton;
+            btn.style.color = isActive ? WalletUiTheme.ScreenBackgroundTop : WalletUiTheme.ActionButtonText;
+            btn.style.borderLeftColor = border;
+            btn.style.borderRightColor = border;
+            btn.style.borderTopColor = border;
+            btn.style.borderBottomColor = border;
         }
 
         internal static void ApplyDefaultFont(VisualElement element)
@@ -513,7 +521,7 @@ namespace Poltergeist.UiToolkit
 
         internal static Color GetNetworkColor(NexusKind kind)
         {
-            Color c = new Color(0.7f, 0.75f, 0.8f);
+            Color c = WalletUiTheme.AccentPrimarySoft;
             switch (kind)
             {
                 case NexusKind.Test_Net:
