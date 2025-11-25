@@ -163,16 +163,13 @@ namespace Poltergeist.UiToolkit.History
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
             refreshButton.style.minWidth = 120;
 
-            header = WalletUiCommon.BuildHeader("History", refreshButton);
-            header.Root.style.marginBottom = 10;
-            content.Add(header.Root);
-
-            subHeader = WalletUiCommon.BuildSubHeader("History");
+            var headerBlock = WalletUiCommon.BuildHeaderBlock("History", "History", string.Empty, refreshButton);
+            header = headerBlock.Header;
+            subHeader = headerBlock.SubHeader;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
-            subHeader.Root.style.marginBottom = 6;
-            content.Add(subHeader.Root);
+            content.Add(headerBlock.Root);
 
             headerAddressLabel = new Label(string.Empty)
             {
@@ -329,9 +326,6 @@ namespace Poltergeist.UiToolkit.History
             content.Add(listWrapper);
 
             var footer = WalletUiCommon.BuildNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
-            navAccount.SetEnabled(false);
-            navAccount.style.backgroundColor = WalletUiTheme.SecondaryButton;
-            navAccount.style.color = WalletUiTheme.TextPrimary;
             content.Add(footer);
 
             root.Add(content);
@@ -341,6 +335,7 @@ namespace Poltergeist.UiToolkit.History
         {
             WalletUiCommon.SetNavState(navBalances, target == NavTarget.Balances);
             WalletUiCommon.SetNavState(navHistory, target == NavTarget.History);
+            WalletUiCommon.SetNavState(navAccount, target == NavTarget.Account);
             WalletUiCommon.SetNavState(navExit, false);
         }
 

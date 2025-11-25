@@ -660,6 +660,13 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             HideModal();
             modalCallback = callback;
+
+            if (modalOverlay != null && root?.parent != null && modalOverlay.parent != root.parent)
+            {
+                modalOverlay.RemoveFromHierarchy();
+                root.parent.Add(modalOverlay);
+            }
+
             if (list != null)
             {
                 listWasEnabled = list.enabledSelf;

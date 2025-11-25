@@ -193,6 +193,36 @@ namespace Poltergeist.UiToolkit
             return new SubHeaderElements(row, leftLabel, subtitle, network);
         }
 
+        // Shared header + subheader block so all screens stay consistent; callers can tweak margins for edge cases.
+        internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 10f, float subHeaderMarginTop = 6f, float subHeaderMarginBottom = 6f)
+        {
+            var container = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    width = new Length(100, LengthUnit.Percent),
+                    alignSelf = Align.Stretch
+                }
+            };
+            ApplyDefaultFont(container);
+
+            var header = BuildHeader(headerSubtitle, rightContent, showHeaderSubtitle);
+            header.Root.style.marginBottom = headerMarginBottom;
+            header.Root.style.width = new Length(100, LengthUnit.Percent);
+            header.Root.style.alignSelf = Align.Stretch;
+            container.Add(header.Root);
+
+            var subHeader = BuildSubHeader(subHeaderSubtitle, subHeaderLeft);
+            subHeader.Root.style.marginTop = subHeaderMarginTop;
+            subHeader.Root.style.marginBottom = subHeaderMarginBottom;
+            subHeader.Root.style.width = new Length(100, LengthUnit.Percent);
+            subHeader.Root.style.alignSelf = Align.Stretch;
+            container.Add(subHeader.Root);
+
+            return new HeaderBlockElements(container, header, subHeader);
+        }
+
         internal static AccountInfoElements BuildAccountInfo(Action onCopy, Action onExplorer, bool showTitleRow = true)
         {
             var container = new VisualElement
@@ -548,5 +578,19 @@ namespace Poltergeist.UiToolkit
         internal Label AccountLabel { get; }
         internal Label AddressLabel { get; }
         internal Label NetworkLabel { get; }
+    }
+
+    internal sealed class HeaderBlockElements
+    {
+        internal HeaderBlockElements(VisualElement root, HeaderElements header, SubHeaderElements subHeader)
+        {
+            Root = root;
+            Header = header;
+            SubHeader = subHeader;
+        }
+
+        internal VisualElement Root { get; }
+        internal HeaderElements Header { get; }
+        internal SubHeaderElements SubHeader { get; }
     }
 }

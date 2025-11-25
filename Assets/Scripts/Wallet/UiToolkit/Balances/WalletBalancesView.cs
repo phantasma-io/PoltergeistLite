@@ -107,16 +107,13 @@ namespace Poltergeist.UiToolkit.Balances
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
             refreshButton.style.minWidth = 120;
 
-            header = WalletUiCommon.BuildHeader("Balances", refreshButton, showSubtitle: false);
-            header.Root.style.marginBottom = 10;
-            content.Add(header.Root);
-
-            subHeader = WalletUiCommon.BuildSubHeader("Balances");
+            var headerBlock = WalletUiCommon.BuildHeaderBlock("Balances", "Balances", string.Empty, refreshButton, showHeaderSubtitle: false);
+            header = headerBlock.Header;
+            subHeader = headerBlock.SubHeader;
+            summaryLabel = subHeader.LeftLabel;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;
-            summaryLabel = subHeader.LeftLabel;
-            subHeader.Root.style.marginBottom = 6;
-            content.Add(subHeader.Root);
+            content.Add(headerBlock.Root);
 
             headerAddressLabel = new Label(string.Empty)
             {
@@ -274,9 +271,6 @@ namespace Poltergeist.UiToolkit.Balances
             content.Add(listWrapper);
 
             var footer = WalletUiCommon.BuildNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
-            navAccount.SetEnabled(false);
-            navAccount.style.backgroundColor = WalletUiTheme.SecondaryButton;
-            navAccount.style.color = WalletUiTheme.TextPrimary;
             content.Add(footer);
 
             root.Add(content);
@@ -686,6 +680,7 @@ namespace Poltergeist.UiToolkit.Balances
         {
             WalletUiCommon.SetNavState(navBalances, target == NavTarget.Balances);
             WalletUiCommon.SetNavState(navHistory, target == NavTarget.History);
+            WalletUiCommon.SetNavState(navAccount, target == NavTarget.Account);
             WalletUiCommon.SetNavState(navExit, false);
         }
 
