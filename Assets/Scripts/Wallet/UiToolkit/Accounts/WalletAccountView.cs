@@ -977,91 +977,9 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             HideModal();
             chainPickerCallback = onSelect;
-            if (chainPickerPanel == null)
-            {
-                chainPickerPanel = BuildChainPickerPanel();
-                modalOverlay.Add(chainPickerPanel);
-            }
-
             modalWindow.style.display = DisplayStyle.None;
             chainPickerPanel.style.display = DisplayStyle.Flex;
             modalOverlay.style.display = DisplayStyle.Flex;
-        }
-
-        private VisualElement BuildChainPickerPanel()
-        {
-            var panel = WalletUiCommon.CreateModalPanel(520, 820);
-            panel.style.display = DisplayStyle.None;
-
-            var title = new Label("Select chain")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 20,
-                    color = WalletUiTheme.TextPrimary,
-                    marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(title);
-            panel.Add(title);
-
-            var caption = new Label("Choose which chain to use")
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 15,
-                    marginBottom = 12,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(caption);
-            panel.Add(caption);
-
-            var buttons = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center
-                }
-            };
-
-            void AddChainButton(string text)
-            {
-                var btn = WalletUiCommon.CreateOutlineButton(text, () => HandleChainPickerSelection(text), 18, 42);
-                btn.style.minWidth = 140;
-                if (buttons.childCount > 0)
-                {
-                    btn.style.marginLeft = 10;
-                }
-                buttons.Add(btn);
-            }
-
-            AddChainButton("Phantasma");
-            AddChainButton("Ethereum");
-            AddChainButton("Neo Legacy");
-
-            panel.Add(buttons);
-
-            var actions = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.FlexEnd,
-                    marginTop = 16
-                }
-            };
-            var cancelButton = WalletUiCommon.CreateSecondaryButton("Cancel", CancelChainPicker, 16, 36);
-            cancelButton.style.minWidth = 110;
-            actions.Add(cancelButton);
-            panel.Add(actions);
-
-            return panel;
         }
 
         private void HandleChainPickerSelection(string chain)
@@ -1076,122 +994,6 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             chainPickerCallback = null;
             HideModal();
-        }
-
-        private VisualElement BuildCopyPanel()
-        {
-            var panel = WalletUiCommon.CreateModalPanel(540, 900);
-            panel.style.maxWidth = new Length(95, LengthUnit.Percent);
-            panel.style.display = DisplayStyle.None;
-
-            copyPanelTitle = new Label("Copy value")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 20,
-                    color = WalletUiTheme.TextPrimary,
-                    marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(copyPanelTitle);
-            panel.Add(copyPanelTitle);
-
-            copyPanelCaption = new Label("Copy the value below")
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 15,
-                    marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(copyPanelCaption);
-            panel.Add(copyPanelCaption);
-
-            copyPanelValueField = new TextField
-            {
-                multiline = true,
-                isPasswordField = false,
-                isReadOnly = true
-            };
-            WalletUiCommon.StyleModalInput(copyPanelValueField, true, 80);
-            panel.Add(copyPanelValueField);
-
-            var buttons = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.FlexEnd,
-                    alignItems = Align.Center,
-                    marginTop = 4
-                }
-            };
-
-            var closeBtn = WalletUiCommon.CreateSecondaryButton("Close", HideModal, 16, 36);
-            closeBtn.style.minWidth = 110;
-            buttons.Add(closeBtn);
-
-            var copyBtn = WalletUiCommon.CreateOutlineButton("Copy", OnCopyPanelCopy, 16, 36);
-            copyBtn.style.minWidth = 110;
-            copyBtn.style.marginLeft = 10;
-            buttons.Add(copyBtn);
-
-            panel.Add(buttons);
-
-            return panel;
-        }
-
-        private VisualElement BuildVerificationPanel()
-        {
-            var panel = WalletUiCommon.CreateModalPanel(520, 820);
-            panel.style.display = DisplayStyle.None;
-
-            var title = new Label("Verification result")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 20,
-                    color = WalletUiTheme.TextPrimary,
-                    marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
-                }
-            };
-            ApplyDefaultFont(title);
-            panel.Add(title);
-
-            verificationMessageLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextPrimary,
-                    fontSize = 15,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    marginBottom = 12,
-                    whiteSpace = WhiteSpace.Normal
-                }
-            };
-            ApplyDefaultFont(verificationMessageLabel);
-            panel.Add(verificationMessageLabel);
-
-            var buttons = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.Center
-                }
-            };
-            var okBtn = WalletUiCommon.CreateOutlineButton("OK", HideModal, 16, 36);
-            okBtn.style.minWidth = 110;
-            buttons.Add(okBtn);
-            panel.Add(buttons);
-
-            return panel;
         }
 
         private void OnCopyPanelCopy()
@@ -1297,76 +1099,17 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void BuildModal(VisualElement parent)
         {
-            modalOverlay = WalletUiCommon.CreateModalOverlay();
-
-            modalWindow = WalletUiCommon.CreateModalPanel(540, 900);
-            modalWindow.style.maxWidth = new Length(95, LengthUnit.Percent);
-
-            modalTitle = new Label("Input")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 20,
-                    color = WalletUiTheme.TextPrimary,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    marginBottom = 8
-                }
-            };
-            ApplyDefaultFont(modalTitle);
-            modalWindow.Add(modalTitle);
-
-            modalCaption = new Label(string.Empty)
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextPrimary,
-                    fontSize = 15,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    whiteSpace = WhiteSpace.Normal,
-                    marginBottom = 10
-                }
-            };
-            ApplyDefaultFont(modalCaption);
-            modalWindow.Add(modalCaption);
-
-            modalInput = new TextField
-            {
-                multiline = true,
-                isPasswordField = false,
-                maskChar = '*',
-            };
-            WalletUiCommon.StyleModalInput(modalInput, true, 60);
-            modalWindow.Add(modalInput);
-
-            var modalButtons = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.FlexEnd,
-                    marginTop = 4
-                }
-            };
-            ApplyDefaultFont(modalButtons);
-
-            modalSecondary = WalletUiCommon.CreateSecondaryButton("Cancel", OnModalSecondary, 16, 36);
-            modalSecondary.style.minWidth = 110;
-            modalPrimary = WalletUiCommon.CreateOutlineButton("Confirm", OnModalPrimary, 16, 36);
-            modalPrimary.style.minWidth = 110;
-            modalPrimary.style.marginLeft = 10;
-            modalButtons.Add(modalSecondary);
-            modalButtons.Add(modalPrimary);
-            modalWindow.Add(modalButtons);
+            modalOverlay = WalletUiModalFactory.CreateOverlay();
+            modalWindow = WalletUiModalFactory.CreateModalWindow(OnModalPrimary, OnModalSecondary, ApplyDefaultFont, out modalTitle, out modalCaption, out modalInput, out modalPrimary, out modalSecondary);
+            chainPickerPanel = WalletUiModalFactory.CreateChainPickerPanel(HandleChainPickerSelection, CancelChainPicker, ApplyDefaultFont);
+            copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
+            verificationPanel = WalletUiModalFactory.CreateVerificationPanel(HideModal, ApplyDefaultFont, out verificationMessageLabel);
 
             modalOverlay.Add(modalWindow);
-            chainPickerPanel = BuildChainPickerPanel();
             modalOverlay.Add(chainPickerPanel);
-            copyPanel = BuildCopyPanel();
             modalOverlay.Add(copyPanel);
-            verificationPanel = BuildVerificationPanel();
             modalOverlay.Add(verificationPanel);
+
             transactionDialogs = new WalletUiTransactionDialogs(modalOverlay, () => AccountManager.Instance, SetStatus);
             transactionDialogs.RegisterBlockingPanels(modalWindow, chainPickerPanel, copyPanel, verificationPanel);
             parent.Add(modalOverlay);
