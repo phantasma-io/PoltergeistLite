@@ -46,12 +46,19 @@ namespace Poltergeist.UiToolkit.Accounts
         private Button navAccount;
         private Button navExit;
         private VisualElement modalOverlay;
+        private VisualElement modalWindow;
+        private VisualElement chainPickerPanel;
+        private VisualElement signaturePanel;
+        private TextField signatureValueField;
+        private VisualElement verificationPanel;
+        private Label verificationMessageLabel;
         private Label modalTitle;
         private Label modalCaption;
         private TextField modalInput;
         private Button modalPrimary;
         private Button modalSecondary;
         private Action<PromptResult, string> modalCallback;
+        private Action<string> chainPickerCallback;
         private int modalMinLength;
         private int modalMaxLength;
         private bool modalHasInput;
@@ -624,8 +631,8 @@ namespace Poltergeist.UiToolkit.Accounts
                             return;
                     }
 
-                    GUIUtility.systemCopyBuffer = signature;
-                    SetStatus("Signature copied to clipboard.");
+                    ShowSignatureResult(signature);
+                    SetStatus("Signature generated.");
                 });
             });
         }
@@ -667,6 +674,7 @@ namespace Poltergeist.UiToolkit.Accounts
                             return;
                     }
 
+                    ShowVerificationResult(valid);
                     SetStatus(valid ? "Signature is correct." : "Signature is incorrect.");
                 });
             });
@@ -719,20 +727,8 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void PromptChainAndMessage(Action<string, string> callback)
         {
-            ShowModal("Select chain", "Phantasma / Ethereum / Neo Legacy", 3, 20, chainResult =>
+            ShowChainPicker(chain =>
             {
-                if (chainResult.result != PromptResult.Success)
-                {
-                    return;
-                }
-
-                var chain = NormalizeChain(chainResult.input);
-                if (chain == null)
-                {
-                    SetStatus("Unsupported chain.");
-                    return;
-                }
-
                 ShowModal("Enter message", "Message to sign", 1, -1, messageResult =>
                 {
                     if (messageResult.result != PromptResult.Success)
@@ -742,25 +738,13 @@ namespace Poltergeist.UiToolkit.Accounts
 
                     callback(chain, messageResult.input);
                 }, allowEmpty: false);
-            }, allowEmpty: false);
+            });
         }
 
         private void PromptChainMessageAndSignature(Action<string, string, string> callback)
         {
-            ShowModal("Select chain", "Phantasma / Ethereum / Neo Legacy", 3, 20, chainResult =>
+            ShowChainPicker(chain =>
             {
-                if (chainResult.result != PromptResult.Success)
-                {
-                    return;
-                }
-
-                var chain = NormalizeChain(chainResult.input);
-                if (chain == null)
-                {
-                    SetStatus("Unsupported chain.");
-                    return;
-                }
-
                 ShowModal("Enter message", "Message that was signed", 1, -1, messageResult =>
                 {
                     if (messageResult.result != PromptResult.Success)
@@ -778,7 +762,7 @@ namespace Poltergeist.UiToolkit.Accounts
                         callback(chain, messageResult.input, sigResult.input);
                     }, allowEmpty: false);
                 }, allowEmpty: false);
-            }, allowEmpty: false);
+            });
         }
 
         private static string NormalizeChain(string input)
@@ -805,6 +789,278 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             return null;
+        }
+
+        private void ShowChainPicker(Action<string> onSelect)
+        {
+            HideModal();
+            chainPickerCallback = onSelect;
+            if (chainPickerPanel == null)
+            {
+                chainPickerPanel = BuildChainPickerPanel();
+                modalOverlay.Add(chainPickerPanel);
+            }
+
+            modalWindow.style.display = DisplayStyle.None;
+            chainPickerPanel.style.display = DisplayStyle.Flex;
+            modalOverlay.style.display = DisplayStyle.Flex;
+        }
+
+        private VisualElement BuildChainPickerPanel()
+        {
+            var panel = WalletUiCommon.CreateModalPanel(520, 820);
+            panel.style.display = DisplayStyle.None;
+
+            var title = new Label("Select chain")
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    marginBottom = 10,
+                    unityTextAlign = TextAnchor.MiddleCenter
+                }
+            };
+            ApplyDefaultFont(title);
+            panel.Add(title);
+
+            var caption = new Label("Choose which chain to use")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 15,
+                    marginBottom = 12,
+                    unityTextAlign = TextAnchor.MiddleCenter
+                }
+            };
+            ApplyDefaultFont(caption);
+            panel.Add(caption);
+
+            var buttons = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center
+                }
+            };
+
+            void AddChainButton(string text)
+            {
+                var btn = WalletUiCommon.CreateOutlineButton(text, () => HandleChainPickerSelection(text), 18, 42);
+                btn.style.minWidth = 140;
+                if (buttons.childCount > 0)
+                {
+                    btn.style.marginLeft = 10;
+                }
+                buttons.Add(btn);
+            }
+
+            AddChainButton("Phantasma");
+            AddChainButton("Ethereum");
+            AddChainButton("Neo Legacy");
+
+            panel.Add(buttons);
+
+            var actions = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.FlexEnd,
+                    marginTop = 16
+                }
+            };
+            var cancelButton = WalletUiCommon.CreateSecondaryButton("Cancel", CancelChainPicker, 16, 36);
+            cancelButton.style.minWidth = 110;
+            actions.Add(cancelButton);
+            panel.Add(actions);
+
+            return panel;
+        }
+
+        private void HandleChainPickerSelection(string chain)
+        {
+            var cb = chainPickerCallback;
+            chainPickerCallback = null;
+            HideModal();
+            cb?.Invoke(chain);
+        }
+
+        private void CancelChainPicker()
+        {
+            chainPickerCallback = null;
+            HideModal();
+        }
+
+        private VisualElement BuildSignaturePanel()
+        {
+            var panel = WalletUiCommon.CreateModalPanel(540, 900);
+            panel.style.maxWidth = new Length(95, LengthUnit.Percent);
+            panel.style.display = DisplayStyle.None;
+
+            var title = new Label("Signature")
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    marginBottom = 10,
+                    unityTextAlign = TextAnchor.MiddleCenter
+                }
+            };
+            ApplyDefaultFont(title);
+            panel.Add(title);
+
+            var caption = new Label("Copy the signature below")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 15,
+                    marginBottom = 10,
+                    unityTextAlign = TextAnchor.MiddleCenter
+                }
+            };
+            ApplyDefaultFont(caption);
+            panel.Add(caption);
+
+            signatureValueField = new TextField
+            {
+                multiline = true,
+                isPasswordField = false,
+                isReadOnly = true
+            };
+            WalletUiCommon.StyleModalInput(signatureValueField, true, 80);
+            panel.Add(signatureValueField);
+
+            var buttons = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.FlexEnd,
+                    alignItems = Align.Center,
+                    marginTop = 4
+                }
+            };
+
+            var closeBtn = WalletUiCommon.CreateSecondaryButton("Close", HideModal, 16, 36);
+            closeBtn.style.minWidth = 110;
+            buttons.Add(closeBtn);
+
+            var copyBtn = WalletUiCommon.CreateOutlineButton("Copy", () =>
+            {
+                GUIUtility.systemCopyBuffer = signatureValueField?.text ?? string.Empty;
+                SetStatus("Signature copied to clipboard.");
+                HideModal();
+            }, 16, 36);
+            copyBtn.style.minWidth = 110;
+            copyBtn.style.marginLeft = 10;
+            buttons.Add(copyBtn);
+
+            panel.Add(buttons);
+
+            return panel;
+        }
+
+        private VisualElement BuildVerificationPanel()
+        {
+            var panel = WalletUiCommon.CreateModalPanel(520, 820);
+            panel.style.display = DisplayStyle.None;
+
+            var title = new Label("Verification result")
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    marginBottom = 10,
+                    unityTextAlign = TextAnchor.MiddleCenter
+                }
+            };
+            ApplyDefaultFont(title);
+            panel.Add(title);
+
+            verificationMessageLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = 15,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    marginBottom = 12,
+                    whiteSpace = WhiteSpace.Normal
+                }
+            };
+            ApplyDefaultFont(verificationMessageLabel);
+            panel.Add(verificationMessageLabel);
+
+            var buttons = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.Center
+                }
+            };
+            var okBtn = WalletUiCommon.CreateOutlineButton("OK", HideModal, 16, 36);
+            okBtn.style.minWidth = 110;
+            buttons.Add(okBtn);
+            panel.Add(buttons);
+
+            return panel;
+        }
+
+        private void ShowSignatureResult(string signature)
+        {
+            HideModal();
+            if (signatureValueField != null)
+            {
+                signatureValueField.value = signature ?? string.Empty;
+                signatureValueField.SetEnabled(true);
+            }
+
+            modalWindow.style.display = DisplayStyle.None;
+            if (chainPickerPanel != null)
+            {
+                chainPickerPanel.style.display = DisplayStyle.None;
+            }
+            if (verificationPanel != null)
+            {
+                verificationPanel.style.display = DisplayStyle.None;
+            }
+
+            signaturePanel.style.display = DisplayStyle.Flex;
+            modalOverlay.style.display = DisplayStyle.Flex;
+        }
+
+        private void ShowVerificationResult(bool valid)
+        {
+            HideModal();
+            if (verificationMessageLabel != null)
+            {
+                verificationMessageLabel.text = valid ? "Signature is correct." : "Signature is incorrect.";
+                verificationMessageLabel.style.color = valid ? WalletUiTheme.TextPrimary : Color.red;
+            }
+
+            modalWindow.style.display = DisplayStyle.None;
+            if (chainPickerPanel != null)
+            {
+                chainPickerPanel.style.display = DisplayStyle.None;
+            }
+            if (signaturePanel != null)
+            {
+                signaturePanel.style.display = DisplayStyle.None;
+            }
+
+            verificationPanel.style.display = DisplayStyle.Flex;
+            modalOverlay.style.display = DisplayStyle.Flex;
         }
 
         private void RequirePasswordThen(Action onAuthorized)
@@ -839,7 +1095,7 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             modalOverlay = WalletUiCommon.CreateModalOverlay();
 
-            var modalWindow = WalletUiCommon.CreateModalPanel(540, 900);
+            modalWindow = WalletUiCommon.CreateModalPanel(540, 900);
             modalWindow.style.maxWidth = new Length(95, LengthUnit.Percent);
 
             modalTitle = new Label("Input")
@@ -901,6 +1157,12 @@ namespace Poltergeist.UiToolkit.Accounts
             modalWindow.Add(modalButtons);
 
             modalOverlay.Add(modalWindow);
+            chainPickerPanel = BuildChainPickerPanel();
+            modalOverlay.Add(chainPickerPanel);
+            signaturePanel = BuildSignaturePanel();
+            modalOverlay.Add(signaturePanel);
+            verificationPanel = BuildVerificationPanel();
+            modalOverlay.Add(verificationPanel);
             parent.Add(modalOverlay);
         }
 
@@ -911,6 +1173,23 @@ namespace Poltergeist.UiToolkit.Accounts
             modalMaxLength = maxLength;
             modalHasInput = hasInput;
             modalAllowEmpty = allowEmpty;
+            chainPickerCallback = null;
+            if (chainPickerPanel != null)
+            {
+                chainPickerPanel.style.display = DisplayStyle.None;
+            }
+            if (signaturePanel != null)
+            {
+                signaturePanel.style.display = DisplayStyle.None;
+            }
+            if (verificationPanel != null)
+            {
+                verificationPanel.style.display = DisplayStyle.None;
+            }
+            if (modalWindow != null)
+            {
+                modalWindow.style.display = DisplayStyle.Flex;
+            }
 
             modalTitle.text = title ?? string.Empty;
             modalCaption.text = caption ?? string.Empty;
@@ -959,6 +1238,31 @@ namespace Poltergeist.UiToolkit.Accounts
             modalOverlay.style.display = DisplayStyle.None;
             modalInput.value = string.Empty;
             modalCallback = null;
+            chainPickerCallback = null;
+            if (chainPickerPanel != null)
+            {
+                chainPickerPanel.style.display = DisplayStyle.None;
+            }
+            if (signaturePanel != null)
+            {
+                signaturePanel.style.display = DisplayStyle.None;
+            }
+            if (signatureValueField != null)
+            {
+                signatureValueField.value = string.Empty;
+            }
+            if (verificationPanel != null)
+            {
+                verificationPanel.style.display = DisplayStyle.None;
+            }
+            if (verificationMessageLabel != null)
+            {
+                verificationMessageLabel.text = string.Empty;
+            }
+            if (modalWindow != null)
+            {
+                modalWindow.style.display = DisplayStyle.Flex;
+            }
         }
 
         private async Task SendPoaAsync(string url, string message)
