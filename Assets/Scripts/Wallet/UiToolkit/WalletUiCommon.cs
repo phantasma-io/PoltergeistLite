@@ -13,6 +13,7 @@ namespace Poltergeist.UiToolkit
     internal static class WalletUiCommon
     {
         private const string AppTitle = "Poltergeist Lite";
+        private static readonly Color SoftOutlineWhite = WalletUiTheme.Hex("#dfe3f0");
 
         internal static HeaderElements BuildHeader(string subtitleText, VisualElement rightContent = null, bool showSubtitle = false)
         {
@@ -454,7 +455,7 @@ namespace Poltergeist.UiToolkit
                 style =
                 {
                     backgroundColor = Color.clear,
-                    color = WalletUiTheme.AccentPrimarySoft,
+                    color = SoftOutlineWhite,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     fontSize = fontSize,
                     minHeight = minHeight,
@@ -470,10 +471,10 @@ namespace Poltergeist.UiToolkit
                     borderRightWidth = 2,
                     borderTopWidth = 2,
                     borderBottomWidth = 2,
-                    borderLeftColor = WalletUiTheme.AccentPrimarySoft,
-                    borderRightColor = WalletUiTheme.AccentPrimarySoft,
-                    borderTopColor = WalletUiTheme.AccentPrimarySoft,
-                    borderBottomColor = WalletUiTheme.AccentPrimarySoft
+                    borderLeftColor = SoftOutlineWhite,
+                    borderRightColor = SoftOutlineWhite,
+                    borderTopColor = SoftOutlineWhite,
+                    borderBottomColor = SoftOutlineWhite
                 }
             };
             ApplyDefaultFont(btn);
@@ -542,7 +543,7 @@ namespace Poltergeist.UiToolkit
             }
 
             btn.SetEnabled(!isActive);
-            var border = isActive ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.SecondaryButtonBorder;
+            var border = isActive ? SoftOutlineWhite : WalletUiTheme.SecondaryButtonBorder;
             var borderWidth = isActive ? 2 : 1;
             btn.style.backgroundColor = WalletUiTheme.SecondaryButton;
             btn.style.color = Color.white;
