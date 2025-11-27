@@ -56,6 +56,7 @@ namespace Poltergeist.Wallet
             LogLevels = logLevels;
             LogLevelIndex = logLevelIndex;
             LogOverwriteMode = settings.logOverwriteMode;
+            LogFolderPath = settings.logFolderPath ?? string.Empty;
 
             UiThemeDisplayOptions = uiThemeDisplayOptions;
             UiThemes = uiThemes;
@@ -108,6 +109,7 @@ namespace Poltergeist.Wallet
         public Log.Level[] LogLevels { get; }
         public int LogLevelIndex { get; }
         public bool LogOverwriteMode { get; }
+        public string LogFolderPath { get; }
 
         public string[] UiThemeDisplayOptions { get; }
         public UiThemes[] UiThemes { get; }

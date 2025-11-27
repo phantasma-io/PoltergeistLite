@@ -37,7 +37,7 @@ namespace Poltergeist.UiToolkit
         public static readonly Color Divider = Hex("#304274");
         public static readonly Color HighlightEdge = Hex("#3c4e85");
 
-        // Accents (соответствие скриншоту)
+        // Accents (match the reference screenshot)
         public static readonly Color AccentPrimary = Hex("#6baee6");
         public static readonly Color AccentPrimarySoft = Hex("#8ac6f5");
 

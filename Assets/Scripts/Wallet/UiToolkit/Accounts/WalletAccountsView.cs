@@ -19,6 +19,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly WalletApplicationContext context;
         private readonly WalletAuthService authService;
         private readonly Action onLoginSuccess;
+        private readonly Action onShowSettings;
         private HeaderElements header;
         private SubHeaderElements subHeader;
         private Label subtitleLabel;
@@ -28,8 +29,8 @@ namespace Poltergeist.UiToolkit.Accounts
         private ScrollView list;
         private VisualElement listWrapper;
         private Label statusLabel;
+        private WalletUiSignals uiSignals;
         private VisualElement modalOverlay;
-        private VisualElement footerBar;
         private Action<PromptResult, string> modalCallback;
         private bool listWasEnabled = true;
         private bool rootWheelHooked;
@@ -40,18 +41,21 @@ namespace Poltergeist.UiToolkit.Accounts
         private bool listVisibilityBeforeModal;
         private EventCallback<KeyUpEvent> modalKeyHandler;
 
-        public WalletAccountsView(VisualElement host, WalletApplicationContext context, Action onLoginSuccess)
+        public WalletAccountsView(VisualElement host, WalletApplicationContext context, Action onLoginSuccess, Action onShowSettings)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             authService = context.AuthService ?? throw new ArgumentNullException(nameof(context.AuthService));
             this.onLoginSuccess = onLoginSuccess;
+            this.onShowSettings = onShowSettings ?? throw new ArgumentNullException(nameof(onShowSettings));
+            uiSignals = context.UiSignals;
 
             BuildLayout(host ?? throw new ArgumentNullException(nameof(host)));
-            Refresh();
+            Subscribe();
         }
 
         public void Dispose()
         {
+            Unsubscribe();
             HideModal();
         }
 
@@ -109,6 +113,33 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
+        private void Subscribe()
+        {
+            uiSignals?.EnsureSubscribed();
+            if (uiSignals != null)
+            {
+                uiSignals.SettingsChanged += OnSettingsChanged;
+            }
+        }
+
+        private void Unsubscribe()
+        {
+            if (uiSignals != null)
+            {
+                uiSignals.SettingsChanged -= OnSettingsChanged;
+            }
+        }
+
+        private void OnSettingsChanged()
+        {
+            var headerSettings = AccountManager.Instance?.Settings;
+            if (headerSettings != null)
+            {
+                WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, headerSettings.nexusName, headerSettings.nexusKind);
+                WalletUiCommon.ApplyNetworkBadge(header.NetworkLabel, headerSettings.nexusName, headerSettings.nexusKind);
+            }
+        }
+
         private void SetStatus(string text)
         {
             statusLabel.text = text ?? string.Empty;
@@ -122,10 +153,7 @@ namespace Poltergeist.UiToolkit.Accounts
             // Layout hygiene (keep this to avoid regressions):
             // - minHeight=0 + flexBasis=0 + overflow hidden on wrappers/scroll prevents the list from pushing the footer off-screen.
             // - Keep content centered to mirror the legacy layout proportions.
-            root.style.flexDirection = FlexDirection.Column;
-            root.style.flexGrow = 1;
-            root.style.height = new Length(100, LengthUnit.Percent);
-            root.style.minHeight = 0;
+            WalletUiCommon.ConfigureScreenRoot(root);
             root.style.position = Position.Relative;
             root.style.paddingLeft = 16;
             root.style.paddingRight = 16;
@@ -137,26 +165,11 @@ namespace Poltergeist.UiToolkit.Accounts
             root.style.overflow = Overflow.Hidden;
             ApplyDefaultFont(root);
 
-            var content = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Column,
-                    width = new Length(100, LengthUnit.Percent),
-                    maxWidth = 1680,
-                    alignSelf = Align.Center,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0
-                }
-            };
-            ApplyDefaultFont(content);
+            var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 
             header = WalletUiCommon.BuildHeader("Wallet List");
             var topBar = header.Root;
+            topBar.style.flexShrink = 0;
             topBar.style.marginBottom = 12;
 
             subHeader = WalletUiCommon.BuildSubHeader("Wallet List");
@@ -179,92 +192,21 @@ namespace Poltergeist.UiToolkit.Accounts
             ApplyDefaultFont(statusLabel);
             statusLabel.style.display = DisplayStyle.None;
 
-            list = new ScrollView(ScrollViewMode.Vertical)
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0,
-                    backgroundColor = Color.clear,
-                    backgroundImage = new StyleBackground(),
-                    paddingLeft = 6,
-                    paddingRight = 6,
-                    paddingTop = 8,
-                    paddingBottom = 8,
-                    marginTop = 4,
-                    marginBottom = 12,
-                    overflow = Overflow.Hidden
-                }
-            };
+            listWrapper = WalletUiCommon.BuildListSection(
+                out list,
+                onScrollChanged: null,
+                shouldBlockWheel: () => modalOverlay != null && modalOverlay.style.display == DisplayStyle.Flex,
+                paddingLeft: 6f,
+                paddingRight: 6f,
+                paddingTop: 8f,
+                paddingBottom: 80f,
+                marginTop: 4f,
+                marginBottom: 12f,
+                maxWidth: 0f,
+                alignSelf: Align.Stretch);
             list.style.display = DisplayStyle.Flex;
             list.pickingMode = PickingMode.Position;
             list.visible = true;
-            list.verticalScrollerVisibility = ScrollerVisibility.Auto;
-            list.contentContainer.style.paddingBottom = 80;
-            // Manual wheel handling avoids UITK's ScrollView null deref in ReadSingleLineHeight and keeps modal wheel swallowed.
-            list.RegisterCallback<WheelEvent>(evt =>
-            {
-                if (modalOverlay != null && modalOverlay.style.display == DisplayStyle.Flex)
-                {
-                    evt.StopImmediatePropagation();
-                    evt.PreventDefault();
-                    return;
-                }
-
-                var scroller = list.verticalScroller;
-                if (scroller == null || list.contentContainer == null)
-                {
-                    evt.StopImmediatePropagation();
-                    evt.PreventDefault();
-                    return;
-                }
-
-                const float scrollStep = 120f;
-                var delta = Mathf.Clamp(evt.delta.y, -1f, 1f);
-                var low = scroller.lowValue;
-                var high = scroller.highValue;
-                // High value can be stale before layout; recompute a safer fallback using bounds when available.
-                if ((double)high <= (double)low)
-                {
-                    var viewportHeight = list.contentViewport?.worldBound.height ?? 0f;
-                    var contentHeight = list.contentContainer.worldBound.height;
-                    if (viewportHeight > 0f && contentHeight > viewportHeight)
-                    {
-                        high = contentHeight - viewportHeight;
-                    }
-                }
-
-                if (high < low)
-                {
-                    high = low;
-                }
-
-                // UI Toolkit delta is positive when scrolling down; add delta to move the view in the same direction.
-                var target = Mathf.Clamp(scroller.value + delta * scrollStep, low, high);
-                scroller.value = target;
-                var offset = list.scrollOffset;
-                offset.y = target;
-                list.scrollOffset = offset;
-                evt.StopImmediatePropagation();
-                evt.PreventDefault();
-            }, TrickleDown.TrickleDown);
-            ApplyDefaultFont(list);
-
-            listWrapper = new VisualElement
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0,
-                    flexDirection = FlexDirection.Column,
-                    overflow = Overflow.Hidden
-                }
-            };
-            listWrapper.Add(list);
 
             modalOverlay = WalletUiCommon.CreateModalOverlay();
             modalOverlay.RegisterCallback<WheelEvent>(evt => evt.StopPropagation());
@@ -288,59 +230,10 @@ namespace Poltergeist.UiToolkit.Accounts
             content.Add(subHeader.Root);
             content.Add(statusLabel);
             content.Add(listWrapper);
-            footerBar = BuildFooterBar();
-            content.Add(footerBar);
+            content.Add(WalletUiCommon.BuildMainFooter(OnNewWallet, OnImportWallet, OnManageWallets, OnSettings));
 
             root.Add(content);
             root.Add(modalOverlay);
-        }
-
-        private VisualElement BuildFooterBar()
-        {
-            var bar = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.SpaceBetween,
-                    alignItems = Align.Center,
-                    paddingTop = 14,
-                    paddingBottom = 14,
-                    paddingLeft = 12,
-                    paddingRight = 12,
-                    marginTop = 14,
-                    marginBottom = 6,
-                    minHeight = 72,
-                    backgroundColor = WalletUiTheme.HeaderBackground,
-                    borderTopWidth = 1,
-                    borderTopColor = WalletUiTheme.HeaderBorder,
-                    borderBottomWidth = 1,
-                    borderBottomColor = WalletUiTheme.HeaderBorder,
-                    borderLeftWidth = 1,
-                    borderLeftColor = WalletUiTheme.HeaderBorder,
-                    borderRightWidth = 1,
-                    borderRightColor = WalletUiTheme.HeaderBorder,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    flexShrink = 0
-                }
-            };
-
-            bar.Add(MakeActionButton("New wallet", OnNewWallet));
-            bar.Add(MakeActionButton("Import", OnImportWallet));
-            bar.Add(MakeActionButton("Manage", OnManageWallets));
-            bar.Add(MakeActionButton("Settings", OnSettings));
-
-            var children = bar.Children().ToList();
-            for (var i = 0; i < children.Count; i++)
-            {
-                children[i].style.flexGrow = 1;
-                children[i].style.marginLeft = i == 0 ? 0 : 8;
-            }
-
-            return bar;
         }
 
         private VisualElement BuildDivider(float height = 8)
@@ -348,42 +241,7 @@ namespace Poltergeist.UiToolkit.Accounts
             return new VisualElement { style = { height = height } };
         }
 
-        private Button MakeActionButton(string text, Action onClick)
-        {
-            var btn = new Button
-            {
-                text = text,
-                style =
-                {
-                    backgroundColor = WalletUiTheme.SecondaryButton,
-                    color = Color.white,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 22,
-                    minHeight = 56,
-                    paddingLeft = 20,
-                    paddingRight = 20,
-                    paddingTop = 14,
-                    paddingBottom = 14,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderRightColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderTopColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder,
-                    flexGrow = 1
-                }
-            };
-            ApplyDefaultFont(btn);
-            btn.style.unityTextAlign = TextAnchor.MiddleCenter;
-            btn.clicked += () => onClick?.Invoke();
-            return btn;
-        }
+        // TODO: remove once main actions are implemented; kept to avoid accidental reuse.
 
         private VisualElement CreateRow(Account account, int index)
         {
@@ -575,8 +433,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void OnSettings()
         {
-            SetStatus("Settings are not yet available in UITK.");
-            Log.Write($"{LogPrefix}Settings action pressed (not implemented).");
+            onShowSettings?.Invoke();
         }
 
         private void OnOpenClicked(int index)

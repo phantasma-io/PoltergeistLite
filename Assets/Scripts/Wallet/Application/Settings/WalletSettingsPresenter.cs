@@ -1,7 +1,10 @@
 using System;
 using System.Globalization;
 using System.Numerics;
+using System.IO;
+using System.Reflection;
 using UnityEngine;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist.Wallet
 {
@@ -10,6 +13,7 @@ namespace Poltergeist.Wallet
     /// </summary>
     public sealed class WalletSettingsPresenter
     {
+        private const string LogPrefix = "[SettingsPresenter] ";
         private readonly WalletSettingsViewBuilder builder;
         private readonly WalletSettingsService settingsService;
         private readonly Func<AccountManager> accountProvider;
@@ -200,6 +204,13 @@ namespace Poltergeist.Wallet
         public void SetLogOverwriteMode(bool value)
         {
             GetSettings().logOverwriteMode = value;
+        }
+
+        public void SetLogFolderPath(string value)
+        {
+            var settings = GetSettings();
+            var trimmed = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+            settings.logFolderPath = trimmed;
         }
 
         public void SetUiFramerate(string value)

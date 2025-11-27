@@ -119,6 +119,7 @@ namespace Poltergeist
         public const string ScriptlessMaxDataTag = "scriptless.max.data";
         public const string BalanceDisplayThresholdTag = "balance.display.threshold";
         public const string BalanceDisplayPrecisionTag = "balance.display.precision";
+        public const string LogFolderPathTag = "log.folder.path";
 
         public string phantasmaRPCURL;
         public string phantasmaExplorer;
@@ -150,6 +151,7 @@ namespace Poltergeist
         public BigInteger scriptlessMaxData;
         public decimal balanceDisplayThreshold;
         public int balanceDisplayPrecision;
+        public string logFolderPath;
 
         public override string ToString()
         {
@@ -172,12 +174,13 @@ namespace Poltergeist
                 "Mnemonic phrase length: " + this.mnemonicPhraseLength + "\n" +
                 "Password mode: " + this.passwordMode + "\n" +
                 "Developer mode: " + this.devMode + "\n" +
-                "Developer mode (no validation): " + this.devMode_NoValidation +
+                "Developer mode (no validation): " + this.devMode_NoValidation + "\n" +
                 "Prefer scriptless txes: " + this.preferScriptlessTxes + "\n" +
                 "Scriptless max gas: " + this.scriptlessMaxGas + "\n" +
                 "Scriptless max data: " + this.scriptlessMaxData + "\n" +
                 "Balance min: " + this.balanceDisplayThreshold + "\n" +
-                "Balance precision: " + this.balanceDisplayPrecision;
+                "Balance precision: " + this.balanceDisplayPrecision + "\n" +
+                "Log folder: " + (string.IsNullOrWhiteSpace(this.logFolderPath) ? "<default>" : this.logFolderPath);
         }
 
         public void LoadLogSettings()
@@ -189,6 +192,7 @@ namespace Poltergeist
             }
 
             this.logOverwriteMode = PlayerPrefs.GetInt(LogOverwriteModeTag, 1) != 0;
+            this.logFolderPath = PlayerPrefs.GetString(LogFolderPathTag, string.Empty);
         }
 
         public void Load()
@@ -446,6 +450,7 @@ namespace Poltergeist
             PlayerPrefs.SetInt(InitialWindowHeightTag, this.initialWindowHeight);
             PlayerPrefs.SetString(LogLevelTag, this.logLevel.ToString());
             PlayerPrefs.SetInt(LogOverwriteModeTag, this.logOverwriteMode ? 1 : 0);
+            PlayerPrefs.SetString(LogFolderPathTag, this.logFolderPath ?? string.Empty);
             PlayerPrefs.SetString(MnemonicPhraseLengthTag, this.mnemonicPhraseLength.ToString());
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
             PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
@@ -468,6 +473,7 @@ namespace Poltergeist
             PlayerPrefs.SetString(BalanceDisplayThresholdTag, this.balanceDisplayThreshold.ToString(CultureInfo.InvariantCulture));
             PlayerPrefs.SetInt(BalanceDisplayPrecisionTag, this.balanceDisplayPrecision);
             PlayerPrefs.SetString(LastVisitedFolderTag, this.lastVisitedFolder);
+            PlayerPrefs.SetString(LogFolderPathTag, this.logFolderPath ?? string.Empty);
             PlayerPrefs.SetInt(LastShownInformationScreenTag, this.lastShownInformationScreen);
             PlayerPrefs.Save();
 

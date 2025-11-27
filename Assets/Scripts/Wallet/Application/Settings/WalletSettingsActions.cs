@@ -93,6 +93,12 @@ namespace Poltergeist.Wallet
 
         public string GetLogFolderPath()
         {
+            var settings = _accountProvider()?.Settings;
+            if (!string.IsNullOrWhiteSpace(settings?.logFolderPath))
+            {
+                return settings.logFolderPath.TrimEnd('\\', '/');
+            }
+
             var path = Log.FilePath;
             if (string.IsNullOrWhiteSpace(path))
             {

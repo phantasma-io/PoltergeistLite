@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist.Wallet
 {
@@ -73,6 +75,19 @@ namespace Poltergeist.Wallet
                 return false;
             }
 
+            if (!string.IsNullOrWhiteSpace(settings.logFolderPath))
+            {
+                try
+                {
+                    Directory.CreateDirectory(settings.logFolderPath);
+                }
+                catch (Exception e)
+                {
+                    onError?.Invoke($"Cannot use log folder '{settings.logFolderPath}': {e.Message}");
+                    return false;
+                }
+            }
+
             if (accountManager.Accounts.Count == 0)
             {
                 accountManager.InitDemoAccounts(settings.nexusKind);
@@ -82,6 +97,14 @@ namespace Poltergeist.Wallet
             accountManager.UpdateAPIs(true);
             accountManager.RefreshTokenPrices();
             accountManager.Settings.Save();
+            try
+            {
+                WalletRuntime.ReconfigureLogging(settings);
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"[SettingsService] Failed to reconfigure logging: {e.Message}");
+            }
             return true;
         }
     }

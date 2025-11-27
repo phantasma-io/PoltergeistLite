@@ -1,8 +1,10 @@
 using System;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist;
 using Poltergeist.Wallet;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist.UiToolkit
 {
@@ -321,7 +323,8 @@ namespace Poltergeist.UiToolkit
             return new AccountInfoElements(container, accountLabel, addressLabel, networkLabel);
         }
 
-        internal static VisualElement BuildNavBar(out Button balances, out Button history, out Button account, out Button exit, Action onBalances, Action onHistory, Action onAccount, Action onExit)
+        // Builds bottom nav bar with common actions; settings is optional (pass null action to hide).
+        internal static VisualElement BuildNavBar(out Button balances, out Button history, out Button account, out Button settings, out Button exit, Action onBalances, Action onHistory, Action onAccount, Action onSettings, Action onExit)
         {
             var bar = new VisualElement
             {
@@ -358,9 +361,12 @@ namespace Poltergeist.UiToolkit
             balances = CreateNavButton("Balances", onBalances);
             history = CreateNavButton("History", onHistory);
             account = CreateNavButton("Account", onAccount);
+            settings = onSettings != null ? CreateNavButton("Settings", onSettings) : null;
             exit = CreateNavButton("Exit", onExit);
 
-            var buttons = new[] { balances, history, account, exit };
+            var buttons = settings != null
+                ? new[] { balances, history, account, settings, exit }
+                : new[] { balances, history, account, exit };
             for (var i = 0; i < buttons.Length; i++)
             {
                 var btn = buttons[i];
@@ -373,6 +379,209 @@ namespace Poltergeist.UiToolkit
             }
 
             return bar;
+        }
+
+        // Wallet mode tabs: balances/history/account/exit. Centralized to avoid diverging button sets per screen.
+        internal static VisualElement BuildWalletNavBar(out Button balances, out Button history, out Button account, out Button exit, Action onBalances, Action onHistory, Action onAccount, Action onExit)
+        {
+            return BuildNavBar(out balances, out history, out account, out _, out exit, onBalances, onHistory, onAccount, null, onExit);
+        }
+
+        // Main screen footer (wallet list, settings pre-login).
+        // Generic footer builder with dark filled buttons (shared across main and settings screens).
+        internal static VisualElement BuildFooter(params (string text, Action onClick)[] entries)
+        {
+            var bar = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.SpaceBetween,
+                    alignItems = Align.Center,
+                    paddingTop = 14,
+                    paddingBottom = 14,
+                    paddingLeft = 12,
+                    paddingRight = 12,
+                    marginTop = 14,
+                    marginBottom = 6,
+                    minHeight = 72,
+                    backgroundColor = WalletUiTheme.HeaderBackground,
+                    borderTopWidth = 1,
+                    borderTopColor = WalletUiTheme.HeaderBorder,
+                    borderBottomWidth = 1,
+                    borderBottomColor = WalletUiTheme.HeaderBorder,
+                    borderLeftWidth = 1,
+                    borderLeftColor = WalletUiTheme.HeaderBorder,
+                    borderRightWidth = 1,
+                    borderRightColor = WalletUiTheme.HeaderBorder,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
+                    flexShrink = 0
+                }
+            };
+            ApplyDefaultFont(bar);
+
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var (text, onClick) = entries[i];
+                var btn = CreateMainFooterButton(text, onClick);
+                btn.style.flexGrow = 1;
+                btn.style.marginLeft = i == 0 ? 0 : 8;
+                bar.Add(btn);
+            }
+
+            return bar;
+        }
+
+        internal static VisualElement BuildMainFooter(Action onNewWallet, Action onImportWallet, Action onManageWallets, Action onSettings)
+        {
+            return BuildFooter(
+                ("New wallet", onNewWallet),
+                ("Import", onImportWallet),
+                ("Manage", onManageWallets),
+                ("Settings", onSettings)
+            );
+        }
+
+        // Applies the default full-screen layout for all UITK screens to avoid drift between views.
+        internal static void ConfigureScreenRoot(VisualElement root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            root.style.flexDirection = FlexDirection.Column;
+            root.style.flexGrow = 1;
+            root.style.flexShrink = 1;
+            root.style.flexBasis = 0;
+            root.style.width = new Length(100, LengthUnit.Percent);
+            root.style.height = new Length(100, LengthUnit.Percent);
+            root.style.minHeight = 0;
+            root.style.minWidth = 0;
+            root.style.alignItems = Align.Stretch;
+            root.style.overflow = Overflow.Hidden;
+        }
+
+        // Shared content container used across screens (balances/history/accounts/settings) to keep scroll math consistent.
+        internal static VisualElement CreateScreenContent(float paddingLeft = 8f, float paddingRight = 8f, float paddingTop = 0f, float paddingBottom = 0f, float maxWidth = 1680f, bool fullHeight = true, bool hiddenOverflow = true)
+        {
+            var content = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = maxWidth,
+                    alignSelf = Align.Center,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    paddingLeft = paddingLeft,
+                    paddingRight = paddingRight,
+                    paddingTop = paddingTop,
+                    paddingBottom = paddingBottom
+                }
+            };
+
+            if (fullHeight)
+            {
+                content.style.height = new Length(100, LengthUnit.Percent);
+            }
+
+            if (hiddenOverflow)
+            {
+                content.style.overflow = Overflow.Hidden;
+            }
+
+            ApplyDefaultFont(content);
+            return content;
+        }
+
+        // Wrapper for scroll views so the footer never gets squeezed; matches the pattern proven in Settings.
+        internal static VisualElement CreateScrollWrapper()
+        {
+            var wrapper = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    overflow = Overflow.Hidden
+                }
+            };
+            ApplyDefaultFont(wrapper);
+            return wrapper;
+        }
+
+        // Standardized scroll section for list screens (balances/history/accounts) to keep layout and padding consistent.
+        internal static VisualElement BuildListSection(
+            out ScrollView listView,
+            Action<float> onScrollChanged,
+            Func<bool> shouldBlockWheel = null,
+            float paddingLeft = 8f,
+            float paddingRight = 8f,
+            float paddingTop = 8f,
+            float paddingBottom = 80f,
+            float marginTop = 6f,
+            float marginBottom = 10f,
+            float maxWidth = 1680f,
+            Align alignSelf = Align.Center)
+        {
+            listView = CreateScrollView(onScrollChanged, shouldBlockWheel, paddingBottom);
+            listView.style.backgroundImage = new StyleBackground();
+            listView.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
+            listView.style.borderTopLeftRadius = 0;
+            listView.style.borderTopRightRadius = 0;
+            listView.style.borderBottomLeftRadius = 0;
+            listView.style.borderBottomRightRadius = 0;
+            listView.style.borderLeftWidth = 0;
+            listView.style.borderRightWidth = 0;
+            listView.style.borderTopWidth = 0;
+            listView.style.borderBottomWidth = 0;
+            listView.style.paddingLeft = paddingLeft;
+            listView.style.paddingRight = paddingRight;
+            listView.style.paddingTop = paddingTop;
+            listView.style.paddingBottom = paddingBottom;
+            listView.style.marginTop = marginTop;
+            listView.style.marginBottom = marginBottom;
+            listView.style.alignSelf = alignSelf;
+            listView.style.width = new Length(100, LengthUnit.Percent);
+            if (maxWidth > 0f)
+            {
+                listView.style.maxWidth = maxWidth;
+            }
+
+            ApplyDefaultFont(listView);
+
+            var wrapper = CreateScrollWrapper();
+            wrapper.Add(listView);
+            return wrapper;
+        }
+
+        // Scroll container for form-like screens (Settings) with optional margin; keeps wrapper/scroll styling consistent.
+        internal static VisualElement BuildScrollContainer(
+            out ScrollView scrollView,
+            Action<float> onScrollChanged,
+            Func<bool> shouldBlockWheel = null,
+            float paddingBottom = 0f,
+            float marginTop = 0f)
+        {
+            scrollView = CreateScrollView(onScrollChanged, shouldBlockWheel, paddingBottom);
+            if (marginTop > 0f)
+            {
+                scrollView.style.marginTop = marginTop;
+            }
+
+            var wrapper = CreateScrollWrapper();
+            wrapper.Add(scrollView);
+            return wrapper;
         }
 
         internal static Button CreateNavButton(string text, Action onClick)
@@ -391,6 +600,42 @@ namespace Poltergeist.UiToolkit
                     paddingRight = 18,
                     paddingTop = 12,
                     paddingBottom = 12,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderRightColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderTopColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder
+                }
+            };
+            ApplyDefaultFont(btn);
+            btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            btn.clicked += () => onClick?.Invoke();
+            return btn;
+        }
+
+        internal static Button CreateMainFooterButton(string text, Action onClick)
+        {
+            var btn = new Button
+            {
+                text = text,
+                style =
+                {
+                    backgroundColor = WalletUiTheme.SecondaryButton,
+                    color = Color.white,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 22,
+                    minHeight = 56,
+                    paddingLeft = 20,
+                    paddingRight = 20,
+                    paddingTop = 14,
+                    paddingBottom = 14,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
@@ -557,6 +802,118 @@ namespace Poltergeist.UiToolkit
             btn.style.borderBottomWidth = borderWidth;
         }
 
+        internal static ScrollView CreateScrollView(Action<float> onScrollChanged = null, Func<bool> shouldBlockWheel = null, float paddingBottom = 0f)
+        {
+            // Manual wheel handling stays here to avoid UITK ScrollView.ReadSingleLineHeight nullrefs and to keep stable offsets.
+            var scroll = new ScrollView(ScrollViewMode.Vertical)
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    backgroundColor = Color.clear,
+                    overflow = Overflow.Hidden,
+                    alignSelf = Align.Stretch
+                }
+            };
+            ApplyDefaultFont(scroll);
+            scroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
+            scroll.contentContainer.style.flexDirection = FlexDirection.Column;
+            scroll.contentContainer.style.alignItems = Align.Stretch;
+            scroll.contentContainer.style.flexGrow = 0;
+            scroll.contentContainer.style.flexShrink = 0;
+            if (paddingBottom > 0f)
+            {
+                scroll.contentContainer.style.paddingBottom = paddingBottom;
+            }
+
+            if (scroll.verticalScroller != null)
+            {
+                scroll.verticalScroller.valueChanged += v => onScrollChanged?.Invoke(v);
+            }
+
+            scroll.RegisterCallback<WheelEvent>(evt =>
+            {
+                if (shouldBlockWheel != null && shouldBlockWheel())
+                {
+                    evt.StopImmediatePropagation();
+                    evt.PreventDefault();
+                    return;
+                }
+
+                var scroller = scroll.verticalScroller;
+                if (scroller == null || scroll.contentContainer == null)
+                {
+                    evt.StopImmediatePropagation();
+                    evt.PreventDefault();
+                    return;
+                }
+
+                const float scrollStep = 120f;
+                var delta = Mathf.Clamp(evt.delta.y, -1f, 1f);
+                var low = scroller.lowValue;
+                var high = scroller.highValue;
+                if ((double)high <= (double)low)
+                {
+                    var viewportHeight = scroll.contentViewport?.worldBound.height ?? 0f;
+                    var contentHeight = scroll.contentContainer.worldBound.height;
+                    if (viewportHeight > 0f && contentHeight > viewportHeight)
+                    {
+                        high = contentHeight - viewportHeight;
+                    }
+                }
+
+                if (high < low)
+                {
+                    high = low;
+                }
+
+                var target = Mathf.Clamp(scroller.value + delta * scrollStep, low, high);
+                scroller.value = target;
+                var offset = scroll.scrollOffset;
+                offset.y = target;
+                scroll.scrollOffset = offset;
+                onScrollChanged?.Invoke(target);
+                evt.StopImmediatePropagation();
+                evt.PreventDefault();
+            }, TrickleDown.TrickleDown);
+
+            return scroll;
+        }
+
+        // Logs scroll/geometry state for debugging scroll issues.
+        internal static void LogScrollState(string reason, ScrollView scrollView, VisualElement root = null, VisualElement wrapper = null)
+        {
+            if (scrollView == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var viewport = scrollView.contentViewport;
+                var content = scrollView.contentContainer;
+                var scroller = scrollView.verticalScroller;
+                var sb = new StringBuilder();
+                sb.Append("[UITK][Scroll] ").Append(reason)
+                  .Append($" rootH={(root?.layout.height ?? 0f):F1}")
+                  .Append($" wrapH={(wrapper?.layout.height ?? 0f):F1}")
+                  .Append($" scrollH={(scrollView.layout.height):F1}")
+                  .Append($" viewportH={(viewport?.layout.height ?? 0f):F1}")
+                  .Append($" contentH={(content?.layout.height ?? 0f):F1}")
+                  .Append($" children={content?.childCount ?? 0}")
+                  .Append($" scroller=({(scroller?.value ?? 0f):F1}/{(scroller?.highValue ?? 0f):F1})")
+                  .Append($" offset=({scrollView.scrollOffset.x:F1},{scrollView.scrollOffset.y:F1})");
+                Log.Write(sb.ToString());
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"[UITK][Scroll] Failed to log '{reason}': {e.Message}");
+            }
+        }
+
         internal static void ApplyDefaultFont(VisualElement element)
         {
             var font = WalletUiTheme.DefaultFont;
@@ -587,9 +944,23 @@ namespace Poltergeist.UiToolkit
 
         internal static string BuildNetworkLabel(string name, NexusKind kind)
         {
-            var source = string.IsNullOrWhiteSpace(name) ? kind.ToString() : name;
-            source = source.Replace("_", string.Empty).Replace(" ", string.Empty);
-            return $"[{source.ToUpperInvariant()}]";
+            switch (kind)
+            {
+                case NexusKind.Test_Net:
+                    return "[TESTNET]";
+                case NexusKind.Dev_Net:
+                    return "[DEVNET]";
+                case NexusKind.Local_Net:
+                    return "[LOCALNET]";
+                case NexusKind.Custom:
+                    {
+                        var source = string.IsNullOrWhiteSpace(name) ? "CUSTOM" : name;
+                        source = source.Replace("_", string.Empty).Replace(" ", string.Empty);
+                        return $"[{source.ToUpperInvariant()}]";
+                    }
+                default:
+                    return string.Empty;
+            }
         }
 
         internal static string BuildContextSubtitle(string label, string accountName, object platform)

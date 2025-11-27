@@ -34,6 +34,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly Action onShowBalances;
         private readonly Action onShowHistory;
         private readonly Action onShowAccount;
+        private readonly Action onShowSettings;
         private readonly Action onExit;
 
         private VisualElement root;
@@ -73,7 +74,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private SubHeaderElements subHeader;
         private List<Button> actionButtons = new List<Button>();
 
-        public WalletAccountView(VisualElement host, WalletApplicationContext context, IWalletAuthUi sharedAuthUi, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onExit)
+        public WalletAccountView(VisualElement host, WalletApplicationContext context, IWalletAuthUi sharedAuthUi, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             authService = context.AuthService ?? throw new ArgumentNullException(nameof(context.AuthService));
@@ -84,6 +85,7 @@ namespace Poltergeist.UiToolkit.Accounts
             this.onShowBalances = onShowBalances ?? throw new ArgumentNullException(nameof(onShowBalances));
             this.onShowHistory = onShowHistory ?? throw new ArgumentNullException(nameof(onShowHistory));
             this.onShowAccount = onShowAccount ?? (() => { });
+            this.onShowSettings = onShowSettings ?? throw new ArgumentNullException(nameof(onShowSettings));
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
 
             BuildLayout(host ?? throw new ArgumentNullException(nameof(host)));
@@ -349,7 +351,7 @@ namespace Poltergeist.UiToolkit.Accounts
             statusLabel.style.visibility = Visibility.Hidden;
             content.Add(statusLabel);
 
-            var footer = WalletUiCommon.BuildNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
+            var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
             content.Add(footer);
 
             root.Add(content);

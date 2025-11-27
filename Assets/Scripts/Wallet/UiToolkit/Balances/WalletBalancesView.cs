@@ -25,6 +25,7 @@ namespace Poltergeist.UiToolkit.Balances
         private readonly Action onShowBalances;
         private readonly Action onShowHistory;
         private readonly Action onShowAccount;
+        private readonly Action onShowSettings;
         private readonly Action onExit;
         private HeaderElements header;
         private SubHeaderElements subHeader;
@@ -43,7 +44,7 @@ namespace Poltergeist.UiToolkit.Balances
         private Button navAccount;
         private Button navExit;
 
-        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onExit)
+        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             presenter = context.BalancePresenter ?? throw new ArgumentNullException(nameof(context.BalancePresenter));
@@ -53,6 +54,7 @@ namespace Poltergeist.UiToolkit.Balances
             this.onShowBalances = onShowBalances ?? throw new ArgumentNullException(nameof(onShowBalances));
             this.onShowHistory = onShowHistory ?? throw new ArgumentNullException(nameof(onShowHistory));
             this.onShowAccount = onShowAccount ?? throw new ArgumentNullException(nameof(onShowAccount));
+            this.onShowSettings = onShowSettings ?? throw new ArgumentNullException(nameof(onShowSettings));
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
 
             BuildLayout(host);
@@ -70,39 +72,17 @@ namespace Poltergeist.UiToolkit.Balances
         private void BuildLayout(VisualElement host)
         {
             root = host ?? throw new ArgumentNullException(nameof(host));
-            root.style.flexDirection = FlexDirection.Column;
-            root.style.flexGrow = 1;
-            root.style.flexBasis = 0;
-            root.style.width = new Length(100, LengthUnit.Percent);
-            root.style.height = new Length(100, LengthUnit.Percent);
-            root.style.minHeight = 0;
+            root.Clear();
+            WalletUiCommon.ConfigureScreenRoot(root);
             root.style.backgroundColor = Color.clear;
             root.style.paddingLeft = 16;
             root.style.paddingRight = 16;
             root.style.paddingTop = 16;
             root.style.paddingBottom = 16;
             root.style.color = WalletUiTheme.TextPrimary;
-            root.style.alignItems = Align.Stretch;
-            root.style.overflow = Overflow.Hidden;
             ApplyDefaultFont(root);
 
-            var content = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Column,
-                    width = new Length(100, LengthUnit.Percent),
-                    maxWidth = 1680,
-                    alignSelf = Align.Center,
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0,
-                    paddingLeft = 8,
-                    paddingRight = 8
-                }
-            };
-            ApplyDefaultFont(content);
+            var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
             refreshButton.style.minWidth = 120;
@@ -177,98 +157,21 @@ namespace Poltergeist.UiToolkit.Balances
             statusLabel.style.visibility = Visibility.Hidden;
             content.Add(statusLabel);
 
-            listView = new ScrollView(ScrollViewMode.Vertical)
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0,
-                    backgroundColor = Color.clear,
-                    backgroundImage = new StyleBackground(),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
-                    borderTopLeftRadius = 0,
-                    borderTopRightRadius = 0,
-                    borderBottomLeftRadius = 0,
-                    borderBottomRightRadius = 0,
-                    borderLeftWidth = 0,
-                    borderRightWidth = 0,
-                    borderTopWidth = 0,
-                    borderBottomWidth = 0,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 8,
-                    paddingBottom = 80,
-                    marginTop = 6,
-                    marginBottom = 10,
-                    alignSelf = Align.Center,
-                    width = new Length(100, LengthUnit.Percent),
-                    maxWidth = 1680,
-                    overflow = Overflow.Hidden
-                }
-            };
-            listView.verticalScrollerVisibility = ScrollerVisibility.Auto;
-            if (listView.verticalScroller != null)
-            {
-                listView.verticalScroller.valueChanged += v => viewState.ScrollY = v;
-            }
-            // Manual wheel handling avoids UITK ScrollView.ReadSingleLineHeight null refs and keeps scrolling above the footer.
-            listView.RegisterCallback<WheelEvent>(evt =>
-            {
-                var scroller = listView.verticalScroller;
-                if (scroller == null || listView.contentContainer == null)
-                {
-                    evt.StopImmediatePropagation();
-                    evt.PreventDefault();
-                    return;
-                }
-
-                const float scrollStep = 120f;
-                var delta = Mathf.Clamp(evt.delta.y, -1f, 1f);
-                var low = scroller.lowValue;
-                var high = scroller.highValue;
-                if ((double)high <= (double)low)
-                {
-                    var viewportHeight = listView.contentViewport?.worldBound.height ?? 0f;
-                    var contentHeight = listView.contentContainer.worldBound.height;
-                    if (viewportHeight > 0f && contentHeight > viewportHeight)
-                    {
-                        high = contentHeight - viewportHeight;
-                    }
-                }
-
-                if (high < low)
-                {
-                    high = low;
-                }
-
-                var target = Mathf.Clamp(scroller.value + delta * scrollStep, low, high);
-                scroller.value = target;
-                var offset = listView.scrollOffset;
-                offset.y = target;
-                listView.scrollOffset = offset;
-                evt.StopImmediatePropagation();
-                evt.PreventDefault();
-            }, TrickleDown.TrickleDown);
-            // Keep the scroll view from pushing the footer off-screen (same fix as accounts list).
-            var listWrapper = new VisualElement
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0,
-                    flexDirection = FlexDirection.Column,
-                    overflow = Overflow.Hidden
-                }
-            };
-            listWrapper.Add(listView);
-            ApplyDefaultFont(listView);
+            var listWrapper = WalletUiCommon.BuildListSection(
+                out listView,
+                v => viewState.ScrollY = v,
+                shouldBlockWheel: null,
+                paddingLeft: 8f,
+                paddingRight: 8f,
+                paddingTop: 8f,
+                paddingBottom: 80f,
+                marginTop: 6f,
+                marginBottom: 10f,
+                maxWidth: 1680f,
+                alignSelf: Align.Center);
             content.Add(listWrapper);
 
-            var footer = WalletUiCommon.BuildNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
+            var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
             content.Add(footer);
 
             root.Add(content);

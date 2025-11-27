@@ -50,5 +50,11 @@ namespace Poltergeist.Wallet
         public event Action<PlatformKind> HistoryUpdated;
         public event Action<PlatformKind, string> NftsRefreshStarted;
         public event Action<PlatformKind> HistoryRefreshStarted;
+        public event Action SettingsChanged;
+
+        public void RaiseSettingsChanged()
+        {
+            SettingsChanged?.Invoke();
+        }
     }
 }

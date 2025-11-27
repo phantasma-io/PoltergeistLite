@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using System.IO;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist.Build;
 using System.Threading.Tasks;
@@ -12,7 +13,12 @@ namespace Poltergeist.Wallet
     public static class WalletRuntime
     {
         private static readonly object Sync = new object();
+        private const string DefaultLogFileName = "poltergeist.log";
         private static bool _initialized;
+        private static bool _logForceWorkingFolderUsage;
+        private static Log.Level _logLevel;
+        private static bool _logOverwrite;
+        private static bool _unityLogHooked;
 
         public static Settings Settings { get; private set; }
         public static string StartupError { get; private set; }
@@ -50,9 +56,9 @@ namespace Poltergeist.Wallet
                     settings.LoadLogSettings();
 
                     var args = Environment.GetCommandLineArgs();
-                    var logLevel = settings.logLevel;
-                    var logOverwrite = settings.logOverwriteMode;
-                    var logForceWorkingFolderUsage = false;
+                    _logLevel = settings.logLevel;
+                    _logOverwrite = settings.logOverwriteMode;
+                    _logForceWorkingFolderUsage = false;
 
                     for (int i = 0; i < args.Length; i++)
                     {
@@ -62,7 +68,7 @@ namespace Poltergeist.Wallet
                                 {
                                     if (i + 1 < args.Length)
                                     {
-                                        Enum.TryParse<Log.Level>(args[i + 1], true, out logLevel);
+                                        Enum.TryParse<Log.Level>(args[i + 1], true, out _logLevel);
                                     }
 
                                     break;
@@ -70,18 +76,20 @@ namespace Poltergeist.Wallet
 
                             case "--log-force-working-folder-usage":
                                 {
-                                    logForceWorkingFolderUsage = true;
+                                    _logForceWorkingFolderUsage = true;
                                     break;
                                 }
                         }
                     }
 
-                    Log.Init("poltergeist.log", logLevel, logForceWorkingFolderUsage, logOverwrite);
+                    var logFilePath = ResolveLogFilePath(settings);
+                    Log.Init(logFilePath, _logLevel, _logForceWorkingFolderUsage, _logOverwrite);
+                    EnsureUnityLogHook();
                     Log.Write("********************************************************\n" +
                                "************** Poltergeist Wallet started **************\n" +
                                "********************************************************\n" +
                                "Wallet version: " + Application.version + $" built on: {Info.Instance.BuildTime} UTC\n" +
-                               "Log level: " + logLevel);
+                               "Log level: " + _logLevel);
 
                     Settings = settings;
                     RegisterGlobalExceptionHandlers();
@@ -97,6 +105,69 @@ namespace Poltergeist.Wallet
                     _initialized = true;
                 }
             }
+        }
+
+        private static void EnsureUnityLogHook()
+        {
+            if (_unityLogHooked)
+            {
+                return;
+            }
+
+            Application.logMessageReceived += OnUnityLogMessageReceived;
+            Application.logMessageReceivedThreaded += OnUnityLogMessageReceived;
+            _unityLogHooked = true;
+        }
+
+        private static void OnUnityLogMessageReceived(string condition, string stackTrace, LogType type)
+        {
+            try
+            {
+                const string prefix = "[Unity]";
+                switch (type)
+                {
+                    case LogType.Error:
+                    case LogType.Exception:
+                    case LogType.Assert:
+                        Log.WriteWarning($"{prefix} {type}: {condition}\n{stackTrace}");
+                        break;
+                    case LogType.Warning:
+                        Log.WriteWarning($"{prefix} Warning: {condition}");
+                        break;
+                    default:
+                        Log.Write($"{prefix} {type}: {condition}");
+                        break;
+                }
+            }
+            catch
+            {
+                // Avoid recursive failures while logging Unity messages.
+            }
+        }
+
+        private static string ResolveLogFilePath(Settings settings)
+        {
+            var logFilePath = DefaultLogFileName;
+            if (settings == null)
+            {
+                return logFilePath;
+            }
+
+            if (!string.IsNullOrWhiteSpace(settings.logFolderPath))
+            {
+                var customFolder = settings.logFolderPath.Trim();
+                try
+                {
+                    Directory.CreateDirectory(customFolder);
+                    logFilePath = Path.Combine(customFolder, DefaultLogFileName);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning($"[Startup] Failed to use custom log folder '{settings.logFolderPath}': {e.Message}");
+                }
+            }
+
+            return logFilePath;
         }
 
         private static void RegisterGlobalExceptionHandlers()
@@ -128,6 +199,30 @@ namespace Poltergeist.Wallet
             catch
             {
                 // ignore logging failures
+            }
+        }
+
+        public static void ReconfigureLogging(Settings settings)
+        {
+            if (!_initialized || settings == null)
+            {
+                return;
+            }
+
+            lock (Sync)
+            {
+                _logLevel = settings.logLevel;
+                _logOverwrite = settings.logOverwriteMode;
+                var logFilePath = ResolveLogFilePath(settings);
+                try
+                {
+                    Log.Init(logFilePath, _logLevel, _logForceWorkingFolderUsage, _logOverwrite);
+                    Log.Write($"[Startup] Log path set to '{logFilePath}'");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[Startup] Failed to reconfigure logging: {e}");
+                }
             }
         }
     }

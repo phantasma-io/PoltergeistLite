@@ -19,12 +19,14 @@ using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.NFT.Extensions;
 using PhantasmaPhoenix.Core.Extensions;
 using Poltergeist.Wallet;
+using Poltergeist.UiToolkit;
 
 namespace Poltergeist
 {
     public partial class WalletGUI : MonoBehaviour, IWalletTransactionUi, IWalletUiBridge, IWalletAuthUi
     {
         private static WalletApplicationContext SharedContext => WalletApplicationContext.Instance;
+        private static WalletGUI activeInstance;
 
         public Font monoFont;
         public RawImage background;
@@ -216,6 +218,16 @@ namespace Poltergeist
 
         private void Awake()
         {
+            // Enforce single legacy UI instance to avoid double rendering overlaps.
+            if (activeInstance != null && activeInstance != this)
+            {
+                Debug.LogWarning($"[LegacyUI] Duplicate WalletGUI detected (id={GetInstanceID()}), destroying this instance.");
+                Destroy(gameObject);
+                return;
+            }
+
+            activeInstance = this;
+            DontDestroyOnLoad(gameObject);
             try
             {
                 Instance = this;
@@ -872,6 +884,16 @@ namespace Poltergeist
 
         void OnGUI()
         {
+            if (activeInstance != this)
+            {
+                return;
+            }
+            // Skip legacy IMGUI rendering when UITK is active to avoid overlapping layouts.
+            if (WalletUiToolkitRoot.IsActive)
+            {
+                return;
+            }
+
             var scaleX = Screen.width / (float)virtualWidth;
             var scaleY = Screen.height / (float)virtualHeight;
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scaleX, scaleY, 1.0f));
@@ -988,6 +1010,14 @@ namespace Poltergeist
         void OnApplicationQuit()
         {
             AccountManager.Instance.Settings.SaveOnExit();
+        }
+
+        private void OnDestroy()
+        {
+            if (activeInstance == this)
+            {
+                activeInstance = null;
+            }
         }
 
         private string GetNetworkBadge()
