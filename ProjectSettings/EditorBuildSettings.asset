@@ -9,3 +9,4 @@ EditorBuildSettings:
     path: Assets/Main.unity
     guid: e0ce8d09bb5bf0a4289e0618de46be94
   m_configObjects: {}
+  m_UseUCBPForAssetBundles: 0
