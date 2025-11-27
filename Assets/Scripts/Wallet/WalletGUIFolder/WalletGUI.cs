@@ -2576,10 +2576,14 @@ namespace Poltergeist
                 mainAction = "Send";
             }
 
-            // TODO remove NFT check later
-            // NFT transfers are currently unavailable
             Tokens.GetToken(balance.Symbol, accountManager.CurrentPlatform, out var transferToken0);
-            DoButton(mainActionEnabled && !(!transferToken0.IsFungible() && !accountManager.Settings.devMode), new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
+
+            var allowTransferAction = transferToken0.IsFungible()
+                || accountManager.Settings.devMode
+                || accountManager.Settings.nexusKind == NexusKind.Test_Net
+                || accountManager.Settings.nexusKind == NexusKind.Dev_Net; // NFT transfers enabled on test/dev nets or dev mode; fungible transfers always allowed.
+
+            DoButton(mainActionEnabled && allowTransferAction, new Rect(rect.x + rect.width - (Units(6) + 8), curY + btnY, Units(4) + 8, Units(2)), mainAction, () =>
             {
                 if (mainAction == "Send")
                 {
