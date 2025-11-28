@@ -51,6 +51,7 @@ namespace Poltergeist.UiToolkit.Settings
         private PopupField<string> logLevelDropdown;
         private PopupField<string> uiThemeDropdown;
         private TextField logFolderPathField;
+        private Label defaultEndpointInfoLabel;
         private TextField rpcUrlField;
         private TextField explorerUrlField;
         private TextField nftExplorerUrlField;
@@ -80,6 +81,13 @@ namespace Poltergeist.UiToolkit.Settings
         private VisualElement scriptlessGasRow;
         private VisualElement scriptlessDataRow;
         private Button deleteEverythingButton;
+        private VisualElement tabsBar;
+        private VisualElement tabContent;
+        private readonly Dictionary<string, VisualElement> tabs = new Dictionary<string, VisualElement>();
+        private readonly Dictionary<string, Button> tabButtons = new Dictionary<string, Button>();
+        private readonly Dictionary<string, string> tabLabels = new Dictionary<string, string>();
+        private readonly List<string> tabOrder = new List<string>();
+        private string activeTabKey;
         private VisualElement generalSection;
         private VisualElement endpointsSection;
         private VisualElement feesSection;
@@ -87,6 +95,7 @@ namespace Poltergeist.UiToolkit.Settings
         private VisualElement advancedSection;
         private VisualElement actionsContainer;
         private VisualElement scrollWrapper;
+        private VisualElement bodyContainer;
 
         // Modal UI
         private VisualElement modalOverlay;
@@ -231,6 +240,21 @@ namespace Poltergeist.UiToolkit.Settings
             headerBlock.Root.style.flexShrink = 0;
             content.Add(headerBlock.Root);
 
+            bodyContainer = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    justifyContent = Justify.SpaceBetween,
+                    alignItems = Align.Stretch
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(bodyContainer);
+
             scrollWrapper = WalletUiCommon.BuildScrollContainer(
                 out scrollView,
                 v => viewState.ScrollY = v,
@@ -248,17 +272,22 @@ namespace Poltergeist.UiToolkit.Settings
             LogScrollState("init-scrollview");
 
             BuildForm(scrollView);
-            // Layout notes:
-            // - We wrap the ScrollView in a flex container with minHeight=0 and overflow=Hidden so UITK does not let the form push past the footer.
-            // - Actions (utilities + dev tools) live outside the ScrollView; if they are inside, the form steals their space and they get clipped.
-            // - Keeping the ScrollView as the sole flexGrow child avoids shrinking rows: the wrapper owns the available height, ScrollView scrolls overflow.
-            // If you see overlap again, ensure: (1) scrollWrapper has minHeight=0, (2) scrollView is not sharing flexGrow with other siblings inside the same column.
-            content.Add(scrollWrapper);
+            if (tabsBar != null)
+            {
+                tabsBar.style.alignSelf = Align.Center;
+                tabsBar.style.width = new Length(100, LengthUnit.Percent);
+                tabsBar.style.maxWidth = 1680;
+                tabsBar.style.marginTop = 12;
+                tabsBar.style.flexShrink = 0;
+                bodyContainer.Add(tabsBar);
+            }
+            bodyContainer.Add(scrollWrapper);
             if (actionsContainer != null)
             {
                 actionsContainer.style.marginTop = 12;
-                content.Add(actionsContainer);
+                bodyContainer.Add(actionsContainer);
             }
+            content.Add(bodyContainer);
 
             statusLabel = new Label
             {
@@ -313,7 +342,21 @@ namespace Poltergeist.UiToolkit.Settings
                 }
             };
             WalletUiCommon.ApplyDefaultFont(warningLabel);
-            var form = new VisualElement
+            tabsBar = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.FlexStart,
+                    marginTop = 8,
+                    marginBottom = 12,
+                    width = new Length(100, LengthUnit.Percent)
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(tabsBar);
+
+            tabContent = new VisualElement
             {
                 style =
                 {
@@ -329,9 +372,6 @@ namespace Poltergeist.UiToolkit.Settings
                     minHeight = 520,
                     flexGrow = 0,
                     flexShrink = 0,
-                    // Critical: keeping flexGrow/flexShrink at 0 prevents UITK from shrinking rows beyond their minHeight.
-                    // With flexGrow=1 the container steals height when content exceeds viewport, child rows shrink and overlap.
-                    // Instead, let ScrollView handle overflow while the form preserves natural row heights.
                     backgroundColor = WalletUiTheme.PanelBackground,
                     backgroundImage = new StyleBackground(WalletUiTheme.GetPanelGradientTexture()),
                     unityBackgroundScaleMode = ScaleMode.StretchToFill,
@@ -349,12 +389,11 @@ namespace Poltergeist.UiToolkit.Settings
                     borderBottomColor = WalletUiTheme.CardBorder
                 }
             };
-            WalletUiCommon.ApplyDefaultFont(form);
-            form.Add(warningLabel);
+            WalletUiCommon.ApplyDefaultFont(tabContent);
+            tabContent.Add(warningLabel);
 
             generalSection = WalletUiFormFactory.CreateFormSection("General");
             currencyDropdown = WalletUiFormFactory.CreateDropdown("Currency", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetCurrencyIndex(idx)));
-            nexusDropdown = WalletUiFormFactory.CreateDropdown("Nexus", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetNexusIndex(idx), true));
             mnemonicDropdown = WalletUiFormFactory.CreateDropdown("Seed length", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetMnemonicIndex(idx)));
             passwordModeDropdown = WalletUiFormFactory.CreateDropdown("Password mode", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetPasswordModeIndex(idx)));
             logLevelDropdown = WalletUiFormFactory.CreateDropdown("Log level", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetLogLevelIndex(idx)));
@@ -362,15 +401,15 @@ namespace Poltergeist.UiToolkit.Settings
             logFolderPathField = WalletUiFormFactory.CreateTextField("Log folder path (optional)", string.Empty, value => OnChanged(() => presenter.SetLogFolderPath(value)));
 
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Currency", currencyDropdown));
-            generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Nexus", nexusDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Seed length", mnemonicDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Password mode", passwordModeDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log level", logLevelDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("UI Theme", uiThemeDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log folder path", logFolderPathField, "Leave empty to use default log location"));
-            form.Add(generalSection);
+            AddTabSection("general", "General", generalSection);
 
-            endpointsSection = WalletUiFormFactory.CreateFormSection("Endpoints");
+            endpointsSection = WalletUiFormFactory.CreateFormSection("Chain & Endpoints");
+            nexusDropdown = WalletUiFormFactory.CreateDropdown("Nexus", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetNexusIndex(idx), true));
             rpcUrlField = WalletUiFormFactory.CreateTextField("Phantasma RPC URL", string.Empty, value => OnChanged(() => presenter.SetPhantasmaRpcUrl(value)));
             explorerUrlField = WalletUiFormFactory.CreateTextField("Phantasma Explorer URL", string.Empty, value => OnChanged(() => presenter.SetPhantasmaExplorerUrl(value)));
             nftExplorerUrlField = WalletUiFormFactory.CreateTextField("Phantasma NFT URL", string.Empty, value => OnChanged(() => presenter.SetPhantasmaNftExplorerUrl(value)));
@@ -381,30 +420,42 @@ namespace Poltergeist.UiToolkit.Settings
             nftExplorerRow = WalletUiFormFactory.CreateLabeledRow("Phantasma NFT URL", nftExplorerUrlField);
             poaUrlRow = WalletUiFormFactory.CreateLabeledRow("Phantasma POA URL", poaUrlField);
             nexusNameRow = WalletUiFormFactory.CreateLabeledRow("Nexus Name", nexusNameField);
+            defaultEndpointInfoLabel = new Label("Using default endpoints for the selected network.")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 12,
+                    unityFontStyleAndWeight = FontStyle.Normal,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(defaultEndpointInfoLabel);
+            endpointsSection.Add(WalletUiFormFactory.CreateLabeledRow("Nexus", nexusDropdown));
             endpointsSection.Add(rpcUrlRow);
             endpointsSection.Add(explorerUrlRow);
             endpointsSection.Add(nftExplorerRow);
             endpointsSection.Add(poaUrlRow);
             endpointsSection.Add(nexusNameRow);
-            form.Add(endpointsSection);
+            endpointsSection.Add(defaultEndpointInfoLabel);
+            AddTabSection("chain", "Chain", endpointsSection);
 
-            feesSection = WalletUiFormFactory.CreateFormSection("Fees & Display");
+            feesSection = WalletUiFormFactory.CreateFormSection("Fees");
             feePriceField = WalletUiFormFactory.CreateTextField("Phantasma fee price", string.Empty, value => OnChanged(() => presenter.SetFeePrice(value)));
             feeLimitField = WalletUiFormFactory.CreateTextField("Phantasma fee limit", string.Empty, value => OnChanged(() => presenter.SetFeeLimit(value)));
-            balanceThresholdField = WalletUiFormFactory.CreateTextField("Balance display threshold", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayThreshold(value)));
-            balancePrecisionField = WalletUiFormFactory.CreateTextField("Balance display precision", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayPrecision(value)));
             feesSection.Add(WalletUiFormFactory.CreateLabeledRow("Phantasma fee price", feePriceField));
             feesSection.Add(WalletUiFormFactory.CreateLabeledRow("Phantasma fee limit", feeLimitField));
-            feesSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display threshold", balanceThresholdField));
-            feesSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display precision", balancePrecisionField));
-            form.Add(feesSection);
+            AddTabSection("fees", "Fees", feesSection);
 
-            performanceSection = WalletUiFormFactory.CreateFormSection("Performance");
+            performanceSection = WalletUiFormFactory.CreateFormSection("Display & Performance");
             framerateField = WalletUiFormFactory.CreateTextField("UI framerate (-1 for default)", string.Empty, value => OnChanged(() => presenter.SetUiFramerate(value)));
             windowWidthField = WalletUiFormFactory.CreateTextField("Initial window width", string.Empty, value => OnChanged(() => presenter.SetInitialWindowWidth(value)));
             windowHeightField = WalletUiFormFactory.CreateTextField("Initial window height", string.Empty, value => OnChanged(() => presenter.SetInitialWindowHeight(value)));
             scriptlessGasField = WalletUiFormFactory.CreateTextField("Scriptless max gas", string.Empty, value => OnChanged(() => presenter.SetScriptlessMaxGas(value)));
             scriptlessDataField = WalletUiFormFactory.CreateTextField("Scriptless max data", string.Empty, value => OnChanged(() => presenter.SetScriptlessMaxData(value)));
+            balanceThresholdField = WalletUiFormFactory.CreateTextField("Balance display threshold", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayThreshold(value)));
+            balancePrecisionField = WalletUiFormFactory.CreateTextField("Balance display precision", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayPrecision(value)));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI framerate (-1 for default)", framerateField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window width", windowWidthField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window height", windowHeightField));
@@ -412,7 +463,9 @@ namespace Poltergeist.UiToolkit.Settings
             scriptlessDataRow = WalletUiFormFactory.CreateLabeledRow("Scriptless max data", scriptlessDataField);
             performanceSection.Add(scriptlessGasRow);
             performanceSection.Add(scriptlessDataRow);
-            form.Add(performanceSection);
+            performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display threshold", balanceThresholdField));
+            performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display precision", balancePrecisionField));
+            AddTabSection("display", "Display", performanceSection);
 
             advancedSection = WalletUiFormFactory.CreateFormSection("Advanced");
             logOverwriteToggle = WalletUiFormFactory.CreateToggle("Log overwrite mode", false, value => OnChanged(() => presenter.SetLogOverwriteMode(value)));
@@ -425,11 +478,13 @@ namespace Poltergeist.UiToolkit.Settings
             preferScriptlessRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, preferScriptlessToggle);
             advancedSection.Add(devNoValidationRow);
             advancedSection.Add(preferScriptlessRow);
-            form.Add(advancedSection);
+            AddTabSection("advanced", "Advanced", advancedSection);
 
-            scroll.Add(form);
+            BuildTabsBar();
+            tabContent.style.marginTop = 10;
+            scroll.Add(tabContent);
             scroll.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-content-container-geometry", scrollView, root, scrollWrapper));
-            form.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-form-geometry", scrollView, root, scrollWrapper));
+            tabContent.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-form-geometry", scrollView, root, scrollWrapper));
 
             actionsContainer = new VisualElement
             {
@@ -457,7 +512,7 @@ namespace Poltergeist.UiToolkit.Settings
             utilitiesRow.style.marginBottom = 12;
             actionsContainer.Add(utilitiesRow);
 
-            devToolsSection = WalletUiFormFactory.CreateFormSection("Developer tools");
+            devToolsSection = WalletUiFormFactory.CreateFormSection("Tools");
             devToolsSection.style.marginTop = 32;
             devToolsSection.style.marginBottom = 18;
             devToolsSection.style.paddingTop = 14;
@@ -482,7 +537,7 @@ namespace Poltergeist.UiToolkit.Settings
             );
             devToolsSection.Add(devRow1);
             devToolsSection.Add(devRow2);
-            actionsContainer.Add(devToolsSection);
+            AddTabSection("advanced", devToolsSection);
 
             ApplyDebugLayout();
         }
@@ -491,6 +546,7 @@ namespace Poltergeist.UiToolkit.Settings
         {
             if (!ShowOnlyFirstSettingsField)
             {
+                ActivateTab(string.IsNullOrEmpty(activeTabKey) ? "general" : activeTabKey);
                 return;
             }
 
@@ -567,13 +623,129 @@ namespace Poltergeist.UiToolkit.Settings
             }
         }
 
+        private void AddTabSection(string key, string label, VisualElement section)
+        {
+            if (string.IsNullOrWhiteSpace(key) || section == null)
+            {
+                return;
+            }
+
+            if (!tabs.TryGetValue(key, out var container))
+            {
+                container = new VisualElement
+                {
+                    style =
+                    {
+                        flexDirection = FlexDirection.Column,
+                        width = new Length(100, LengthUnit.Percent),
+                        alignSelf = Align.Stretch
+                    }
+                };
+                WalletUiCommon.ApplyDefaultFont(container);
+                tabs[key] = container;
+                tabLabels[key] = label ?? key;
+                tabOrder.Add(key);
+                tabContent.Add(container);
+            }
+
+            container.Add(section);
+        }
+
+        private void AddTabSection(string key, VisualElement section)
+        {
+            var label = tabLabels.TryGetValue(key, out var existing) ? existing : key;
+            AddTabSection(key, label, section);
+        }
+
+        private void BuildTabsBar()
+        {
+            tabsBar.Clear();
+            tabButtons.Clear();
+            foreach (var key in tabOrder)
+            {
+                if (!tabLabels.TryGetValue(key, out var label))
+                {
+                    continue;
+                }
+
+                var btn = new Button(() => ActivateTab(key))
+                {
+                    text = label,
+                    style =
+                    {
+                        backgroundColor = WalletUiTheme.CardBackground,
+                        color = WalletUiTheme.TextPrimary,
+                        unityFontStyleAndWeight = FontStyle.Bold,
+                        fontSize = 15,
+                        paddingLeft = 14,
+                        paddingRight = 14,
+                        paddingTop = 8,
+                        paddingBottom = 8,
+                        minHeight = 36,
+                        marginRight = 8,
+                        borderTopLeftRadius = WalletUiTheme.RadiusSmall,
+                        borderTopRightRadius = WalletUiTheme.RadiusSmall,
+                        borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
+                        borderBottomRightRadius = WalletUiTheme.RadiusSmall,
+                        borderLeftWidth = 1,
+                        borderRightWidth = 1,
+                        borderTopWidth = 1,
+                        borderBottomWidth = 1,
+                        borderLeftColor = WalletUiTheme.CardBorder,
+                        borderRightColor = WalletUiTheme.CardBorder,
+                        borderTopColor = WalletUiTheme.HighlightEdge,
+                        borderBottomColor = WalletUiTheme.CardBorder
+                    }
+                };
+                WalletUiCommon.ApplyDefaultFont(btn);
+                btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+                tabButtons[key] = btn;
+                tabsBar.Add(btn);
+            }
+
+            if (string.IsNullOrEmpty(activeTabKey) && tabOrder.Count > 0)
+            {
+                ActivateTab(tabOrder[0]);
+            }
+            else
+            {
+                ActivateTab(activeTabKey);
+            }
+        }
+
+        private void ActivateTab(string key)
+        {
+            if (string.IsNullOrEmpty(key) || !tabs.ContainsKey(key))
+            {
+                return;
+            }
+
+            activeTabKey = key;
+            foreach (var kv in tabs)
+            {
+                kv.Value.style.display = kv.Key == key ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            foreach (var kv in tabButtons)
+            {
+                var isActive = kv.Key == key;
+                kv.Value.style.backgroundColor = isActive ? WalletUiTheme.SecondaryButton : WalletUiTheme.CardBackground;
+                kv.Value.style.color = isActive ? Color.white : WalletUiTheme.TextPrimary;
+                var border = isActive ? WalletUiTheme.SecondaryButtonBorder : WalletUiTheme.CardBorder;
+                kv.Value.style.borderLeftColor = border;
+                kv.Value.style.borderRightColor = border;
+                kv.Value.style.borderTopColor = isActive ? WalletUiTheme.SecondaryButtonBorder : WalletUiTheme.HighlightEdge;
+                kv.Value.style.borderBottomColor = border;
+            }
+        }
+
         private VisualElement BuildSettingsFooter()
         {
             return WalletUiCommon.BuildFooter(
                 out _,
                 ("Display settings", OnCopyDisplaySettings),
                 ("Log folder", OnShowLogLocation),
-                ("Cancel", OnCancelChanges),
+                ("Revert", OnCancelChanges),
                 ("Apply", OnApplySettings)
             );
         }
@@ -611,35 +783,40 @@ namespace Poltergeist.UiToolkit.Settings
 
             if (!ShowOnlyFirstSettingsField)
             {
-                if (rpcUrlRow != null)
-                {
-                    rpcUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                    rpcUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                }
+            if (rpcUrlRow != null)
+            {
+                rpcUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                rpcUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
-                if (explorerUrlRow != null)
-                {
-                    explorerUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                    explorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                }
+            if (explorerUrlRow != null)
+            {
+                explorerUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                explorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
-                if (nftExplorerRow != null)
-                {
-                    nftExplorerRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                    nftExplorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                }
+            if (nftExplorerRow != null)
+            {
+                nftExplorerRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                nftExplorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
-                if (poaUrlRow != null)
-                {
-                    poaUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                    poaUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                }
+            if (poaUrlRow != null)
+            {
+                poaUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                poaUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+            }
 
-                if (nexusNameRow != null)
-                {
-                    nexusNameRow.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
-                    nexusNameField.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
-                }
+            if (nexusNameRow != null)
+            {
+                nexusNameRow.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
+                nexusNameField.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (defaultEndpointInfoLabel != null)
+            {
+                defaultEndpointInfoLabel.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.None : DisplayStyle.Flex;
+            }
             }
 
             ToggleDevVisibility(snapshot.DevMode);
