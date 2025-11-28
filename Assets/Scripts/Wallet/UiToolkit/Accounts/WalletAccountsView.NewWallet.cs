@@ -622,23 +622,6 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        // Awaitable wrapper over the callback-based modal to keep new wallet flows linear and readable.
-        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
-        {
-            var tcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ShowModal(title, caption, minLength, maxLength, (result, input) => tcs.TrySetResult((result, input)), isError, showInput, isPassword, multiline, primaryLabel, secondaryLabel, initialValue);
-            return tcs.Task;
-        }
-
-        private async Task ShowErrorAsync(string message, string statusAfterClose = null)
-        {
-            await ShowModalAsync("Error", message, 0, 0, isError: true, showInput: false, isPassword: false, primaryLabel: "Close", secondaryLabel: "Cancel");
-            if (!string.IsNullOrWhiteSpace(statusAfterClose))
-            {
-                SetStatus(statusAfterClose);
-            }
-        }
-
         private void ResetNewWalletState()
         {
             newWalletSeedPhrase = null;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
@@ -733,6 +734,22 @@ namespace Poltergeist.UiToolkit.Accounts
                 modalCallback = null;
             }
             Log.Write($"{LogPrefix}HideModal complete. modal children={modalOverlay.childCount} listEnabled={list?.enabledSelf} listVisible={list?.visible}");
+        }
+
+        protected Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
+        {
+            var tcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ShowModal(title, caption, minLength, maxLength, (result, input) => tcs.TrySetResult((result, input)), isError, showInput, isPassword, multiline, primaryLabel, secondaryLabel, initialValue);
+            return tcs.Task;
+        }
+
+        protected async Task ShowErrorAsync(string message, string statusAfterClose = null)
+        {
+            await ShowModalAsync("Error", message, 0, 0, isError: true, showInput: false, isPassword: false, primaryLabel: "Close", secondaryLabel: "Cancel");
+            if (!string.IsNullOrWhiteSpace(statusAfterClose))
+            {
+                SetStatus(statusAfterClose);
+            }
         }
 
         private void ApplyDefaultFont(VisualElement element)

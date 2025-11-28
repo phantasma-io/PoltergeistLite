@@ -64,8 +64,8 @@ namespace Poltergeist.UiToolkit.Accounts
         private TextField modalInput;
         private Button modalPrimary;
         private Button modalSecondary;
-        private Action<PromptResult, string> modalCallback;
-        private Action<string> chainPickerCallback;
+        private TaskCompletionSource<(PromptResult result, string input)> modalTcs;
+        private TaskCompletionSource<string> chainPickerTcs;
         private int modalMinLength;
         private int modalMaxLength;
         private bool modalHasInput;
@@ -511,7 +511,7 @@ namespace Poltergeist.UiToolkit.Accounts
             };
         }
 
-        private void ExportWif()
+        private async void ExportWif()
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
@@ -520,29 +520,27 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            authService.RequestPassword("Export private key (WIF)", accountManager.CurrentPlatform, true, false, sharedAuthUi, result =>
+            var authorized = await RequirePasswordAsync("Export private key (WIF)", ignoreStoredPassword: true);
+            if (!authorized)
             {
-                if (result != PromptResult.Success)
-                {
-                    SetStatus("Password required to export key.");
-                    return;
-                }
+                SetStatus("Password required to export key.");
+                return;
+            }
 
-                try
-                {
-                    var wif = accountManager.CurrentWif;
-                    ShowCopyPanel("Your private key (WIF)", "Never share this key. It provides full access to your wallet.", wif, "WIF copied to clipboard.");
-                    SetStatus("WIF ready to copy.");
-                }
-                catch (Exception e)
-                {
-                    SetStatus("Failed to export WIF.");
-                    Log.WriteWarning($"{LogPrefix}ExportWif failed: {e}");
-                }
-            }, ignoreStoredPassword: true);
+            try
+            {
+                var wif = accountManager.CurrentWif;
+                ShowCopyPanel("Your private key (WIF)", "Never share this key. It provides full access to your wallet.", wif, "WIF copied to clipboard.");
+                SetStatus("WIF ready to copy.");
+            }
+            catch (Exception e)
+            {
+                SetStatus("Failed to export WIF.");
+                Log.WriteWarning($"{LogPrefix}ExportWif failed: {e}");
+            }
         }
 
-        private void ExportHex()
+        private async void ExportHex()
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
@@ -551,43 +549,40 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            authService.RequestPassword("Export private key (HEX)", accountManager.CurrentPlatform, true, false, sharedAuthUi, result =>
+            var authorized = await RequirePasswordAsync("Export private key (HEX)", ignoreStoredPassword: true);
+            if (!authorized)
             {
-                if (result != PromptResult.Success)
-                {
-                    SetStatus("Password required to export key.");
-                    return;
-                }
+                SetStatus("Password required to export key.");
+                return;
+            }
 
-                try
-                {
-                    var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
-                    var hexKey = HexByteConvertorExtensions.ToHex(keys.PrivateKey);
-                    ShowCopyPanel("Your private key (HEX)", "Never share this key. It provides full access to your wallet.", hexKey, "HEX key copied to clipboard.");
-                    SetStatus("HEX key ready to copy.");
-                }
-                catch (Exception e)
-                {
-                    SetStatus("Failed to export HEX key.");
-                    Log.WriteWarning($"{LogPrefix}ExportHex failed: {e}");
-                }
-            }, ignoreStoredPassword: true);
+            try
+            {
+                var keys = EthereumKey.FromWIF(accountManager.CurrentWif);
+                var hexKey = HexByteConvertorExtensions.ToHex(keys.PrivateKey);
+                ShowCopyPanel("Your private key (HEX)", "Never share this key. It provides full access to your wallet.", hexKey, "HEX key copied to clipboard.");
+                SetStatus("HEX key ready to copy.");
+            }
+            catch (Exception e)
+            {
+                SetStatus("Failed to export HEX key.");
+                Log.WriteWarning($"{LogPrefix}ExportHex failed: {e}");
+            }
         }
 
-        private void OnMigrate()
+        private async void OnMigrate()
         {
-            ShowModal("Account migration", "Insert WIF of the target account", 32, 128, result =>
+            var wifPrompt = await ShowModalAsync("Account migration", "Insert WIF of the target account", 32, 128, allowEmpty: false);
+            if (wifPrompt.result != PromptResult.Success)
             {
-                if (result.result != PromptResult.Success)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var wif = result.input;
-                var accountManager = AccountManager.Instance;
-                if (accountManager == null || accountManager.CurrentState == null)
-                {
-                    SetStatus("Account is not ready.");
+            var wif = wifPrompt.input;
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null || accountManager.CurrentState == null)
+            {
+                SetStatus("Account is not ready.");
                 return;
             }
 
@@ -597,43 +592,44 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 SetStatus("Provide a different target WIF.");
                 return;
-                }
+            }
 
-                var plan = accountAdminService.BuildMigrateDraft(newKeys.Address);
-                if (!plan.Success)
-                {
-                    SetStatus(plan.Error);
-                    return;
-                }
+            var plan = accountAdminService.BuildMigrateDraft(newKeys.Address);
+            if (!plan.Success)
+            {
+                SetStatus(plan.Error);
+                return;
+            }
 
-                ShowModal("Confirm migration", $"Migrate this account to target address?\n{newKeys.Address.Text}\n\nEnsure both old and new keys are backed up before proceeding.", 0, 0, confirmResult =>
-                {
-                    if (confirmResult.result != PromptResult.Success)
-                    {
-                        SetStatus("Migration cancelled.");
-                        return;
-                    }
+            var confirm = await ShowModalAsync(
+                "Confirm migration",
+                $"Migrate this account to target address?\n{newKeys.Address.Text}\n\nEnsure both old and new keys are backed up before proceeding.",
+                0,
+                0,
+                allowEmpty: true,
+                hasInput: false);
+            if (confirm.result != PromptResult.Success)
+            {
+                SetStatus("Migration cancelled.");
+                return;
+            }
 
-                    transactionOrchestrator.SendTransactionDraft(plan.Draft, true, (hash, txResult, error) =>
-                    {
-                        if (string.IsNullOrEmpty(error) && hash != Hash.Null)
-                        {
-                            accountManager.ReplaceAccountWIF(accountManager.CurrentIndex, wif, accountManager.CurrentPasswordHash, out var deletedDuplicateWallet);
-                            var duplicateText = string.IsNullOrEmpty(deletedDuplicateWallet) ? string.Empty : $" Duplicate '{deletedDuplicateWallet}' was deleted.";
-                            var caption = $"The account was migrated.{duplicateText}\n\nPrevious WIF (no longer valid):";
-                            ShowCopyPanel("Migration complete", caption, oldWif, "Old WIF copied to clipboard.");
-                            SetStatus("Account migrated.");
-                        }
-                        else
-                        {
-                            SetStatus(string.IsNullOrEmpty(error) ? "Migration failed." : error);
-                        }
-                    });
-                }, allowEmpty: true, hasInput: false);
-            }, allowEmpty: false);
+            var (hash, txResult, error) = await SendTransactionDraftAsync(plan.Draft, true);
+            if (string.IsNullOrEmpty(error) && hash != Hash.Null)
+            {
+                accountManager.ReplaceAccountWIF(accountManager.CurrentIndex, wif, accountManager.CurrentPasswordHash, out var deletedDuplicateWallet);
+                var duplicateText = string.IsNullOrEmpty(deletedDuplicateWallet) ? string.Empty : $" Duplicate '{deletedDuplicateWallet}' was deleted.";
+                var caption = $"The account was migrated.{duplicateText}\n\nPrevious WIF (no longer valid):";
+                ShowCopyPanel("Migration complete", caption, oldWif, "Old WIF copied to clipboard.");
+                SetStatus("Account migrated.");
+            }
+            else
+            {
+                SetStatus(string.IsNullOrEmpty(error) ? "Migration failed." : error);
+            }
         }
 
-        private void OnSetName()
+        private async void OnSetName()
         {
             var accountManager = AccountManager.Instance;
             if (accountManager?.CurrentState == null)
@@ -653,86 +649,54 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            ShowModal("Register name", "Enter a name for this address", AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, result =>
+            var nameResult = await ShowModalAsync("Register name", "Enter a name for this address", AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, allowEmpty: false);
+            if (nameResult.result != PromptResult.Success)
             {
-                if (result.result != PromptResult.Success)
-                {
-                    return;
-                }
-
-                var name = result.input;
-                if (!ValidationUtils.IsValidIdentifier(name))
-                {
-                    SetStatus("Invalid name. Only lowercase letters/numbers, 3-15 chars.");
-                    return;
-                }
-
-                EnsureKcalAvailability(accountManager, () =>
-                {
-                    ShowModal("Confirm name registration", $"Send a transaction to register the name '{name}'?", 0, 0, confirmResult =>
-                    {
-                        if (confirmResult.result != PromptResult.Success)
-                        {
-                            SetStatus("Name registration cancelled.");
-                            return;
-                        }
-
-                        var draft = accountAdminService.BuildRegisterNameDraft(name, accountManager.CurrentState.address);
-                        if (!draft.Success)
-                        {
-                            SetStatus(draft.Error);
-                            return;
-                        }
-
-                        transactionOrchestrator.SendTransactionDraft(draft.Draft, true, (hash, txResult, error) =>
-                        {
-                            if (string.IsNullOrEmpty(error) && hash != Hash.Null)
-                            {
-                                SetStatus("Name registration sent.");
-                                RefreshView();
-                                accountManager.RefreshHistory(true, PlatformKind.Phantasma);
-                                PromptRenameLocalName(name);
-                            }
-                            else
-                            {
-                                SetStatus(string.IsNullOrEmpty(error) ? "Name registration failed." : error);
-                            }
-                        });
-                    }, allowEmpty: true, hasInput: false);
-                });
-            }, allowEmpty: false);
-        }
-
-        private void EnsureKcalAvailability(AccountManager accountManager, Action onAvailable)
-        {
-            if (accountManager == null || accountManager.CurrentState == null)
-            {
-                SetStatus("Account is not ready.");
                 return;
             }
 
-            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            var name = nameResult.input;
+            if (!ValidationUtils.IsValidIdentifier(name))
             {
-                onAvailable?.Invoke();
+                SetStatus("Invalid name. Only lowercase letters/numbers, 3-15 chars.");
                 return;
             }
 
-            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
-            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
-            feeRequirement.EnsureKcal(minFee, (result, error) =>
+            var hasKcal = await EnsureKcalAvailabilityAsync(accountManager);
+            if (!hasKcal)
             {
-                if (result == PromptResult.Success)
-                {
-                    onAvailable?.Invoke();
-                }
-                else
-                {
-                    SetStatus(string.IsNullOrWhiteSpace(error) ? "KCAL is required to make transactions!" : error);
-                }
-            });
+                return;
+            }
+
+            var confirm = await ShowModalAsync("Confirm name registration", $"Send a transaction to register the name '{name}'?", 0, 0, allowEmpty: true, hasInput: false);
+            if (confirm.result != PromptResult.Success)
+            {
+                SetStatus("Name registration cancelled.");
+                return;
+            }
+
+            var draft = accountAdminService.BuildRegisterNameDraft(name, accountManager.CurrentState.address);
+            if (!draft.Success)
+            {
+                SetStatus(draft.Error);
+                return;
+            }
+
+            var (hash, txResult, error) = await SendTransactionDraftAsync(draft.Draft, true);
+            if (string.IsNullOrEmpty(error) && hash != Hash.Null)
+            {
+                SetStatus("Name registration sent.");
+                RefreshView();
+                accountManager.RefreshHistory(true, PlatformKind.Phantasma);
+                await PromptRenameLocalNameAsync(name);
+            }
+            else
+            {
+                SetStatus(string.IsNullOrEmpty(error) ? "Name registration failed." : error);
+            }
         }
 
-        private void PromptRenameLocalName(string name)
+        private async Task PromptRenameLocalNameAsync(string name)
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null)
@@ -740,213 +704,221 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            ShowModal("Rename local account", $"Name transaction submitted for '{name}'. Rename the local account on this device as well?", 0, 0, result =>
+            var result = await ShowModalAsync("Rename local account", $"Name transaction submitted for '{name}'. Rename the local account on this device as well?", 0, 0, allowEmpty: true, hasInput: false);
+            if (result.result != PromptResult.Success)
             {
-                if (result.result != PromptResult.Success)
-                {
+                return;
+            }
+
+            var ok = accountManager.RenameAccount(name);
+            SetStatus(ok ? $"Local account renamed to '{name}'." : "Failed to rename local account.");
+            RefreshView();
+        }
+
+        private async void OnSignMessage()
+        {
+            var chainAndMessage = await PromptChainAndMessageAsync();
+            if (chainAndMessage == null)
+            {
+                return;
+            }
+
+            if (!await RequirePasswordAsync())
+            {
+                return;
+            }
+
+            var (chain, message) = chainAndMessage.Value;
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                SetStatus("Account is not ready.");
+                return;
+            }
+
+            var wif = accountManager.CurrentAccount.GetWif(accountManager.CurrentPasswordHash);
+            var messageBytes = Encoding.ASCII.GetBytes(message);
+            string signature;
+
+            switch (chain)
+            {
+                case "Phantasma":
+                    var phaSig = PhantasmaKeys.FromWIF(wif).Sign(messageBytes);
+                    signature = Base16.Encode(((Ed25519Signature)phaSig).Bytes);
+                    break;
+                case "Ethereum":
+                    var ethKeys = EthereumKey.FromWIF(wif);
+                    var ethSig = ECDsa.SignDeterministic(messageBytes, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
+                    signature = Base16.Encode(ethSig);
+                    break;
+                case "Neo Legacy":
+                    var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
+                    var neoSig = ECDsa.SignDeterministic(messageBytes, neoKeys.PrivateKey, ECDsaCurve.Secp256r1);
+                    signature = Base16.Encode(neoSig);
+                    break;
+                default:
+                    SetStatus("Unsupported chain.");
                     return;
+            }
+
+            ShowCopyPanel("Signature", "Copy the signature below", signature, "Signature copied to clipboard.");
+            SetStatus("Signature generated.");
+        }
+
+        private async void OnVerifySignature()
+        {
+            var chainMessageAndSig = await PromptChainMessageAndSignatureAsync();
+            if (chainMessageAndSig == null)
+            {
+                return;
+            }
+
+            if (!await RequirePasswordAsync())
+            {
+                return;
+            }
+
+            var (chain, message, signatureHex) = chainMessageAndSig.Value;
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                SetStatus("Account is not ready.");
+                return;
+            }
+
+            var wif = accountManager.CurrentAccount.GetWif(accountManager.CurrentPasswordHash);
+            var messageBytes = Encoding.ASCII.GetBytes(message);
+            var signature = signatureHex?.Trim();
+            if (string.IsNullOrWhiteSpace(signature) || signature.Length % 2 != 0 || !HexByteConvertorExtensions.IsHex(signature))
+            {
+                SetStatus("Invalid signature format.");
+                return;
+            }
+
+            byte[] signatureBytes;
+            try
+            {
+                signatureBytes = Base16.Decode(signature);
+            }
+            catch (Exception)
+            {
+                SetStatus("Invalid signature format.");
+                return;
+            }
+
+            try
+            {
+                var valid = false;
+
+                switch (chain)
+                {
+                    case "Phantasma":
+                        var phaKeys = PhantasmaKeys.FromWIF(wif);
+                        valid = Ed25519.Verify(signatureBytes, messageBytes, phaKeys.PublicKey);
+                        break;
+                    case "Ethereum":
+                        var ethKeys = EthereumKey.FromWIF(wif);
+                        valid = ECDsa.Verify(messageBytes, signatureBytes, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
+                        break;
+                    case "Neo Legacy":
+                        var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
+                        valid = ECDsa.Verify(messageBytes, signatureBytes, neoKeys.PublicKey, ECDsaCurve.Secp256r1);
+                        break;
+                    default:
+                        SetStatus("Unsupported chain.");
+                        return;
                 }
 
-                var ok = accountManager.RenameAccount(name);
-                SetStatus(ok ? $"Local account renamed to '{name}'." : "Failed to rename local account.");
-                RefreshView();
-            }, allowEmpty: true, hasInput: false);
+                ShowVerificationResult(valid);
+                SetStatus(valid ? "Signature is correct." : "Signature is incorrect.");
+            }
+            catch (Exception)
+            {
+                SetStatus("Invalid signature format.");
+            }
         }
 
-        private void OnSignMessage()
+        private async void OnProofOfAddresses()
         {
-            PromptChainAndMessage((chain, message) =>
+            if (!await RequirePasswordAsync())
             {
-                RequirePasswordThen(() =>
-                {
-                    var accountManager = AccountManager.Instance;
-                    if (accountManager == null)
-                    {
-                        SetStatus("Account is not ready.");
-                        return;
-                    }
+                return;
+            }
 
-                    var wif = accountManager.CurrentAccount.GetWif(accountManager.CurrentPasswordHash);
-                    var messageBytes = Encoding.ASCII.GetBytes(message);
-                    string signature;
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                SetStatus("Account is not ready.");
+                return;
+            }
 
-                    switch (chain)
-                    {
-                        case "Phantasma":
-                            var phaSig = PhantasmaKeys.FromWIF(wif).Sign(messageBytes);
-                            signature = Base16.Encode(((Ed25519Signature)phaSig).Bytes);
-                            break;
-                        case "Ethereum":
-                            var ethKeys = EthereumKey.FromWIF(wif);
-                            var ethSig = ECDsa.SignDeterministic(messageBytes, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
-                            signature = Base16.Encode(ethSig);
-                            break;
-                        case "Neo Legacy":
-                            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
-                            var neoSig = ECDsa.SignDeterministic(messageBytes, neoKeys.PrivateKey, ECDsaCurve.Secp256r1);
-                            signature = Base16.Encode(neoSig);
-                            break;
-                        default:
-                            SetStatus("Unsupported chain.");
-                            return;
-                    }
+            var wif = accountManager.CurrentAccount.GetWif(accountManager.CurrentPasswordHash);
+            var signer = new ProofOfAddressesSigner(wif);
+            var proofMessage = signer.GenerateMessage();
 
-                    ShowCopyPanel("Signature", "Copy the signature below", signature, "Signature copied to clipboard.");
-                    SetStatus("Signature generated.");
-                });
+            // Step 1: show proof text
+            var first = await ShowModalAsync("Proof of addresses", proofMessage, 0, 0, allowEmpty: true, hasInput: false);
+            if (first.result != PromptResult.Success)
+            {
+                SetStatus("POA cancelled.");
+                return;
+            }
+
+            // Step 2: show signed proof, ask to send
+            var signedMessage = signer.GenerateSignedMessage();
+            var second = await ShowModalAsync("Signed proof of addresses", signedMessage, 0, 0, allowEmpty: true, hasInput: false);
+            if (second.result != PromptResult.Success)
+            {
+                SetStatus("POA send cancelled.");
+                return;
+            }
+
+            SetStatus("Sending POA...");
+            SendPoaAsync(accountManager.Settings?.phantasmaPoaUrl, signedMessage).Forget(ex =>
+            {
+                Log.WriteWarning($"{LogPrefix}POA send failed: {ex}");
+                SetStatus("POA send failed.");
             });
         }
 
-        private void OnVerifySignature()
+        private async Task<(string chain, string message)?> PromptChainAndMessageAsync()
         {
-            PromptChainMessageAndSignature((chain, message, signatureHex) =>
+            var chain = await ShowChainPickerAsync();
+            if (string.IsNullOrWhiteSpace(chain))
             {
-                RequirePasswordThen(() =>
-                {
-                    var accountManager = AccountManager.Instance;
-                    if (accountManager == null)
-                    {
-                        SetStatus("Account is not ready.");
-                        return;
-                    }
+                return null;
+            }
 
-                    var wif = accountManager.CurrentAccount.GetWif(accountManager.CurrentPasswordHash);
-                    var messageBytes = Encoding.ASCII.GetBytes(message);
-                    var signature = signatureHex?.Trim();
-                    if (string.IsNullOrWhiteSpace(signature) || signature.Length % 2 != 0 || !HexByteConvertorExtensions.IsHex(signature))
-                    {
-                        SetStatus("Invalid signature format.");
-                        return;
-                    }
+            var messageResult = await ShowModalAsync("Enter message", "Message to sign", 1, -1, allowEmpty: false);
+            if (messageResult.result != PromptResult.Success)
+            {
+                return null;
+            }
 
-                    byte[] signatureBytes;
-                    try
-                    {
-                        signatureBytes = Base16.Decode(signature);
-                    }
-                    catch (Exception)
-                    {
-                        SetStatus("Invalid signature format.");
-                        return;
-                    }
-
-                    try
-                    {
-                        var valid = false;
-
-                        switch (chain)
-                        {
-                            case "Phantasma":
-                                var phaKeys = PhantasmaKeys.FromWIF(wif);
-                                valid = Ed25519.Verify(signatureBytes, messageBytes, phaKeys.PublicKey);
-                                break;
-                            case "Ethereum":
-                                var ethKeys = EthereumKey.FromWIF(wif);
-                                valid = ECDsa.Verify(messageBytes, signatureBytes, ethKeys.PublicKey, ECDsaCurve.Secp256k1);
-                                break;
-                            case "Neo Legacy":
-                                var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
-                                valid = ECDsa.Verify(messageBytes, signatureBytes, neoKeys.PublicKey, ECDsaCurve.Secp256r1);
-                                break;
-                            default:
-                                SetStatus("Unsupported chain.");
-                                return;
-                        }
-
-                        ShowVerificationResult(valid);
-                        SetStatus(valid ? "Signature is correct." : "Signature is incorrect.");
-                    }
-                    catch (Exception)
-                    {
-                        SetStatus("Invalid signature format.");
-                    }
-                });
-            });
+            return (chain, messageResult.input);
         }
 
-        private void OnProofOfAddresses()
+        private async Task<(string chain, string message, string signature)?> PromptChainMessageAndSignatureAsync()
         {
-            RequirePasswordThen(() =>
+            var chain = await ShowChainPickerAsync();
+            if (string.IsNullOrWhiteSpace(chain))
             {
-                var accountManager = AccountManager.Instance;
-                if (accountManager == null)
-                {
-                    SetStatus("Account is not ready.");
-                    return;
-                }
+                return null;
+            }
 
-                var wif = accountManager.CurrentAccount.GetWif(accountManager.CurrentPasswordHash);
-                var signer = new ProofOfAddressesSigner(wif);
-                var proofMessage = signer.GenerateMessage();
-
-                // Step 1: show proof text
-                ShowModal("Proof of addresses", proofMessage, 0, 0, first =>
-                {
-                    if (first.result != PromptResult.Success)
-                    {
-                        SetStatus("POA cancelled.");
-                        return;
-                    }
-
-                    // Step 2: show signed proof, ask to send
-                    var signedMessage = signer.GenerateSignedMessage();
-                    ShowModal("Signed proof of addresses", signedMessage, 0, 0, second =>
-                    {
-                        if (second.result != PromptResult.Success)
-                        {
-                            SetStatus("POA send cancelled.");
-                            return;
-                        }
-
-                        SetStatus("Sending POA...");
-                        SendPoaAsync(accountManager.Settings?.phantasmaPoaUrl, signedMessage).Forget(ex =>
-                        {
-                            Log.WriteWarning($"{LogPrefix}POA send failed: {ex}");
-                            SetStatus("POA send failed.");
-                        });
-                    }, allowEmpty: true, hasInput: false);
-                }, allowEmpty: true, hasInput: false);
-            });
-        }
-
-        private void PromptChainAndMessage(Action<string, string> callback)
-        {
-            ShowChainPicker(chain =>
+            var messageResult = await ShowModalAsync("Enter message", "Message that was signed", 1, -1, allowEmpty: false);
+            if (messageResult.result != PromptResult.Success)
             {
-                ShowModal("Enter message", "Message to sign", 1, -1, messageResult =>
-                {
-                    if (messageResult.result != PromptResult.Success)
-                    {
-                        return;
-                    }
+                return null;
+            }
 
-                    callback(chain, messageResult.input);
-                }, allowEmpty: false);
-            });
-        }
-
-        private void PromptChainMessageAndSignature(Action<string, string, string> callback)
-        {
-            ShowChainPicker(chain =>
+            var sigResult = await ShowModalAsync("Enter signature", "Hex signature", 1, -1, allowEmpty: false);
+            if (sigResult.result != PromptResult.Success)
             {
-                ShowModal("Enter message", "Message that was signed", 1, -1, messageResult =>
-                {
-                    if (messageResult.result != PromptResult.Success)
-                    {
-                        return;
-                    }
+                return null;
+            }
 
-                    ShowModal("Enter signature", "Hex signature", 1, -1, sigResult =>
-                    {
-                        if (sigResult.result != PromptResult.Success)
-                        {
-                            return;
-                        }
-
-                        callback(chain, messageResult.input, sigResult.input);
-                    }, allowEmpty: false);
-                }, allowEmpty: false);
-            });
+            return (chain, messageResult.input, sigResult.input);
         }
 
         private static string NormalizeChain(string input)
@@ -975,27 +947,30 @@ namespace Poltergeist.UiToolkit.Accounts
             return null;
         }
 
-        private void ShowChainPicker(Action<string> onSelect)
+        private Task<string> ShowChainPickerAsync()
         {
             HideModal();
-            chainPickerCallback = onSelect;
+            chainPickerTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             modalWindow.style.display = DisplayStyle.None;
             chainPickerPanel.style.display = DisplayStyle.Flex;
             modalOverlay.style.display = DisplayStyle.Flex;
+            return chainPickerTcs.Task;
         }
 
         private void HandleChainPickerSelection(string chain)
         {
-            var cb = chainPickerCallback;
-            chainPickerCallback = null;
+            var tcs = chainPickerTcs;
+            chainPickerTcs = null;
             HideModal();
-            cb?.Invoke(chain);
+            tcs?.TrySetResult(chain);
         }
 
         private void CancelChainPicker()
         {
-            chainPickerCallback = null;
+            var tcs = chainPickerTcs;
+            chainPickerTcs = null;
             HideModal();
+            tcs?.TrySetResult(null);
         }
 
         private void OnCopyPanelCopy()
@@ -1071,34 +1046,6 @@ namespace Poltergeist.UiToolkit.Accounts
             modalOverlay.style.display = DisplayStyle.Flex;
         }
 
-        private void RequirePasswordThen(Action onAuthorized)
-        {
-            var accountManager = AccountManager.Instance;
-            if (accountManager == null || !accountManager.HasSelection)
-            {
-                SetStatus("No wallet selected.");
-                return;
-            }
-
-            if (!accountManager.CurrentAccount.passwordProtected || !string.IsNullOrEmpty(accountManager.CurrentPasswordHash))
-            {
-                onAuthorized?.Invoke();
-                return;
-            }
-
-            authService.RequestPassword("Authorization", accountManager.CurrentPlatform, true, false, sharedAuthUi, result =>
-            {
-                if (result == PromptResult.Success)
-                {
-                    onAuthorized?.Invoke();
-                }
-                else
-                {
-                    SetStatus("Password required.");
-                }
-            }, ignoreStoredPassword: false);
-        }
-
         private void BuildModal(VisualElement parent)
         {
             modalOverlay = WalletUiModalFactory.CreateOverlay();
@@ -1117,14 +1064,14 @@ namespace Poltergeist.UiToolkit.Accounts
             parent.Add(modalOverlay);
         }
 
-        private void ShowModal(string title, string caption, int minLength, int maxLength, Action<(PromptResult result, string input)> callback, bool allowEmpty = false, bool hasInput = true)
+        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true)
         {
-            modalCallback = (r, input) => callback((r, input));
+            modalTcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
             modalMinLength = minLength;
             modalMaxLength = maxLength;
             modalHasInput = hasInput;
             modalAllowEmpty = allowEmpty;
-            chainPickerCallback = null;
+            chainPickerTcs = null;
             if (chainPickerPanel != null)
             {
                 chainPickerPanel.style.display = DisplayStyle.None;
@@ -1152,6 +1099,8 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 modalInput.Focus();
             }
+
+            return modalTcs.Task;
         }
 
         private void ShowSendProgressDialog(string description, int txCount, Action<PromptResult> callback)
@@ -1182,24 +1131,26 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             }
 
-            var cb = modalCallback;
+            var tcs = modalTcs;
+            modalTcs = null;
             HideModal();
-            cb?.Invoke(PromptResult.Success, input);
+            tcs?.TrySetResult((PromptResult.Success, input));
         }
 
         private void OnModalSecondary()
         {
-            var cb = modalCallback;
+            var tcs = modalTcs;
+            modalTcs = null;
             HideModal();
-            cb?.Invoke(PromptResult.Failure, string.Empty);
+            tcs?.TrySetResult((PromptResult.Failure, string.Empty));
         }
 
         private void HideModal()
         {
             modalOverlay.style.display = DisplayStyle.None;
             modalInput.value = string.Empty;
-            modalCallback = null;
-            chainPickerCallback = null;
+            modalTcs = null;
+            chainPickerTcs = null;
             transactionDialogs?.HideTransactionPanels();
             if (chainPickerPanel != null)
             {
@@ -1226,6 +1177,66 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 modalWindow.style.display = DisplayStyle.Flex;
             }
+        }
+
+        private Task<(Hash hash, TransactionResult txResult, string error)> SendTransactionDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation)
+        {
+            var tcs = new TaskCompletionSource<(Hash hash, TransactionResult txResult, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            transactionOrchestrator.SendTransactionDraft(draft, refreshBalanceAfterConfirmation, (hash, txResult, error) => tcs.TrySetResult((hash, txResult, error)));
+            return tcs.Task;
+        }
+
+        private async Task<bool> EnsureKcalAvailabilityAsync(AccountManager accountManager)
+        {
+            if (accountManager == null || accountManager.CurrentState == null)
+            {
+                SetStatus("Account is not ready.");
+                return false;
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return true;
+            }
+
+            var feeDecimals = Tokens.GetTokenDecimals(DomainSettings.FuelTokenSymbol, accountManager.CurrentPlatform);
+            var minFee = WalletAmountParser.FromDecimal(0.1m, feeDecimals);
+            var tcs = new TaskCompletionSource<(PromptResult result, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            feeRequirement.EnsureKcal(minFee, (result, error) => tcs.TrySetResult((result, error)));
+            var (res, errorText) = await tcs.Task;
+            if (res == PromptResult.Success)
+            {
+                return true;
+            }
+
+            SetStatus(string.IsNullOrWhiteSpace(errorText) ? "KCAL is required to make transactions!" : errorText);
+            return false;
+        }
+
+        private async Task<bool> RequirePasswordAsync(string description = "Authorization", bool ignoreStoredPassword = false)
+        {
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null || !accountManager.HasSelection)
+            {
+                SetStatus("No wallet selected.");
+                return false;
+            }
+
+            if (!accountManager.CurrentAccount.passwordProtected || (!ignoreStoredPassword && !string.IsNullOrEmpty(accountManager.CurrentPasswordHash)))
+            {
+                return true;
+            }
+
+            var tcs = new TaskCompletionSource<PromptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            authService.RequestPassword(description, accountManager.CurrentPlatform, true, false, sharedAuthUi, result => tcs.TrySetResult(result), ignoreStoredPassword);
+            var promptResult = await tcs.Task;
+            if (promptResult == PromptResult.Success)
+            {
+                return true;
+            }
+
+            SetStatus("Password required.");
+            return false;
         }
 
         private async Task SendPoaAsync(string url, string message)
