@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
@@ -20,12 +21,12 @@ namespace Poltergeist.UiToolkit.Accounts
             "fuckyou", "trustno1", "ranger","buster","thomas","robert","bitcoin","phantasma","wallet","crypto"
         };
 
-        private void OnNewWallet()
+        private async void OnNewWallet()
         {
-            StartNewWalletFlow();
+            await StartNewWalletFlowAsync();
         }
 
-        private void StartNewWalletFlow()
+        private async Task StartNewWalletFlowAsync()
         {
             var am = AccountManager.Instance;
             if (am == null)
@@ -45,50 +46,84 @@ namespace Poltergeist.UiToolkit.Accounts
 
             // Mirrors the legacy flow: warn user, generate phrase, force backup, then derive requested wallets.
             const string attentionMessage = "For your own safety, write down generated seed words on a piece of paper and store it safely and hidden.\n\nThese words serve as a back-up of your wallet.\n\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.";
-            ShowModal("Attention!", attentionMessage, 0, 0, (result, _) =>
+            var attention = await ShowModalAsync("Attention!", attentionMessage, 0, 0, isError: false, showInput: false, isPassword: false, primaryLabel: "Confirm", secondaryLabel: "Cancel");
+            if (attention.result != PromptResult.Success)
             {
-                if (result == PromptResult.Success)
+                SetStatus("New wallet creation was canceled.");
+                return;
+            }
+
+            if (!await TryGenerateNewWalletSeedAsync(settings.mnemonicPhraseLength))
+            {
+                return;
+            }
+
+            var seedWords = newWalletSeedPhrase.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            while (true)
+            {
+                var backupConfirmed = await ShowBackupModalAsync();
+                if (!backupConfirmed)
                 {
-                    GenerateNewWalletSeed(settings.mnemonicPhraseLength);
+                    ResetNewWalletState();
+                    SetStatus("New wallet creation canceled.");
+                    return;
                 }
-                else
+
+                var verified = await TrySeedVerificationAsync(seedWords);
+                if (!verified)
                 {
-                    SetStatus("New wallet creation was canceled.");
+                    continue;
                 }
-            }, isError: false, showInput: false, isPassword: false, primaryLabel: "Confirm", secondaryLabel: "Cancel");
+
+                var derivationCount = await PromptWalletDerivationAsync(newWalletSeedPhrase);
+                if (!derivationCount.HasValue)
+                {
+                    continue;
+                }
+
+                var deriveSuccess = await DeriveAccountsFromSeedAsync(newWalletSeedPhrase, derivationCount.Value);
+                if (!deriveSuccess)
+                {
+                    SetStatus("New wallet creation failed.");
+                }
+                return;
+            }
         }
 
-        private void GenerateNewWalletSeed(MnemonicPhraseLength mnemonicLength)
+        private async Task<bool> TryGenerateNewWalletSeedAsync(MnemonicPhraseLength mnemonicLength)
         {
             try
             {
                 ResetNewWalletState();
                 newWalletSeedPhrase = Mnemonics.GenerateMnemonic(mnemonicLength);
                 Log.Write($"{LogPrefix}Generated new wallet seed phrase ({mnemonicLength} words).");
-                ShowBackupModal();
+                return true;
             }
             catch (Exception e)
             {
                 ResetNewWalletState();
                 Log.WriteWarning($"{LogPrefix}Failed to generate seed phrase: {e}");
-                ShowError("Error creating account.\n" + e.Message, () => SetStatus("Could not generate new wallet."));
+                await ShowErrorAsync("Error creating account.\n" + e.Message, "Could not generate new wallet.");
+                return false;
             }
         }
 
-        private void ShowBackupModal()
+        private async Task<bool> ShowBackupModalAsync()
         {
             if (string.IsNullOrWhiteSpace(newWalletSeedPhrase))
             {
                 SetStatus("Seed phrase is not available.");
-                return;
+                return false;
             }
 
             var overlay = BeginModalSession(null);
             if (overlay == null)
             {
                 SetStatus("Cannot display backup dialog.");
-                return;
+                return false;
             }
+
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var panel = WalletUiCommon.CreateModalPanel(840, 1020);
             panel.style.maxWidth = new Length(98, LengthUnit.Percent);
@@ -182,19 +217,8 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var continueBtn = WalletUiCommon.CreateOutlineButton("Continue", () =>
             {
-                var seedWords = newWalletSeedPhrase.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 HideModal();
-                TrySeedVerification(seedWords, success =>
-                {
-                    if (success)
-                    {
-                        PromptWalletDerivation(newWalletSeedPhrase);
-                    }
-                    else
-                    {
-                        ShowBackupModal();
-                    }
-                });
+                tcs.TrySetResult(true);
             }, 16, 36);
             continueBtn.style.marginLeft = 10;
             continueBtn.style.minWidth = 120;
@@ -205,6 +229,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 ResetNewWalletState();
                 HideModal();
                 SetStatus("New wallet creation canceled.");
+                tcs.TrySetResult(false);
             }, 16, 36);
             cancelBtn.style.marginLeft = 10;
             cancelBtn.style.minWidth = 120;
@@ -213,6 +238,8 @@ namespace Poltergeist.UiToolkit.Accounts
             panel.Add(actions);
             overlay.Add(panel);
             Log.Write($"{LogPrefix}Backup modal shown for new wallet.");
+
+            return await tcs.Task;
         }
 
         private VisualElement BuildSeedWordElement(int index, string word)
@@ -275,129 +302,130 @@ namespace Poltergeist.UiToolkit.Accounts
             return container;
         }
 
-        private void TrySeedVerification(string[] seed, Action<bool> callback)
+        private async Task<bool> TrySeedVerificationAsync(string[] seed)
         {
             if (seed == null || seed.Length == 0)
             {
-                callback?.Invoke(false);
-                return;
+                return false;
             }
 
             if (seed.Length < 3)
             {
                 SetStatus("Seed phrase is incomplete.");
-                callback?.Invoke(false);
-                return;
+                return false;
             }
 
-            var indices = Enumerable.Range(0, seed.Length)
-                .OrderBy(_ => UnityEngine.Random.value)
-                .Take(3)
-                .OrderBy(i => i)
-                .ToArray();
-
-            var prompt = $"To confirm that you have backed up your seed phrase, enter your seed words {string.Join(", ", indices.Select(i => $"#{i + 1}"))}, using space to separate them:";
-            ShowModal("Seed verification", prompt, 5, -1, (result, input) =>
+            while (true)
             {
-                if (result == PromptResult.Success)
+                var indices = Enumerable.Range(0, seed.Length)
+                    .OrderBy(_ => UnityEngine.Random.value)
+                    .Take(3)
+                    .OrderBy(i => i)
+                    .ToArray();
+
+                var prompt = $"To confirm that you have backed up your seed phrase, enter your seed words {string.Join(", ", indices.Select(i => $"#{i + 1}"))}, using space to separate them:";
+                var result = await ShowModalAsync("Seed verification", prompt, 5, -1, isError: false, showInput: true, isPassword: false, primaryLabel: "Confirm", secondaryLabel: "Back");
+                if (result.result != PromptResult.Success)
                 {
-                    try
-                    {
-                        var wordsToVerify = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                        if (wordsToVerify.Length >= 3 &&
-                            seed[indices[0]] == wordsToVerify[0] &&
-                            seed[indices[1]] == wordsToVerify[1] &&
-                            seed[indices[2]] == wordsToVerify[2])
-                        {
-                            callback?.Invoke(true);
-                        }
-                        else
-                        {
-                            ShowError("Seed phrase is incorrect!", () => TrySeedVerification(seed, callback));
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Log.WriteWarning($"{LogPrefix}TrySeedVerification exception: {e}");
-                        ShowError("Seed phrase is incorrect!\n" + e.Message, () => TrySeedVerification(seed, callback));
-                    }
+                    return false;
                 }
-                else
+
+                try
                 {
-                    callback?.Invoke(false);
+                    var wordsToVerify = result.input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (wordsToVerify.Length >= 3 &&
+                        seed[indices[0]] == wordsToVerify[0] &&
+                        seed[indices[1]] == wordsToVerify[1] &&
+                        seed[indices[2]] == wordsToVerify[2])
+                    {
+                        return true;
+                    }
+
+                    await ShowErrorAsync("Seed phrase is incorrect!");
                 }
-            }, isError: false, showInput: true, isPassword: false, primaryLabel: "Confirm", secondaryLabel: "Cancel");
+                catch (Exception e)
+                {
+                    Log.WriteWarning($"{LogPrefix}TrySeedVerification exception: {e}");
+                    await ShowErrorAsync("Seed phrase is incorrect!\n" + e.Message);
+                }
+            }
         }
 
-        private void PromptWalletDerivation(string mnemonicPhrase)
+        private async Task<uint?> PromptWalletDerivationAsync(string mnemonicPhrase)
         {
             if (string.IsNullOrWhiteSpace(mnemonicPhrase))
             {
                 SetStatus("Seed phrase is not available.");
-                return;
+                return null;
             }
 
             Log.Write($"{LogPrefix}PromptWalletDerivation requested.");
 
-            ShowModal("Number of created wallets", "Enter number of wallets to derive from this seed phrase.\n\nUse \"1\" if unsure.", 1, -1, (success, input) =>
+            while (true)
             {
-                var sanitizedInput = input?.Trim() ?? string.Empty;
-                Log.Write($"{LogPrefix}PromptWalletDerivation result={success} input='{sanitizedInput}'");
+                var modalResult = await ShowModalAsync(
+                    "Number of created wallets",
+                    "Enter number of wallets to derive from this seed phrase.\n\nUse \"1\" if unsure.",
+                    1,
+                    -1,
+                    isError: false,
+                    showInput: true,
+                    isPassword: false,
+                    primaryLabel: "Confirm",
+                    secondaryLabel: "Back",
+                    initialValue: "1");
 
-                if (success == PromptResult.Success)
+                var sanitizedInput = modalResult.input?.Trim() ?? string.Empty;
+                Log.Write($"{LogPrefix}PromptWalletDerivation result={modalResult.result} input='{sanitizedInput}'");
+
+                if (modalResult.result != PromptResult.Success)
                 {
-                    if (UInt32.TryParse(sanitizedInput, out var numberOfWallets) && numberOfWallets > 0)
-                    {
-                        Log.Write($"{LogPrefix}Starting derivation for {numberOfWallets} wallet(s).");
-                        DeriveAccountFromSeed(mnemonicPhrase, 0, numberOfWallets);
-                    }
-                    else
-                    {
-                        Log.WriteWarning($"{LogPrefix}Wallet derivation count parse failed for input '{sanitizedInput}'.");
-                        ShowError("Incorrect number", () => PromptWalletDerivation(mnemonicPhrase));
-                    }
+                    return null;
                 }
-                else
+
+                if (UInt32.TryParse(sanitizedInput, out var numberOfWallets) && numberOfWallets > 0)
                 {
-                    ShowBackupModal();
+                    Log.Write($"{LogPrefix}Starting derivation for {numberOfWallets} wallet(s).");
+                    return numberOfWallets;
                 }
-            }, isError: false, showInput: true, isPassword: false, primaryLabel: "Confirm", secondaryLabel: "Cancel", initialValue: "1");
+
+                Log.WriteWarning($"{LogPrefix}Wallet derivation count parse failed for input '{sanitizedInput}'.");
+                await ShowErrorAsync("Incorrect number");
+            }
         }
 
-        private void DeriveAccountFromSeed(string mnemonicPhrase, uint derivationIndex, uint overallDerivationCount)
+        private async Task<bool> DeriveAccountsFromSeedAsync(string mnemonicPhrase, uint overallDerivationCount)
         {
             try
             {
                 if (overallDerivationCount == 0)
                 {
-                    ShowError("Incorrect number", () => PromptWalletDerivation(mnemonicPhrase));
-                    return;
+                    await ShowErrorAsync("Incorrect number");
+                    return false;
                 }
 
-                SetStatus($"Creating wallet {derivationIndex + 1} of {overallDerivationCount}...");
-                var (wif, incorrectWord) = Mnemonics.MnemonicToWif(mnemonicPhrase, derivationIndex);
-
-                if (wif == null)
+                for (uint derivationIndex = 0; derivationIndex < overallDerivationCount; derivationIndex++)
                 {
-                    if (incorrectWord != null)
-                    {
-                        ShowError($"Seed phrase that you entered is incorrect.\nIncorrect word: '{incorrectWord}'.", ResetNewWalletState);
-                    }
-                    else
-                    {
-                        ShowError("Seed phrase that you entered is incorrect.\nPlease check your spelling carefully, and try again.\n\nEnsure that:\n* If copy / pasting - That you've selected the entire set of characters.\n* If copy / pasting - That the characters have been copied into your clipboard correctly.\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.", ResetNewWalletState);
-                    }
-                    return;
-                }
+                    SetStatus($"Creating wallet {derivationIndex + 1} of {overallDerivationCount}...");
+                    var (wif, incorrectWord) = Mnemonics.MnemonicToWif(mnemonicPhrase, derivationIndex);
 
-                ImportWallet(wif, (int)derivationIndex, overallDerivationCount, null, false, walletIndex =>
-                {
+                    if (wif == null)
+                    {
+                        var errorText = incorrectWord != null
+                            ? $"Seed phrase that you entered is incorrect.\nIncorrect word: '{incorrectWord}'."
+                            : "Seed phrase that you entered is incorrect.\nPlease check your spelling carefully, and try again.\n\nEnsure that:\n* If copy / pasting - That you've selected the entire set of characters.\n* If copy / pasting - That the characters have been copied into your clipboard correctly.\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.";
+                        await ShowErrorAsync(errorText);
+                        ResetNewWalletState();
+                        return false;
+                    }
+
+                    var walletIndex = await ImportWalletAsync(wif, (int)derivationIndex, overallDerivationCount, null, false);
                     if (walletIndex < 0)
                     {
                         Log.Write($"{LogPrefix}Derivation canceled at index {derivationIndex} / {overallDerivationCount}.");
                         ResetNewWalletState();
                         SetStatus("New wallet creation canceled.");
-                        return;
+                        return false;
                     }
 
                     if (derivationIndex == overallDerivationCount - 1)
@@ -407,38 +435,36 @@ namespace Poltergeist.UiToolkit.Accounts
                             OpenAccountAtIndex(walletIndex, true);
                         }
                         ResetNewWalletState();
+                        return true;
                     }
-                    else
-                    {
-                        DeriveAccountFromSeed(mnemonicPhrase, derivationIndex + 1, overallDerivationCount);
-                    }
-                });
+                }
             }
             catch (Exception e)
             {
-                Log.WriteWarning($"{LogPrefix}DeriveAccountFromSeed error: {e}");
+                Log.WriteWarning($"{LogPrefix}DeriveAccountsFromSeedAsync error: {e}");
                 ResetNewWalletState();
-                ShowError("Error creating account.\n" + e.Message, () => SetStatus("New wallet creation failed."));
+                await ShowErrorAsync("Error creating account.\n" + e.Message);
             }
+
+            return false;
         }
 
-        private void ImportWallet(string wif, int pkIndex, uint overallDerivationCount, string password, bool legacySeed, Action<int> callback)
+        private async Task<int> ImportWalletAsync(string wif, int pkIndex, uint overallDerivationCount, string password, bool legacySeed)
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null)
             {
                 SetStatus("Account manager is not available yet.");
-                callback?.Invoke(-1);
-                return;
+                return -1;
             }
 
             if (accountManager.Accounts == null)
             {
-                ShowError("Wallet storage is not ready yet.", () => callback?.Invoke(-1));
-                return;
+                await ShowErrorAsync("Wallet storage is not ready yet.");
+                return -1;
             }
 
-            var walletNumberString = overallDerivationCount > 1 ? $" #{pkIndex + 1}" : "";
+            var walletNumberString = overallDerivationCount > 1 ? $" #{pkIndex + 1}" : string.Empty;
             Log.Write($"{LogPrefix}ImportWallet start{walletNumberString} legacy={legacySeed} passwordProvided={password != null}");
 
             if (wif != null)
@@ -451,116 +477,132 @@ namespace Poltergeist.UiToolkit.Accounts
                 catch (Exception e)
                 {
                     Log.Write($"{LogPrefix}ImportWallet() exception: {e}");
-                    ShowError("Incorrect WIF format.", () => callback?.Invoke(-1));
-                    return;
+                    await ShowErrorAsync("Incorrect WIF format.");
+                    return -1;
                 }
 
                 foreach (var account in accountManager.Accounts)
                 {
                     if (account.phaAddress == keys.Address.ToString())
                     {
-                        ShowError($"Private key{walletNumberString} is already imported in a different account: {account.name}.", () => callback?.Invoke(-1));
-                        return;
+                        await ShowErrorAsync($"Private key{walletNumberString} is already imported in a different account: {account.name}.");
+                        return -1;
                     }
                 }
             }
 
-            SetStatus($"Name your wallet{walletNumberString} to continue...");
-            Log.Write($"{LogPrefix}Prompting for wallet name{walletNumberString} (derivation {pkIndex + 1}/{overallDerivationCount}).");
-
-            ShowModal("Wallet Name", $"Enter a name for your wallet{walletNumberString}", AccountManager.MinAccountNameLength, AccountManager.MaxAccountNameLength, (result, name) =>
+            while (true)
             {
-                if (result == PromptResult.Success)
-                {
-                    var nameAlreadyTaken = false;
-                    for (int i = 0; i < accountManager.Accounts.Count(); i++)
-                    {
-                        if (accountManager.Accounts[i].name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                        {
-                            nameAlreadyTaken = true;
-                        }
-                    }
+                SetStatus($"Name your wallet{walletNumberString} to continue...");
+                Log.Write($"{LogPrefix}Prompting for wallet name{walletNumberString} (derivation {pkIndex + 1}/{overallDerivationCount}).");
 
-                    if (nameAlreadyTaken)
-                    {
-                        ShowError("An account with this name already exists.", () => ImportWallet(wif, pkIndex, overallDerivationCount, password, legacySeed, callback));
-                    }
-                    else
-                    {
-                        if (password == null)
-                        {
-                            ShowModal($"Wallet Password{walletNumberString}", $"Do you want to add a password to wallet{walletNumberString}?\nThe password will be required to open the wallet.\nIt will also be prompted every time you do a transaction", 0, 0, (wantsPass, _) =>
-                            {
-                                if (wantsPass == PromptResult.Success)
-                                {
-                                    TrySettingWalletPassword(name, wif, legacySeed, callback);
-                                }
-                                else
-                                {
-                                    FinishCreateAccount(name, wif, string.Empty, legacySeed, callback);
-                                }
-                            }, isError: false, showInput: false, isPassword: false, primaryLabel: "Yes", secondaryLabel: "No");
-                        }
-                        else
-                        {
-                            FinishCreateAccount(name, wif, password, legacySeed, callback);
-                        }
-                    }
-                }
-                else
+                var nameResult = await ShowModalAsync(
+                    "Wallet Name",
+                    $"Enter a name for your wallet{walletNumberString}",
+                    AccountManager.MinAccountNameLength,
+                    AccountManager.MaxAccountNameLength,
+                    isError: false,
+                    showInput: true,
+                    isPassword: false);
+
+                if (nameResult.result != PromptResult.Success)
                 {
-                    callback?.Invoke(-1);
+                    return -1;
                 }
-            }, isError: false, showInput: true, isPassword: false);
+
+                var name = nameResult.input;
+                var nameAlreadyTaken = false;
+                for (int i = 0; i < accountManager.Accounts.Count(); i++)
+                {
+                    if (accountManager.Accounts[i].name.Equals(name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        nameAlreadyTaken = true;
+                        break;
+                    }
+                }
+
+                if (nameAlreadyTaken)
+                {
+                    await ShowErrorAsync("An account with this name already exists.");
+                    continue;
+                }
+
+                var finalPassword = password ?? await PromptWalletPasswordAsync(walletNumberString, name);
+                if (finalPassword == null)
+                {
+                    return -1;
+                }
+
+                return await FinishCreateAccountAsync(name, wif, finalPassword, legacySeed);
+            }
         }
 
-        private void TrySettingWalletPassword(string name, string wif, bool legacySeed, Action<int> callback)
+        private async Task<string> PromptWalletPasswordAsync(string walletNumberString, string walletName)
         {
-            ShowModal("Wallet Password", "Enter a password for your wallet", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, (passResult, password) =>
+            var wantsPassword = await ShowModalAsync(
+                $"Wallet Password{walletNumberString}",
+                $"Do you want to add a password to wallet{walletNumberString}?\nThe password will be required to open the wallet.\nIt will also be prompted every time you do a transaction",
+                0,
+                0,
+                isError: false,
+                showInput: false,
+                isPassword: false,
+                primaryLabel: "Yes",
+                secondaryLabel: "No");
+
+            if (wantsPassword.result != PromptResult.Success)
             {
-                if (passResult == PromptResult.Success)
+                return string.Empty;
+            }
+
+            while (true)
+            {
+                var passResult = await ShowModalAsync(
+                    "Wallet Password",
+                    "Enter a password for your wallet",
+                    AccountManager.MinPasswordLength,
+                    AccountManager.MaxPasswordLength,
+                    isError: false,
+                    showInput: true,
+                    isPassword: true);
+
+                if (passResult.result != PromptResult.Success)
                 {
-                    if (IsGoodPassword(name, password))
-                    {
-                        FinishCreateAccount(name, wif, password, legacySeed, callback);
-                    }
-                    else
-                    {
-                        ShowModal(
-                            "Error",
-                            $"That password is either too short or too weak.\nNeeds at least {AccountManager.MinPasswordLength} characters and can't be easy to guess.",
-                            0,
-                            0,
-                            (result, _) =>
-                            {
-                                if (result == PromptResult.Success)
-                                {
-                                    TrySettingWalletPassword(name, wif, legacySeed, callback);
-                                }
-                            },
-                            isError: false,
-                            showInput: false,
-                            isPassword: false,
-                            primaryLabel: "Try again",
-                            secondaryLabel: "Cancel");
-                    }
+                    return string.Empty;
                 }
-                else
+
+                if (IsGoodPassword(walletName, passResult.input))
                 {
-                    FinishCreateAccount(name, wif, string.Empty, legacySeed, callback);
+                    return passResult.input;
                 }
-            }, isError: false, showInput: true, isPassword: true);
+
+                var retry = await ShowModalAsync(
+                    "Error",
+                    $"That password is either too short or too weak.\nNeeds at least {AccountManager.MinPasswordLength} characters and can't be easy to guess.",
+                    0,
+                    0,
+                    isError: false,
+                    showInput: false,
+                    isPassword: false,
+                    primaryLabel: "Try again",
+                    secondaryLabel: "Cancel");
+
+                if (retry.result != PromptResult.Success)
+                {
+                    return string.Empty;
+                }
+            }
         }
 
-        private void FinishCreateAccount(string name, string wif, string password, bool legacySeed, Action<int> callback)
+        private async Task<int> FinishCreateAccountAsync(string name, string wif, string password, bool legacySeed)
         {
             try
             {
                 var accountManager = AccountManager.Instance;
                 if (accountManager == null)
                 {
-                    ShowError("Account manager is not available yet.", () => callback?.Invoke(-1));
-                    return;
+                    await ShowErrorAsync("Account manager is not available yet.");
+                    return -1;
                 }
 
                 int walletIndex = accountManager.AddWallet(name, wif, password, legacySeed);
@@ -569,20 +611,31 @@ namespace Poltergeist.UiToolkit.Accounts
                 SetStatus($"Wallet '{name}' created.");
                 Log.Write($"{LogPrefix}Wallet '{name}' created at index {walletIndex}.");
 
-                if (callback == null)
-                {
-                    OpenAccountAtIndex(walletIndex, !string.IsNullOrEmpty(newWalletSeedPhrase));
-                }
-                else
-                {
-                    callback(walletIndex);
-                }
+                return walletIndex;
             }
             catch (Exception e)
             {
                 Log.WriteWarning($"{LogPrefix}Error creating account '{name}': {e}");
                 ResetNewWalletState();
-                ShowError("Error creating account.\n" + e.Message, () => callback?.Invoke(-1));
+                await ShowErrorAsync("Error creating account.\n" + e.Message);
+                return -1;
+            }
+        }
+
+        // Awaitable wrapper over the callback-based modal to keep new wallet flows linear and readable.
+        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
+        {
+            var tcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ShowModal(title, caption, minLength, maxLength, (result, input) => tcs.TrySetResult((result, input)), isError, showInput, isPassword, multiline, primaryLabel, secondaryLabel, initialValue);
+            return tcs.Task;
+        }
+
+        private async Task ShowErrorAsync(string message, string statusAfterClose = null)
+        {
+            await ShowModalAsync("Error", message, 0, 0, isError: true, showInput: false, isPassword: false, primaryLabel: "Close", secondaryLabel: "Cancel");
+            if (!string.IsNullOrWhiteSpace(statusAfterClose))
+            {
+                SetStatus(statusAfterClose);
             }
         }
 
