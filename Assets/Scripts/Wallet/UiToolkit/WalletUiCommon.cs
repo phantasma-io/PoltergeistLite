@@ -323,73 +323,8 @@ namespace Poltergeist.UiToolkit
             return new AccountInfoElements(container, accountLabel, addressLabel, networkLabel);
         }
 
-        // Builds bottom nav bar with common actions; settings is optional (pass null action to hide).
-        internal static VisualElement BuildNavBar(out Button balances, out Button history, out Button account, out Button settings, out Button exit, Action onBalances, Action onHistory, Action onAccount, Action onSettings, Action onExit)
-        {
-            var bar = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.SpaceBetween,
-                    alignItems = Align.Center,
-                    paddingTop = 12,
-                    paddingBottom = 12,
-                    paddingLeft = 10,
-                    paddingRight = 10,
-                    marginTop = 10,
-                    minHeight = 68,
-                    backgroundColor = Color.clear,
-                    backgroundImage = new StyleBackground(),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
-                    borderTopWidth = 0,
-                    borderBottomWidth = 0,
-                    borderLeftWidth = 0,
-                    borderRightWidth = 0,
-                    borderTopColor = WalletUiTheme.HeaderBorder,
-                    borderBottomColor = WalletUiTheme.HeaderBorder,
-                    borderLeftColor = WalletUiTheme.HeaderBorder,
-                    borderRightColor = WalletUiTheme.HeaderBorder,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium
-                }
-            };
-            ApplyDefaultFont(bar);
-
-            balances = CreateNavButton("Balances", onBalances);
-            history = CreateNavButton("History", onHistory);
-            account = CreateNavButton("Account", onAccount);
-            settings = onSettings != null ? CreateNavButton("Settings", onSettings) : null;
-            exit = CreateNavButton("Exit", onExit);
-
-            var buttons = settings != null
-                ? new[] { balances, history, account, settings, exit }
-                : new[] { balances, history, account, exit };
-            for (var i = 0; i < buttons.Length; i++)
-            {
-                var btn = buttons[i];
-                btn.style.flexGrow = 1;
-                if (i > 0)
-                {
-                    btn.style.marginLeft = 8;
-                }
-                bar.Add(btn);
-            }
-
-            return bar;
-        }
-
-        // Wallet mode tabs: balances/history/account/exit. Centralized to avoid diverging button sets per screen.
-        internal static VisualElement BuildWalletNavBar(out Button balances, out Button history, out Button account, out Button exit, Action onBalances, Action onHistory, Action onAccount, Action onExit)
-        {
-            return BuildNavBar(out balances, out history, out account, out _, out exit, onBalances, onHistory, onAccount, null, onExit);
-        }
-
-        // Main screen footer (wallet list, settings pre-login).
-        // Generic footer builder with dark filled buttons (shared across main and settings screens).
-        internal static VisualElement BuildFooter(params (string text, Action onClick)[] entries)
+        // Unified footer builder for all screens (nav bars + main footers). Styles live only here.
+        internal static VisualElement BuildFooter(out Button[] buttons, params (string text, Action onClick)[] entries)
         {
             var bar = new VisualElement
             {
@@ -405,6 +340,8 @@ namespace Poltergeist.UiToolkit
                     marginTop = 14,
                     marginBottom = 6,
                     minHeight = 72,
+                    width = new Length(100, LengthUnit.Percent),
+                    alignSelf = Align.Stretch,
                     backgroundColor = WalletUiTheme.HeaderBackground,
                     borderTopWidth = 1,
                     borderTopColor = WalletUiTheme.HeaderBorder,
@@ -423,12 +360,14 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(bar);
 
+            buttons = new Button[entries.Length];
             for (var i = 0; i < entries.Length; i++)
             {
                 var (text, onClick) = entries[i];
-                var btn = CreateMainFooterButton(text, onClick);
+                var btn = CreateFooterButton(text, onClick);
                 btn.style.flexGrow = 1;
                 btn.style.marginLeft = i == 0 ? 0 : 8;
+                buttons[i] = btn;
                 bar.Add(btn);
             }
 
@@ -438,11 +377,29 @@ namespace Poltergeist.UiToolkit
         internal static VisualElement BuildMainFooter(Action onNewWallet, Action onImportWallet, Action onManageWallets, Action onSettings)
         {
             return BuildFooter(
+                out _,
                 ("New wallet", onNewWallet),
                 ("Import", onImportWallet),
                 ("Manage", onManageWallets),
                 ("Settings", onSettings)
             );
+        }
+
+        internal static VisualElement BuildWalletNavBar(out Button balances, out Button history, out Button account, out Button exit, Action onBalances, Action onHistory, Action onAccount, Action onExit)
+        {
+            var bar = BuildFooter(
+                out var buttons,
+                ("Balances", onBalances),
+                ("History", onHistory),
+                ("Account", onAccount),
+                ("Exit", onExit)
+            );
+
+            balances = buttons.Length > 0 ? buttons[0] : null;
+            history = buttons.Length > 1 ? buttons[1] : null;
+            account = buttons.Length > 2 ? buttons[2] : null;
+            exit = buttons.Length > 3 ? buttons[3] : null;
+            return bar;
         }
 
         // Applies the default full-screen layout for all UITK screens to avoid drift between views.
@@ -575,43 +532,7 @@ namespace Poltergeist.UiToolkit
             return wrapper;
         }
 
-        internal static Button CreateNavButton(string text, Action onClick)
-        {
-            var btn = new Button
-            {
-                text = text,
-                style =
-                {
-                    backgroundColor = WalletUiTheme.SecondaryButton,
-                    color = Color.white,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 18,
-                    minHeight = 52,
-                    paddingLeft = 18,
-                    paddingRight = 18,
-                    paddingTop = 12,
-                    paddingBottom = 12,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderRightColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderTopColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder
-                }
-            };
-            ApplyDefaultFont(btn);
-            btn.style.unityTextAlign = TextAnchor.MiddleCenter;
-            btn.clicked += () => onClick?.Invoke();
-            return btn;
-        }
-
-        internal static Button CreateMainFooterButton(string text, Action onClick)
+        internal static Button CreateFooterButton(string text, Action onClick)
         {
             var btn = new Button
             {

@@ -570,6 +570,7 @@ namespace Poltergeist.UiToolkit.Settings
         private VisualElement BuildSettingsFooter()
         {
             return WalletUiCommon.BuildFooter(
+                out _,
                 ("Display settings", OnCopyDisplaySettings),
                 ("Log folder", OnShowLogLocation),
                 ("Cancel", OnCancelChanges),
