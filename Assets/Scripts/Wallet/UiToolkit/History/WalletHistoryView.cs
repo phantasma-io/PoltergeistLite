@@ -149,6 +149,7 @@ namespace Poltergeist.UiToolkit.History
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
+            headerBlock.Root.style.flexShrink = 0;
             content.Add(headerBlock.Root);
 
             headerAddressLabel = new Label(string.Empty)
@@ -210,9 +211,10 @@ namespace Poltergeist.UiToolkit.History
             };
             ApplyDefaultFont(statusLabel);
             statusLabel.style.visibility = Visibility.Hidden;
+            statusLabel.style.flexShrink = 0;
             content.Add(statusLabel);
 
-            var listWrapper = WalletUiCommon.BuildListSection(
+            var listWrapper = WalletUiCommon.BuildScrollContainer(
                 out listView,
                 v => viewState.ScrollY = v,
                 shouldBlockWheel: null,
@@ -227,6 +229,7 @@ namespace Poltergeist.UiToolkit.History
             content.Add(listWrapper);
 
             var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
+            footer.style.flexShrink = 0;
             content.Add(footer);
 
             root.Add(content);

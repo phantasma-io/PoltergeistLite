@@ -177,6 +177,7 @@ namespace Poltergeist.UiToolkit.Accounts
             subtitleNetworkLabel = subHeader.NetworkLabel;
             walletsLabel = subHeader.LeftLabel;
             subHeader.Root.style.marginBottom = 6;
+            subHeader.Root.style.flexShrink = 0;
 
             statusLabel = new Label(string.Empty)
             {
@@ -191,8 +192,9 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(statusLabel);
             statusLabel.style.display = DisplayStyle.None;
+            statusLabel.style.flexShrink = 0;
 
-            listWrapper = WalletUiCommon.BuildListSection(
+            listWrapper = WalletUiCommon.BuildScrollContainer(
                 out list,
                 onScrollChanged: null,
                 shouldBlockWheel: () => modalOverlay != null && modalOverlay.style.display == DisplayStyle.Flex,
@@ -230,7 +232,9 @@ namespace Poltergeist.UiToolkit.Accounts
             content.Add(subHeader.Root);
             content.Add(statusLabel);
             content.Add(listWrapper);
-            content.Add(WalletUiCommon.BuildMainFooter(OnNewWallet, OnImportWallet, OnManageWallets, OnSettings));
+            var footer = WalletUiCommon.BuildMainFooter(OnNewWallet, OnImportWallet, OnManageWallets, OnSettings);
+            footer.style.flexShrink = 0;
+            content.Add(footer);
 
             root.Add(content);
             root.Add(modalOverlay);

@@ -235,8 +235,14 @@ namespace Poltergeist.UiToolkit.Settings
                 out scrollView,
                 v => viewState.ScrollY = v,
                 shouldBlockWheel: () => false,
+                paddingLeft: 0f,
+                paddingRight: 0f,
+                paddingTop: 0f,
                 paddingBottom: 140f,
-                marginTop: 20f);
+                marginTop: 20f,
+                marginBottom: 0f,
+                maxWidth: 1680f,
+                alignSelf: Align.Center);
             scrollView.RegisterCallback<GeometryChangedEvent>(_ => OnScrollGeometryChanged());
             scrollView.RegisterCallback<GeometryChangedEvent>(_ => StyleScrollBar(scrollView));
             LogScrollState("init-scrollview");

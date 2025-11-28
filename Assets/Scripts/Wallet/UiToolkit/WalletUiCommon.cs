@@ -520,9 +520,9 @@ namespace Poltergeist.UiToolkit
             return wrapper;
         }
 
-        // Standardized scroll section for list screens (balances/history/accounts) to keep layout and padding consistent.
-        internal static VisualElement BuildListSection(
-            out ScrollView listView,
+        // Unified scroll container used by all screens (lists + forms) to keep desktop/mobile layout consistent.
+        internal static VisualElement BuildScrollContainer(
+            out ScrollView scrollView,
             Action<float> onScrollChanged,
             Func<bool> shouldBlockWheel = null,
             float paddingLeft = 8f,
@@ -534,52 +534,43 @@ namespace Poltergeist.UiToolkit
             float maxWidth = 1680f,
             Align alignSelf = Align.Center)
         {
-            listView = CreateScrollView(onScrollChanged, shouldBlockWheel, paddingBottom);
-            listView.style.backgroundImage = new StyleBackground();
-            listView.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
-            listView.style.borderTopLeftRadius = 0;
-            listView.style.borderTopRightRadius = 0;
-            listView.style.borderBottomLeftRadius = 0;
-            listView.style.borderBottomRightRadius = 0;
-            listView.style.borderLeftWidth = 0;
-            listView.style.borderRightWidth = 0;
-            listView.style.borderTopWidth = 0;
-            listView.style.borderBottomWidth = 0;
-            listView.style.paddingLeft = paddingLeft;
-            listView.style.paddingRight = paddingRight;
-            listView.style.paddingTop = paddingTop;
-            listView.style.paddingBottom = paddingBottom;
-            listView.style.marginTop = marginTop;
-            listView.style.marginBottom = marginBottom;
-            listView.style.alignSelf = alignSelf;
-            listView.style.width = new Length(100, LengthUnit.Percent);
+            scrollView = CreateScrollView(onScrollChanged, shouldBlockWheel, paddingBottom);
+            // Keep the ScrollView geometry stable: padding lives on the content container, while
+            // margins/max-width live on the wrapper. This mirrors the Settings layout that does not
+            // resize during scroll, and keeps the same code working on desktop and mobile.
+            scrollView.style.backgroundImage = new StyleBackground();
+            scrollView.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
+            scrollView.style.borderTopLeftRadius = 0;
+            scrollView.style.borderTopRightRadius = 0;
+            scrollView.style.borderBottomLeftRadius = 0;
+            scrollView.style.borderBottomRightRadius = 0;
+            scrollView.style.borderLeftWidth = 0;
+            scrollView.style.borderRightWidth = 0;
+            scrollView.style.borderTopWidth = 0;
+            scrollView.style.borderBottomWidth = 0;
+            scrollView.contentContainer.style.paddingLeft = paddingLeft;
+            scrollView.contentContainer.style.paddingRight = paddingRight;
+            scrollView.contentContainer.style.paddingTop = paddingTop;
+            if (paddingBottom > 0f)
+            {
+                scrollView.contentContainer.style.paddingBottom = paddingBottom;
+            }
+            scrollView.style.marginTop = 0;
+            scrollView.style.marginBottom = 0;
+            scrollView.style.alignSelf = Align.Stretch;
+            scrollView.style.width = new Length(100, LengthUnit.Percent);
+
+            ApplyDefaultFont(scrollView);
+
+            var wrapper = CreateScrollWrapper();
+            wrapper.style.marginTop = marginTop;
+            wrapper.style.marginBottom = marginBottom;
+            wrapper.style.alignSelf = alignSelf;
+            wrapper.style.width = new Length(100, LengthUnit.Percent);
             if (maxWidth > 0f)
             {
-                listView.style.maxWidth = maxWidth;
+                wrapper.style.maxWidth = maxWidth;
             }
-
-            ApplyDefaultFont(listView);
-
-            var wrapper = CreateScrollWrapper();
-            wrapper.Add(listView);
-            return wrapper;
-        }
-
-        // Scroll container for form-like screens (Settings) with optional margin; keeps wrapper/scroll styling consistent.
-        internal static VisualElement BuildScrollContainer(
-            out ScrollView scrollView,
-            Action<float> onScrollChanged,
-            Func<bool> shouldBlockWheel = null,
-            float paddingBottom = 0f,
-            float marginTop = 0f)
-        {
-            scrollView = CreateScrollView(onScrollChanged, shouldBlockWheel, paddingBottom);
-            if (marginTop > 0f)
-            {
-                scrollView.style.marginTop = marginTop;
-            }
-
-            var wrapper = CreateScrollWrapper();
             wrapper.Add(scrollView);
             return wrapper;
         }
