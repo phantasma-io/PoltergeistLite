@@ -75,7 +75,7 @@ namespace Poltergeist.UiToolkit
             {
                 field.style.marginTop = 0;
                 field.style.marginBottom = 0;
-                field.style.minHeight = 44;
+                field.style.minHeight = 40;
                 row.Add(field);
             }
 
@@ -109,11 +109,11 @@ namespace Poltergeist.UiToolkit
                 {
                     width = new Length(100, LengthUnit.Percent),
                     marginBottom = 0,
-                    minHeight = 44,
+                    minHeight = 40,
                     paddingLeft = 10,
                     paddingRight = 10,
-                    paddingTop = 8,
-                    paddingBottom = 8,
+                    paddingTop = 6,
+                    paddingBottom = 6,
                     alignItems = Align.Center,
                     justifyContent = Justify.FlexStart,
                     backgroundColor = WalletUiTheme.InputBackground,
@@ -173,11 +173,11 @@ namespace Poltergeist.UiToolkit
                 {
                     width = new Length(100, LengthUnit.Percent),
                     marginBottom = 0,
-                    minHeight = multiline ? 52 : 44,
+                    minHeight = multiline ? 52 : 40,
                     paddingLeft = 10,
                     paddingRight = 10,
-                    paddingTop = multiline ? 10 : 8,
-                    paddingBottom = multiline ? 10 : 8,
+                    paddingTop = multiline ? 10 : 6,
+                    paddingBottom = multiline ? 10 : 6,
                     alignItems = Align.Center,
                     justifyContent = Justify.FlexStart,
                     backgroundColor = WalletUiTheme.InputBackground,
@@ -213,7 +213,7 @@ namespace Poltergeist.UiToolkit
                 input.style.color = WalletUiTheme.TextPrimary;
                 input.style.flexGrow = 1;
                 input.style.alignSelf = Align.Stretch;
-                input.style.minHeight = 22;
+                input.style.minHeight = 18;
                 input.style.justifyContent = Justify.Center;
                 input.style.alignItems = Align.Center;
             }
@@ -227,7 +227,7 @@ namespace Poltergeist.UiToolkit
 
         public static Toggle CreateToggle(string label, bool value, Action<bool> onChanged, string hint = null)
         {
-            var toggle = new Toggle(label ?? string.Empty)
+            var toggle = new Toggle(string.Empty)
             {
                 value = value,
                 style =
@@ -235,12 +235,33 @@ namespace Poltergeist.UiToolkit
                     marginBottom = 8,
                     fontSize = 14,
                     color = WalletUiTheme.TextPrimary,
-                    unityFontStyleAndWeight = FontStyle.Normal,
+                    unityFontStyleAndWeight = FontStyle.Bold,
                     minHeight = 28
                 }
             };
             WalletUiCommon.ApplyDefaultFont(toggle);
             StyleToggleVisual(toggle);
+
+            // UITK ignores margin/padding on the built-in label for Toggle, so we inject our own
+            // label element to get predictable spacing without fighting the internal layout.
+            var customLabel = new Label(label ?? string.Empty)
+            {
+                style =
+                {
+                    marginLeft = 10,
+                    paddingLeft = 0,
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = 14,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    flexGrow = 0,
+                    flexShrink = 1
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(customLabel);
+            customLabel.RegisterCallback<ClickEvent>(_ => toggle.value = !toggle.value);
+            toggle.Add(customLabel);
+
             toggle.RegisterValueChangedCallback(evt => onChanged?.Invoke(evt.newValue));
             if (!string.IsNullOrWhiteSpace(hint))
             {
@@ -297,6 +318,23 @@ namespace Poltergeist.UiToolkit
 
             toggle.style.flexDirection = FlexDirection.Row;
             toggle.style.alignItems = Align.Center;
+            toggle.style.justifyContent = Justify.FlexStart;
+            toggle.style.unityTextAlign = TextAnchor.MiddleLeft;
+            toggle.style.width = new StyleLength(StyleKeyword.Auto);
+            toggle.style.maxWidth = new StyleLength(StyleKeyword.Auto);
+            toggle.style.minWidth = 0;
+            toggle.style.alignSelf = Align.FlexStart;
+            toggle.style.flexGrow = 0;
+            toggle.style.flexShrink = 0;
+            var nativeLabel = toggle.labelElement;
+            if (nativeLabel != null)
+            {
+                // We disable the native label because UITK does not honor margins there,
+                // which makes alignment brittle across editor/runtime builds.
+                nativeLabel.style.display = DisplayStyle.None;
+                nativeLabel.style.width = 0;
+                nativeLabel.style.height = 0;
+            }
 
             var input = toggle.Q<VisualElement>(className: "unity-toggle__input") ??
                         toggle.Q<VisualElement>("unity-toggle__input") ??
@@ -305,7 +343,7 @@ namespace Poltergeist.UiToolkit
             {
                 input.style.width = 18;
                 input.style.height = 18;
-                input.style.marginRight = 8;
+                input.style.marginRight = 10;
                 input.style.borderLeftWidth = 1;
                 input.style.borderRightWidth = 1;
                 input.style.borderTopWidth = 1;
