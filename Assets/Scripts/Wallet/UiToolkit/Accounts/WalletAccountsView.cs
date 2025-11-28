@@ -31,15 +31,15 @@ namespace Poltergeist.UiToolkit.Accounts
         private Label statusLabel;
         private WalletUiSignals uiSignals;
         private VisualElement modalOverlay;
-        private Action<PromptResult, string> modalCallback;
+        private VisualElement modalPromptContainer;
+        private VisualElement modalContentContainer;
+        private WalletUiPromptController modalPrompt;
         private bool listWasEnabled = true;
         private bool rootWheelHooked;
         private bool listTemporarilyHidden;
         private bool listDetachedForModal;
         private int listIndexBeforeDetach = -1;
         private PickingMode listPickingModeBeforeModal;
-        private bool listVisibilityBeforeModal;
-        private EventCallback<KeyUpEvent> modalKeyHandler;
 
         public WalletAccountsView(VisualElement host, WalletApplicationContext context, Action onLoginSuccess, Action onShowSettings)
         {
@@ -211,6 +211,36 @@ namespace Poltergeist.UiToolkit.Accounts
             list.visible = true;
 
             modalOverlay = WalletUiCommon.CreateModalOverlay();
+            modalPromptContainer = new VisualElement
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center,
+                    width = new Length(100, LengthUnit.Percent),
+                    height = new Length(100, LengthUnit.Percent),
+                    display = DisplayStyle.None
+                }
+            };
+            modalContentContainer = new VisualElement
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center,
+                    width = new Length(100, LengthUnit.Percent),
+                    height = new Length(100, LengthUnit.Percent),
+                    display = DisplayStyle.None
+                }
+            };
+            ApplyDefaultFont(modalPromptContainer);
+            ApplyDefaultFont(modalContentContainer);
+            // Separate hosts so custom modals can clear their content without destroying the shared prompt UI.
+            modalOverlay.Add(modalPromptContainer);
+            modalOverlay.Add(modalContentContainer);
+            modalPrompt = new WalletUiPromptController(modalOverlay, modalPromptContainer, ApplyDefaultFont, PreparePromptModal, RestorePromptModal);
             modalOverlay.RegisterCallback<WheelEvent>(evt => evt.StopPropagation());
             modalOverlay.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
             modalOverlay.RegisterCallback<PointerMoveEvent>(evt => evt.StopPropagation());
@@ -434,12 +464,12 @@ namespace Poltergeist.UiToolkit.Accounts
             onShowSettings?.Invoke();
         }
 
-        private void OnOpenClicked(int index)
+        private async void OnOpenClicked(int index)
         {
-            OpenAccountAtIndex(index, false);
+            await OpenAccountAtIndexAsync(index, false);
         }
 
-        private void OpenAccountAtIndex(int index, bool isNewWallet)
+        private async Task OpenAccountAtIndexAsync(int index, bool isNewWallet)
         {
             var am = AccountManager.Instance;
             if (am == null || am.Accounts == null || index < 0 || index >= am.Accounts.Count)
@@ -452,38 +482,59 @@ namespace Poltergeist.UiToolkit.Accounts
             context.ViewState.ResetSnapshots();
             context.ViewState.MarkBalancesDirty();
 
-            authService.RequestPassword("Open wallet", am.CurrentAccount.platforms, true, true, this, result =>
+            var promptResult = await RequestPasswordAsync("Open wallet", am.CurrentAccount.platforms, true, true);
+            Log.Write($"{LogPrefix}Password prompt returned {promptResult} for account '{am.CurrentAccount.name}' (newWallet={isNewWallet}).");
+            if (promptResult == PromptResult.Success)
             {
-                Log.Write($"{LogPrefix}Password prompt returned {result} for account '{am.CurrentAccount.name}' (newWallet={isNewWallet}).");
-                if (result == PromptResult.Success)
+                Log.Write($"{LogPrefix}Account '{am.CurrentAccount.name}' opened, refreshing balances + switching view.");
+                if (isNewWallet)
                 {
-                    Log.Write($"{LogPrefix}Account '{am.CurrentAccount.name}' opened, refreshing balances + switching view.");
-                    if (isNewWallet)
-                    {
-                        am.BlankState();
-                    }
-                    else
-                    {
-                        am.RefreshTokenPrices();
-                    }
-                    context.BalancePresenter.Refresh(true);
-                    onLoginSuccess?.Invoke();
+                    am.BlankState();
                 }
                 else
                 {
-                    SetStatus($"Failed to open '{am.CurrentAccount.name}'.");
+                    am.RefreshTokenPrices();
                 }
-            });
+                context.BalancePresenter.Refresh(true);
+                onLoginSuccess?.Invoke();
+            }
+            else
+            {
+                SetStatus($"Failed to open '{am.CurrentAccount.name}'.");
+            }
         }
 
-        public void PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback)
+        private Task<PromptResult> RequestPasswordAsync(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, bool ignoreStoredPassword = false)
         {
-            ShowModal(title, caption, minLength, maxLength, callback);
+            var tcs = new TaskCompletionSource<PromptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            authService.RequestPassword(description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, this, result => tcs.TrySetResult(result), ignoreStoredPassword);
+            return tcs.Task;
         }
 
-        public void ShowError(string message, Action onClosed)
+        public async void PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback)
         {
-            ShowModal("Error", message, 0, 0, (result, _) => onClosed?.Invoke(), isError: true);
+            try
+            {
+                var (result, input) = await ShowModalAsync(title, caption, minLength, maxLength, isError: false, showInput: true, isPassword: true);
+                callback?.Invoke(result, input);
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}PromptPassword failed for '{title}': {e}");
+                callback?.Invoke(PromptResult.Failure, string.Empty);
+            }
+        }
+
+        public async void ShowError(string message, Action onClosed)
+        {
+            try
+            {
+                await ShowModalAsync("Error", message, 0, 0, isError: true, showInput: false, isPassword: false, primaryLabel: "Close", secondaryLabel: "Cancel");
+            }
+            finally
+            {
+                onClosed?.Invoke();
+            }
         }
 
         private void EnsureModalOverlayParent()
@@ -513,234 +564,121 @@ namespace Poltergeist.UiToolkit.Accounts
                 list.RemoveFromHierarchy();
             }
             listPickingModeBeforeModal = list.pickingMode;
-            listVisibilityBeforeModal = list.visible;
-            list.style.display = DisplayStyle.None; // extra guard against wheel during modal
+            list.style.display = DisplayStyle.None;
         }
 
-        private VisualElement BeginModalSession(Action<PromptResult, string> callback)
+        private void RestoreListAfterModal()
         {
-            HideModal();
-            modalCallback = callback;
+            if (list == null)
+            {
+                return;
+            }
 
+            list.SetEnabled(listWasEnabled);
+            list.focusable = true;
+            if (listDetachedForModal && listWrapper != null)
+            {
+                var idx = listIndexBeforeDetach >= 0 ? Mathf.Min(listIndexBeforeDetach, listWrapper.childCount) : listWrapper.childCount;
+                listWrapper.Insert(idx, list);
+                Log.Write($"{LogPrefix}Reattached list after modal. targetIdx={idx} children={listWrapper.childCount}");
+            }
+            listDetachedForModal = false;
+            listIndexBeforeDetach = -1;
+            list.pickingMode = listPickingModeBeforeModal;
+            list.visible = true;
+            list.style.display = DisplayStyle.Flex;
+        }
+
+        private void PreparePromptModal()
+        {
             EnsureModalOverlayParent();
             DetachListForModal();
-
-            if (modalOverlay != null)
+            if (modalContentContainer != null)
             {
-                modalOverlay.style.display = DisplayStyle.Flex;
-                modalOverlay.Clear();
+                modalContentContainer.Clear();
+                modalContentContainer.style.display = DisplayStyle.None;
             }
-
-            return modalOverlay;
         }
 
-        private void ShowModal(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
+        private void RestorePromptModal()
         {
-            if (callback == null)
+            if (modalPromptContainer != null)
             {
-                Log.WriteWarning($"{LogPrefix}ShowModal '{title}' missing callback, aborting modal.");
-                SetStatus("Could not open dialog, please try again.");
-                return;
+                modalPromptContainer.style.display = DisplayStyle.None;
             }
-
-            var overlay = BeginModalSession(callback);
-            if (overlay == null)
-            {
-                callback(PromptResult.Failure, string.Empty);
-                return;
-            }
-
-            var handler = callback;
-
-            void CloseAs(PromptResult result, string input)
-            {
-                var cb = modalCallback;
-                Log.Write($"{LogPrefix}CloseAs title='{title}' result={result} inputLen={(input?.Length ?? 0)} cbNull={cb == null}");
-                HideModal(keepCallback: true);
-                try
-                {
-                    handler(result, input);
-                }
-                catch (Exception e)
-                {
-                    Log.WriteWarning($"{LogPrefix}Modal callback exception for '{title}': {e}");
-                    SetStatus("Something went wrong, please try again.");
-                }
-                modalCallback = null;
-            }
-
-            var panel = WalletUiCommon.CreateModalPanel(720, 900);
-
-            var titleLabel = new Label(title ?? string.Empty)
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 20,
-                    marginBottom = 10,
-                    color = WalletUiTheme.TextPrimary
-                }
-            };
-            ApplyDefaultFont(titleLabel);
-            panel.Add(titleLabel);
-
-            var bodyLabel = new Label(caption ?? string.Empty)
-            {
-                style =
-                {
-                    marginBottom = 12,
-                    whiteSpace = WhiteSpace.Normal,
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 16
-                }
-            };
-            ApplyDefaultFont(bodyLabel);
-            panel.Add(bodyLabel);
-
-            var validationLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 13,
-                    marginBottom = 8,
-                    whiteSpace = WhiteSpace.Normal,
-                    display = DisplayStyle.None
-                }
-            };
-            ApplyDefaultFont(validationLabel);
-            panel.Add(validationLabel);
-
-            TextField passwordField = null;
-            if (!isError && showInput)
-            {
-                passwordField = new TextField
-                {
-                    isPasswordField = isPassword,
-                    maskChar = isPassword ? '*' : '\0',
-                    maxLength = maxLength > 0 ? maxLength : int.MaxValue,
-                    multiline = multiline
-                };
-                WalletUiCommon.StyleModalInput(passwordField, multiline, multiline ? 80 : 40);
-                if (!string.IsNullOrEmpty(initialValue))
-                {
-                    passwordField.value = initialValue;
-                }
-                passwordField.schedule.Execute(() => passwordField.Focus()).StartingIn(50);
-                panel.Add(passwordField);
-            }
-            panel.focusable = true;
-            panel.pickingMode = PickingMode.Position;
-
-            var buttonRow = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.FlexEnd,
-                    marginTop = 6
-                }
-            };
-
-            var cancel = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(secondaryLabel) ? "Cancel" : secondaryLabel, () => CloseAs(PromptResult.Failure, string.Empty), 16, 36);
-            cancel.style.minWidth = 110;
-
-            Action submitAction = () =>
-            {
-                var input = passwordField?.text ?? string.Empty;
-                Log.Write($"{LogPrefix}SubmitAction title='{title}' inputLen={input.Length} minLen={minLength} showInput={showInput}");
-                if (!isError && showInput && minLength > 0 && input.Length < minLength)
-                {
-                    Log.Write($"{LogPrefix}Submit rejected: len={input.Length} minLen={minLength}");
-                    var inputKind = isPassword ? "Password" : "Input";
-                    validationLabel.text = $"{inputKind} must be at least {minLength} characters.";
-                    validationLabel.style.display = DisplayStyle.Flex;
-                    passwordField?.Focus();
-                    return;
-                }
-
-                CloseAs(isError ? PromptResult.Failure : PromptResult.Success, input);
-            };
-            var ok = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(primaryLabel) ? (isError ? "Close" : "OK") : primaryLabel, submitAction, 16, 36);
-            ok.style.marginLeft = 10;
-            ok.style.minWidth = 110;
-
-            EventCallback<KeyUpEvent> keyHandler = evt =>
-            {
-                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
-                {
-                    Log.Write($"{LogPrefix}Enter pressed in modal. textLen={(passwordField?.text?.Length ?? 0)} minLen={minLength}");
-                    submitAction();
-                    evt.StopImmediatePropagation();
-                }
-                else if (evt.keyCode == KeyCode.Escape)
-                {
-                    Log.Write($"{LogPrefix}Escape pressed in modal.");
-                    CloseAs(PromptResult.Failure, string.Empty);
-                    evt.StopImmediatePropagation();
-                }
-            };
-            panel.RegisterCallback<KeyUpEvent>(keyHandler, TrickleDown.TrickleDown);
-            UnregisterModalKeyHandler();
-            modalKeyHandler = keyHandler;
-            modalOverlay.RegisterCallback<KeyUpEvent>(modalKeyHandler, TrickleDown.TrickleDown);
-
-            buttonRow.Add(cancel);
-            buttonRow.Add(ok);
-            panel.Add(buttonRow);
-
-            overlay.Add(panel);
-            panel.schedule.Execute(() => panel.Focus()).StartingIn(10);
-            Log.Write($"{LogPrefix}ShowModal '{title}' isError={isError} minLen={minLength} maxLen={maxLength} detached={listDetachedForModal}");
+            RestoreListAfterModal();
         }
 
-        private void UnregisterModalKeyHandler()
+        private VisualElement BeginCustomModal()
         {
-            if (modalOverlay != null && modalKeyHandler != null)
+            modalPrompt?.CancelActivePrompt(PromptResult.Failure);
+            EnsureModalOverlayParent();
+            DetachListForModal();
+            if (modalPromptContainer != null)
             {
-                modalOverlay.UnregisterCallback<KeyUpEvent>(modalKeyHandler, TrickleDown.TrickleDown);
-                modalKeyHandler = null;
+                modalPromptContainer.style.display = DisplayStyle.None;
             }
+
+            if (modalContentContainer != null)
+            {
+                modalContentContainer.Clear();
+                modalContentContainer.style.display = DisplayStyle.Flex;
+            }
+
+            modalOverlay.style.display = DisplayStyle.Flex;
+            return modalContentContainer ?? modalOverlay;
         }
 
         private void HideModal()
         {
-            HideModal(keepCallback: false);
+            HideCustomModal();
+            modalPrompt?.CancelActivePrompt(PromptResult.Failure);
         }
 
-        private void HideModal(bool keepCallback)
+        private void HideCustomModal()
         {
-            UnregisterModalKeyHandler();
-            modalOverlay.style.display = DisplayStyle.None;
-            modalOverlay.Clear();
-            if (list != null)
+            if (modalContentContainer != null)
             {
-                list.SetEnabled(listWasEnabled);
-                list.focusable = true;
-                if (listDetachedForModal && listWrapper != null)
-                {
-                    var idx = listIndexBeforeDetach >= 0 ? Mathf.Min(listIndexBeforeDetach, listWrapper.childCount) : listWrapper.childCount;
-                    listWrapper.Insert(idx, list);
-                    Log.Write($"{LogPrefix}Reattached list after modal. targetIdx={idx} children={listWrapper.childCount}");
-                }
-                listDetachedForModal = false;
-                listIndexBeforeDetach = -1;
-                list.pickingMode = listPickingModeBeforeModal;
-                list.visible = true; // always restore visibility after modal
-                list.style.display = DisplayStyle.Flex;
+                modalContentContainer.Clear();
+                modalContentContainer.style.display = DisplayStyle.None;
             }
-            if (!keepCallback)
+
+            if (modalOverlay != null)
             {
-                modalCallback = null;
+                modalOverlay.style.display = DisplayStyle.None;
             }
-            Log.Write($"{LogPrefix}HideModal complete. modal children={modalOverlay.childCount} listEnabled={list?.enabledSelf} listVisible={list?.visible}");
+
+            RestoreListAfterModal();
+            Log.Write($"{LogPrefix}HideModal complete. modal children={modalOverlay?.childCount} listEnabled={list?.enabledSelf} listVisible={list?.visible}");
         }
 
         protected Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
         {
-            var tcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ShowModal(title, caption, minLength, maxLength, (result, input) => tcs.TrySetResult((result, input)), isError, showInput, isPassword, multiline, primaryLabel, secondaryLabel, initialValue);
-            return tcs.Task;
+            if (modalPrompt == null)
+            {
+                return Task.FromResult((PromptResult.Failure, string.Empty));
+            }
+
+            var allowEmpty = isError || !showInput || minLength <= 0;
+            var successResult = isError ? PromptResult.Failure : PromptResult.Success;
+            var primary = string.IsNullOrWhiteSpace(primaryLabel) ? (isError ? "Close" : "OK") : primaryLabel;
+            var secondary = string.IsNullOrWhiteSpace(secondaryLabel) ? "Cancel" : secondaryLabel;
+
+            return modalPrompt.ShowAsync(
+                title,
+                caption,
+                minLength,
+                maxLength,
+                allowEmpty,
+                showInput,
+                isPassword,
+                multiline,
+                primary,
+                secondary,
+                showSecondary: true,
+                initialValue: initialValue ?? string.Empty,
+                successResult: successResult,
+                cancelResult: PromptResult.Failure);
         }
 
         protected async Task ShowErrorAsync(string message, string statusAfterClose = null)

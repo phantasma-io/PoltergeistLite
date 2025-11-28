@@ -116,7 +116,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return false;
             }
 
-            var overlay = BeginModalSession(null);
+            var overlay = BeginCustomModal();
             if (overlay == null)
             {
                 SetStatus("Cannot display backup dialog.");
@@ -217,7 +217,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var continueBtn = WalletUiCommon.CreateOutlineButton("Continue", () =>
             {
-                HideModal();
+                HideCustomModal();
                 tcs.TrySetResult(true);
             }, 16, 36);
             continueBtn.style.marginLeft = 10;
@@ -227,7 +227,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var cancelBtn = WalletUiCommon.CreateSecondaryButton("Cancel", () =>
             {
                 ResetNewWalletState();
-                HideModal();
+                HideCustomModal();
                 SetStatus("New wallet creation canceled.");
                 tcs.TrySetResult(false);
             }, 16, 36);
@@ -432,7 +432,7 @@ namespace Poltergeist.UiToolkit.Accounts
                     {
                         if (derivationIndex == 0 && walletIndex >= 0)
                         {
-                            OpenAccountAtIndex(walletIndex, true);
+                            await OpenAccountAtIndexAsync(walletIndex, true);
                         }
                         ResetNewWalletState();
                         return true;

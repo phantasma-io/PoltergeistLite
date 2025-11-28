@@ -889,7 +889,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return null;
             }
 
-            var messageResult = await ShowModalAsync("Enter message", "Message to sign", 1, -1, allowEmpty: false);
+            var messageResult = await ShowModalAsync("Enter message", "Message to sign", 1, -1, allowEmpty: false, hasInput: true, multiline: true);
             if (messageResult.result != PromptResult.Success)
             {
                 return null;
@@ -906,13 +906,13 @@ namespace Poltergeist.UiToolkit.Accounts
                 return null;
             }
 
-            var messageResult = await ShowModalAsync("Enter message", "Message that was signed", 1, -1, allowEmpty: false);
+            var messageResult = await ShowModalAsync("Enter message", "Message that was signed", 1, -1, allowEmpty: false, hasInput: true, multiline: true);
             if (messageResult.result != PromptResult.Success)
             {
                 return null;
             }
 
-            var sigResult = await ShowModalAsync("Enter signature", "Hex signature", 1, -1, allowEmpty: false);
+            var sigResult = await ShowModalAsync("Enter signature", "Hex signature", 1, -1, allowEmpty: false, hasInput: true, multiline: true);
             if (sigResult.result != PromptResult.Success)
             {
                 return null;
@@ -1064,7 +1064,7 @@ namespace Poltergeist.UiToolkit.Accounts
             parent.Add(modalOverlay);
         }
 
-        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true)
+        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool multiline = false)
         {
             modalTcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
             modalMinLength = minLength;
@@ -1094,6 +1094,8 @@ namespace Poltergeist.UiToolkit.Accounts
             modalInput.value = string.Empty;
             modalInput.visible = hasInput;
             modalInput.SetEnabled(hasInput);
+            modalInput.multiline = multiline;
+            WalletUiCommon.StyleModalInput(modalInput, multiline, multiline ? 80 : 40);
             modalOverlay.style.display = DisplayStyle.Flex;
             if (hasInput)
             {

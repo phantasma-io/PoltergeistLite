@@ -99,17 +99,8 @@ namespace Poltergeist.UiToolkit.Settings
 
         // Modal UI
         private VisualElement modalOverlay;
-        private VisualElement modalWindow;
-        private Label modalTitle;
-        private Label modalCaption;
-        private TextField modalInput;
-        private Button modalPrimary;
-        private Button modalSecondary;
-        private Action<PromptResult, string> modalCallback;
-        private bool modalAllowEmpty;
-        private bool modalHasInput;
-        private int modalMinLength;
-        private int modalMaxLength;
+        private VisualElement promptContainer;
+        private WalletUiPromptController promptController;
 
         private VisualElement copyPanel;
         private Label copyPanelTitle;
@@ -1026,170 +1017,160 @@ namespace Poltergeist.UiToolkit.Settings
             ExitToMain();
         }
 
-        private void OnVerifyProofOfAddresses()
+        private async void OnVerifyProofOfAddresses()
         {
-            ShowModal("Verify proof of addresses", actions.ProofOfAddressesPrompt, 1, -1, (result, input) =>
+            var (result, input) = await ShowModalAsync("Verify proof of addresses", actions.ProofOfAddressesPrompt, 1, -1, allowEmpty: false, hasInput: true, multiline: true);
+            if (result != PromptResult.Success)
             {
-                if (result != PromptResult.Success)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var verifyResult = actions.VerifyProofOfAddresses(input, devModeToggle?.value ?? false);
-                if (!verifyResult.Success)
-                {
-                    SetStatus(verifyResult.Error, true);
-                    ShowInfo("Verification failed", verifyResult.Error);
-                    return;
-                }
+            var verifyResult = actions.VerifyProofOfAddresses(input, devModeToggle?.value ?? false);
+            if (!verifyResult.Success)
+            {
+                SetStatus(verifyResult.Error, true);
+                ShowInfo("Verification failed", verifyResult.Error);
+                return;
+            }
 
-                ShowInfo("Verification", verifyResult.Data);
-                SetStatus("Proof of addresses verified.");
-            });
+            ShowInfo("Verification", verifyResult.Data);
+            SetStatus("Proof of addresses verified.");
         }
 
-        private void OnLegacySeedToWif()
+        private async void OnLegacySeedToWif()
         {
-            ShowModal("Old seed to WIF", actions.LegacySeedPrompt, 1, -1, (seedResult, legacySeed) =>
+            var seedPrompt = await ShowModalAsync("Old seed to WIF", actions.LegacySeedPrompt, 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
+            if (seedPrompt.result != PromptResult.Success || string.IsNullOrWhiteSpace(seedPrompt.input))
             {
-                if (seedResult != PromptResult.Success || string.IsNullOrWhiteSpace(legacySeed))
-                {
-                    return;
-                }
+                return;
+            }
 
-                ShowModal("Legacy seed password", actions.LegacySeedPasswordPrompt, 0, 64, (pwdResult, legacyPassword) =>
-                {
-                    if (pwdResult != PromptResult.Success)
-                    {
-                        return;
-                    }
+            var passwordPrompt = await ShowModalAsync("Legacy seed password", actions.LegacySeedPasswordPrompt, 0, 64, allowEmpty: true, hasInput: true, isPassword: true);
+            if (passwordPrompt.result != PromptResult.Success)
+            {
+                return;
+            }
 
-                    var conversionResult = actions.ConvertLegacySeedToWif(legacySeed, legacyPassword);
-                    if (!conversionResult.Success)
-                    {
-                        SetStatus(conversionResult.Error, true);
-                        ShowInfo("Conversion failed", conversionResult.Error);
-                        return;
-                    }
+            var conversionResult = actions.ConvertLegacySeedToWif(seedPrompt.input, passwordPrompt.input);
+            if (!conversionResult.Success)
+            {
+                SetStatus(conversionResult.Error, true);
+                ShowInfo("Conversion failed", conversionResult.Error);
+                return;
+            }
 
-                    ShowCopyPanel("WIF", "Copy the generated WIF", conversionResult.Data, "WIF copied to clipboard.");
-                    SetStatus("WIF generated.");
-                }, allowEmpty: true);
-            });
+            ShowCopyPanel("WIF", "Copy the generated WIF", conversionResult.Data, "WIF copied to clipboard.");
+            SetStatus("WIF generated.");
         }
 
-        private void OnDescribeScript()
+        private async void OnDescribeScript()
         {
-            ShowModal("Transaction script", "Enter transaction script in Base16 encoding", 1, -1, async (result, input) =>
+            var modalResult = await ShowModalAsync("Transaction script", "Enter transaction script in Base16 encoding", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
+            if (modalResult.result != PromptResult.Success)
             {
-                if (result != PromptResult.Success)
-                {
-                    return;
-                }
+                return;
+            }
 
-                byte[] script;
-                try
-                {
-                    script = Base16.Decode((input ?? string.Empty).CleanHex(), false);
-                }
-                catch (Exception e)
-                {
-                    SetStatus($"Cannot parse script: {e.Message}", true);
-                    return;
-                }
+            byte[] script;
+            try
+            {
+                script = Base16.Decode((modalResult.input ?? string.Empty).CleanHex(), false);
+            }
+            catch (Exception e)
+            {
+                SetStatus($"Cannot parse script: {e.Message}", true);
+                return;
+            }
 
-                if (script == null)
-                {
-                    SetStatus("Cannot parse script.", true);
-                    return;
-                }
+            if (script == null)
+            {
+                SetStatus("Cannot parse script.", true);
+                return;
+            }
 
-                SetStatus("Parsing script...");
-                try
-                {
-                    var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        SetStatus("Error during script parsing.", true);
-                        ShowInfo("Script error", "Error during script parsing.\nDetails: " + error);
-                        return;
-                    }
-
-                    ShowCopyPanel("Script description", "Copy the generated description", description, "Description copied to clipboard.");
-                    SetStatus("Script parsed.");
-                }
-                catch (Exception e)
+            SetStatus("Parsing script...");
+            try
+            {
+                var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
+                if (!string.IsNullOrEmpty(error))
                 {
                     SetStatus("Error during script parsing.", true);
-                    ShowInfo("Script error", "Error during script parsing.\nDetails: " + e);
+                    ShowInfo("Script error", "Error during script parsing.\nDetails: " + error);
+                    return;
                 }
-            });
+
+                ShowCopyPanel("Script description", "Copy the generated description", description, "Description copied to clipboard.");
+                SetStatus("Script parsed.");
+            }
+            catch (Exception e)
+            {
+                SetStatus("Error during script parsing.", true);
+                ShowInfo("Script error", "Error during script parsing.\nDetails: " + e);
+            }
         }
 
-        private void OnDecodeTransaction()
+        private async void OnDecodeTransaction()
         {
-            ShowModal("Decode transaction", "Enter transaction in Base16 encoding", 1, -1, async (result, input) =>
+            var modalResult = await ShowModalAsync("Decode transaction", "Enter transaction in Base16 encoding", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
+            if (modalResult.result != PromptResult.Success)
             {
-                if (result != PromptResult.Success)
-                {
-                    return;
-                }
+                return;
+            }
 
-                PhantasmaPhoenix.Protocol.Transaction tx = null;
-                try
-                {
-                    tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode((input ?? string.Empty).CleanHex(), false));
-                }
-                catch (Exception e)
-                {
-                    SetStatus("Cannot parse transaction.", true);
-                    ShowInfo("Decode failed", $"Cannot parse transaction.\nDetails: {e}");
-                    return;
-                }
+            PhantasmaPhoenix.Protocol.Transaction tx = null;
+            try
+            {
+                tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(Base16.Decode((modalResult.input ?? string.Empty).CleanHex(), false));
+            }
+            catch (Exception e)
+            {
+                SetStatus("Cannot parse transaction.", true);
+                ShowInfo("Decode failed", $"Cannot parse transaction.\nDetails: {e}");
+                return;
+            }
 
-                if (tx == null)
-                {
-                    SetStatus("Cannot parse transaction.", true);
-                    return;
-                }
+            if (tx == null)
+            {
+                SetStatus("Cannot parse transaction.", true);
+                return;
+            }
 
-                SetStatus("Parsing transaction...");
-                try
-                {
-                    var (description, error) = await DescriptionUtils.GetDescriptionAsync(tx.Script, true, CancellationToken.None);
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        SetStatus("Error during tx parsing.", true);
-                        ShowInfo("Decode failed", "Error during tx parsing.\nDetails: " + error);
-                        return;
-                    }
-
-                    var sb = new StringBuilder();
-                    sb.AppendLine($"Nexus name: {tx.NexusName}");
-                    sb.AppendLine($"Chain name: {tx.ChainName}");
-                    sb.AppendLine($"Expiration: {tx.Expiration}");
-                    sb.AppendLine($"Payload: {Encoding.UTF8.GetString(tx.Payload)}");
-                    sb.AppendLine($"Hash: {tx.Hash}");
-                    sb.AppendLine($"Signatures count: {(tx.HasSignatures ? tx.Signatures.Length : 0)}");
-                    if (tx.HasSignatures)
-                    {
-                        sb.AppendLine("Signatures:");
-                        foreach (var s in tx.Signatures)
-                        {
-                            sb.AppendLine(s.ToString());
-                        }
-                    }
-                    sb.AppendLine().Append(description);
-
-                    ShowCopyPanel("Tx description", "Copy the decoded transaction info", sb.ToString(), "Transaction description copied.");
-                    SetStatus("Transaction decoded.");
-                }
-                catch (Exception e)
+            SetStatus("Parsing transaction...");
+            try
+            {
+                var (description, error) = await DescriptionUtils.GetDescriptionAsync(tx.Script, true, CancellationToken.None);
+                if (!string.IsNullOrEmpty(error))
                 {
                     SetStatus("Error during tx parsing.", true);
-                    ShowInfo("Decode failed", "Error during tx parsing.\nDetails: " + e);
+                    ShowInfo("Decode failed", "Error during tx parsing.\nDetails: " + error);
+                    return;
                 }
-            });
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Nexus name: {tx.NexusName}");
+                sb.AppendLine($"Chain name: {tx.ChainName}");
+                sb.AppendLine($"Expiration: {tx.Expiration}");
+                sb.AppendLine($"Payload: {Encoding.UTF8.GetString(tx.Payload)}");
+                sb.AppendLine($"Hash: {tx.Hash}");
+                sb.AppendLine($"Signatures count: {(tx.HasSignatures ? tx.Signatures.Length : 0)}");
+                if (tx.HasSignatures)
+                {
+                    sb.AppendLine("Signatures:");
+                    foreach (var s in tx.Signatures)
+                    {
+                        sb.AppendLine(s.ToString());
+                    }
+                }
+                sb.AppendLine().Append(description);
+
+                ShowCopyPanel("Tx description", "Copy the decoded transaction info", sb.ToString(), "Transaction description copied.");
+                SetStatus("Transaction decoded.");
+            }
+            catch (Exception e)
+            {
+                SetStatus("Error during tx parsing.", true);
+                ShowInfo("Decode failed", "Error during tx parsing.\nDetails: " + e);
+            }
         }
 
         private void OnStakingInfo()
@@ -1290,51 +1271,47 @@ namespace Poltergeist.UiToolkit.Settings
             });
         }
 
-        private void OnAddressInfo()
+        private async void OnAddressInfo()
         {
-            ShowModal("Phantasma address info", "Enter an address", 1, -1, (result, input) =>
+            var modalResult = await ShowModalAsync("Phantasma address info", "Enter an address", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
+            if (modalResult.result != PromptResult.Success)
             {
-                if (result != PromptResult.Success)
-                {
-                    return;
-                }
+                return;
+            }
 
-                var accountManager = AccountManager.Instance;
-                if (accountManager == null)
-                {
-                    SetStatus("Account manager is not available.", true);
-                    return;
-                }
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                SetStatus("Account manager is not available.", true);
+                return;
+            }
 
-                accountManager.GetPhantasmaAddressInfo(input, null, (info, error) =>
-                {
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        ShowInfo("Error", "Something went wrong!\n" + error);
-                        SetStatus("Failed to get address info.", true);
-                        return;
-                    }
+            var tcs = new TaskCompletionSource<(string info, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            accountManager.GetPhantasmaAddressInfo(modalResult.input, null, (info, error) => tcs.TrySetResult((info, error)));
+            var (infoText, errorText) = await tcs.Task;
+            if (!string.IsNullOrEmpty(errorText))
+            {
+                ShowInfo("Error", "Something went wrong!\n" + errorText);
+                SetStatus("Failed to get address info.", true);
+                return;
+            }
 
-                    ShowCopyPanel("Account information", info, info, "Info copied to clipboard.");
-                    SetStatus("Address info fetched.");
-                });
-            });
+            ShowCopyPanel("Account information", infoText, infoText, "Info copied to clipboard.");
+            SetStatus("Address info fetched.");
         }
 
-        private void ConfirmWithModal(string message, Action onConfirm)
+        private async void ConfirmWithModal(string message, Action onConfirm)
         {
-            ShowModal("Confirm", message, 0, 0, (result, _) =>
+            var (result, _) = await ShowModalAsync("Confirm", message, 0, 0, allowEmpty: true, hasInput: false);
+            if (result == PromptResult.Success)
             {
-                if (result == PromptResult.Success)
-                {
-                    onConfirm?.Invoke();
-                }
-            }, allowEmpty: true, hasInput: false);
+                onConfirm?.Invoke();
+            }
         }
 
-        private void ShowInfo(string title, string message)
+        private async void ShowInfo(string title, string message)
         {
-            ShowModal(title, message, 0, 0, (result, _) => { }, allowEmpty: true, hasInput: false, showSecondary: false, primaryText: "Close");
+            await ShowModalAsync(title, message, 0, 0, allowEmpty: true, hasInput: false, showSecondary: false, primaryText: "Close");
         }
 
         private void SetStatus(string text, bool isError = false)
@@ -1423,53 +1400,62 @@ namespace Poltergeist.UiToolkit.Settings
         private void BuildModal(VisualElement parent)
         {
             modalOverlay = WalletUiModalFactory.CreateOverlay();
-            modalWindow = WalletUiModalFactory.CreateModalWindow(OnModalPrimary, OnModalSecondary, WalletUiCommon.ApplyDefaultFont, out modalTitle, out modalCaption, out modalInput, out modalPrimary, out modalSecondary);
+            promptContainer = new VisualElement
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center,
+                    width = new Length(100, LengthUnit.Percent),
+                    height = new Length(100, LengthUnit.Percent),
+                    display = DisplayStyle.None
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(promptContainer);
+            // Keep prompt UI in its own host so copy panel can reuse the same overlay without clearing prompts.
+            modalOverlay.Add(promptContainer);
+
             copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, WalletUiCommon.ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
 
-            modalOverlay.Add(modalWindow);
             modalOverlay.Add(copyPanel);
             modalOverlay.style.display = DisplayStyle.None;
+
+            promptController = new WalletUiPromptController(modalOverlay, promptContainer, WalletUiCommon.ApplyDefaultFont, OnPromptShown, OnPromptHidden);
             parent.Add(modalOverlay);
         }
 
-        private void ShowModal(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback, bool allowEmpty = false, bool hasInput = true, bool showSecondary = true, string primaryText = "Confirm")
+        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool showSecondary = true, string primaryText = "Confirm", bool isPassword = false, string initialValue = "", bool multiline = false)
         {
-            HideModal();
-            modalCallback = callback;
-            modalAllowEmpty = allowEmpty;
-            modalHasInput = hasInput;
-            modalMinLength = minLength;
-            modalMaxLength = maxLength;
-
-            if (modalSecondary != null)
+            if (promptController == null)
             {
-                modalSecondary.style.display = showSecondary ? DisplayStyle.Flex : DisplayStyle.None;
-                modalSecondary.text = "Cancel";
+                return Task.FromResult((PromptResult.Failure, string.Empty));
             }
 
-            if (modalPrimary != null)
-            {
-                modalPrimary.text = string.IsNullOrWhiteSpace(primaryText) ? "Confirm" : primaryText;
-            }
+            var effectiveAllowEmpty = allowEmpty || !hasInput || minLength <= 0;
+            var secondaryText = showSecondary ? "Cancel" : "Close";
 
-            modalTitle.text = title ?? string.Empty;
-            modalCaption.text = caption ?? string.Empty;
-            modalInput.value = string.Empty;
-            modalInput.visible = hasInput;
-            modalInput.SetEnabled(hasInput);
-
-            modalWindow.style.display = DisplayStyle.Flex;
-            copyPanel.style.display = DisplayStyle.None;
-            modalOverlay.style.display = DisplayStyle.Flex;
-            if (hasInput)
-            {
-                modalInput.Focus();
-            }
+            return promptController.ShowAsync(
+                title,
+                caption,
+                minLength,
+                maxLength,
+                effectiveAllowEmpty,
+                hasInput,
+                isPassword,
+                multiline,
+                primaryLabel: string.IsNullOrWhiteSpace(primaryText) ? "Confirm" : primaryText,
+                secondaryLabel: secondaryText,
+                showSecondary: showSecondary,
+                initialValue: initialValue ?? string.Empty,
+                successResult: PromptResult.Success,
+                cancelResult: PromptResult.Failure);
         }
 
         private void ShowCopyPanel(string title, string caption, string value, string copyStatus)
         {
-            HideModal();
+            promptController?.CancelActivePrompt(PromptResult.Failure);
+            HideCopyPanel();
             copyPanelCopyStatus = copyStatus;
 
             copyPanelTitle.text = string.IsNullOrWhiteSpace(title) ? "Copy value" : title;
@@ -1477,9 +1463,28 @@ namespace Poltergeist.UiToolkit.Settings
             copyPanelValueField.value = value ?? string.Empty;
             copyPanelValueField.SetEnabled(true);
 
-            modalWindow.style.display = DisplayStyle.None;
+            if (promptContainer != null)
+            {
+                promptContainer.style.display = DisplayStyle.None;
+            }
+
             copyPanel.style.display = DisplayStyle.Flex;
             modalOverlay.style.display = DisplayStyle.Flex;
+        }
+
+        private void HideCopyPanel()
+        {
+            if (copyPanel != null)
+            {
+                copyPanel.style.display = DisplayStyle.None;
+            }
+
+            if (copyPanelValueField != null)
+            {
+                copyPanelValueField.value = string.Empty;
+            }
+
+            copyPanelCopyStatus = null;
         }
 
         private void OnCopyPanelCopy()
@@ -1497,63 +1502,24 @@ namespace Poltergeist.UiToolkit.Settings
             HideModal();
         }
 
-        private void OnModalPrimary()
+        private void OnPromptShown()
         {
-            var cb = modalCallback;
-            modalCallback = null;
-
-            if (cb == null)
-            {
-                HideModal();
-                return;
-            }
-
-            var input = modalHasInput ? modalInput.text ?? string.Empty : string.Empty;
-            if (!modalAllowEmpty)
-            {
-                if (modalMaxLength > 0 && input.Length > modalMaxLength)
-                {
-                    modalCaption.text = $"Input must be <= {modalMaxLength} characters.";
-                    modalCallback = cb;
-                    return;
-                }
-
-                if (input.Length < modalMinLength)
-                {
-                    modalCaption.text = $"Input must be >= {modalMinLength} characters.";
-                    modalCallback = cb;
-                    return;
-                }
-            }
-
-            HideModal();
-            cb(PromptResult.Success, input);
+            HideCopyPanel();
         }
 
-        private void OnModalSecondary()
+        private void OnPromptHidden()
         {
-            var cb = modalCallback;
-            modalCallback = null;
-            HideModal();
-            cb?.Invoke(PromptResult.Failure, string.Empty);
+            HideCopyPanel();
         }
 
         private void HideModal()
         {
-            if (modalOverlay == null)
+            promptController?.CancelActivePrompt(PromptResult.Failure);
+            HideCopyPanel();
+            if (modalOverlay != null)
             {
-                return;
+                modalOverlay.style.display = DisplayStyle.None;
             }
-
-            modalOverlay.style.display = DisplayStyle.None;
-            modalWindow.style.display = DisplayStyle.None;
-            if (copyPanel != null)
-            {
-                copyPanel.style.display = DisplayStyle.None;
-            }
-
-            modalInput.value = string.Empty;
-            modalCallback = null;
         }
 
         private void ExitToMain()

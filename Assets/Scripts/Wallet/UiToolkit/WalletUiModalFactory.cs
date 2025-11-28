@@ -26,7 +26,7 @@ namespace Poltergeist.UiToolkit
                     unityFontStyleAndWeight = FontStyle.Bold,
                     fontSize = 20,
                     color = WalletUiTheme.TextPrimary,
-                    unityTextAlign = TextAnchor.MiddleCenter,
+                    unityTextAlign = TextAnchor.MiddleLeft,
                     marginBottom = 8
                 }
             };
@@ -39,7 +39,7 @@ namespace Poltergeist.UiToolkit
                 {
                     color = WalletUiTheme.TextPrimary,
                     fontSize = 15,
-                    unityTextAlign = TextAnchor.MiddleCenter,
+                    unityTextAlign = TextAnchor.MiddleLeft,
                     whiteSpace = WhiteSpace.Normal,
                     marginBottom = 10
                 }
@@ -49,11 +49,11 @@ namespace Poltergeist.UiToolkit
 
             input = new TextField
             {
-                multiline = true,
+                multiline = false,
                 isPasswordField = false,
                 maskChar = '*',
             };
-            WalletUiCommon.StyleModalInput(input, true, 60);
+            WalletUiCommon.StyleModalInput(input, false, 40);
             window.Add(input);
 
             var modalButtons = new VisualElement
@@ -93,7 +93,7 @@ namespace Poltergeist.UiToolkit
                     fontSize = 20,
                     color = WalletUiTheme.TextPrimary,
                     marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
+                    unityTextAlign = TextAnchor.MiddleLeft
                 }
             };
             applyDefaultFont?.Invoke(title);
@@ -106,7 +106,7 @@ namespace Poltergeist.UiToolkit
                     color = WalletUiTheme.TextSecondary,
                     fontSize = 15,
                     marginBottom = 12,
-                    unityTextAlign = TextAnchor.MiddleCenter
+                    unityTextAlign = TextAnchor.MiddleLeft
                 }
             };
             applyDefaultFont?.Invoke(caption);
@@ -170,7 +170,7 @@ namespace Poltergeist.UiToolkit
                     fontSize = 20,
                     color = WalletUiTheme.TextPrimary,
                     marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
+                    unityTextAlign = TextAnchor.MiddleLeft
                 }
             };
             applyDefaultFont?.Invoke(title);
@@ -183,7 +183,7 @@ namespace Poltergeist.UiToolkit
                     color = WalletUiTheme.TextSecondary,
                     fontSize = 15,
                     marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
+                    unityTextAlign = TextAnchor.MiddleLeft
                 }
             };
             applyDefaultFont?.Invoke(caption);
@@ -236,7 +236,7 @@ namespace Poltergeist.UiToolkit
                     fontSize = 20,
                     color = WalletUiTheme.TextPrimary,
                     marginBottom = 10,
-                    unityTextAlign = TextAnchor.MiddleCenter
+                    unityTextAlign = TextAnchor.MiddleLeft
                 }
             };
             applyDefaultFont?.Invoke(title);
@@ -248,7 +248,7 @@ namespace Poltergeist.UiToolkit
                 {
                     color = WalletUiTheme.TextPrimary,
                     fontSize = 15,
-                    unityTextAlign = TextAnchor.MiddleCenter,
+                    unityTextAlign = TextAnchor.MiddleLeft,
                     marginBottom = 12,
                     whiteSpace = WhiteSpace.Normal
                 }
