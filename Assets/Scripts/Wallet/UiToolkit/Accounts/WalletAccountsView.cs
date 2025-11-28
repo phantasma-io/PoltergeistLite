@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
@@ -12,7 +11,7 @@ namespace Poltergeist.UiToolkit.Accounts
     /// <summary>
     /// Wallet picker + password prompt for UITK.
     /// </summary>
-    public sealed class WalletAccountsView : IWalletAuthUi, IDisposable
+    public sealed partial class WalletAccountsView : IWalletAuthUi, IDisposable
     {
         private const string LogPrefix = "[UITK] ";
 
@@ -417,12 +416,6 @@ namespace Poltergeist.UiToolkit.Accounts
             Log.Write($"{LogPrefix}Opening explorer for {address}: {url}");
         }
 
-        private void OnNewWallet()
-        {
-            SetStatus("New wallet flow is not yet available in UITK.");
-            Log.Write($"{LogPrefix}New wallet action pressed (not implemented).");
-        }
-
         private void OnImportWallet()
         {
             SetStatus("Import flow is not yet available in UITK.");
@@ -442,6 +435,11 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void OnOpenClicked(int index)
         {
+            OpenAccountAtIndex(index, false);
+        }
+
+        private void OpenAccountAtIndex(int index, bool isNewWallet)
+        {
             var am = AccountManager.Instance;
             if (am == null || am.Accounts == null || index < 0 || index >= am.Accounts.Count)
             {
@@ -455,11 +453,18 @@ namespace Poltergeist.UiToolkit.Accounts
 
             authService.RequestPassword("Open wallet", am.CurrentAccount.platforms, true, true, this, result =>
             {
-                Log.Write($"{LogPrefix}Password prompt returned {result} for account '{am.CurrentAccount.name}'.");
+                Log.Write($"{LogPrefix}Password prompt returned {result} for account '{am.CurrentAccount.name}' (newWallet={isNewWallet}).");
                 if (result == PromptResult.Success)
                 {
                     Log.Write($"{LogPrefix}Account '{am.CurrentAccount.name}' opened, refreshing balances + switching view.");
-                    am.RefreshTokenPrices();
+                    if (isNewWallet)
+                    {
+                        am.BlankState();
+                    }
+                    else
+                    {
+                        am.RefreshTokenPrices();
+                    }
                     context.BalancePresenter.Refresh(true);
                     onLoginSuccess?.Invoke();
                 }
@@ -480,41 +485,86 @@ namespace Poltergeist.UiToolkit.Accounts
             ShowModal("Error", message, 0, 0, (result, _) => onClosed?.Invoke(), isError: true);
         }
 
-        private void ShowModal(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback, bool isError = false)
+        private void EnsureModalOverlayParent()
         {
-            HideModal();
-            modalCallback = callback;
-
             if (modalOverlay != null && root?.parent != null && modalOverlay.parent != root.parent)
             {
                 modalOverlay.RemoveFromHierarchy();
                 root.parent.Add(modalOverlay);
             }
+        }
 
-            if (list != null)
+        private void DetachListForModal()
+        {
+            if (list == null)
             {
-                listWasEnabled = list.enabledSelf;
-                list.SetEnabled(false);
-                list.focusable = false;
-                if (list.parent != null)
-                {
-                    listDetachedForModal = true;
-                    listIndexBeforeDetach = list.parent.IndexOf(list);
-                    Log.Write($"{LogPrefix}Detaching list for modal. parentChildren={list.parent.childCount} idx={listIndexBeforeDetach}");
-                    list.RemoveFromHierarchy();
-                }
-                listPickingModeBeforeModal = list.pickingMode;
-                listVisibilityBeforeModal = list.visible;
-                list.style.display = DisplayStyle.None; // extra guard against wheel during modal
+                return;
             }
-            modalOverlay.style.display = DisplayStyle.Flex;
-            modalOverlay.Clear();
+
+            listWasEnabled = list.enabledSelf;
+            list.SetEnabled(false);
+            list.focusable = false;
+            if (list.parent != null)
+            {
+                listDetachedForModal = true;
+                listIndexBeforeDetach = list.parent.IndexOf(list);
+                Log.Write($"{LogPrefix}Detaching list for modal. parentChildren={list.parent.childCount} idx={listIndexBeforeDetach}");
+                list.RemoveFromHierarchy();
+            }
+            listPickingModeBeforeModal = list.pickingMode;
+            listVisibilityBeforeModal = list.visible;
+            list.style.display = DisplayStyle.None; // extra guard against wheel during modal
+        }
+
+        private VisualElement BeginModalSession(Action<PromptResult, string> callback)
+        {
+            HideModal();
+            modalCallback = callback;
+
+            EnsureModalOverlayParent();
+            DetachListForModal();
+
+            if (modalOverlay != null)
+            {
+                modalOverlay.style.display = DisplayStyle.Flex;
+                modalOverlay.Clear();
+            }
+
+            return modalOverlay;
+        }
+
+        private void ShowModal(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
+        {
+            if (callback == null)
+            {
+                Log.WriteWarning($"{LogPrefix}ShowModal '{title}' missing callback, aborting modal.");
+                SetStatus("Could not open dialog, please try again.");
+                return;
+            }
+
+            var overlay = BeginModalSession(callback);
+            if (overlay == null)
+            {
+                callback(PromptResult.Failure, string.Empty);
+                return;
+            }
+
+            var handler = callback;
 
             void CloseAs(PromptResult result, string input)
             {
                 var cb = modalCallback;
+                Log.Write($"{LogPrefix}CloseAs title='{title}' result={result} inputLen={(input?.Length ?? 0)} cbNull={cb == null}");
                 HideModal(keepCallback: true);
-                cb?.Invoke(result, input);
+                try
+                {
+                    handler(result, input);
+                }
+                catch (Exception e)
+                {
+                    Log.WriteWarning($"{LogPrefix}Modal callback exception for '{title}': {e}");
+                    SetStatus("Something went wrong, please try again.");
+                }
                 modalCallback = null;
             }
 
@@ -546,16 +596,35 @@ namespace Poltergeist.UiToolkit.Accounts
             ApplyDefaultFont(bodyLabel);
             panel.Add(bodyLabel);
 
+            var validationLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 13,
+                    marginBottom = 8,
+                    whiteSpace = WhiteSpace.Normal,
+                    display = DisplayStyle.None
+                }
+            };
+            ApplyDefaultFont(validationLabel);
+            panel.Add(validationLabel);
+
             TextField passwordField = null;
-            if (!isError)
+            if (!isError && showInput)
             {
                 passwordField = new TextField
                 {
-                    isPasswordField = true,
-                    maskChar = '*',
-                    maxLength = maxLength > 0 ? maxLength : int.MaxValue
+                    isPasswordField = isPassword,
+                    maskChar = isPassword ? '*' : '\0',
+                    maxLength = maxLength > 0 ? maxLength : int.MaxValue,
+                    multiline = multiline
                 };
-                WalletUiCommon.StyleModalInput(passwordField, false, 40);
+                WalletUiCommon.StyleModalInput(passwordField, multiline, multiline ? 80 : 40);
+                if (!string.IsNullOrEmpty(initialValue))
+                {
+                    passwordField.value = initialValue;
+                }
                 passwordField.schedule.Execute(() => passwordField.Focus()).StartingIn(50);
                 panel.Add(passwordField);
             }
@@ -572,25 +641,28 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
 
-            var cancel = WalletUiCommon.CreateSecondaryButton("Cancel", () => CloseAs(PromptResult.Failure, string.Empty), 16, 36);
+            var cancel = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(secondaryLabel) ? "Cancel" : secondaryLabel, () => CloseAs(PromptResult.Failure, string.Empty), 16, 36);
             cancel.style.minWidth = 110;
 
-            var ok = WalletUiCommon.CreateOutlineButton(isError ? "Close" : "OK", () => CloseAs(isError ? PromptResult.Failure : PromptResult.Success, passwordField?.text ?? string.Empty), 16, 36);
-            ok.style.marginLeft = 10;
-            ok.style.minWidth = 110;
             Action submitAction = () =>
             {
                 var input = passwordField?.text ?? string.Empty;
-                if (!isError && input.Length < minLength)
+                Log.Write($"{LogPrefix}SubmitAction title='{title}' inputLen={input.Length} minLen={minLength} showInput={showInput}");
+                if (!isError && showInput && minLength > 0 && input.Length < minLength)
                 {
                     Log.Write($"{LogPrefix}Submit rejected: len={input.Length} minLen={minLength}");
-                    SetStatus($"Password must be at least {minLength} chars.");
+                    var inputKind = isPassword ? "Password" : "Input";
+                    validationLabel.text = $"{inputKind} must be at least {minLength} characters.";
+                    validationLabel.style.display = DisplayStyle.Flex;
+                    passwordField?.Focus();
                     return;
                 }
 
                 CloseAs(isError ? PromptResult.Failure : PromptResult.Success, input);
             };
-            ok.clicked += () => submitAction();
+            var ok = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(primaryLabel) ? (isError ? "Close" : "OK") : primaryLabel, submitAction, 16, 36);
+            ok.style.marginLeft = 10;
+            ok.style.minWidth = 110;
 
             EventCallback<KeyUpEvent> keyHandler = evt =>
             {
@@ -616,7 +688,7 @@ namespace Poltergeist.UiToolkit.Accounts
             buttonRow.Add(ok);
             panel.Add(buttonRow);
 
-            modalOverlay.Add(panel);
+            overlay.Add(panel);
             panel.schedule.Execute(() => panel.Focus()).StartingIn(10);
             Log.Write($"{LogPrefix}ShowModal '{title}' isError={isError} minLen={minLength} maxLen={maxLength} detached={listDetachedForModal}");
         }
