@@ -37,6 +37,12 @@ namespace Poltergeist.UiToolkit
         public static readonly Color Divider = Hex("#304274");
         public static readonly Color HighlightEdge = Hex("#3c4e85");
 
+        // Network badges
+        public static readonly Color BadgeTestnet = Hex("#f39c4a");
+        public static readonly Color BadgeDevnet = Hex("#b175f6");
+        public static readonly Color BadgeLocalnet = Hex("#4caf6d"); // pleasant green
+        public static readonly Color BadgeCustom = Hex("#c84a4a");   // darker alerting red
+
         // Accents (match the reference screenshot)
         public static readonly Color AccentPrimary = Hex("#6baee6");
         public static readonly Color AccentPrimarySoft = Hex("#8ac6f5");

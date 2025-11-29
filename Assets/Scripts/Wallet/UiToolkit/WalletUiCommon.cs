@@ -845,8 +845,40 @@ namespace Poltergeist.UiToolkit
                 return;
             }
 
-            label.text = BuildNetworkLabel(nexusName, kind);
-            label.style.color = GetNetworkColor(kind);
+            var text = BuildNetworkLabel(kind);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                label.text = string.Empty;
+                label.style.display = DisplayStyle.None;
+                return;
+            }
+
+            var palette = GetNetworkBadgePalette(kind);
+            label.text = text;
+            label.style.display = DisplayStyle.Flex;
+            label.style.unityTextAlign = TextAnchor.MiddleCenter;
+            label.style.unityFontStyleAndWeight = FontStyle.Bold;
+            label.style.fontSize = 12;
+            label.style.color = palette.text;
+            label.style.backgroundColor = palette.background;
+            label.style.borderLeftWidth = 1;
+            label.style.borderRightWidth = 1;
+            label.style.borderTopWidth = 1;
+            label.style.borderBottomWidth = 1;
+            label.style.borderLeftColor = palette.border;
+            label.style.borderRightColor = palette.border;
+            label.style.borderTopColor = palette.border;
+            label.style.borderBottomColor = palette.border;
+            label.style.borderTopLeftRadius = WalletUiTheme.RadiusSmall;
+            label.style.borderTopRightRadius = WalletUiTheme.RadiusSmall;
+            label.style.borderBottomLeftRadius = WalletUiTheme.RadiusSmall;
+            label.style.borderBottomRightRadius = WalletUiTheme.RadiusSmall;
+            label.style.paddingLeft = 10;
+            label.style.paddingRight = 10;
+            label.style.paddingTop = 4;
+            label.style.paddingBottom = 4;
+            label.style.marginLeft = 6;
+            label.style.minHeight = 20;
         }
 
         internal static string BuildVersionLabel()
@@ -854,25 +886,48 @@ namespace Poltergeist.UiToolkit
             return Application.version;
         }
 
-        internal static string BuildNetworkLabel(string name, NexusKind kind)
+        internal static string BuildNetworkLabel(NexusKind kind)
         {
             switch (kind)
             {
                 case NexusKind.Test_Net:
-                    return "[TESTNET]";
+                    return "TESTNET";
                 case NexusKind.Dev_Net:
-                    return "[DEVNET]";
+                    return "DEVNET";
                 case NexusKind.Local_Net:
-                    return "[LOCALNET]";
+                    return "LOCALNET";
                 case NexusKind.Custom:
-                    {
-                        var source = string.IsNullOrWhiteSpace(name) ? "CUSTOM" : name;
-                        source = source.Replace("_", string.Empty).Replace(" ", string.Empty);
-                        return $"[{source.ToUpperInvariant()}]";
-                    }
+                    return "CUSTOM";
                 default:
                     return string.Empty;
             }
+        }
+
+        private static (Color background, Color border, Color text) GetNetworkBadgePalette(NexusKind kind)
+        {
+            Color baseColor;
+            switch (kind)
+            {
+                case NexusKind.Test_Net:
+                    baseColor = WalletUiTheme.BadgeTestnet;
+                    break;
+                case NexusKind.Dev_Net:
+                    baseColor = WalletUiTheme.BadgeDevnet;
+                    break;
+                case NexusKind.Local_Net:
+                    baseColor = WalletUiTheme.BadgeLocalnet;
+                    break;
+                case NexusKind.Custom:
+                    baseColor = WalletUiTheme.BadgeCustom;
+                    break;
+                default:
+                    baseColor = WalletUiTheme.AccentPrimary;
+                    break;
+            }
+
+            var border = Color.Lerp(baseColor, Color.white, 0.2f);
+            var background = Color.Lerp(baseColor, Color.black, 0.1f);
+            return (background, border, Color.white);
         }
 
         internal static string BuildContextSubtitle(string label, string accountName, object platform)
