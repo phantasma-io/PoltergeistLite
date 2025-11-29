@@ -342,10 +342,10 @@ namespace Poltergeist
                     ReportGetPeersFailure = true;
                     Log.Write($"Couldn't retrieve RPCs list using url '{url}', error: " + ex.Message);
                 }
-
-                ExecuteAsync().Forget(LogTaskException);
             }
 
+            // Kick off the async refresh without recursive calls to avoid starving the thread pool.
+            ExecuteAsync().Forget(LogTaskException);
         }
 
         private async Task BenchmarkRpcAsync(string rpcUrl)
