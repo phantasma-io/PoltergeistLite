@@ -574,14 +574,14 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             var willImport = new StringBuilder();
-            var willSkip = new StringBuilder();
             var accountsToImport = new List<Account>();
+            var skippedAccounts = new List<Account>();
 
             foreach (var account in accounts)
             {
                 if (am.Accounts.Any(x => string.Equals(x.phaAddress, account.phaAddress, StringComparison.OrdinalIgnoreCase)))
                 {
-                    willSkip.AppendLine($"- {account.name} [{account.phaAddress}]");
+                    skippedAccounts.Add(account);
                 }
                 else
                 {
@@ -590,21 +590,34 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             }
 
-            var summary = new StringBuilder();
-            if (accountsToImport.Count > 0)
+            if (skippedAccounts.Count > 0)
             {
-                summary.AppendLine("Accounts to import:");
-                summary.AppendLine(willImport.ToString());
-            }
-            if (willSkip.Length > 0)
-            {
-                if (summary.Length > 0)
+                var skipItems = new List<(string title, string subtitle)>(skippedAccounts.Count);
+                for (var i = 0; i < skippedAccounts.Count; i++)
                 {
-                    summary.AppendLine();
+                    var skipped = skippedAccounts[i];
+                    skipItems.Add((skipped.name, skipped.phaAddress));
                 }
-                summary.AppendLine("Already exist (skipped):");
-                summary.AppendLine(willSkip.ToString());
+
+                await WalletUiModalHelper.ShowListDialogAsync(
+                    modalHost,
+                    "Already exist",
+                    "These wallets already exist on this device and will be skipped.",
+                    skipItems,
+                    closeLabel: "Close",
+                    onBeforeShow: DetachListForModal,
+                    onAfterHide: RestoreListAfterModal);
             }
+
+            if (accountsToImport.Count == 0)
+            {
+                UpdateManageStatus("Nothing to import.");
+                return;
+            }
+
+            var summary = new StringBuilder();
+            summary.AppendLine("Accounts to import:");
+            summary.AppendLine(willImport.ToString());
 
             var confirm = await WalletUiModalHelper.ShowConfirmAsync(
                     modalHost,
