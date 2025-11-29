@@ -662,6 +662,197 @@ namespace Poltergeist.UiToolkit
         }
 
         /// <summary>
+        /// Amount input dialog with inline validation and a Max button to fill full available value.
+        /// </summary>
+        public static Task<(PromptResult result, string input)> ShowAmountInputDialogAsync(
+            WalletUiModalHost host,
+            string title,
+            string caption,
+            string maxValueText,
+            Func<string, (bool isValid, string error)> validateInput,
+            string confirmLabel = "Confirm",
+            string cancelLabel = "Cancel",
+            string initialValue = "",
+            Action onBeforeShow = null,
+            Action onAfterHide = null)
+        {
+            if (host == null)
+            {
+                return Task.FromResult((PromptResult.Failure, string.Empty));
+            }
+
+            var tcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            void Complete(PromptResult result, string value)
+            {
+                host.HidePanel(onAfterHide);
+                tcs.TrySetResult((result, result == PromptResult.Success ? value?.Trim() ?? string.Empty : string.Empty));
+            }
+
+            var panel = WalletUiCommon.CreateModalPanel(540, 900);
+            panel.style.maxWidth = new Length(95, LengthUnit.Percent);
+            panel.style.flexShrink = 1;
+            panel.style.flexGrow = 0;
+
+            var titleLabel = new Label(string.IsNullOrWhiteSpace(title) ? "Amount" : title)
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(titleLabel);
+            panel.Add(titleLabel);
+
+            if (!string.IsNullOrWhiteSpace(caption))
+            {
+                var captionLabel = new Label(caption)
+                {
+                    style =
+                    {
+                        color = WalletUiTheme.TextSecondary,
+                        fontSize = 14,
+                        unityTextAlign = TextAnchor.MiddleLeft,
+                        marginBottom = 8,
+                        whiteSpace = WhiteSpace.Normal
+                    }
+                };
+                WalletUiCommon.ApplyDefaultFont(captionLabel);
+                panel.Add(captionLabel);
+            }
+
+            var inputRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(inputRow);
+
+            var amountField = new TextField
+            {
+                value = initialValue ?? string.Empty,
+                multiline = false,
+                isPasswordField = false,
+                maxLength = 64
+            };
+            WalletUiCommon.StyleModalInput(amountField, false, 44);
+            amountField.style.marginBottom = 0;
+            amountField.style.flexGrow = 1;
+            amountField.style.flexShrink = 1;
+            amountField.style.flexBasis = 0;
+            amountField.style.minWidth = 0;
+            inputRow.Add(amountField);
+
+            var maxButton = WalletUiCommon.CreateSecondaryButton("Max", null, 14, 36);
+            maxButton.style.minWidth = 80;
+            maxButton.style.marginLeft = 8;
+            inputRow.Add(maxButton);
+
+            panel.Add(inputRow);
+
+            var statusLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 12,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6,
+                    display = DisplayStyle.None
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(statusLabel);
+            panel.Add(statusLabel);
+
+            var buttons = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.FlexEnd,
+                    marginTop = 8,
+                    flexShrink = 0
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(buttons);
+
+            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, () => Complete(PromptResult.Failure, string.Empty), 16, 36);
+            cancelBtn.style.minWidth = 110;
+            buttons.Add(cancelBtn);
+
+            Button confirmBtn = null;
+            confirmBtn = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(confirmLabel) ? "Confirm" : confirmLabel, () =>
+            {
+                var trimmed = amountField.value?.Trim() ?? string.Empty;
+                var (valid, error) = validateInput?.Invoke(trimmed) ?? (true, string.Empty);
+                if (!valid)
+                {
+                    UpdateStatus(error);
+                    UpdateConfirmState(trimmed);
+                    return;
+                }
+
+                Complete(PromptResult.Success, trimmed);
+            }, 16, 36);
+            confirmBtn.style.minWidth = 120;
+            confirmBtn.style.marginLeft = 10;
+            buttons.Add(confirmBtn);
+            panel.Add(buttons);
+
+            void UpdateStatus(string text)
+            {
+                statusLabel.text = text ?? string.Empty;
+                statusLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            void UpdateConfirmState(string value)
+            {
+                var (valid, _) = validateInput?.Invoke(value ?? string.Empty) ?? (true, string.Empty);
+                WalletUiCommon.SetButtonEnabledVisual(confirmBtn, valid, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+            }
+
+            void ApplyMax()
+            {
+                if (string.IsNullOrWhiteSpace(maxValueText))
+                {
+                    return;
+                }
+
+                amountField.SetValueWithoutNotify(maxValueText);
+                UpdateConfirmState(maxValueText);
+                UpdateStatus(string.Empty);
+            }
+
+            maxButton.clicked += ApplyMax;
+            WalletUiCommon.SetButtonEnabledVisual(maxButton, !string.IsNullOrWhiteSpace(maxValueText), WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+
+            amountField.RegisterValueChangedCallback(evt =>
+            {
+                var trimmed = evt.newValue?.Trim() ?? string.Empty;
+                var (valid, error) = validateInput?.Invoke(trimmed) ?? (true, string.Empty);
+                UpdateConfirmState(trimmed);
+                UpdateStatus(valid ? string.Empty : (string.IsNullOrWhiteSpace(error) ? "Enter a valid number." : error));
+            });
+
+            var initialInput = amountField.value?.Trim() ?? string.Empty;
+            UpdateConfirmState(initialInput);
+            var (initialValid, initialError) = validateInput?.Invoke(initialInput) ?? (true, string.Empty);
+            UpdateStatus(initialValid ? string.Empty : (string.IsNullOrWhiteSpace(initialError) ? "Enter a valid number." : initialError));
+
+            host.ShowPanel(panel, onBeforeShow);
+            return tcs.Task;
+        }
+
+        /// <summary>
         /// Displays a modal with vertically stacked action buttons to pick one of the supplied options.
         /// Returns the zero-based index of the chosen option or -1 when cancelled.
         /// </summary>

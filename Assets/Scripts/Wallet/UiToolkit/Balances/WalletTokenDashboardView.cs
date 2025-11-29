@@ -1228,23 +1228,24 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
+            var displayPrecision = accountManager.Settings?.balanceDisplayPrecision ?? 4;
             var caption = string.IsNullOrWhiteSpace(captionOverride)
-                ? $"Amount between {WalletAmountFormatter.Format(minAmount, decimals)} and {WalletAmountFormatter.Format(maxAmount, decimals)} {symbol}"
+                ? $"Amount between {WalletAmountFormatter.Format(minAmount, decimals, displayPrecision)} and {WalletAmountFormatter.Format(maxAmount, decimals, displayPrecision)} {symbol}"
                 : captionOverride;
-            var (amountResult, amountInput) = await WalletUiModalHelper.ShowPromptAsync(
+            var maxText = WalletAmountFormatter.Format(maxAmount, decimals, displayPrecision);
+            var (amountResult, amountInput) = await WalletUiModalHelper.ShowAmountInputDialogAsync(
                 modalHost,
                 $"Amount of {symbol}",
                 caption,
-                1,
-                64,
-                allowEmpty: false,
-                hasInput: true,
-                isPassword: false,
-                multiline: false,
-                primaryLabel: "Continue",
-                secondaryLabel: "Cancel",
-                showSecondary: true,
-                initialValue: WalletAmountFormatter.Format(maxAmount, decimals, MoneyFormatType.Short));
+                maxText,
+                value =>
+                {
+                    var validation = amountValidator.ParseAndValidate(value, symbol, minAmount, maxAmount);
+                    return (validation.Success, validation.Error);
+                },
+                confirmLabel: "Continue",
+                cancelLabel: "Cancel",
+                initialValue: WalletAmountFormatter.Format(maxAmount, decimals, displayPrecision));
 
             if (amountResult != PromptResult.Success)
             {
