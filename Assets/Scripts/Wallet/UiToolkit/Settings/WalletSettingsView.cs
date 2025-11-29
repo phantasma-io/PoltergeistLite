@@ -485,10 +485,10 @@ namespace Poltergeist.UiToolkit.Settings
             WalletUiCommon.ApplyDefaultFont(actionsContainer);
 
             var utilitiesRow = WalletUiFormFactory.CreateButtonRow(
-                WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmWithModal(actions.ClearCacheConfirmation, OnClearCache), 14, 32),
+                WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDelete(actions.ClearCacheConfirmation, OnClearCache), 14, 32),
                 WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmWithModal(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32),
-                deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmWithModal(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32),
+                WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDelete(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32),
+                deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32),
                 WalletUiCommon.CreateSecondaryButton("Copy display settings", OnCopyDisplaySettings, 14, 32)
             );
             utilitiesRow.style.marginTop = 8;
@@ -1299,9 +1299,9 @@ namespace Poltergeist.UiToolkit.Settings
             SetStatus("Address info fetched.");
         }
 
-        private async void ConfirmWithModal(string message, Action onConfirm)
+        private async void ConfirmDelete(string message, Action onConfirm)
         {
-            var (result, _) = await ShowModalAsync("Confirm", message, 0, 0, allowEmpty: true, hasInput: false);
+            var result = await WalletUiModalHelper.ShowConfirmAsync(modalHost, "Confirm", message, "Confirm", "Cancel");
             if (result == PromptResult.Success)
             {
                 onConfirm?.Invoke();
@@ -1310,7 +1310,7 @@ namespace Poltergeist.UiToolkit.Settings
 
         private async void ShowInfo(string title, string message)
         {
-            await ShowModalAsync(title, message, 0, 0, allowEmpty: true, hasInput: false, showSecondary: false, primaryText: "Close");
+            await WalletUiModalHelper.ShowInfoAsync(modalHost, title, message);
         }
 
         private void SetStatus(string text, bool isError = false)

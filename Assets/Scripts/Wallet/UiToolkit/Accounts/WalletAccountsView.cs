@@ -491,7 +491,7 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             try
             {
-                await ShowModalAsync("Error", message, 0, 0, isError: true, showInput: false, isPassword: false, primaryLabel: "Close", secondaryLabel: "Cancel");
+                await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal);
             }
             finally
             {
@@ -570,7 +570,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
         protected async Task ShowErrorAsync(string message, string statusAfterClose = null)
         {
-            await ShowModalAsync("Error", message, 0, 0, isError: true, showInput: false, isPassword: false, primaryLabel: "Close", secondaryLabel: "Cancel");
+            await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal);
             if (!string.IsNullOrWhiteSpace(statusAfterClose))
             {
                 SetStatus(statusAfterClose);
