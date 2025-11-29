@@ -105,7 +105,7 @@ namespace Poltergeist.UiToolkit
             return result;
         }
 
-        public static Task<(PromptResult result, string input)> ShowErrorAsync(WalletUiModalHost host, string title, string message, Action onBeforeShow = null, Action onAfterHide = null)
+        public static Task<(PromptResult result, string input)> ShowErrorAsync(WalletUiModalHost host, string title, string message, Action onBeforeShow = null, Action onAfterHide = null, bool showSecondary = false)
         {
             if (host == null)
             {
@@ -123,7 +123,7 @@ namespace Poltergeist.UiToolkit
                 multiline: false,
                 primaryLabel: "Close",
                 secondaryLabel: "Cancel",
-                showSecondary: true,
+                showSecondary: showSecondary,
                 successResult: PromptResult.Failure,
                 cancelResult: PromptResult.Failure,
                 onBeforeShow: onBeforeShow,

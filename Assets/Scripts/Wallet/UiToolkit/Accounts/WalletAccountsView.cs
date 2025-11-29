@@ -409,18 +409,6 @@ namespace Poltergeist.UiToolkit.Accounts
             Log.Write($"{LogPrefix}Opening explorer for {address}: {url}");
         }
 
-        private void OnImportWallet()
-        {
-            SetStatus("Import flow is not yet available in UITK.");
-            Log.Write($"{LogPrefix}Import wallet action pressed (not implemented).");
-        }
-
-        private void OnManageWallets()
-        {
-            SetStatus("Manage wallets is not yet available in UITK.");
-            Log.Write($"{LogPrefix}Manage wallets action pressed (not implemented).");
-        }
-
         private void OnSettings()
         {
             onShowSettings?.Invoke();
@@ -552,9 +540,9 @@ namespace Poltergeist.UiToolkit.Accounts
                 onAfterHide: RestoreListAfterModal);
         }
 
-        protected async Task ShowErrorWithStatusAsync(string message, string statusAfterClose = null)
+        protected async Task ShowErrorWithStatusAsync(string message, string statusAfterClose = null, bool singleButton = true)
         {
-            await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal);
+            await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal, showSecondary: !singleButton);
             if (!string.IsNullOrWhiteSpace(statusAfterClose))
             {
                 SetStatus(statusAfterClose);

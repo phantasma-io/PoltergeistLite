@@ -478,7 +478,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     if (account.phaAddress == keys.Address.ToString())
                     {
-                        await ShowErrorWithStatusAsync($"Private key{walletNumberString} is already imported in a different account: {account.name}.");
+                        await ShowErrorWithStatusAsync($"Private key{walletNumberString} is already imported in a different account: {account.name}.", null, singleButton: true);
                         return -1;
                     }
                 }
