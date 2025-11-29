@@ -285,6 +285,8 @@ namespace Poltergeist.UiToolkit
             }
 
             var tcs = new TaskCompletionSource<(PromptResult result, string address)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var accountManager = AccountManager.Instance;
+            var currentAddress = accountManager != null ? accountManager.CurrentAccount.phaAddress?.Trim() : null;
             // Only keep unique, valid Phantasma addresses to avoid noisy or unusable entries in the picker.
             var validAccounts = new List<Account>();
             var seenAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -293,7 +295,10 @@ namespace Poltergeist.UiToolkit
                 foreach (var acc in accounts)
                 {
                     var address = acc.phaAddress?.Trim();
-                    if (string.IsNullOrWhiteSpace(address) || !Address.IsValidAddress(address) || !seenAddresses.Add(address))
+                    if (string.IsNullOrWhiteSpace(address) ||
+                        !Address.IsValidAddress(address) ||
+                        string.Equals(address, currentAddress, StringComparison.OrdinalIgnoreCase) ||
+                        !seenAddresses.Add(address))
                     {
                         continue;
                     }
@@ -440,7 +445,17 @@ namespace Poltergeist.UiToolkit
             bool IsInputValid(string value)
             {
                 var trimmed = value?.Trim() ?? string.Empty;
-                return Address.IsValidAddress(trimmed);
+                if (!Address.IsValidAddress(trimmed))
+                {
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(currentAddress))
+                {
+                    return true;
+                }
+
+                return !string.Equals(trimmed, currentAddress, StringComparison.OrdinalIgnoreCase);
             }
 
             void UpdateConfirmState(string value)
@@ -549,6 +564,11 @@ namespace Poltergeist.UiToolkit
                     {
                         var name = string.IsNullOrWhiteSpace(account.name) ? "Wallet" : account.name;
                         var address = account.phaAddress?.Trim() ?? string.Empty;
+                        if (!IsInputValid(address))
+                        {
+                            continue;
+                        }
+
                         var row = CreateAddressRow(name, address, () => ApplySelection(address));
                         rowEntries.Add((address, name, row));
                         list.Add(row);
@@ -603,7 +623,7 @@ namespace Poltergeist.UiToolkit
                 var trimmed = destinationField.value?.Trim() ?? string.Empty;
                 if (!IsInputValid(trimmed))
                 {
-                    UpdateStatus("Enter a valid destination address.");
+                    UpdateStatus("Enter a valid destination address (not your own).");
                     UpdateConfirmState(trimmed);
                     return;
                 }
