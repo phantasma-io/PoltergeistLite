@@ -38,6 +38,7 @@ namespace Poltergeist.UiToolkit
         private VisualElement accountRoot;
         private VisualElement settingsRoot;
         private WalletUiModalHost modalHost;
+        private WalletUiToolkitBridge uiBridge;
         private bool initializationFailed;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -136,11 +137,13 @@ namespace Poltergeist.UiToolkit
             historyView?.Dispose();
             accountView?.Dispose();
             settingsView?.Dispose();
+            uiBridge?.Dispose();
             accountsView = null;
             balancesView = null;
             historyView = null;
             accountView = null;
             settingsView = null;
+            uiBridge = null;
             if (instance == this)
             {
                 instance = null;
@@ -308,6 +311,9 @@ namespace Poltergeist.UiToolkit
             settingsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
 
             modalHost = new WalletUiModalHost(root, WalletUiCommon.ApplyDefaultFont);
+            uiBridge = new WalletUiToolkitBridge(context, modalHost);
+            WalletUiBridge.Register(uiBridge);
+            Log.Write($"{LogPrefix}WalletLink UI bridge registered for UITK.");
 
             accountsView = new WalletAccountsView(accountsRoot, context, modalHost, ShowBalances, ShowSettings);
             balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
