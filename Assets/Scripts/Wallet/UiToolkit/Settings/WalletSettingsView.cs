@@ -488,8 +488,7 @@ namespace Poltergeist.UiToolkit.Settings
                 WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDelete(actions.ClearCacheConfirmation, OnClearCache), 14, 32),
                 WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32),
                 WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDelete(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32),
-                deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Copy display settings", OnCopyDisplaySettings, 14, 32)
+                deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32)
             );
             utilitiesRow.style.marginTop = 8;
             utilitiesRow.style.marginBottom = 12;
