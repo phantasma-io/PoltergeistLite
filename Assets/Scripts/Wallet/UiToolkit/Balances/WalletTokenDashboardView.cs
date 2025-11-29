@@ -66,7 +66,6 @@ namespace Poltergeist.UiToolkit.Balances
         private Label burnedSupplyLabel;
         private Label decimalsLabel;
         private Label flagsLabel;
-        private Label ownerLabel;
         private Image tokenIcon;
         private VisualElement heroCard;
         private VisualElement statsRow;
@@ -567,7 +566,6 @@ namespace Poltergeist.UiToolkit.Balances
             section.Add(BuildInfoRow("Max supply", out maxSupplyLabel));
             section.Add(BuildInfoRow("Burned", out burnedSupplyLabel));
             section.Add(BuildInfoRow("Flags", out flagsLabel));
-            section.Add(BuildInfoRow("Owner", out ownerLabel));
 
             return section;
         }
@@ -796,7 +794,7 @@ namespace Poltergeist.UiToolkit.Balances
         {
             var token = Tokens.GetToken(entry.Symbol, platform);
             tokenTitleLabel.text = $"{entry.Symbol} {(string.IsNullOrWhiteSpace(token?.Name) ? string.Empty : $"• {token.Name}")}".Trim();
-            tokenSubtitleLabel.text = $"Chain: {entry.Chain}";
+            tokenSubtitleLabel.text = string.Empty;
 
             if (ResourceManager.Instance != null)
             {
@@ -811,7 +809,8 @@ namespace Poltergeist.UiToolkit.Balances
 
             var totalText = WalletAmountFormatter.Format(entry.Total, entry.Decimals, AccountManager.Instance?.Settings?.balanceDisplayPrecision ?? 4);
             totalValueLabel.text = $"{totalText} {entry.Symbol}";
-            totalFiatLabel.text = BuildFiatLine(entry.FiatWorth, entry.StakedFiatWorth);
+            var totalFiat = SumFiat(entry.FiatWorth, entry.StakedFiatWorth);
+            totalFiatLabel.text = FormatFiat(totalFiat);
         }
 
         private void UpdateStats(WalletBalanceEntry entry)
@@ -834,7 +833,6 @@ namespace Poltergeist.UiToolkit.Balances
             maxSupplyLabel.text = FormatSupply(token?.MaxSupply, entry.Decimals, entry.Symbol);
             burnedSupplyLabel.text = FormatSupply(token?.BurnedSupply, entry.Decimals, entry.Symbol);
             flagsLabel.text = token?.Flags ?? string.Empty;
-            ownerLabel.text = string.IsNullOrWhiteSpace(token?.Owner) ? "(unknown)" : token.Owner;
         }
 
         private void UpdateActions(WalletBalanceEntry entry, AccountManager accountManager)
@@ -1346,6 +1344,19 @@ namespace Poltergeist.UiToolkit.Balances
             return string.IsNullOrWhiteSpace(value) ? string.Empty : value;
         }
 
+        private string SumFiat(string availableFiat, string stakedFiat)
+        {
+            // Both values already come preformatted; we can only sum if both parse cleanly to decimal.
+            if (decimal.TryParse(availableFiat?.Replace("$", string.Empty).Replace(",", string.Empty), NumberStyles.Any, CultureInfo.InvariantCulture, out var available) &&
+                decimal.TryParse(stakedFiat?.Replace("$", string.Empty).Replace(",", string.Empty), NumberStyles.Any, CultureInfo.InvariantCulture, out var staked))
+            {
+                var total = available + staked;
+                return $"≈ {WalletAmountFormatter.Format(total, MoneyFormatType.Standard)} $";
+            }
+
+            return availableFiat ?? stakedFiat ?? string.Empty;
+        }
+
         private string BuildStakeCaption(WalletBalanceEntry entry, uint decimals)
         {
             decimal? expectedKcal = null;
@@ -1558,7 +1569,6 @@ namespace Poltergeist.UiToolkit.Balances
             maxSupplyLabel.text = string.Empty;
             burnedSupplyLabel.text = string.Empty;
             flagsLabel.text = string.Empty;
-            ownerLabel.text = string.Empty;
         }
 
         private void SetStatus(string text)
