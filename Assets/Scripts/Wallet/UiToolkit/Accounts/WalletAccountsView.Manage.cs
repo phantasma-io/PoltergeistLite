@@ -100,6 +100,22 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(panel);
 
+            manageStatusLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 13,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6,
+                    display = DisplayStyle.None,
+                    alignSelf = Align.Center,
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = 1680
+                }
+            };
+            ApplyDefaultFont(manageStatusLabel);
+
             var caption = new Label("Rename, reorder, import/export or delete wallets on this device.")
             {
                 style =
@@ -113,20 +129,6 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(caption);
             panel.Add(caption);
-
-            manageStatusLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 13,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginBottom = 6,
-                    display = DisplayStyle.None
-                }
-            };
-            ApplyDefaultFont(manageStatusLabel);
-            panel.Add(manageStatusLabel);
 
             var scrollWrapper = WalletUiCommon.BuildScrollContainer(
                 out manageList,
@@ -145,6 +147,7 @@ namespace Poltergeist.UiToolkit.Accounts
             manageList.style.minHeight = 0; // Allow the list to stretch so the footer sits at the same height as other screens.
             panel.Add(scrollWrapper);
 
+            root.Add(manageStatusLabel);
             root.Add(panel);
 
             var actionsContainer = new VisualElement

@@ -140,12 +140,6 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private void SetStatus(string text)
-        {
-            statusLabel.text = text ?? string.Empty;
-            statusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
-        }
-
         private void BuildLayout(VisualElement host)
         {
             root = host;
@@ -581,6 +575,11 @@ namespace Poltergeist.UiToolkit.Accounts
                 SetStatus("Cannot open wallet management right now. Please try again.");
                 return;
             }
+            if (statusLabel != null)
+            {
+                statusLabel.text = string.Empty;
+                statusLabel.style.display = DisplayStyle.None;
+            }
             if (listWrapper != null)
             {
                 listWrapper.style.display = DisplayStyle.None;
@@ -625,6 +624,19 @@ namespace Poltergeist.UiToolkit.Accounts
 
             subtitleLabel.text = "Wallet List";
             Refresh();
+        }
+
+        private void SetStatus(string text)
+        {
+            if (manageRoot != null && manageRoot.style.display == DisplayStyle.Flex && manageStatusLabel != null)
+            {
+                manageStatusLabel.text = text ?? string.Empty;
+                manageStatusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+                return;
+            }
+
+            statusLabel.text = text ?? string.Empty;
+            statusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
         private void ApplyDefaultFont(VisualElement element)
