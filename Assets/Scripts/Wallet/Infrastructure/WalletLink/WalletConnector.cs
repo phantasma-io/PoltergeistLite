@@ -46,30 +46,26 @@ namespace Poltergeist
             }
         }
 
-        private void Prompt(string text, Action<bool> callback)
+        private Task<bool> PromptAsync(string text)
         {
             var ui = Ui;
             if (ui != null)
             {
-                ui.Prompt(text, callback);
+                return ui.PromptAsync(text);
             }
-            else
-            {
-                callback(false);
-            }
+
+            return Task.FromResult(false);
         }
 
-        private void SendDraft(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true)
+        private async Task<(Hash hash, TransactionResult txResult, string error)> SendDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation = true)
         {
             var ui = Ui;
             if (ui != null)
             {
-                ui.SendTransactionDraft(draft, callback, refreshBalanceAfterConfirmation);
+                return await ui.SendTransactionDraftAsync(draft, refreshBalanceAfterConfirmation);
             }
-            else
-            {
-                callback(Hash.Null, null, "UI bridge is unavailable.");
-            }
+
+            return (Hash.Null, null, "UI bridge is unavailable.");
         }
 
         private void ShowTxResult(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null)
@@ -77,36 +73,45 @@ namespace Poltergeist
             Ui?.TxResultMessage(hash, txResult, error, successCustomMessage, failureCustomMessage);
         }
 
-        private void InvokeScriptOnMain(string chain, byte[] script, Action<string[], string> callback)
+        private Task<(string[] result, string error)> InvokeScriptOnMainAsync(string chain, byte[] script)
         {
+            var tcs = new TaskCompletionSource<(string[] result, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
             RunOnUi(() =>
             {
                 var ui = Ui;
                 if (ui != null)
                 {
-                    ui.InvokeScript(chain, script, callback);
+                    ui.InvokeScriptAsync(chain, script).ContinueWith(task =>
+                    {
+                        var res = task.Result;
+                        tcs.TrySetResult(res);
+                    });
                 }
                 else
                 {
-                    AccountManager.Instance.InvokeScript(chain, script, callback);
+                    AccountManager.Instance.InvokeScript(chain, script, (result, error) => tcs.TrySetResult((result, error)));
                 }
             });
+            return tcs.Task;
         }
 
-        private void WriteArchiveOnMain(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback)
+        private Task<(bool success, string error)> WriteArchiveOnMainAsync(Hash hash, int blockIndex, byte[] data)
         {
+            var tcs = new TaskCompletionSource<(bool success, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
             RunOnUi(() =>
             {
                 var ui = Ui;
                 if (ui != null)
                 {
-                    ui.WriteArchive(hash, blockIndex, data, callback);
+                    ui.WriteArchiveAsync(hash, blockIndex, data).ContinueWith(task => tcs.TrySetResult(task.Result));
                 }
                 else
                 {
-                    AccountManager.Instance.WriteArchive(hash, blockIndex, data, (result, error) => callback(result, error));
+                    AccountManager.Instance.WriteArchive(hash, blockIndex, data, (result, error) => tcs.TrySetResult((result, error)));
                 }
             });
+
+            return tcs.Task;
         }
 
         private void PushMessage(string title, string body, MessageKind kind)
@@ -283,12 +288,20 @@ namespace Poltergeist
 
         protected override void InvokeScript(string chain, byte[] script, int id, Action<string[], string> callback)
         {
-            InvokeScriptOnMain(chain, script, callback);
+            InvokeScriptOnMainAsync(chain, script).ContinueWith(task =>
+            {
+                var res = task.Result;
+                callback(res.result, res.error);
+            });
         }
 
         protected override void WriteArchive(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback)
         {
-            WriteArchiveOnMain(hash, blockIndex, data, callback);
+            WriteArchiveOnMainAsync(hash, blockIndex, data).ContinueWith(task =>
+            {
+                var res = task.Result;
+                callback(res.success, res.error);
+            });
         }
 
         protected override void FetchAndMultiSignature(string subject, string platform, SignatureKind kind, int id, Action<bool, string> callback)
@@ -336,46 +349,45 @@ namespace Poltergeist
 
                         var description = $"{transaction.Hash}\n{transaction.Expiration}\n{Encoding.UTF8.GetString(transaction.Payload)}\n{Encoding.UTF8.GetString(transaction.Script)}";
 
-                        Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
+                        async Task AskForSignatureAsync()
                         {
+                            var consent = await PromptAsync($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}");
                             AppFocus.Instance.EndFocus();
 
-                            if (success)
-                            {
-                                PhantasmaPhoenix.Cryptography.Signature signature;
-
-                                var msg = transaction.ToByteArray(false);
-
-                                var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
-
-                                switch (kind)
-                                {
-                                    case SignatureKind.Ed25519:
-                                        var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
-                                        signature = phantasmaKeys.Sign(msg);
-                                        break;
-
-                                    case SignatureKind.ECDSA:
-                                        var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
-                                        var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
-                                        signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
-                                        break;
-
-                                    default:
-                                        callback(false, kind + " signatures unsupported");
-                                        return;
-                                }
-
-                                // Send to dapp the signature and the addresses that were used to sign
-
-
-                                callback(true, "");
-                            }
-                            else
+                            if (!consent)
                             {
                                 callback(false, "user rejected");
+                                return;
                             }
-                        });
+
+                            PhantasmaPhoenix.Cryptography.Signature signature;
+
+                            var msg = transaction.ToByteArray(false);
+
+                            var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
+
+                            switch (kind)
+                            {
+                                case SignatureKind.Ed25519:
+                                    var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
+                                    signature = phantasmaKeys.Sign(msg);
+                                    break;
+
+                                case SignatureKind.ECDSA:
+                                    var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
+                                    var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
+                                    signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
+                                    break;
+
+                                default:
+                                    callback(false, kind + " signatures unsupported");
+                                    return;
+                            }
+
+                            callback(true, "");
+                        }
+
+                        AskForSignatureAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
 
                     });
 
@@ -409,55 +421,43 @@ namespace Poltergeist
             {
                 var description = $"{transaction.Hash}\n{transaction.Expiration}\n{Encoding.UTF8.GetString(transaction.Payload)}\n{Encoding.UTF8.GetString(transaction.Script)}";
 
-                Prompt($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}", (success) =>
+                async Task AskForSignatureAsync()
                 {
+                    var consent = await PromptAsync($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}");
                     AppFocus.Instance.EndFocus();
 
-                    if (success)
-                    {
-                        PhantasmaPhoenix.Cryptography.Signature signature;
-
-                        var msg = transaction.ToByteArray(false);
-
-                        var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
-
-                        switch (kind)
-                        {
-                            case SignatureKind.Ed25519:
-                                var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
-                                signature = phantasmaKeys.Sign(msg);
-                                break;
-
-                            case SignatureKind.ECDSA:
-                                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
-                                var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
-                                signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
-                                break;
-
-                            default:
-                                callback(null, kind + " signatures unsupported");
-                                return;
-                        }
-
-                        byte[] sigBytes = null;
-
-                        using (var stream = new MemoryStream())
-                        {
-                            using (var writer = new BinaryWriter(stream))
-                            {
-                                writer.WriteSignature(signature);
-                            }
-
-                            sigBytes = stream.ToArray();
-                        }
-
-                        callback(signature, "");
-                    }
-                    else
+                    if (!consent)
                     {
                         callback(null, "user rejected");
+                        return;
                     }
-                });
+
+                    PhantasmaPhoenix.Cryptography.Signature signature;
+                    var msg = transaction.ToByteArray(false);
+                    var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
+
+                    switch (kind)
+                    {
+                        case SignatureKind.Ed25519:
+                            var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
+                            signature = phantasmaKeys.Sign(msg);
+                            break;
+
+                        case SignatureKind.ECDSA:
+                            var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
+                            var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
+                            signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
+                            break;
+
+                        default:
+                            callback(null, kind + " signatures unsupported");
+                            return;
+                    }
+
+                    callback(signature, "");
+                }
+
+                AskForSignatureAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
 
             });
         }
@@ -510,24 +510,19 @@ namespace Poltergeist
                             Log.Write("Script description: " + description);
                         }
 
-                        Prompt("Allow dapp to send a transaction on your behalf?\n" + description, (success) =>
+                        var consent = await PromptAsync("Allow dapp to send a transaction on your behalf?\n" + description);
+                        if (consent)
                         {
-                            if (success)
-                            {
-                                var draft = WalletTransactionDraft.ForSingleScript(description, script, chain, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, pow, payload);
-                                SendDraft(draft, (hash, txResult, error) =>
-                                {
-                                    AppFocus.Instance.EndFocus();
-
-                                    callback(hash, error);
-                                });
-                            }
-                            else
-                            {
-                                AppFocus.Instance.EndFocus();
-                                callback(Hash.Null, "user rejected");
-                            }
-                        });
+                            var draft = WalletTransactionDraft.ForSingleScript(description, script, chain, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, pow, payload);
+                            var (hash, _, sendError) = await SendDraftAsync(draft);
+                            AppFocus.Instance.EndFocus();
+                            callback(hash, sendError);
+                        }
+                        else
+                        {
+                            AppFocus.Instance.EndFocus();
+                            callback(Hash.Null, "user rejected");
+                        }
                     }
                     catch (Exception e)
                     {
@@ -572,28 +567,21 @@ namespace Poltergeist
                             Log.Write("Script description: " + description);
                         }
 
-                        Prompt(
-                            $"Allow dapp to send a transaction on your behalf?\n\nCurrent nexus: {nexus}, chain: main\n\n"
-                            + description, (success) =>
+                        var consent = await PromptAsync($"Allow dapp to send a transaction on your behalf?\n\nCurrent nexus: {nexus}, chain: main\n\n{description}");
+                        if (consent)
                         {
-                            if (success)
-                            {
-                                var draft = WalletTransactionDraft.ForCarbon(description, txMsg, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
-                                SendDraft(draft, (hash, txResult, error) =>
-                                {
-                                    AppFocus.Instance.EndFocus();
+                            var draft = WalletTransactionDraft.ForCarbon(description, txMsg, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
+                            var (hash, txResult, sendError) = await SendDraftAsync(draft);
+                            AppFocus.Instance.EndFocus();
 
-                                    callback(hash, error);
-
-                                    ShowTxResult(hash, txResult, error, $"The transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                                });
-                            }
-                            else
-                            {
-                                AppFocus.Instance.EndFocus();
-                                callback(Hash.Null, "user rejected");
-                            }
-                        });
+                            callback(hash, sendError);
+                            ShowTxResult(hash, txResult, sendError, $"The transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                        }
+                        else
+                        {
+                            AppFocus.Instance.EndFocus();
+                            callback(Hash.Null, "user rejected");
+                        }
                     }
                     catch (Exception e)
                     {
@@ -630,72 +618,74 @@ namespace Poltergeist
             {
                 var description = System.Text.Encoding.UTF8.GetString(data);
 
-                Prompt($"The dapp wants to sign the following data with your {platform} keys. Accept?\n{description}", (success) =>
+                async Task AskForDataSignatureAsync()
                 {
+                    var consent = await PromptAsync($"The dapp wants to sign the following data with your {platform} keys. Accept?\n{description}");
                     AppFocus.Instance.EndFocus();
 
-                    if (success)
-                    {
-                        var randomValue = UnityEngine.Random.Range(0, int.MaxValue);
-                        var randomBytes = BitConverter.GetBytes(randomValue);
-
-                        var msg = ByteArrayUtils.ConcatBytes(randomBytes, data);
-
-                        PhantasmaPhoenix.Cryptography.Signature signature;
-
-                        var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
-                        var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
-
-                        switch (kind)
-                        {
-                            case SignatureKind.Ed25519:
-                                signature = phantasmaKeys.Sign(msg);
-                                break;
-
-                            case SignatureKind.ECDSA:
-
-                                if (targetPlatform == PlatformKind.Ethereum || targetPlatform == PlatformKind.BSC)
-                                {
-                                    var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
-
-                                    var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
-                                    signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
-                                }
-                                else
-                                {
-                                    var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
-                                    var signatureBytes = ECDsa.Sign(msg, neoKeys.PrivateKey, ECDsaCurve.Secp256k1);
-                                    signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
-                                }
-                                break;
-
-                            default:
-                                callback(null, null, kind + " signatures unsupported");
-                                return;
-                        }
-
-                        byte[] sigBytes = null;
-
-                        using (var stream = new MemoryStream())
-                        {
-                            using (var writer = new BinaryWriter(stream))
-                            {
-                                writer.WriteSignature(signature);
-                            }
-
-                            sigBytes = stream.ToArray();
-                        }
-
-                        var hexSig = Base16.Encode(sigBytes);
-                        var hexRand = Base16.Encode(randomBytes);
-
-                        callback(hexSig, hexRand, null);
-                    }
-                    else
+                    if (!consent)
                     {
                         callback(null, null, "user rejected");
+                        return;
                     }
-                });
+
+                    var randomValue = UnityEngine.Random.Range(0, int.MaxValue);
+                    var randomBytes = BitConverter.GetBytes(randomValue);
+
+                    var msg = ByteArrayUtils.ConcatBytes(randomBytes, data);
+
+                    PhantasmaPhoenix.Cryptography.Signature signature;
+
+                    var wif = account.GetWif(AccountManager.Instance.CurrentPasswordHash);
+                    var phantasmaKeys = PhantasmaKeys.FromWIF(wif);
+
+                    switch (kind)
+                    {
+                        case SignatureKind.Ed25519:
+                            signature = phantasmaKeys.Sign(msg);
+                            break;
+
+                        case SignatureKind.ECDSA:
+
+                            if (targetPlatform == PlatformKind.Ethereum || targetPlatform == PlatformKind.BSC)
+                            {
+                                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
+
+                                var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
+                                signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
+                            }
+                            else
+                            {
+                                var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
+                                var signatureBytes = ECDsa.Sign(msg, neoKeys.PrivateKey, ECDsaCurve.Secp256k1);
+                                signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
+                            }
+                            break;
+
+                        default:
+                            callback(null, null, kind + " signatures unsupported");
+                            return;
+                    }
+
+                    byte[] sigBytes = null;
+
+                    using (var stream = new MemoryStream())
+                    {
+                        using (var writer = new BinaryWriter(stream))
+                        {
+                            writer.WriteSignature(signature);
+                        }
+
+                        sigBytes = stream.ToArray();
+                    }
+
+                    var hexSig = Base16.Encode(sigBytes);
+                    var hexRand = Base16.Encode(randomBytes);
+
+                    callback(hexSig, hexRand, null);
+                }
+
+                AskForDataSignatureAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
 
             });
         }
@@ -722,17 +712,20 @@ namespace Poltergeist
 
             RunOnUi(() =>
             {
-                Prompt($"Give access to dApp \"{dapp}\" to your \"{state.name}\" account?", (result) =>
-               {
-                   AppFocus.Instance.EndFocus();
+                async Task AskAuthorizationAsync()
+                {
+                    var result = await PromptAsync($"Give access to dApp \"{dapp}\" to your \"{state.name}\" account?");
+                    AppFocus.Instance.EndFocus();
 
-                   if (result)
-                   {
-                       state.RegisterDappToken(dapp, token);
-                   }
+                    if (result)
+                    {
+                        state.RegisterDappToken(dapp, token);
+                    }
 
-                   callback(result, result ? null : "rejected");
-               });
+                    callback(result, result ? null : "rejected");
+                }
+
+                AskAuthorizationAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
             });
 
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Protocol;
@@ -14,12 +15,12 @@ namespace Poltergeist.Wallet
 {
     public interface IWalletTransactionUi
     {
-        void RequestPassword(string description, PlatformKind platform, Action<PromptResult> callback);
-        void ShowSendProgress(string description, int txCount, Action<PromptResult> callback);
+        Task<PromptResult> RequestPasswordAsync(string description, PlatformKind platform);
+        Task<PromptResult> ShowSendProgressAsync(string description, int txCount);
         void PushSendingState();
         void PopSendingState();
-        void ShowConfirmation(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback);
-        void ShowError(string message);
+        Task<(Hash hash, TransactionResult txResult, string error)> ShowConfirmationAsync(Hash hash, bool refreshBalanceAfterConfirmation);
+        Task ShowErrorAsync(string message);
     }
 
     /// <summary>
@@ -36,73 +37,80 @@ namespace Poltergeist.Wallet
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
         }
 
+        // Legacy shim for callback-based callers while migration to Task completes.
         public void SendTransactionDraft(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        {
+            async void ExecuteAsync()
+            {
+                var result = await SendTransactionDraftAsync(draft, refreshBalanceAfterConfirmation);
+                callback?.Invoke(result.hash, result.txResult, result.error);
+            }
+
+            ExecuteAsync();
+        }
+
+        public async Task<(Hash hash, TransactionResult txResult, string error)> SendTransactionDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation)
         {
             if (draft == null)
             {
-                _ui.ShowError("Invalid transaction draft.");
-                callback?.Invoke(Hash.Null, null, "Invalid transaction draft.");
-                return;
+                await _ui.ShowErrorAsync("Invalid transaction draft.");
+                return (Hash.Null, null, "Invalid transaction draft.");
             }
 
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                _ui.ShowError("Account manager is not available yet.");
-                callback?.Invoke(Hash.Null, null, "Account manager is not available yet.");
-                return;
+                await _ui.ShowErrorAsync("Account manager is not available yet.");
+                return (Hash.Null, null, "Account manager is not available yet.");
             }
 
             var scripts = BuildScriptList(draft);
             var description = AppendEstimatedFeeIfNeeded(accountManager, draft, scripts);
 
-            _ui.RequestPassword(description, accountManager.CurrentPlatform, (auth) =>
+            var auth = await _ui.RequestPasswordAsync(description, accountManager.CurrentPlatform);
+            if (auth != PromptResult.Success)
             {
-                if (auth != PromptResult.Success)
+                if (auth == PromptResult.Failure)
                 {
-                    if (auth == PromptResult.Failure)
-                    {
-                        _ui.ShowError("Authorization failed.");
-                        callback?.Invoke(Hash.Null, null, "Authorization failed.");
-                    }
-                    else
-                    {
-                        callback?.Invoke(Hash.Null, null, null); // cancelled
-                    }
-
-                    return;
+                    await _ui.ShowErrorAsync("Authorization failed.");
+                    return (Hash.Null, null, "Authorization failed.");
                 }
 
-                var txCount = draft.IsCarbonTransaction ? 1 : scripts.Count;
-                _ui.ShowSendProgress(BuildPreparingCaption(description, txCount), txCount, (prepResult) =>
-                {
-                    if (prepResult != PromptResult.Success)
-                    {
-                        callback?.Invoke(Hash.Null, null, null); // cancelled
-                        return;
-                    }
+                return (Hash.Null, null, null); // cancelled
+            }
 
-                    _ui.PushSendingState();
-                    if (draft.IsCarbonTransaction && draft.CarbonTx.HasValue)
-                    {
-                        SendCarbon(accountManager, draft, refreshBalanceAfterConfirmation, callback);
-                    }
-                    else if (scripts.Count > 1)
-                    {
-                        SendMultipleScripts(accountManager, draft, scripts, refreshBalanceAfterConfirmation, callback);
-                    }
-                    else if (scripts.Count == 1)
-                    {
-                        SendSingleScript(accountManager, draft, scripts[0], refreshBalanceAfterConfirmation, callback);
-                    }
-                    else
-                    {
-                        _ui.PopSendingState();
-                        _ui.ShowError("Transaction draft does not contain any scripts.");
-                        callback?.Invoke(Hash.Null, null, "Transaction draft does not contain any scripts.");
-                    }
-                });
-            });
+            var txCount = draft.IsCarbonTransaction ? 1 : scripts.Count;
+            var prepResult = await _ui.ShowSendProgressAsync(BuildPreparingCaption(description, txCount), txCount);
+            if (prepResult != PromptResult.Success)
+            {
+                return (Hash.Null, null, null); // cancelled
+            }
+
+            _ui.PushSendingState();
+            try
+            {
+                if (draft.IsCarbonTransaction && draft.CarbonTx.HasValue)
+                {
+                    return await SendCarbonAsync(accountManager, draft, refreshBalanceAfterConfirmation);
+                }
+
+                if (scripts.Count > 1)
+                {
+                    return await SendMultipleScriptsAsync(accountManager, draft, scripts, refreshBalanceAfterConfirmation);
+                }
+
+                if (scripts.Count == 1)
+                {
+                    return await SendSingleScriptAsync(accountManager, draft, scripts[0], refreshBalanceAfterConfirmation);
+                }
+
+                await _ui.ShowErrorAsync("Transaction draft does not contain any scripts.");
+                return (Hash.Null, null, "Transaction draft does not contain any scripts.");
+            }
+            finally
+            {
+                _ui.PopSendingState();
+            }
         }
 
         private static string BuildPreparingCaption(string description, int txCount)
@@ -156,80 +164,69 @@ namespace Poltergeist.Wallet
             return description;
         }
 
-        private void SendCarbon(AccountManager accountManager, WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        private async Task<(Hash hash, TransactionResult txResult, string error)> SendCarbonAsync(AccountManager accountManager, WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation)
         {
-            accountManager.SignAndSendCarbonTransaction(draft.CarbonTx.Value, (hash, error) =>
+            var sendResult = await SignAndSendCarbonAsync(accountManager, draft.CarbonTx.Value);
+            if (string.IsNullOrEmpty(sendResult.error))
             {
-                if (string.IsNullOrEmpty(error))
-                {
-                    _ui.ShowConfirmation(hash, refreshBalanceAfterConfirmation, callback);
-                }
-                else
-                {
-                    _ui.PopSendingState();
-                    _ui.ShowError("Cannot send transaction. Details:\n" + error);
-                    callback?.Invoke(hash == Hash.Null ? Hash.Null : hash, null, error);
-                }
-            });
+                return await _ui.ShowConfirmationAsync(sendResult.hash, refreshBalanceAfterConfirmation);
+            }
+
+            await _ui.ShowErrorAsync("Cannot send transaction. Details:\n" + sendResult.error);
+            return (sendResult.hash == Hash.Null ? Hash.Null : sendResult.hash, null, sendResult.error);
         }
 
-        private void SendSingleScript(AccountManager accountManager, WalletTransactionDraft draft, byte[] script, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        private async Task<(Hash hash, TransactionResult txResult, string error)> SendSingleScriptAsync(AccountManager accountManager, WalletTransactionDraft draft, byte[] script, bool refreshBalanceAfterConfirmation)
         {
-            accountManager.SignAndSendTransaction(draft.Chain, script, draft.Payload, (hash, error) =>
+            var sendResult = await SignAndSendTransactionAsync(accountManager, draft.Chain, script, draft.Payload);
+            if (string.IsNullOrEmpty(sendResult.error))
             {
-                if (string.IsNullOrEmpty(error))
-                {
-                    _ui.ShowConfirmation(hash, refreshBalanceAfterConfirmation, callback);
-                }
-                else
-                {
-                    _ui.PopSendingState();
-                    _ui.ShowError(string.IsNullOrEmpty(error) ? "Unknown error." : error);
-                    callback?.Invoke(Hash.Null, null, string.IsNullOrEmpty(error) ? "Unknown error." : error);
-                }
-            });
+                return await _ui.ShowConfirmationAsync(sendResult.hash, refreshBalanceAfterConfirmation);
+            }
+
+            var errorText = string.IsNullOrEmpty(sendResult.error) ? "Unknown error." : sendResult.error;
+            await _ui.ShowErrorAsync(errorText);
+            return (Hash.Null, null, errorText);
         }
 
-        private void SendMultipleScripts(AccountManager accountManager, WalletTransactionDraft draft, IReadOnlyList<byte[]> scripts, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        private async Task<(Hash hash, TransactionResult txResult, string error)> SendMultipleScriptsAsync(AccountManager accountManager, WalletTransactionDraft draft, IReadOnlyList<byte[]> scripts, bool refreshBalanceAfterConfirmation)
         {
             if (scripts.Count == 0)
             {
-                _ui.PopSendingState();
-                _ui.ShowError("Transaction draft does not contain any scripts.");
-                callback?.Invoke(Hash.Null, null, "Transaction draft does not contain any scripts.");
-                return;
+                await _ui.ShowErrorAsync("Transaction draft does not contain any scripts.");
+                return (Hash.Null, null, "Transaction draft does not contain any scripts.");
             }
 
-            accountManager.SignAndSendTransaction(draft.Chain, scripts[0], draft.Payload, (hash, error) =>
+            var sendResult = await SignAndSendTransactionAsync(accountManager, draft.Chain, scripts[0], draft.Payload);
+            if (string.IsNullOrEmpty(sendResult.error) && sendResult.hash != Hash.Null)
             {
-                if (string.IsNullOrEmpty(error) && hash != Hash.Null)
+                var isLast = scripts.Count == 1;
+                var confirmation = await _ui.ShowConfirmationAsync(sendResult.hash, isLast && refreshBalanceAfterConfirmation);
+                if (!string.IsNullOrEmpty(confirmation.error) || isLast)
                 {
-                    var isLast = scripts.Count == 1;
-                    _ui.ShowConfirmation(hash, isLast && refreshBalanceAfterConfirmation, (txHash, txResult, confirmError) =>
-                    {
-                        if (!string.IsNullOrEmpty(confirmError))
-                        {
-                            callback?.Invoke(txHash, txResult, confirmError);
-                            return;
-                        }
+                    return confirmation;
+                }
 
-                        if (isLast)
-                        {
-                            callback?.Invoke(txHash, txResult, confirmError);
-                        }
-                        else
-                        {
-                            SendMultipleScripts(accountManager, draft, scripts.Skip(1).ToList(), refreshBalanceAfterConfirmation, callback);
-                        }
-                    });
-                }
-                else
-                {
-                    _ui.PopSendingState();
-                    _ui.ShowError(string.IsNullOrEmpty(error) ? "Error sending transaction." : error);
-                    callback?.Invoke(Hash.Null, null, string.IsNullOrEmpty(error) ? "Error sending transaction." : error);
-                }
-            });
+                return await SendMultipleScriptsAsync(accountManager, draft, scripts.Skip(1).ToList(), refreshBalanceAfterConfirmation);
+            }
+
+            var errorText = string.IsNullOrEmpty(sendResult.error) ? "Error sending transaction." : sendResult.error;
+            await _ui.ShowErrorAsync(errorText);
+            return (Hash.Null, null, errorText);
+        }
+
+        private static Task<(Hash hash, string error)> SignAndSendTransactionAsync(AccountManager accountManager, string chain, byte[] script, byte[] payload)
+        {
+            var tcs = new TaskCompletionSource<(Hash hash, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            accountManager.SignAndSendTransaction(chain, script, payload, (hash, error) => tcs.TrySetResult((hash, error)));
+            return tcs.Task;
+        }
+
+        private static Task<(Hash hash, string error)> SignAndSendCarbonAsync(AccountManager accountManager, TxMsg tx)
+        {
+            var tcs = new TaskCompletionSource<(Hash hash, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            accountManager.SignAndSendCarbonTransaction(tx, (hash, error) => tcs.TrySetResult((hash, error)));
+            return tcs.Task;
         }
     }
 }

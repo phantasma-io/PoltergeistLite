@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.RPC.Models;
 
@@ -11,11 +12,11 @@ namespace Poltergeist.Wallet
     public interface IWalletUiBridge
     {
         void PostToMainThread(Action action);
-        void Prompt(string text, Action<bool> callback);
-        void SendTransactionDraft(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true);
+        Task<bool> PromptAsync(string text);
+        Task<(Hash hash, TransactionResult txResult, string error)> SendTransactionDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation = true);
         void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null);
-        void InvokeScript(string chain, byte[] script, Action<string[], string> callback);
-        void WriteArchive(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback);
+        Task<(string[] result, string error)> InvokeScriptAsync(string chain, byte[] script);
+        Task<(bool success, string error)> WriteArchiveAsync(Hash hash, int blockIndex, byte[] data);
     }
 
     public static class WalletUiBridge

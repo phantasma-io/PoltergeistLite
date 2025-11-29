@@ -33,8 +33,8 @@ namespace Poltergeist.UiToolkit
         private Hash confirmationHash = Hash.Null;
         private int confirmationCheckCount;
         private bool confirmationRefreshBalance;
-        private Action<Hash, TransactionResult, string> confirmationCallback;
-        private Action<PromptResult> sendProgressCallback;
+        private TaskCompletionSource<PromptResult> sendProgressTcs;
+        private TaskCompletionSource<(Hash hash, TransactionResult txResult, string error)> confirmationTcs;
 
         public WalletUiTransactionDialogs(WalletUiModalHost modalHost, Func<AccountManager> accountProvider, Action<string> setStatus)
         {
@@ -54,9 +54,9 @@ namespace Poltergeist.UiToolkit
             this.verificationPanel = verificationPanel;
         }
 
-        public void ShowSendProgress(string description, int txCount, Action<PromptResult> callback)
+        public Task<PromptResult> ShowSendProgressAsync(string description, int txCount)
         {
-            sendProgressCallback = callback;
+            sendProgressTcs = new TaskCompletionSource<PromptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (sendProgressLabel != null)
             {
                 sendProgressLabel.text = string.IsNullOrWhiteSpace(description)
@@ -67,13 +67,15 @@ namespace Poltergeist.UiToolkit
             HideOtherPanels();
             sendProgressPanel.style.display = DisplayStyle.Flex;
             modalHost.ShowPanel(sendProgressPanel);
+
+            return sendProgressTcs.Task;
         }
 
-        public void StartConfirmation(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        public Task<(Hash hash, TransactionResult txResult, string error)> StartConfirmationAsync(Hash hash, bool refreshBalanceAfterConfirmation)
         {
             confirmationHash = hash;
             confirmationRefreshBalance = refreshBalanceAfterConfirmation;
-            confirmationCallback = callback;
+            confirmationTcs = new TaskCompletionSource<(Hash hash, TransactionResult txResult, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
             confirmationCheckCount = 0;
 
             confirmationCts?.Cancel();
@@ -81,6 +83,7 @@ namespace Poltergeist.UiToolkit
 
             ShowConfirmationPanel(hash);
             PollConfirmationAsync(confirmationCts.Token);
+            return confirmationTcs.Task;
         }
 
         public void HideTransactionPanels()
@@ -88,8 +91,10 @@ namespace Poltergeist.UiToolkit
             sendProgressPanel.style.display = DisplayStyle.None;
             confirmationPanel.style.display = DisplayStyle.None;
             modalHost.HidePanel();
-            sendProgressCallback = null;
-            confirmationCallback = null;
+            sendProgressTcs?.TrySetResult(PromptResult.Failure);
+            sendProgressTcs = null;
+            confirmationTcs?.TrySetResult((Hash.Null, null, "Confirmation cancelled"));
+            confirmationTcs = null;
             confirmationCts?.Cancel();
             confirmationCts = null;
             confirmationHash = Hash.Null;
@@ -207,9 +212,9 @@ namespace Poltergeist.UiToolkit
             sendProgressPanel.style.display = DisplayStyle.None;
             modalHost.HidePanel();
 
-            var cb = sendProgressCallback;
-            sendProgressCallback = null;
-            cb?.Invoke(result);
+            var tcs = sendProgressTcs;
+            sendProgressTcs = null;
+            tcs?.TrySetResult(result);
         }
 
         private void ShowConfirmationPanel(Hash hash)
@@ -288,6 +293,8 @@ namespace Poltergeist.UiToolkit
 
         private void CompleteConfirmation(Hash hash, TransactionResult txResult, string error)
         {
+            var tcs = confirmationTcs;
+            confirmationTcs = null;
             confirmationCts?.Cancel();
             confirmationCts = null;
             confirmationCheckCount = 0;
@@ -304,20 +311,13 @@ namespace Poltergeist.UiToolkit
                 setStatus(error);
             }
 
-            void InvokeCallback()
-            {
-                var cb = confirmationCallback;
-                confirmationCallback = null;
-                cb?.Invoke(hash, txResult, error);
-            }
-
             if (string.IsNullOrEmpty(error) && confirmationRefreshBalance)
             {
                 var accountManager = accountProvider();
                 accountManager?.RefreshBalances(true, PlatformKind.None, () =>
                 {
                     accountManager.RefreshHistory(true, accountManager.CurrentPlatform);
-                    InvokeCallback();
+                    tcs?.TrySetResult((hash, txResult, error));
                 });
                 return;
             }
@@ -327,7 +327,7 @@ namespace Poltergeist.UiToolkit
                 accountProvider()?.RefreshHistory(true, accountProvider()?.CurrentPlatform ?? PlatformKind.None);
             }
 
-            InvokeCallback();
+            tcs?.TrySetResult((hash, txResult, error));
         }
 
         private void HideOtherPanels()

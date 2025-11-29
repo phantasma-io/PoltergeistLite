@@ -668,6 +668,13 @@ namespace Poltergeist
             AppFocus.Instance.StartFocus();
         }
 
+        public Task<bool> PromptAsync(string text)
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Prompt(text, result => tcs.TrySetResult(result));
+            return tcs.Task;
+        }
+
         private void UpdatePrompt()
         {
             if (_promptText == null || _promptVisible)
@@ -4088,6 +4095,13 @@ namespace Poltergeist
             SendTransactionDraft(draftResult.Draft, callback, refreshBalanceAfterConfirmation);
         }
 
+        public Task<(Hash hash, TransactionResult txResult, string error)> SendTransactionDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation = true)
+        {
+            var tcs = new TaskCompletionSource<(Hash hash, TransactionResult txResult, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            SendTransactionDraft(draft, (hash, txResult, error) => tcs.TrySetResult((hash, txResult, error)), refreshBalanceAfterConfirmation);
+            return tcs.Task;
+        }
+
         public void SendTransactionDraft(WalletTransactionDraft draft, Action<Hash, TransactionResult, string> callback, bool refreshBalanceAfterConfirmation = true)
         {
             transactionOrchestrator.SendTransactionDraft(draft, refreshBalanceAfterConfirmation, callback);
@@ -4222,19 +4236,22 @@ namespace Poltergeist
         }
 
         #region Transaction UI bridge
-        public void RequestPassword(string description, PlatformKind platform, Action<PromptResult> callback)
+        public Task<PromptResult> RequestPasswordAsync(string description, PlatformKind platform)
         {
-            authService.RequestPassword(description, platform, false, true, this, callback, false);
+            return authService.RequestPasswordAsync(description, platform, false, true, this, ignoreStoredPassword: false);
         }
 
+        // Legacy helper retained for legacy flows still using callbacks.
         private void RequestPassword(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, Action<PromptResult> callback, bool ignoreStoredPassword = false)
         {
             authService.RequestPassword(description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, this, callback, ignoreStoredPassword);
         }
 
-        public void ShowSendProgress(string description, int txCount, Action<PromptResult> callback)
+        public Task<PromptResult> ShowSendProgressAsync(string description, int txCount)
         {
-            modalActions.SendCancel(description, callback);
+            var tcs = new TaskCompletionSource<PromptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            modalActions.SendCancel(description, result => tcs.TrySetResult(result));
+            return tcs.Task;
         }
 
         public void PushSendingState()
@@ -4247,14 +4264,17 @@ namespace Poltergeist
             PopState();
         }
 
-        public void ShowConfirmation(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
+        public Task<(Hash hash, TransactionResult txResult, string error)> ShowConfirmationAsync(Hash hash, bool refreshBalanceAfterConfirmation)
         {
-            ShowConfirmationScreen(hash, refreshBalanceAfterConfirmation, callback);
+            var tcs = new TaskCompletionSource<(Hash hash, TransactionResult txResult, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ShowConfirmationScreen(hash, refreshBalanceAfterConfirmation, (txHash, txResult, error) => tcs.TrySetResult((txHash, txResult, error)));
+            return tcs.Task;
         }
 
-        public void ShowError(string message)
+        public Task ShowErrorAsync(string message)
         {
             modalActions.Error(message);
+            return Task.CompletedTask;
         }
         #endregion
 
@@ -4329,6 +4349,13 @@ namespace Poltergeist
             });
         }
 
+        public Task<(string[] result, string error)> InvokeScriptAsync(string chain, byte[] script)
+        {
+            var tcs = new TaskCompletionSource<(string[] result, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            InvokeScript(chain, script, (results, error) => tcs.TrySetResult((results, error)));
+            return tcs.Task;
+        }
+
         public void WriteArchive(Hash hash, int blockIndex, byte[] data, Action<bool, string> callback)
         {
             if (data == null || data.Length == 0)
@@ -4342,6 +4369,13 @@ namespace Poltergeist
             {
                 callback(result, error);
             });
+        }
+
+        public Task<(bool success, string error)> WriteArchiveAsync(Hash hash, int blockIndex, byte[] data)
+        {
+            var tcs = new TaskCompletionSource<(bool success, string error)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            WriteArchive(hash, blockIndex, data, (result, error) => tcs.TrySetResult((result, error)));
+            return tcs.Task;
         }
         #endregion
     }
