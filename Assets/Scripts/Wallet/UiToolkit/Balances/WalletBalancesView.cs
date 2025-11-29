@@ -27,6 +27,7 @@ namespace Poltergeist.UiToolkit.Balances
         private readonly Action onShowAccount;
         private readonly Action onShowSettings;
         private readonly Action onExit;
+        private readonly Action<string> onShowToken;
         private HeaderElements header;
         private SubHeaderElements subHeader;
 
@@ -44,7 +45,7 @@ namespace Poltergeist.UiToolkit.Balances
         private Button navAccount;
         private Button navExit;
 
-        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit)
+        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit, Action<string> onShowToken)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             presenter = context.BalancePresenter ?? throw new ArgumentNullException(nameof(context.BalancePresenter));
@@ -56,6 +57,7 @@ namespace Poltergeist.UiToolkit.Balances
             this.onShowAccount = onShowAccount ?? throw new ArgumentNullException(nameof(onShowAccount));
             this.onShowSettings = onShowSettings ?? throw new ArgumentNullException(nameof(onShowSettings));
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
+            this.onShowToken = onShowToken ?? throw new ArgumentNullException(nameof(onShowToken));
 
             BuildLayout(host);
             Subscribe();
@@ -454,6 +456,7 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
+                    flexWrap = Wrap.Wrap,
                     paddingLeft = 18,
                     paddingRight = 18,
                     paddingTop = 16,
@@ -537,6 +540,30 @@ namespace Poltergeist.UiToolkit.Balances
 
             row.Add(textBlock);
 
+            if (entry.Fungible && onShowToken != null)
+            {
+                var actions = new VisualElement
+                {
+                    style =
+                    {
+                    flexDirection = FlexDirection.Column,
+                    alignItems = Align.FlexEnd,
+                    justifyContent = Justify.Center,
+                    marginLeft = 10,
+                    marginTop = 4,
+                    flexShrink = 0
+                }
+            };
+                var openButton = WalletUiCommon.CreateOutlineButton("Open Asset", () => OpenToken(entry.Symbol), 14, 32);
+                openButton.style.minWidth = 120;
+                openButton.style.paddingLeft = 14;
+                openButton.style.paddingRight = 14;
+                openButton.style.marginLeft = 6;
+                openButton.style.marginRight = 2;
+                actions.Add(openButton);
+                row.Add(actions);
+            }
+
             return row;
         }
 
@@ -557,6 +584,17 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             return parts.Count == 0 ? string.Empty : string.Join(" | ", parts);
+        }
+
+        private void OpenToken(string symbol)
+        {
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                return;
+            }
+
+            context.ViewState.TokenDashboardSymbol = symbol;
+            onShowToken?.Invoke(symbol);
         }
 
         private void CopyAddress()

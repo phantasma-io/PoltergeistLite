@@ -14,7 +14,8 @@ namespace Poltergeist.Wallet
     public sealed class WalletStakeService
     {
         private readonly Func<AccountManager> _accountProvider;
-        private const uint UnstakeCooldownSeconds = 86400;
+        // TEMP: shortened cooldown for testing; legacy behavior was 86400 (24h).
+        private const uint UnstakeCooldownSeconds = 60;
 
         public WalletStakeService(Func<AccountManager> accountProvider)
         {
@@ -43,7 +44,7 @@ namespace Poltergeist.Wallet
             var canUnstake = (Timestamp.Now - state.stakeTime) >= UnstakeCooldownSeconds;
             if (!canUnstake)
             {
-                return ValidationResult.Fail("You can unstake only after 24 hours from staking.");
+                return ValidationResult.Fail($"You can unstake only after {UnstakeCooldownSeconds} seconds from staking.");
             }
 
             return ValidationResult.Ok();

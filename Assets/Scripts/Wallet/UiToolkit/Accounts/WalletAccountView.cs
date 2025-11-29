@@ -30,6 +30,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly WalletAccountAdminService accountAdminService;
         private readonly WalletFeeRequirement feeRequirement;
         private readonly WalletTransactionOrchestrator transactionOrchestrator;
+        private readonly WalletUiTransactionAdapter transactionUi;
         private readonly IWalletAuthUi sharedAuthUi;
         private readonly WalletUiModalHost modalHost;
         private readonly Action onShowBalances;
@@ -69,15 +70,14 @@ namespace Poltergeist.UiToolkit.Accounts
             authService = context.AuthService ?? throw new ArgumentNullException(nameof(context.AuthService));
             accountAdminService = context.AccountAdminService ?? throw new ArgumentNullException(nameof(context.AccountAdminService));
             feeRequirement = context.FeeRequirement ?? throw new ArgumentNullException(nameof(context.FeeRequirement));
-            transactionOrchestrator = new WalletTransactionOrchestrator(
-                () => AccountManager.Instance,
-                new AccountTransactionUi(
-                    authService,
-                    sharedAuthUi ?? throw new ArgumentNullException(nameof(sharedAuthUi)),
-                    SetStatus,
-                    SetActionsEnabled,
-                    ShowSendProgressAsync,
-                    StartConfirmationAsync));
+            transactionUi = new WalletUiTransactionAdapter(
+                authService,
+                sharedAuthUi ?? throw new ArgumentNullException(nameof(sharedAuthUi)),
+                SetStatus,
+                SetActionsEnabled,
+                ShowSendProgressAsync,
+                StartConfirmationAsync);
+            transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, transactionUi);
             this.sharedAuthUi = sharedAuthUi ?? throw new ArgumentNullException(nameof(sharedAuthUi));
             this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
             this.onShowBalances = onShowBalances ?? throw new ArgumentNullException(nameof(onShowBalances));
@@ -1154,71 +1154,5 @@ namespace Poltergeist.UiToolkit.Accounts
             WalletUiCommon.ApplyDefaultFont(element);
         }
 
-        private sealed class AccountTransactionUi : IWalletTransactionUi
-        {
-            private readonly WalletAuthService authService;
-            private readonly IWalletAuthUi authUi;
-            private readonly Action<string> setStatus;
-            private readonly Action<bool> setEnabled;
-            private readonly Func<string, int, Task<PromptResult>> showSendProgressAsync;
-            private readonly Func<Hash, bool, Task<(Hash hash, TransactionResult txResult, string error)>> showConfirmationAsync;
-            private bool sending;
-
-            internal AccountTransactionUi(WalletAuthService authService, IWalletAuthUi authUi, Action<string> setStatus, Action<bool> setEnabled, Func<string, int, Task<PromptResult>> showSendProgressAsync, Func<Hash, bool, Task<(Hash hash, TransactionResult txResult, string error)>> showConfirmationAsync)
-            {
-                this.authService = authService ?? throw new ArgumentNullException(nameof(authService));
-                this.authUi = authUi ?? throw new ArgumentNullException(nameof(authUi));
-                this.setStatus = setStatus ?? throw new ArgumentNullException(nameof(setStatus));
-                this.setEnabled = setEnabled ?? throw new ArgumentNullException(nameof(setEnabled));
-                this.showSendProgressAsync = showSendProgressAsync ?? throw new ArgumentNullException(nameof(showSendProgressAsync));
-                this.showConfirmationAsync = showConfirmationAsync ?? throw new ArgumentNullException(nameof(showConfirmationAsync));
-            }
-
-            public Task<PromptResult> RequestPasswordAsync(string description, PlatformKind platform)
-            {
-                return authService.RequestPasswordAsync(description, platform, true, false, authUi, ignoreStoredPassword: false);
-            }
-
-            public Task<PromptResult> ShowSendProgressAsync(string description, int txCount)
-            {
-                return showSendProgressAsync(description, txCount);
-            }
-
-            public void PushSendingState()
-            {
-                sending = true;
-                setEnabled(false);
-            }
-
-            public void PopSendingState()
-            {
-                sending = false;
-                setEnabled(true);
-            }
-
-            public async Task<(Hash hash, TransactionResult txResult, string error)> ShowConfirmationAsync(Hash hash, bool refreshBalanceAfterConfirmation)
-            {
-                try
-                {
-                    return await showConfirmationAsync(hash, refreshBalanceAfterConfirmation);
-                }
-                finally
-                {
-                    sending = false;
-                    setEnabled(true);
-                }
-            }
-
-            public Task ShowErrorAsync(string message)
-            {
-                setStatus(message ?? "Error");
-                if (sending)
-                {
-                    setEnabled(true);
-                }
-
-                return Task.CompletedTask;
-            }
-        }
     }
 }

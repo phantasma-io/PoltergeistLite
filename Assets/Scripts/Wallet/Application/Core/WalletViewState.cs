@@ -20,6 +20,7 @@ namespace Poltergeist.Wallet
         public float AccountScrollY { get; set; }
         public float NftScrollY { get; set; }
         public float NftTransferScrollY { get; set; }
+        public string TokenDashboardSymbol { get; set; }
         public IReadOnlyCollection<string> SelectedAccounts => selectedAccounts;
         public int SelectedAccountCount => selectedAccounts.Count;
 
@@ -113,6 +114,7 @@ namespace Poltergeist.Wallet
             AccountScrollY = 0f;
             NftScrollY = 0f;
             NftTransferScrollY = 0f;
+            TokenDashboardSymbol = null;
             MarkBalancesDirty();
             MarkHistoryDirty();
         }

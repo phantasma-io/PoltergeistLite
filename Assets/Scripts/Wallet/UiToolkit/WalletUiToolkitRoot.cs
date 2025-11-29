@@ -27,6 +27,7 @@ namespace Poltergeist.UiToolkit
 
         private WalletAccountsView accountsView;
         private WalletBalancesView balancesView;
+        private WalletTokenDashboardView tokenView;
         private WalletHistoryView historyView;
         private WalletAccountView accountView;
         private WalletSettingsView settingsView;
@@ -34,6 +35,7 @@ namespace Poltergeist.UiToolkit
         private PanelSettings panelSettings;
         private VisualElement accountsRoot;
         private VisualElement balancesRoot;
+        private VisualElement tokenRoot;
         private VisualElement historyRoot;
         private VisualElement accountRoot;
         private VisualElement settingsRoot;
@@ -134,12 +136,14 @@ namespace Poltergeist.UiToolkit
             SceneManager.sceneLoaded -= OnSceneLoaded;
             accountsView?.Dispose();
             balancesView?.Dispose();
+            tokenView?.Dispose();
             historyView?.Dispose();
             accountView?.Dispose();
             settingsView?.Dispose();
             uiBridge?.Dispose();
             accountsView = null;
             balancesView = null;
+            tokenView = null;
             historyView = null;
             accountView = null;
             settingsView = null;
@@ -221,6 +225,7 @@ namespace Poltergeist.UiToolkit
                         balancesView?.OnAccountsReady();
                         historyView?.OnAccountsReady();
                         accountView?.OnAccountsReady();
+                        tokenView?.OnAccountsReady();
                         settingsView?.OnAccountsReady();
                     }
                     else
@@ -306,6 +311,7 @@ namespace Poltergeist.UiToolkit
 
             accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = Color.clear } };
             balancesRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
+            tokenRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             historyRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             accountRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             settingsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
@@ -316,20 +322,22 @@ namespace Poltergeist.UiToolkit
             Log.Write($"{LogPrefix}WalletLink UI bridge registered for UITK.");
 
             accountsView = new WalletAccountsView(accountsRoot, context, modalHost, ShowBalances, ShowSettings);
-            balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
+            balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, ShowToken);
+            tokenView = new WalletTokenDashboardView(tokenRoot, context, modalHost, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, accountsView);
             historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             accountView = new WalletAccountView(accountRoot, context, modalHost, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets);
 
             root.Add(accountsRoot);
             root.Add(balancesRoot);
+            root.Add(tokenRoot);
             root.Add(historyRoot);
             root.Add(accountRoot);
             root.Add(settingsRoot);
 
             modalHost.BringToFront(root);
 
-            Log.Write($"{LogPrefix}Views initialized (accounts + balances + history + account + settings).");
+            Log.Write($"{LogPrefix}Views initialized (accounts + balances + token + history + account + settings).");
         }
 
         private void DisableLegacyUi()
@@ -426,6 +434,11 @@ namespace Poltergeist.UiToolkit
                 balancesRoot.style.display = DisplayStyle.None;
             }
 
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.None;
+            }
+
             if (historyRoot != null)
             {
                 historyRoot.style.display = DisplayStyle.None;
@@ -455,6 +468,11 @@ namespace Poltergeist.UiToolkit
                 balancesRoot.style.display = DisplayStyle.Flex;
             }
 
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.None;
+            }
+
             if (historyRoot != null)
             {
                 historyRoot.style.display = DisplayStyle.None;
@@ -478,6 +496,51 @@ namespace Poltergeist.UiToolkit
             Log.Write($"{LogPrefix}ShowBalances done. balancesVisible={balancesRoot?.style.display} accountsVisible={accountsRoot?.style.display}");
         }
 
+        private void ShowToken(string symbol)
+        {
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                Log.WriteWarning($"{LogPrefix}ShowToken called with empty symbol.");
+                ShowBalances();
+                return;
+            }
+
+            if (accountsRoot != null)
+            {
+                accountsRoot.style.display = DisplayStyle.None;
+            }
+
+            if (balancesRoot != null)
+            {
+                balancesRoot.style.display = DisplayStyle.None;
+            }
+
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.Flex;
+            }
+
+            if (historyRoot != null)
+            {
+                historyRoot.style.display = DisplayStyle.None;
+            }
+
+            if (accountRoot != null)
+            {
+                accountRoot.style.display = DisplayStyle.None;
+            }
+
+            if (settingsRoot != null)
+            {
+                settingsRoot.style.display = DisplayStyle.None;
+            }
+
+            tokenView?.ShowToken(symbol);
+            tokenView?.MarkAsActive();
+            tokenView?.OnAccountsReady();
+            Log.Write($"{LogPrefix}ShowToken done. symbol={symbol} tokenVisible={tokenRoot?.style.display}");
+        }
+
         private void ShowHistory()
         {
             if (accountsRoot != null)
@@ -493,6 +556,11 @@ namespace Poltergeist.UiToolkit
             if (historyRoot != null)
             {
                 historyRoot.style.display = DisplayStyle.Flex;
+            }
+
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.None;
             }
 
             if (accountRoot != null)
@@ -522,6 +590,11 @@ namespace Poltergeist.UiToolkit
             if (balancesRoot != null)
             {
                 balancesRoot.style.display = DisplayStyle.None;
+            }
+
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.None;
             }
 
             if (historyRoot != null)
@@ -558,6 +631,11 @@ namespace Poltergeist.UiToolkit
             if (historyRoot != null)
             {
                 historyRoot.style.display = DisplayStyle.None;
+            }
+
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.None;
             }
 
             if (accountRoot != null)
