@@ -199,6 +199,11 @@ namespace Poltergeist.UiToolkit.Balances
             var accountManager = AccountManager.Instance;
             if (accountManager != null && accountManager.HasSelection && (!accountManager.CurrentAccount.passwordProtected || !string.IsNullOrEmpty(accountManager.CurrentPasswordHash)))
             {
+                if (!EnsureTokensReady())
+                {
+                    return;
+                }
+
                 Log.Write($"{LogPrefix}Requesting initial balances refresh for {accountManager.CurrentPlatform}");
                 presenter.Refresh(true);
                 return;
@@ -209,6 +214,11 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void OnRefreshClicked()
         {
+            if (!EnsureTokensReady())
+            {
+                return;
+            }
+
             presenter.Refresh(false);
             context.ViewState.MarkBalancesDirty();
             RefreshView();
@@ -224,6 +234,21 @@ namespace Poltergeist.UiToolkit.Balances
         {
             context.ViewState.MarkBalancesDirty();
             RefreshView();
+        }
+
+        private bool EnsureTokensReady()
+        {
+            // UITK screens can request balance refresh before token metadata arrives; guard to avoid missing-decimal exceptions.
+            var tokensReady = Tokens.GetTokens().Length > 0;
+            if (tokensReady)
+            {
+                return true;
+            }
+
+            Log.Write($"{LogPrefix}Token metadata not loaded yet; requesting reload before balance refresh.");
+            AccountManager.Instance?.RequestTokensReload();
+            SetStatus("Refreshing tokens...");
+            return false;
         }
 
         private void SetStatus(string text)
