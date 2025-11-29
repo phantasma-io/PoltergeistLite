@@ -1027,13 +1027,13 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool multiline = false, bool isPassword = false)
         {
-            var effectiveAllowEmpty = allowEmpty || !hasInput || minLength <= 0;
-            return modalHost.ShowPromptAsync(
+            return WalletUiModalHelper.ShowPromptAsync(
+                modalHost,
                 title,
                 caption,
                 minLength,
                 maxLength,
-                effectiveAllowEmpty,
+                allowEmpty,
                 hasInput,
                 isPassword,
                 multiline,

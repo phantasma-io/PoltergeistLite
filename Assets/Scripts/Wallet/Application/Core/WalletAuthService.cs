@@ -1,5 +1,7 @@
 using System;
+using System.Threading.Tasks;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist.Wallet
 {
@@ -28,86 +30,90 @@ namespace Poltergeist.Wallet
             _masterPassword = null;
         }
 
-        public void RequestPassword(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, IWalletAuthUi ui, Action<PromptResult> callback, bool ignoreStoredPassword = false)
+        public async Task<PromptResult> RequestPasswordAsync(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, IWalletAuthUi ui, bool ignoreStoredPassword = false)
         {
             var accountManager = _accountProvider();
             if (accountManager == null || ui == null)
             {
-                callback?.Invoke(PromptResult.Failure);
-                return;
+                return PromptResult.Failure;
             }
 
             if (!accountManager.HasSelection)
             {
-                callback?.Invoke(PromptResult.Failure);
-                return;
+                return PromptResult.Failure;
             }
 
             if (!accountManager.CurrentAccount.passwordProtected)
             {
-                callback?.Invoke(PromptResult.Success);
-                return;
+                return PromptResult.Success;
             }
 
             if (!forcePasswordPrompt && accountManager.Settings.passwordMode == PasswordMode.Ask_Only_On_Login)
             {
-                callback?.Invoke(PromptResult.Success);
-                return;
+                return PromptResult.Success;
             }
 
-            void PromptForPassword()
+            while (true)
             {
-                ui.PromptPassword("Account Authorization", $"Account: {accountManager.CurrentAccount.name}\nAction: {description}\n\nInsert password to proceed...", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, (result, input) =>
+                if (accountManager.Settings.passwordMode == PasswordMode.Master_Password &&
+                    allowMasterPasswordPrompt &&
+                    string.IsNullOrEmpty(_masterPassword))
                 {
-                    if (result == PromptResult.Success)
+                    var masterPrompt = await PromptPasswordAsync(ui, "Master Password", "Please enter master password", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength);
+                    if (masterPrompt.result == PromptResult.Success)
                     {
-                        TryPassword(input, description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, ui, callback);
-                    }
-                });
-            }
-
-            void ProceedWithCheck()
-            {
-                if (!ignoreStoredPassword && !string.IsNullOrEmpty(_masterPassword))
-                {
-                    TryPassword(_masterPassword, description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, ui, callback);
-                }
-                else
-                {
-                    PromptForPassword();
-                }
-            }
-
-            if (accountManager.Settings.passwordMode == PasswordMode.Master_Password &&
-                string.IsNullOrEmpty(_masterPassword) &&
-                allowMasterPasswordPrompt)
-            {
-                ui.PromptPassword("Master Password", "Please enter master password", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength, (result, input) =>
-                {
-                    if (result == PromptResult.Success)
-                    {
-                        _masterPassword = input;
-                        ProceedWithCheck();
+                        _masterPassword = masterPrompt.password;
                     }
                     else
                     {
-                        RequestPassword(description, platform, forcePasswordPrompt, false, ui, callback);
+                        allowMasterPasswordPrompt = false;
+                        continue;
                     }
-                });
-            }
-            else
-            {
-                ProceedWithCheck();
+                }
+
+                var passwordToTry = !ignoreStoredPassword && !string.IsNullOrEmpty(_masterPassword) ? _masterPassword : null;
+                if (string.IsNullOrEmpty(passwordToTry))
+                {
+                    var prompt = await PromptPasswordAsync(ui, "Account Authorization", $"Account: {accountManager.CurrentAccount.name}\nAction: {description}\n\nInsert password to proceed...", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength);
+                    if (prompt.result != PromptResult.Success)
+                    {
+                        return prompt.result;
+                    }
+
+                    passwordToTry = prompt.password;
+                }
+
+                var tryResult = TryPassword(passwordToTry, accountManager);
+                if (tryResult == PromptResult.Success)
+                {
+                    return PromptResult.Success;
+                }
+
+                await ShowIncorrectPasswordAsync(ui, accountManager);
             }
         }
 
-        private void TryPassword(string password, string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, IWalletAuthUi ui, Action<PromptResult> callback)
+        public async void RequestPassword(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, IWalletAuthUi ui, Action<PromptResult> callback, bool ignoreStoredPassword = false)
         {
-            var accountManager = _accountProvider();
+            PromptResult result;
+            try
+            {
+                result = await RequestPasswordAsync(description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, ui, ignoreStoredPassword);
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning("Authorization error: " + e);
+                result = PromptResult.Failure;
+            }
+
+            callback?.Invoke(result);
+        }
+
+        private PromptResult TryPassword(string password, AccountManager accountManager)
+        {
             if (accountManager == null)
             {
-                callback?.Invoke(PromptResult.Failure);
-                return;
+                return PromptResult.Failure;
             }
 
             try
@@ -119,20 +125,30 @@ namespace Poltergeist.Wallet
                 {
                     accountManager.CurrentPasswordHash = passwordHash;
                     accountManager.UpdateOpenAccount();
-                    callback?.Invoke(PromptResult.Success);
-                    return;
+                    return PromptResult.Success;
                 }
             }
             catch (Exception e)
             {
-                PhantasmaPhoenix.Unity.Core.Logging.Log.WriteWarning("Authorization error: " + e);
+                Log.WriteWarning("Authorization error: " + e);
             }
 
             _masterPassword = null;
-            ui.ShowError($"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () =>
-            {
-                RequestPassword(description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, ui, callback);
-            });
+            return PromptResult.Failure;
+        }
+
+        private static Task<(PromptResult result, string password)> PromptPasswordAsync(IWalletAuthUi ui, string title, string caption, int minLength, int maxLength)
+        {
+            var tcs = new TaskCompletionSource<(PromptResult result, string password)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ui.PromptPassword(title, caption, minLength, maxLength, (result, input) => tcs.TrySetResult((result, input ?? string.Empty)));
+            return tcs.Task;
+        }
+
+        private static Task ShowIncorrectPasswordAsync(IWalletAuthUi ui, AccountManager accountManager)
+        {
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ui.ShowError($"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () => tcs.TrySetResult(true));
+            return tcs.Task;
         }
     }
 }

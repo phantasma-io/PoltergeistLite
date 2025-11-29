@@ -444,7 +444,7 @@ namespace Poltergeist.UiToolkit.Accounts
             context.ViewState.ResetSnapshots();
             context.ViewState.MarkBalancesDirty();
 
-            var promptResult = await RequestPasswordAsync("Open wallet", am.CurrentAccount.platforms, true, true);
+            var promptResult = await authService.RequestPasswordAsync("Open wallet", am.CurrentAccount.platforms, true, true, this);
             Log.Write($"{LogPrefix}Password prompt returned {promptResult} for account '{am.CurrentAccount.name}' (newWallet={isNewWallet}).");
             if (promptResult == PromptResult.Success)
             {
@@ -464,13 +464,6 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 SetStatus($"Failed to open '{am.CurrentAccount.name}'.");
             }
-        }
-
-        private Task<PromptResult> RequestPasswordAsync(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, bool ignoreStoredPassword = false)
-        {
-            var tcs = new TaskCompletionSource<PromptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-            authService.RequestPassword(description, platform, forcePasswordPrompt, allowMasterPasswordPrompt, this, result => tcs.TrySetResult(result), ignoreStoredPassword);
-            return tcs.Task;
         }
 
         public async void PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback)
@@ -544,25 +537,24 @@ namespace Poltergeist.UiToolkit.Accounts
 
         protected Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
         {
-            var allowEmpty = isError || !showInput || minLength <= 0;
-            var successResult = isError ? PromptResult.Failure : PromptResult.Success;
             var primary = string.IsNullOrWhiteSpace(primaryLabel) ? (isError ? "Close" : "OK") : primaryLabel;
             var secondary = string.IsNullOrWhiteSpace(secondaryLabel) ? "Cancel" : secondaryLabel;
 
-            return modalHost.ShowPromptAsync(
+            return WalletUiModalHelper.ShowPromptAsync(
+                modalHost,
                 title,
                 caption,
                 minLength,
                 maxLength,
-                allowEmpty,
-                showInput,
-                isPassword,
-                multiline,
-                primary,
-                secondary,
+                allowEmpty: isError,
+                hasInput: showInput,
+                isPassword: isPassword,
+                multiline: multiline,
+                primaryLabel: primary,
+                secondaryLabel: secondary,
                 showSecondary: true,
                 initialValue: initialValue ?? string.Empty,
-                successResult: successResult,
+                successResult: isError ? PromptResult.Failure : PromptResult.Success,
                 cancelResult: PromptResult.Failure,
                 onBeforeShow: DetachListForModal,
                 onAfterHide: RestoreListAfterModal);
