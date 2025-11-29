@@ -713,6 +713,33 @@ namespace Poltergeist.UiToolkit
             btn.style.borderBottomWidth = borderWidth;
         }
 
+        /// <summary>
+        /// Applies enabled/disabled state and keeps text color in sync so disabled actions are visually clear.
+        /// </summary>
+        internal static void SetButtonEnabledVisual(Button button, bool enabled, Color? enabledColor = null, Color? disabledColor = null)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            button.SetEnabled(enabled);
+
+            var active = enabledColor ?? (button.style.color.keyword != StyleKeyword.Null
+                ? (Color?)button.style.color.value
+                : WalletUiTheme.TextPrimary);
+            var inactive = disabledColor ?? WalletUiTheme.TextMuted;
+
+            if (enabled && active.HasValue)
+            {
+                button.style.color = active.Value;
+            }
+            else
+            {
+                button.style.color = inactive;
+            }
+        }
+
         internal static ScrollView CreateScrollView(Action<float> onScrollChanged = null, Func<bool> shouldBlockWheel = null, float paddingBottom = 0f)
         {
             // Manual wheel handling stays here to avoid UITK ScrollView.ReadSingleLineHeight nullrefs and to keep stable offsets.

@@ -27,6 +27,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private Button manageRenameButton;
         private Button manageMoveUpButton;
         private Button manageMoveDownButton;
+        private Button manageDeleteButton;
         private List<Account> manageOriginalAccounts;
         private bool manageDirty;
         private readonly HashSet<string> manageSelection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -172,6 +173,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var moveDownBtn = WalletUiCommon.CreateSecondaryButton("Down", () => MoveSelectedAsync(1).Forget(ex => Log.WriteWarning($"{LogPrefix}Move down failed: {ex}")), 14, 32);
             manageMoveDownButton = moveDownBtn;
             var deleteBtn = WalletUiCommon.CreateSecondaryButton("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}")), 14, 32);
+            manageDeleteButton = deleteBtn;
             manageActionsCloud = WalletUiFormFactory.CreateButtonCloud(renameBtn, moveUpBtn, moveDownBtn, deleteBtn);
             manageActionsCloud.style.marginTop = 0;
             manageActionsCloud.style.marginBottom = 0;
@@ -832,9 +834,10 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             var hasSelection = indices.Count > 0;
-            manageRenameButton?.SetEnabled(manageSelection.Count == 1);
-            manageMoveUpButton?.SetEnabled(hasSelection && indices.Min() > 0);
-            manageMoveDownButton?.SetEnabled(hasSelection && indices.Max() < total - 1);
+            WalletUiCommon.SetButtonEnabledVisual(manageRenameButton, manageSelection.Count == 1, Color.white);
+            WalletUiCommon.SetButtonEnabledVisual(manageMoveUpButton, hasSelection && indices.Min() > 0, Color.white);
+            WalletUiCommon.SetButtonEnabledVisual(manageMoveDownButton, hasSelection && indices.Max() < total - 1, Color.white);
+            WalletUiCommon.SetButtonEnabledVisual(manageDeleteButton, hasSelection, Color.white);
         }
 
         private void UpdateManageStatus(string message)
