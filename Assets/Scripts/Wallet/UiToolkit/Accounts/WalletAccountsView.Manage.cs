@@ -14,7 +14,7 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 namespace Poltergeist.UiToolkit.Accounts
 {
     /// <summary>
-    /// Wallet management actions for UITK (export/import/reorder/rename/delete).
+    /// Wallet management actions for UITK (export/import/reorder/rename/delete) full-screen mode.
     /// Kept separate from the main view for readability.
     /// </summary>
     public sealed partial class WalletAccountsView
@@ -22,8 +22,8 @@ namespace Poltergeist.UiToolkit.Accounts
         private VisualElement managePanel;
         private ScrollView manageList;
         private Label manageStatusLabel;
+        private VisualElement manageFooter;
         private readonly HashSet<string> manageSelection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private bool managePanelOpen;
 
         private void OnManageWallets()
         {
@@ -39,36 +39,60 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void ShowManagePanel()
         {
-            if (managePanel == null)
-            {
-                BuildManagePanel();
-            }
-
-            RefreshManagePanel();
-            modalHost.ShowPanel(managePanel, DetachListForModal);
-            managePanelOpen = true;
+            EnterManageMode();
         }
 
         private void HideManagePanel()
         {
-            manageSelection.Clear();
-            UpdateManageStatus(string.Empty);
-            modalHost.HidePanel(RestoreListAfterModal);
-            managePanelOpen = false;
+            ExitManageMode();
         }
 
-        private void BuildManagePanel()
+        private VisualElement BuildManageRoot()
         {
-            managePanel = WalletUiCommon.CreateModalPanel(900, 1100);
-            managePanel.style.display = DisplayStyle.None;
-            managePanel.style.alignSelf = Align.Center;
-            managePanel.style.maxWidth = new Length(94, LengthUnit.Percent);
-            managePanel.style.maxHeight = new Length(84, LengthUnit.Percent);
-            managePanel.style.paddingLeft = 18;
-            managePanel.style.paddingRight = 18;
-            managePanel.style.paddingTop = 14;
-            managePanel.style.paddingBottom = 12;
-            managePanel.style.flexDirection = FlexDirection.Column;
+            // Full-height container keeps manage layout aligned with other screens (scroll + footer positions).
+            var root = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    width = new Length(100, LengthUnit.Percent),
+                    alignItems = Align.Stretch,
+                    backgroundColor = Color.clear
+                }
+            };
+            ApplyDefaultFont(root);
+
+            // Body card with scroll area; keeps footer separate from scrolling just like other screens.
+            var panel = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    alignSelf = Align.Center,
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = 1680,
+                    paddingLeft = 18,
+                    paddingRight = 18,
+                    paddingTop = 12,
+                    paddingBottom = 12,
+                    backgroundColor = WalletUiTheme.CardBackground,
+                    backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
+                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium
+                }
+            };
+            ApplyDefaultFont(panel);
 
             var title = new Label("Manage wallets")
             {
@@ -82,7 +106,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             ApplyDefaultFont(title);
-            managePanel.Add(title);
+            panel.Add(title);
 
             var caption = new Label("Reorder, rename, export/import or delete wallets on this device.")
             {
@@ -96,7 +120,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             ApplyDefaultFont(caption);
-            managePanel.Add(caption);
+            panel.Add(caption);
 
             manageStatusLabel = new Label(string.Empty)
             {
@@ -110,70 +134,42 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             ApplyDefaultFont(manageStatusLabel);
-            managePanel.Add(manageStatusLabel);
+            panel.Add(manageStatusLabel);
 
-            manageList = new ScrollView
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    height = StyleKeyword.Auto,
-                    maxHeight = 520,
-                    paddingTop = 6,
-                    paddingBottom = 6,
-                    paddingLeft = 4,
-                    paddingRight = 4,
-                    marginBottom = 12,
-                    overflow = Overflow.Hidden,
-                    borderBottomWidth = 1,
-                    borderTopWidth = 1,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderBottomColor = WalletUiTheme.HeaderBorder,
-                    borderTopColor = WalletUiTheme.HeaderBorder,
-                    borderLeftColor = WalletUiTheme.HeaderBorder,
-                    borderRightColor = WalletUiTheme.HeaderBorder,
-                    backgroundColor = WalletUiTheme.PanelBackground
-                }
-            };
-            ApplyDefaultFont(manageList);
-            managePanel.Add(manageList);
+            var scrollWrapper = WalletUiCommon.BuildScrollContainer(
+                out manageList,
+                onScrollChanged: null,
+                shouldBlockWheel: () => modalHost?.Overlay != null && modalHost.Overlay.style.display == DisplayStyle.Flex,
+                paddingLeft: 8f,
+                paddingRight: 8f,
+                paddingTop: 6f,
+                paddingBottom: 80f,
+                marginTop: 6f,
+                marginBottom: 12f,
+                maxWidth: 0f,
+                alignSelf: Align.Stretch);
+            manageList.style.flexGrow = 1;
+            manageList.style.flexShrink = 1;
+            manageList.style.minHeight = 0; // Allow the list to stretch so the footer sits at the same height as other screens.
+            panel.Add(scrollWrapper);
 
-            var actions = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.SpaceEvenly,
-                    alignItems = Align.Center,
-                    marginTop = 6,
-                    flexWrap = Wrap.Wrap
-                }
-            };
-            ApplyDefaultFont(actions);
+            root.Add(panel);
 
-            var exportBtn = WalletUiCommon.CreateOutlineButton("Export", () => ExportSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Export failed: {ex}")), 16, 36);
-            exportBtn.style.minWidth = 120;
-            exportBtn.style.marginRight = 8;
-            var importBtn = WalletUiCommon.CreateOutlineButton("Import", () => ImportWalletsAsync(true).Forget(ex => Log.WriteWarning($"{LogPrefix}Import failed: {ex}")), 16, 36);
-            importBtn.style.minWidth = 120;
-            importBtn.style.marginRight = 8;
-            var deleteBtn = WalletUiCommon.CreateSecondaryButton("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}")), 16, 36);
-            deleteBtn.style.minWidth = 120;
-            deleteBtn.style.marginRight = 8;
-            var saveBtn = WalletUiCommon.CreateOutlineButton("Save", SaveAccounts, 16, 36);
-            saveBtn.style.minWidth = 120;
-            saveBtn.style.marginRight = 8;
-            var closeBtn = WalletUiCommon.CreateSecondaryButton("Close", HideManagePanel, 16, 36);
-            closeBtn.style.minWidth = 120;
+            manageFooter = WalletUiCommon.BuildFooter(
+                out _,
+                ("Export", () => ExportSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Export failed: {ex}"))),
+                ("Import", () => ImportWalletsAsync(true).Forget(ex => Log.WriteWarning($"{LogPrefix}Import failed: {ex}"))),
+                ("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}"))),
+                ("Save", SaveAccounts),
+                ("Close", HideManagePanel)
+            );
+            manageFooter.style.alignSelf = Align.Center;
+            manageFooter.style.width = new Length(100, LengthUnit.Percent);
+            manageFooter.style.maxWidth = 1680;
+            manageFooter.style.marginTop = 12;
 
-            actions.Add(exportBtn);
-            actions.Add(importBtn);
-            actions.Add(deleteBtn);
-            actions.Add(saveBtn);
-            actions.Add(closeBtn);
-            managePanel.Add(actions);
+            root.Add(manageFooter);
+            return root;
         }
 
         private void RefreshManagePanel()
@@ -204,11 +200,11 @@ namespace Poltergeist.UiToolkit.Accounts
                     alignItems = Align.Center,
                     justifyContent = Justify.SpaceBetween,
                     flexShrink = 0,
-                    paddingTop = 10,
-                    paddingBottom = 10,
+                    paddingTop = 8,
+                    paddingBottom = 8,
                     paddingLeft = 10,
                     paddingRight = 10,
-                    marginBottom = 6,
+                    marginBottom = 4,
                     backgroundColor = WalletUiTheme.CardBackground,
                     borderBottomWidth = 1,
                     borderBottomColor = WalletUiTheme.HeaderBorder
@@ -283,7 +279,8 @@ namespace Poltergeist.UiToolkit.Accounts
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
                     justifyContent = Justify.FlexEnd,
-                    flexShrink = 0
+                    flexShrink = 0,
+                    minWidth = 240
                 }
             };
 
@@ -340,20 +337,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            var prompt = managePanelOpen
-                ? await ShowManagePromptAsync(
-                    "Rename wallet",
-                    $"Current local name: {account.name}\nAddress: {account.phaAddress}\n\nEnter new local account name:",
-                    AccountManager.MinAccountNameLength,
-                    AccountManager.MaxAccountNameLength,
-                    allowEmpty: false,
-                    hasInput: true,
-                    isPassword: false,
-                    multiline: false,
-                    primaryLabel: "Confirm",
-                    secondaryLabel: "Cancel",
-                    initialValue: account.name)
-                : await ShowModalAsync(
+            var prompt = await ShowModalAsync(
                     "Rename wallet",
                     $"Current local name: {account.name}\nAddress: {account.phaAddress}\n\nEnter new local account name:",
                     AccountManager.MinAccountNameLength,
@@ -426,20 +410,7 @@ namespace Poltergeist.UiToolkit.Accounts
                     : $"Selected {targets.Count} wallet(s) will be exported.\n\n") +
                 "Set a password to protect exported data (leave empty for no password).";
 
-            var protectPrompt = managePanelOpen
-                ? await ShowManagePromptAsync(
-                    "Wallets export",
-                    exportCaption,
-                    0,
-                    AccountManager.MaxPasswordLength,
-                    allowEmpty: true,
-                    hasInput: true,
-                    isPassword: true,
-                    multiline: false,
-                    primaryLabel: "Export",
-                    secondaryLabel: "Cancel",
-                    initialValue: string.Empty)
-                : await ShowModalAsync(
+            var protectPrompt = await ShowModalAsync(
                     "Wallets export",
                     exportCaption,
                     0,
@@ -484,9 +455,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var serializedExportData = Convert.ToBase64String(Serialization.Serialize(accountsExport));
 
-            var copyPrompt = managePanelOpen
-                ? await ShowManageConfirmAsync("Wallets export", "Copy wallets export data to the clipboard?", "Copy", "Cancel")
-                : await WalletUiModalHelper.ShowConfirmAsync(
+            var copyPrompt = await WalletUiModalHelper.ShowConfirmAsync(
                     modalHost,
                     "Wallets export",
                     "Copy wallets export data to the clipboard?",
@@ -517,20 +486,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            var dataPrompt = (fromManage || managePanelOpen)
-                ? await ShowManagePromptAsync(
-                    "Wallets import",
-                    "Paste wallets export data:",
-                    1,
-                    -1,
-                    allowEmpty: false,
-                    hasInput: true,
-                    isPassword: false,
-                    multiline: true,
-                    primaryLabel: "Import",
-                    secondaryLabel: "Cancel",
-                    initialValue: string.Empty)
-                : await ShowModalAsync(
+            var dataPrompt = await ShowModalAsync(
                     "Wallets import",
                     "Paste wallets export data:",
                     1,
@@ -563,20 +519,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             if (accountsExport.passwordProtected)
             {
-                var passPrompt = (fromManage || managePanelOpen)
-                    ? await ShowManagePromptAsync(
-                        "Wallets import",
-                        "Enter password used during export:",
-                        AccountManager.MinPasswordLength,
-                        AccountManager.MaxPasswordLength,
-                        allowEmpty: false,
-                        hasInput: true,
-                        isPassword: true,
-                        multiline: false,
-                        primaryLabel: "Confirm",
-                        secondaryLabel: "Cancel",
-                        initialValue: string.Empty)
-                    : await ShowModalAsync(
+                var passPrompt = await ShowModalAsync(
                         "Wallets import",
                         "Enter password used during export:",
                         AccountManager.MinPasswordLength,
@@ -663,13 +606,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 summary.AppendLine(willSkip.ToString());
             }
 
-            var confirm = (fromManage || managePanelOpen)
-                ? await ShowManageConfirmAsync(
-                    "Wallets import",
-                    summary.Length > 0 ? summary.ToString() : "Nothing to import.",
-                    "Import",
-                    "Cancel")
-                : await WalletUiModalHelper.ShowConfirmAsync(
+            var confirm = await WalletUiModalHelper.ShowConfirmAsync(
                     modalHost,
                     "Wallets import",
                     summary.Length > 0 ? summary.ToString() : "Nothing to import.",
@@ -712,13 +649,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            var confirm = managePanelOpen
-                ? await ShowManageConfirmAsync(
-                    "Delete wallets",
-                    $"{manageSelection.Count} selected wallet(s) will be deleted.\nMake sure you have backups of your private keys!",
-                    "Delete",
-                    "Cancel")
-                : await WalletUiModalHelper.ShowConfirmAsync(
+            var confirm = await WalletUiModalHelper.ShowConfirmAsync(
                     modalHost,
                     "Delete wallets",
                     $"{manageSelection.Count} selected wallet(s) will be deleted.\nMake sure you have backups of your private keys!",
@@ -777,58 +708,5 @@ namespace Poltergeist.UiToolkit.Accounts
             manageStatusLabel.style.display = string.IsNullOrWhiteSpace(message) ? DisplayStyle.None : DisplayStyle.Flex;
         }
 
-        private Task<(PromptResult result, string input)> ShowManagePromptAsync(
-            string title,
-            string caption,
-            int minLength,
-            int maxLength,
-            bool allowEmpty,
-            bool hasInput,
-            bool isPassword,
-            bool multiline,
-            string primaryLabel,
-            string secondaryLabel,
-            string initialValue = "")
-        {
-            return WalletUiModalHelper.ShowPromptAsync(
-                modalHost,
-                title,
-                caption,
-                minLength,
-                maxLength,
-                allowEmpty,
-                hasInput,
-                isPassword,
-                multiline,
-                primaryLabel,
-                secondaryLabel,
-                showSecondary: true,
-                initialValue: initialValue ?? string.Empty,
-                successResult: PromptResult.Success,
-                cancelResult: PromptResult.Failure,
-                onBeforeShow: null,
-                onAfterHide: OnManagePromptClosed);
-        }
-
-        private Task<PromptResult> ShowManageConfirmAsync(string title, string caption, string confirmLabel, string cancelLabel)
-        {
-            return WalletUiModalHelper.ShowConfirmAsync(
-                modalHost,
-                title,
-                caption,
-                confirmLabel,
-                cancelLabel,
-                null,
-                OnManagePromptClosed);
-        }
-
-        private void OnManagePromptClosed()
-        {
-            if (managePanelOpen && managePanel != null)
-            {
-                modalHost.ShowPanel(managePanel);
-                DetachListForModal();
-            }
-        }
     }
 }

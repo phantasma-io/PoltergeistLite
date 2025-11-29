@@ -29,6 +29,8 @@ namespace Poltergeist.UiToolkit.Accounts
         private ScrollView list;
         private VisualElement listWrapper;
         private Label statusLabel;
+        private VisualElement mainFooter;
+        private VisualElement manageRoot;
         private WalletUiSignals uiSignals;
         private readonly WalletUiModalHost modalHost;
         private bool listWasEnabled = true;
@@ -225,9 +227,12 @@ namespace Poltergeist.UiToolkit.Accounts
             content.Add(subHeader.Root);
             content.Add(statusLabel);
             content.Add(listWrapper);
-            var footer = WalletUiCommon.BuildMainFooter(OnNewWallet, OnImportWallet, OnManageWallets, OnSettings);
-            footer.style.flexShrink = 0;
-            content.Add(footer);
+            manageRoot = BuildManageRoot();
+            manageRoot.style.display = DisplayStyle.None;
+            content.Add(manageRoot);
+            mainFooter = WalletUiCommon.BuildMainFooter(OnNewWallet, OnImportWallet, OnManageWallets, OnSettings);
+            mainFooter.style.flexShrink = 0;
+            content.Add(mainFooter);
 
             root.Add(content);
         }
@@ -563,6 +568,46 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             modalHost.HideAll();
             RestoreListAfterModal();
+        }
+
+        private void EnterManageMode()
+        {
+            manageSelection.Clear();
+            if (listWrapper != null)
+            {
+                listWrapper.style.display = DisplayStyle.None;
+            }
+            if (mainFooter != null)
+            {
+                mainFooter.style.display = DisplayStyle.None;
+            }
+            if (manageRoot != null)
+            {
+                manageRoot.style.display = DisplayStyle.Flex;
+            }
+
+            subtitleLabel.text = "Wallet Management";
+            RefreshManagePanel();
+        }
+
+        private void ExitManageMode()
+        {
+            manageSelection.Clear();
+            UpdateManageStatus(string.Empty);
+            if (manageRoot != null)
+            {
+                manageRoot.style.display = DisplayStyle.None;
+            }
+            if (listWrapper != null)
+            {
+                listWrapper.style.display = DisplayStyle.Flex;
+            }
+            if (mainFooter != null)
+            {
+                mainFooter.style.display = DisplayStyle.Flex;
+            }
+
+            subtitleLabel.text = "Wallet List";
         }
 
         private void ApplyDefaultFont(VisualElement element)
