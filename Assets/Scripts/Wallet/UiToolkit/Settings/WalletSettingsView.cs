@@ -484,42 +484,25 @@ namespace Poltergeist.UiToolkit.Settings
             };
             WalletUiCommon.ApplyDefaultFont(actionsContainer);
 
-            var utilitiesRow = WalletUiFormFactory.CreateButtonRow(
-                WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDelete(actions.ClearCacheConfirmation, OnClearCache), 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDelete(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32),
-                deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32)
-            );
-            utilitiesRow.style.marginTop = 8;
-            utilitiesRow.style.marginBottom = 12;
-            actionsContainer.Add(utilitiesRow);
+            var stakingInfoBtn = WalletUiCommon.CreateSecondaryButton("Staking info", OnStakingInfo, 14, 32);
+            var addressInfoBtn = WalletUiCommon.CreateSecondaryButton("Address info", OnAddressInfo, 14, 32);
+            var describeScriptBtn = WalletUiCommon.CreateSecondaryButton("Describe script", OnDescribeScript, 14, 32);
+            var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", OnDecodeTransaction, 14, 32);
+            var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", OnVerifyProofOfAddresses, 14, 32);
+            var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", OnLegacySeedToWif, 14, 32);
+            devToolsSection = WalletUiFormFactory.CreateButtonCloud(stakingInfoBtn, addressInfoBtn, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
+            devToolsSection.style.marginTop = 4;
+            devToolsSection.style.marginBottom = 6;
+            actionsContainer.Add(devToolsSection);
 
-            devToolsSection = WalletUiFormFactory.CreateFormSection("Tools");
-            devToolsSection.style.marginTop = 32;
-            devToolsSection.style.marginBottom = 18;
-            devToolsSection.style.paddingTop = 14;
-            devToolsSection.style.paddingBottom = 16;
-            if (devToolsSection.childCount > 0 && devToolsSection[0] is Label devLabel)
-            {
-                devLabel.style.marginBottom = 24;
-                // Important: UITK does not expand parent height based on children margins inside wrapped rows,
-                // so we give the section its own padding/margins plus a larger label bottom margin to prevent
-                // button rows (with flexWrap) from overlapping the header when they wrap to multiple lines.
-                // See WalletUiFormFactory.CreateButtonRow: buttons have marginBottom=0; spacing comes from row padding.
-            }
-            var devRow1 = WalletUiFormFactory.CreateButtonRow(
-                WalletUiCommon.CreateSecondaryButton("Staking info", OnStakingInfo, 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Address info", OnAddressInfo, 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Describe script", OnDescribeScript, 14, 32)
-            );
-            var devRow2 = WalletUiFormFactory.CreateButtonRow(
-                WalletUiCommon.CreateSecondaryButton("Decode tx", OnDecodeTransaction, 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Verify POA", OnVerifyProofOfAddresses, 14, 32),
-                WalletUiCommon.CreateSecondaryButton("Old seed to WIF", OnLegacySeedToWif, 14, 32)
-            );
-            devToolsSection.Add(devRow1);
-            devToolsSection.Add(devRow2);
-            AddTabSection("advanced", devToolsSection);
+            var clearCacheBtn = WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDelete(actions.ClearCacheConfirmation, OnClearCache), 14, 32);
+            var resetNotificationsBtn = WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32);
+            var resetSettingsBtn = WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDelete(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32);
+            deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32);
+            var utilitiesCloud = WalletUiFormFactory.CreateButtonCloud(clearCacheBtn, resetNotificationsBtn, resetSettingsBtn, deleteEverythingButton);
+            utilitiesCloud.style.marginTop = 6;
+            utilitiesCloud.style.marginBottom = 12;
+            actionsContainer.Add(utilitiesCloud);
 
             ApplyDebugLayout();
         }

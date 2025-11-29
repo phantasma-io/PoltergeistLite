@@ -309,6 +309,53 @@ namespace Poltergeist.UiToolkit
             return row;
         }
 
+        public static VisualElement CreateButtonCloud(params Button[] buttons)
+        {
+            // Wrapped button container used on multiple screens to keep spacing consistent for adaptive layouts.
+            var cloud = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center,
+                    flexWrap = Wrap.Wrap,
+                    marginTop = 12,
+                    marginBottom = 12,
+                    paddingTop = 4,
+                    paddingBottom = 6,
+                    paddingLeft = 4,
+                    paddingRight = 4,
+                    alignSelf = Align.Center
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(cloud);
+
+            var index = 0;
+            foreach (var button in buttons)
+            {
+                if (button == null)
+                {
+                    continue;
+                }
+
+                button.style.marginLeft = index == 0 ? 0 : 8;
+                button.style.marginBottom = 8;
+                button.style.marginTop = 0;
+                var minHeight = button.style.minHeight;
+                var currentMinHeight = minHeight.keyword == StyleKeyword.Undefined ? minHeight.value.value : 0f;
+                if (currentMinHeight < 32f)
+                {
+                    button.style.minHeight = 32;
+                }
+                button.style.alignSelf = Align.Center;
+                cloud.Add(button);
+                index++;
+            }
+
+            return cloud;
+        }
+
         private static void StyleToggleVisual(Toggle toggle)
         {
             if (toggle == null)

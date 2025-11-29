@@ -269,55 +269,21 @@ namespace Poltergeist.UiToolkit.Accounts
             var spacer = new VisualElement { style = { flexGrow = 1, minHeight = 0 } };
             content.Add(spacer);
 
-            var actionsRow2 = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    alignSelf = Align.Center,
-                    marginTop = 4,
-                    marginBottom = 2
-                }
-            };
-            ApplyDefaultFont(actionsRow2);
-
             var migrateBtn = WalletUiCommon.CreateSecondaryButton("Migrate", OnMigrate, 14, 32);
             var setNameBtn = WalletUiCommon.CreateSecondaryButton("Set Name", OnSetName, 14, 32);
             var proofBtn = WalletUiCommon.CreateSecondaryButton("Proof of Addresses", OnProofOfAddresses, 14, 32);
             migrateBtn.style.minWidth = 140;
             setNameBtn.style.minWidth = 140;
             proofBtn.style.minWidth = 180;
-            setNameBtn.style.marginLeft = 8;
-            proofBtn.style.marginLeft = 8;
-            actionsRow2.Add(migrateBtn);
-            actionsRow2.Add(setNameBtn);
-            actionsRow2.Add(proofBtn);
-            content.Add(actionsRow2);
-
-            var actionsRow3 = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    alignSelf = Align.Center,
-                    marginTop = 2,
-                    marginBottom = 6
-                }
-            };
-            ApplyDefaultFont(actionsRow3);
 
             var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", OnSignMessage, 14, 32);
             var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", OnVerifySignature, 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
-            verifyBtn.style.marginLeft = 8;
-            actionsRow3.Add(signBtn);
-            actionsRow3.Add(verifyBtn);
-            content.Add(actionsRow3);
+            var actionCloud = WalletUiFormFactory.CreateButtonCloud(migrateBtn, setNameBtn, proofBtn, signBtn, verifyBtn);
+            actionCloud.style.marginTop = 6;
+            actionCloud.style.marginBottom = 6;
+            content.Add(actionCloud);
 
             actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateBtn, setNameBtn, proofBtn, signBtn, verifyBtn });
 
