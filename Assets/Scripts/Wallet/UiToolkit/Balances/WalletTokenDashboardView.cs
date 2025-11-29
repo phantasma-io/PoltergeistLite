@@ -1179,19 +1179,14 @@ namespace Poltergeist.UiToolkit.Balances
 
         private async Task<string> PromptDestinationAsync(string symbol)
         {
-            var (destResult, destInput) = await WalletUiModalHelper.ShowPromptAsync(
+            var accounts = AccountManager.Instance?.Accounts;
+            var (destResult, destInput) = await WalletUiModalHelper.ShowAddressInputDialogAsync(
                 modalHost,
                 $"Send {symbol}",
-                "Enter destination address or account name",
-                3,
-                64,
-                allowEmpty: false,
-                hasInput: true,
-                isPassword: false,
-                multiline: false,
-                primaryLabel: "Next",
-                secondaryLabel: "Cancel",
-                showSecondary: true,
+                "Enter destination address or pick one of your wallets.",
+                accounts,
+                confirmLabel: "Next",
+                cancelLabel: "Cancel",
                 initialValue: string.Empty);
 
             if (destResult != PromptResult.Success)

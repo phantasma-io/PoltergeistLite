@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
+using PhantasmaPhoenix.Cryptography;
+using Poltergeist;
 
 namespace Poltergeist.UiToolkit
 {
@@ -262,6 +265,383 @@ namespace Poltergeist.UiToolkit
         }
 
         /// <summary>
+        /// Address input dialog that combines manual entry, clipboard paste guard and quick selection from existing wallets.
+        /// Keeps the UX consistent across screens that need destination picking without cloning ad-hoc prompts.
+        /// </summary>
+        public static Task<(PromptResult result, string address)> ShowAddressInputDialogAsync(
+            WalletUiModalHost host,
+            string title,
+            string caption,
+            IReadOnlyList<Account> accounts,
+            string confirmLabel = "Confirm",
+            string cancelLabel = "Cancel",
+            string initialValue = "",
+            Action onBeforeShow = null,
+            Action onAfterHide = null)
+        {
+            if (host == null)
+            {
+                return Task.FromResult((PromptResult.Failure, string.Empty));
+            }
+
+            var tcs = new TaskCompletionSource<(PromptResult result, string address)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            // Only keep unique, valid Phantasma addresses to avoid noisy or unusable entries in the picker.
+            var validAccounts = new List<Account>();
+            var seenAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (accounts != null)
+            {
+                foreach (var acc in accounts)
+                {
+                    var address = acc.phaAddress?.Trim();
+                    if (string.IsNullOrWhiteSpace(address) || !Address.IsValidAddress(address) || !seenAddresses.Add(address))
+                    {
+                        continue;
+                    }
+
+                    validAccounts.Add(acc);
+                }
+            }
+
+            var panel = WalletUiCommon.CreateModalPanel(720, 960);
+            panel.style.maxWidth = new Length(95, LengthUnit.Percent);
+            panel.style.maxHeight = new Length(90, LengthUnit.Percent);
+            panel.style.flexShrink = 1;
+            panel.style.flexGrow = 0;
+            panel.style.overflow = Overflow.Hidden;
+
+            var titleLabel = new Label(string.IsNullOrWhiteSpace(title) ? "Destination address" : title)
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(titleLabel);
+            panel.Add(titleLabel);
+
+            if (!string.IsNullOrWhiteSpace(caption))
+            {
+                var captionLabel = new Label(caption)
+                {
+                    style =
+                    {
+                        color = WalletUiTheme.TextSecondary,
+                        fontSize = 14,
+                        unityTextAlign = TextAnchor.MiddleLeft,
+                        marginBottom = 10,
+                        whiteSpace = WhiteSpace.Normal
+                    }
+                };
+                WalletUiCommon.ApplyDefaultFont(captionLabel);
+                panel.Add(captionLabel);
+            }
+
+            var inputRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(inputRow);
+
+            var destinationField = new TextField
+            {
+                value = initialValue ?? string.Empty,
+                multiline = false,
+                isPasswordField = false,
+                maxLength = 64
+            };
+            WalletUiCommon.StyleModalInput(destinationField, false, 44);
+            destinationField.style.marginBottom = 0;
+            destinationField.style.flexGrow = 1;
+            destinationField.style.flexShrink = 1;
+            destinationField.style.flexBasis = 0;
+            destinationField.style.minWidth = 0;
+            inputRow.Add(destinationField);
+
+            var pasteButton = WalletUiCommon.CreateSecondaryButton("Paste", null, 14, 36);
+            pasteButton.style.minWidth = 90;
+            pasteButton.style.marginLeft = 8;
+            inputRow.Add(pasteButton);
+
+            panel.Add(inputRow);
+
+            var statusLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 12,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6,
+                    display = DisplayStyle.None
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(statusLabel);
+            panel.Add(statusLabel);
+
+            var listHeader = new Label(validAccounts.Count == 0 ? "No wallets available" : $"{validAccounts.Count} wallet(s) on this device")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 12,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 4
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(listHeader);
+            panel.Add(listHeader);
+
+            var listWrapper = WalletUiCommon.BuildScrollContainer(
+                out var list,
+                onScrollChanged: null,
+                shouldBlockWheel: () => false,
+                paddingLeft: 10f,
+                paddingRight: 10f,
+                paddingTop: 6f,
+                paddingBottom: 12f,
+                marginTop: 4f,
+                marginBottom: 8f,
+                maxWidth: 0f,
+                alignSelf: Align.Stretch);
+            list.style.flexGrow = 1;
+            list.style.flexShrink = 1;
+            list.style.flexBasis = 0;
+            list.style.minHeight = 0;
+
+            var rowEntries = new List<(string address, string name, VisualElement row)>();
+            IVisualElementScheduledItem pasteSchedule = null;
+            Button confirmBtn = null;
+
+            void UpdateRowSelection(string value)
+            {
+                var trimmed = value?.Trim() ?? string.Empty;
+                foreach (var (address, _, row) in rowEntries)
+                {
+                    var isSelected = string.Equals(address, trimmed, StringComparison.OrdinalIgnoreCase);
+                    StyleSelectedRow(row, isSelected);
+                }
+            }
+
+            void UpdateStatus(string text)
+            {
+                statusLabel.text = text ?? string.Empty;
+                statusLabel.style.display = string.IsNullOrWhiteSpace(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            bool IsInputValid(string value)
+            {
+                var trimmed = value?.Trim() ?? string.Empty;
+                return Address.IsValidAddress(trimmed);
+            }
+
+            void UpdateConfirmState(string value)
+            {
+                var trimmed = value?.Trim() ?? string.Empty;
+                var enabled = IsInputValid(trimmed);
+                WalletUiCommon.SetButtonEnabledVisual(confirmBtn, enabled, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+            }
+
+            void ApplySelection(string address)
+            {
+                var trimmed = address?.Trim() ?? string.Empty;
+                destinationField.SetValueWithoutNotify(trimmed);
+                UpdateRowSelection(trimmed);
+                UpdateConfirmState(trimmed);
+                UpdateStatus(string.Empty);
+                RebuildList(trimmed, trimmed);
+            }
+
+            void RefreshPasteState()
+            {
+                var clipboard = (GUIUtility.systemCopyBuffer ?? string.Empty).Trim();
+                var isValid = Address.IsValidAddress(clipboard);
+                WalletUiCommon.SetButtonEnabledVisual(pasteButton, isValid, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+                pasteButton.clicked -= PasteHandler;
+                if (isValid)
+                {
+                    pasteButton.clicked += PasteHandler;
+                }
+            }
+
+            void PasteHandler()
+            {
+                var clipboard = (GUIUtility.systemCopyBuffer ?? string.Empty).Trim();
+                if (!Address.IsValidAddress(clipboard))
+                {
+                    return;
+                }
+
+                ApplySelection(clipboard);
+            }
+
+            void Complete(PromptResult result, string value)
+            {
+                pasteSchedule?.Pause();
+                pasteSchedule = null;
+                host.HidePanel(onAfterHide);
+                tcs.TrySetResult((result, result == PromptResult.Success ? value?.Trim() ?? string.Empty : string.Empty));
+            }
+
+            bool MatchesFilter(Account account, string filter)
+            {
+                if (string.IsNullOrWhiteSpace(filter))
+                {
+                    return true;
+                }
+
+                var trimmed = filter.Trim();
+                if (trimmed.Length == 0)
+                {
+                    return true;
+                }
+
+                var name = account.name ?? string.Empty;
+                var address = account.phaAddress ?? string.Empty;
+                return name.IndexOf(trimmed, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                       address.IndexOf(trimmed, StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+
+            void RebuildList(string filter, string selectedValue)
+            {
+                rowEntries.Clear();
+                list.Clear();
+
+                if (validAccounts.Count == 0)
+                {
+                    listWrapper.style.minHeight = 120;
+                    listWrapper.style.maxHeight = 120;
+                    listHeader.text = "No wallets available";
+                    var emptyWallets = new Label("Add another wallet to enable quick picking.")
+                    {
+                        style =
+                        {
+                            color = WalletUiTheme.TextSecondary,
+                            fontSize = 13,
+                            unityTextAlign = TextAnchor.MiddleCenter,
+                            marginTop = 10,
+                            marginBottom = 10,
+                            whiteSpace = WhiteSpace.Normal
+                        }
+                    };
+                    WalletUiCommon.ApplyDefaultFont(emptyWallets);
+                    list.Add(emptyWallets);
+                    UpdateRowSelection(selectedValue);
+                    return;
+                }
+
+                var matches = validAccounts.Where(acc => MatchesFilter(acc, filter)).ToList();
+                if (matches.Count > 0)
+                {
+                    var estimatedHeight = Mathf.Clamp(matches.Count * 64f, 180f, 420f);
+                    listWrapper.style.minHeight = estimatedHeight;
+                    listWrapper.style.maxHeight = 420f;
+
+                    foreach (var account in matches)
+                    {
+                        var name = string.IsNullOrWhiteSpace(account.name) ? "Wallet" : account.name;
+                        var address = account.phaAddress?.Trim() ?? string.Empty;
+                        var row = CreateAddressRow(name, address, () => ApplySelection(address));
+                        rowEntries.Add((address, name, row));
+                        list.Add(row);
+                    }
+                }
+                else
+                {
+                    listWrapper.style.minHeight = 120;
+                    listWrapper.style.maxHeight = 120;
+                    var emptyLabel = new Label("No matching wallets.")
+                    {
+                        style =
+                        {
+                            color = WalletUiTheme.TextSecondary,
+                            fontSize = 13,
+                            unityTextAlign = TextAnchor.MiddleCenter,
+                            marginTop = 10,
+                            marginBottom = 10,
+                            whiteSpace = WhiteSpace.Normal
+                        }
+                    };
+                    WalletUiCommon.ApplyDefaultFont(emptyLabel);
+                    list.Add(emptyLabel);
+                }
+
+                var headerCount = matches.Count;
+                listHeader.text = headerCount == 0 ? "0 wallet(s)" : $"{headerCount} wallet(s)";
+                UpdateRowSelection(selectedValue);
+            }
+
+            panel.Add(listWrapper);
+
+            var buttons = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.FlexEnd,
+                    marginTop = 8,
+                    flexShrink = 0
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(buttons);
+
+            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, () => Complete(PromptResult.Failure, string.Empty), 16, 36);
+            cancelBtn.style.minWidth = 110;
+            buttons.Add(cancelBtn);
+
+            confirmBtn = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(confirmLabel) ? "Confirm" : confirmLabel, () =>
+            {
+                var trimmed = destinationField.value?.Trim() ?? string.Empty;
+                if (!IsInputValid(trimmed))
+                {
+                    UpdateStatus("Enter a valid destination address.");
+                    UpdateConfirmState(trimmed);
+                    return;
+                }
+
+                Complete(PromptResult.Success, trimmed);
+            }, 16, 36);
+            confirmBtn.style.minWidth = 120;
+            confirmBtn.style.marginLeft = 10;
+            buttons.Add(confirmBtn);
+            panel.Add(buttons);
+
+            destinationField.RegisterValueChangedCallback(evt =>
+            {
+                var trimmed = evt.newValue?.Trim() ?? string.Empty;
+                UpdateConfirmState(trimmed);
+                UpdateStatus(string.Empty);
+                RebuildList(trimmed, trimmed);
+            });
+
+            var initialInput = destinationField.value?.Trim() ?? string.Empty;
+            UpdateRowSelection(initialInput);
+            UpdateConfirmState(initialInput);
+            RefreshPasteState();
+            RebuildList(initialInput, initialInput);
+
+            // Unity does not surface clipboard change events, so we poll while the modal is visible to keep Paste state in sync.
+            pasteSchedule = panel.schedule.Execute(RefreshPasteState).Every(500);
+            panel.RegisterCallback<DetachFromPanelEvent>(_ =>
+            {
+                pasteSchedule?.Pause();
+                pasteSchedule = null;
+            });
+
+            host.ShowPanel(panel, onBeforeShow);
+            return tcs.Task;
+        }
+
+        /// <summary>
         /// Displays a modal with vertically stacked action buttons to pick one of the supplied options.
         /// Returns the zero-based index of the chosen option or -1 when cancelled.
         /// </summary>
@@ -366,6 +746,98 @@ namespace Poltergeist.UiToolkit
 
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
+        }
+
+        private static VisualElement CreateAddressRow(string name, string address, Action onSelect)
+        {
+            var row = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.FlexStart,
+                    paddingLeft = 12,
+                    paddingRight = 12,
+                    paddingTop = 10,
+                    paddingBottom = 10,
+                    marginBottom = 8,
+                    backgroundColor = WalletUiTheme.CardBackground,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.CardBorder,
+                    borderRightColor = WalletUiTheme.CardBorder,
+                    borderTopColor = WalletUiTheme.HighlightEdge,
+                    borderBottomColor = WalletUiTheme.CardBorder,
+                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomRightRadius = WalletUiTheme.RadiusSmall
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(row);
+            row.pickingMode = PickingMode.Position;
+
+            var textColumn = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    minWidth = 0
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(textColumn);
+
+            var titleLabel = new Label(string.IsNullOrWhiteSpace(name) ? "Wallet" : name)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = 15,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.UpperLeft,
+                    whiteSpace = WhiteSpace.Normal
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(titleLabel);
+            textColumn.Add(titleLabel);
+
+            var subtitleLabel = new Label(string.IsNullOrWhiteSpace(address) ? "(no address)" : address)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 13,
+                    unityTextAlign = TextAnchor.UpperLeft,
+                    whiteSpace = WhiteSpace.Normal,
+                    marginTop = 4
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(subtitleLabel);
+            textColumn.Add(subtitleLabel);
+
+            row.Add(textColumn);
+            row.RegisterCallback<ClickEvent>(_ => onSelect?.Invoke());
+            StyleSelectedRow(row, false);
+            return row;
+        }
+
+        private static void StyleSelectedRow(VisualElement row, bool isSelected)
+        {
+            if (row == null)
+            {
+                return;
+            }
+
+            var borderColor = isSelected ? WalletUiTheme.AccentPrimary : WalletUiTheme.CardBorder;
+            row.style.backgroundColor = isSelected ? WalletUiTheme.PanelBackground : WalletUiTheme.CardBackground;
+            row.style.borderLeftColor = borderColor;
+            row.style.borderRightColor = borderColor;
+            row.style.borderBottomColor = borderColor;
+            row.style.borderTopColor = isSelected ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.HighlightEdge;
         }
 
         private static VisualElement CreateListRow(int index, string title, string subtitle)
