@@ -4258,14 +4258,21 @@ namespace Poltergeist
         }
         #endregion
 
-        void IWalletAuthUi.PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback)
+        async Task<(PromptResult result, string password)> IWalletAuthUi.PromptPasswordAsync(string title, string caption, int minLength, int maxLength)
         {
-            ShowModal(title, caption, ModalState.Password, minLength, maxLength, ModalConfirmCancel, 1, callback);
+            var tcs = new TaskCompletionSource<(PromptResult result, string password)>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ShowModal(title, caption, ModalState.Password, minLength, maxLength, ModalConfirmCancel, 1, (result, input) =>
+            {
+                tcs.TrySetResult((result, input));
+            });
+            return await tcs.Task;
         }
 
-        void IWalletAuthUi.ShowError(string message, Action onClosed)
+        Task IWalletAuthUi.ShowErrorAsync(string message)
         {
-            modalActions.Error(message, onClosed);
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            modalActions.Error(message, () => tcs.TrySetResult(true));
+            return tcs.Task;
         }
         #endregion
 

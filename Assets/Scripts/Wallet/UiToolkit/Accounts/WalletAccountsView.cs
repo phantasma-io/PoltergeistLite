@@ -466,30 +466,22 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        public async void PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback)
+        public async Task<(PromptResult result, string password)> PromptPasswordAsync(string title, string caption, int minLength, int maxLength)
         {
             try
             {
-                var (result, input) = await ShowModalAsync(title, caption, minLength, maxLength, isError: false, showInput: true, isPassword: true);
-                callback?.Invoke(result, input);
+                return await ShowModalAsync(title, caption, minLength, maxLength, isError: false, showInput: true, isPassword: true);
             }
             catch (Exception e)
             {
                 Log.WriteWarning($"{LogPrefix}PromptPassword failed for '{title}': {e}");
-                callback?.Invoke(PromptResult.Failure, string.Empty);
+                return (PromptResult.Failure, string.Empty);
             }
         }
 
-        public async void ShowError(string message, Action onClosed)
+        public async Task ShowErrorAsync(string message)
         {
-            try
-            {
-                await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal);
-            }
-            finally
-            {
-                onClosed?.Invoke();
-            }
+            await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal);
         }
 
         private void DetachListForModal()
@@ -560,7 +552,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 onAfterHide: RestoreListAfterModal);
         }
 
-        protected async Task ShowErrorAsync(string message, string statusAfterClose = null)
+        protected async Task ShowErrorWithStatusAsync(string message, string statusAfterClose = null)
         {
             await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal);
             if (!string.IsNullOrWhiteSpace(statusAfterClose))

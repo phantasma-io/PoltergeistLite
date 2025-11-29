@@ -103,7 +103,7 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 ResetNewWalletState();
                 Log.WriteWarning($"{LogPrefix}Failed to generate seed phrase: {e}");
-                await ShowErrorAsync("Error creating account.\n" + e.Message, "Could not generate new wallet.");
+                await ShowErrorWithStatusAsync("Error creating account.\n" + e.Message, "Could not generate new wallet.");
                 return false;
             }
         }
@@ -334,12 +334,12 @@ namespace Poltergeist.UiToolkit.Accounts
                         return true;
                     }
 
-                    await ShowErrorAsync("Seed phrase is incorrect!");
+                    await ShowErrorWithStatusAsync("Seed phrase is incorrect!");
                 }
                 catch (Exception e)
                 {
                     Log.WriteWarning($"{LogPrefix}TrySeedVerification exception: {e}");
-                    await ShowErrorAsync("Seed phrase is incorrect!\n" + e.Message);
+                    await ShowErrorWithStatusAsync("Seed phrase is incorrect!\n" + e.Message);
                 }
             }
         }
@@ -383,7 +383,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
 
                 Log.WriteWarning($"{LogPrefix}Wallet derivation count parse failed for input '{sanitizedInput}'.");
-                await ShowErrorAsync("Incorrect number");
+                await ShowErrorWithStatusAsync("Incorrect number");
             }
         }
 
@@ -393,7 +393,7 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 if (overallDerivationCount == 0)
                 {
-                    await ShowErrorAsync("Incorrect number");
+                    await ShowErrorWithStatusAsync("Incorrect number");
                     return false;
                 }
 
@@ -407,7 +407,7 @@ namespace Poltergeist.UiToolkit.Accounts
                         var errorText = incorrectWord != null
                             ? $"Seed phrase that you entered is incorrect.\nIncorrect word: '{incorrectWord}'."
                             : "Seed phrase that you entered is incorrect.\nPlease check your spelling carefully, and try again.\n\nEnsure that:\n* If copy / pasting - That you've selected the entire set of characters.\n* If copy / pasting - That the characters have been copied into your clipboard correctly.\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.";
-                        await ShowErrorAsync(errorText);
+                        await ShowErrorWithStatusAsync(errorText);
                         ResetNewWalletState();
                         return false;
                     }
@@ -436,7 +436,7 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 Log.WriteWarning($"{LogPrefix}DeriveAccountsFromSeedAsync error: {e}");
                 ResetNewWalletState();
-                await ShowErrorAsync("Error creating account.\n" + e.Message);
+                await ShowErrorWithStatusAsync("Error creating account.\n" + e.Message);
             }
 
             return false;
@@ -453,7 +453,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             if (accountManager.Accounts == null)
             {
-                await ShowErrorAsync("Wallet storage is not ready yet.");
+                await ShowErrorWithStatusAsync("Wallet storage is not ready yet.");
                 return -1;
             }
 
@@ -470,7 +470,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 catch (Exception e)
                 {
                     Log.Write($"{LogPrefix}ImportWallet() exception: {e}");
-                    await ShowErrorAsync("Incorrect WIF format.");
+                    await ShowErrorWithStatusAsync("Incorrect WIF format.");
                     return -1;
                 }
 
@@ -478,7 +478,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     if (account.phaAddress == keys.Address.ToString())
                     {
-                        await ShowErrorAsync($"Private key{walletNumberString} is already imported in a different account: {account.name}.");
+                        await ShowErrorWithStatusAsync($"Private key{walletNumberString} is already imported in a different account: {account.name}.");
                         return -1;
                     }
                 }
@@ -516,7 +516,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
                 if (nameAlreadyTaken)
                 {
-                    await ShowErrorAsync("An account with this name already exists.");
+                    await ShowErrorWithStatusAsync("An account with this name already exists.");
                     continue;
                 }
 
@@ -594,7 +594,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 var accountManager = AccountManager.Instance;
                 if (accountManager == null)
                 {
-                    await ShowErrorAsync("Account manager is not available yet.");
+                    await ShowErrorWithStatusAsync("Account manager is not available yet.");
                     return -1;
                 }
 
@@ -610,7 +610,7 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 Log.WriteWarning($"{LogPrefix}Error creating account '{name}': {e}");
                 ResetNewWalletState();
-                await ShowErrorAsync("Error creating account.\n" + e.Message);
+                await ShowErrorWithStatusAsync("Error creating account.\n" + e.Message);
                 return -1;
             }
         }

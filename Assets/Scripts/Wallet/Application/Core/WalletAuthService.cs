@@ -7,8 +7,8 @@ namespace Poltergeist.Wallet
 {
     public interface IWalletAuthUi
     {
-        void PromptPassword(string title, string caption, int minLength, int maxLength, Action<PromptResult, string> callback);
-        void ShowError(string message, Action onClosed);
+        Task<(PromptResult result, string password)> PromptPasswordAsync(string title, string caption, int minLength, int maxLength);
+        Task ShowErrorAsync(string message);
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ namespace Poltergeist.Wallet
                     allowMasterPasswordPrompt &&
                     string.IsNullOrEmpty(_masterPassword))
                 {
-                    var masterPrompt = await PromptPasswordAsync(ui, "Master Password", "Please enter master password", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength);
+                    var masterPrompt = await ui.PromptPasswordAsync("Master Password", "Please enter master password", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength);
                     if (masterPrompt.result == PromptResult.Success)
                     {
                         _masterPassword = masterPrompt.password;
@@ -74,7 +74,7 @@ namespace Poltergeist.Wallet
                 var passwordToTry = !ignoreStoredPassword && !string.IsNullOrEmpty(_masterPassword) ? _masterPassword : null;
                 if (string.IsNullOrEmpty(passwordToTry))
                 {
-                    var prompt = await PromptPasswordAsync(ui, "Account Authorization", $"Account: {accountManager.CurrentAccount.name}\nAction: {description}\n\nInsert password to proceed...", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength);
+                    var prompt = await ui.PromptPasswordAsync("Account Authorization", $"Account: {accountManager.CurrentAccount.name}\nAction: {description}\n\nInsert password to proceed...", AccountManager.MinPasswordLength, AccountManager.MaxPasswordLength);
                     if (prompt.result != PromptResult.Success)
                     {
                         return prompt.result;
@@ -89,12 +89,13 @@ namespace Poltergeist.Wallet
                     return PromptResult.Success;
                 }
 
-                await ShowIncorrectPasswordAsync(ui, accountManager);
+                await ui.ShowErrorAsync($"Incorrect password for '{accountManager.CurrentAccount.name}' account.");
             }
         }
 
         public async void RequestPassword(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, IWalletAuthUi ui, Action<PromptResult> callback, bool ignoreStoredPassword = false)
         {
+            // Legacy callback shim: kept to avoid touching legacy callers while the UI migrates to async.
             PromptResult result;
             try
             {
@@ -137,18 +138,5 @@ namespace Poltergeist.Wallet
             return PromptResult.Failure;
         }
 
-        private static Task<(PromptResult result, string password)> PromptPasswordAsync(IWalletAuthUi ui, string title, string caption, int minLength, int maxLength)
-        {
-            var tcs = new TaskCompletionSource<(PromptResult result, string password)>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ui.PromptPassword(title, caption, minLength, maxLength, (result, input) => tcs.TrySetResult((result, input ?? string.Empty)));
-            return tcs.Task;
-        }
-
-        private static Task ShowIncorrectPasswordAsync(IWalletAuthUi ui, AccountManager accountManager)
-        {
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ui.ShowError($"Incorrect password for '{accountManager.CurrentAccount.name}' account.", () => tcs.TrySetResult(true));
-            return tcs.Task;
-        }
     }
 }
