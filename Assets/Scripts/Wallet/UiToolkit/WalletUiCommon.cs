@@ -558,7 +558,9 @@ namespace Poltergeist.UiToolkit
                     borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
                     borderRightColor = WalletUiTheme.SecondaryButtonBorder,
                     borderTopColor = WalletUiTheme.SecondaryButtonBorder,
-                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder
+                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder,
+                    flexBasis = 0,
+                    flexShrink = 1
                 }
             };
             ApplyDefaultFont(btn);

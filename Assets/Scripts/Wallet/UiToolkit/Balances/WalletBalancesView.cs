@@ -176,6 +176,10 @@ namespace Poltergeist.UiToolkit.Balances
             content.Add(listWrapper);
 
             var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
+            if (navExit != null)
+            {
+                navExit.text = "Wallets";
+            }
             footer.style.flexShrink = 0;
             content.Add(footer);
 
