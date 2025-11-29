@@ -224,7 +224,7 @@ namespace Poltergeist.UiToolkit.Accounts
             manageRoot = BuildManageRoot();
             manageRoot.style.display = DisplayStyle.None;
             content.Add(manageRoot);
-            mainFooter = WalletUiCommon.BuildMainFooter(OnNewWallet, OnImportWallet, OnManageWallets, OnSettings);
+            mainFooter = WalletUiCommon.BuildMainFooter(OnNewWallet, OnManageWallets, OnSettings);
             mainFooter.style.flexShrink = 0;
             content.Add(mainFooter);
 

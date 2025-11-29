@@ -387,7 +387,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private async Task<bool> DeriveAccountsFromSeedAsync(string mnemonicPhrase, uint overallDerivationCount)
+        private async Task<bool> DeriveAccountsFromSeedAsync(string mnemonicPhrase, uint overallDerivationCount, bool openAfterImport = true, bool saveAccounts = true)
         {
             try
             {
@@ -412,18 +412,18 @@ namespace Poltergeist.UiToolkit.Accounts
                         return false;
                     }
 
-                    var walletIndex = await ImportWalletAsync(wif, (int)derivationIndex, overallDerivationCount, null, false);
+                    var walletIndex = await ImportWalletAsync(wif, (int)derivationIndex, overallDerivationCount, null, false, saveAccounts);
                     if (walletIndex < 0)
                     {
                         Log.Write($"{LogPrefix}Derivation canceled at index {derivationIndex} / {overallDerivationCount}.");
                         ResetNewWalletState();
-                        SetStatus("New wallet creation canceled.");
+                        SetStatus(openAfterImport ? "New wallet creation canceled." : "Wallet import canceled.");
                         return false;
                     }
 
                     if (derivationIndex == overallDerivationCount - 1)
                     {
-                        if (derivationIndex == 0 && walletIndex >= 0)
+                        if (openAfterImport && derivationIndex == 0 && walletIndex >= 0)
                         {
                             await OpenAccountAtIndexAsync(walletIndex, true);
                         }
@@ -442,7 +442,7 @@ namespace Poltergeist.UiToolkit.Accounts
             return false;
         }
 
-        private async Task<int> ImportWalletAsync(string wif, int pkIndex, uint overallDerivationCount, string password, bool legacySeed)
+        private async Task<int> ImportWalletAsync(string wif, int pkIndex, uint overallDerivationCount, string password, bool legacySeed, bool saveAccounts = true)
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null)
@@ -458,7 +458,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             var walletNumberString = overallDerivationCount > 1 ? $" #{pkIndex + 1}" : string.Empty;
-            Log.Write($"{LogPrefix}ImportWallet start{walletNumberString} legacy={legacySeed} passwordProvided={password != null}");
+            Log.Write($"{LogPrefix}ImportWallet start{walletNumberString} legacy={legacySeed} passwordProvided={password != null} saveAccounts={saveAccounts}");
 
             if (wif != null)
             {
@@ -526,7 +526,7 @@ namespace Poltergeist.UiToolkit.Accounts
                     return -1;
                 }
 
-                return await FinishCreateAccountAsync(name, wif, finalPassword, legacySeed);
+                return await FinishCreateAccountAsync(name, wif, finalPassword, legacySeed, saveAccounts);
             }
         }
 
@@ -587,7 +587,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private async Task<int> FinishCreateAccountAsync(string name, string wif, string password, bool legacySeed)
+        private async Task<int> FinishCreateAccountAsync(string name, string wif, string password, bool legacySeed, bool saveAccounts)
         {
             try
             {
@@ -599,10 +599,16 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
 
                 int walletIndex = accountManager.AddWallet(name, wif, password, legacySeed);
-                accountManager.SaveAccounts();
+                if (saveAccounts)
+                {
+                    accountManager.SaveAccounts();
+                }
                 Refresh();
-                SetStatus($"Wallet '{name}' created.");
-                Log.Write($"{LogPrefix}Wallet '{name}' created at index {walletIndex}.");
+                var statusMessage = saveAccounts
+                    ? $"Wallet '{name}' created."
+                    : $"Wallet '{name}' imported. Apply to save changes.";
+                SetStatus(statusMessage);
+                Log.Write($"{LogPrefix}Wallet '{name}' created at index {walletIndex}. saveAccounts={saveAccounts}");
 
                 return walletIndex;
             }

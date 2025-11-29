@@ -374,12 +374,11 @@ namespace Poltergeist.UiToolkit
             return bar;
         }
 
-        internal static VisualElement BuildMainFooter(Action onNewWallet, Action onImportWallet, Action onManageWallets, Action onSettings)
+        internal static VisualElement BuildMainFooter(Action onNewWallet, Action onManageWallets, Action onSettings)
         {
             return BuildFooter(
                 out _,
                 ("New wallet", onNewWallet),
-                ("Import", onImportWallet),
                 ("Manage", onManageWallets),
                 ("Settings", onSettings)
             );

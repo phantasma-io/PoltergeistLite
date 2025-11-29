@@ -17,7 +17,12 @@ namespace Poltergeist.UiToolkit.Accounts
     /// </summary>
     public sealed partial class WalletAccountsView
     {
-        private async void OnImportWallet()
+        private void OnImportWallet()
+        {
+            ImportSingleWalletAsync(true, true).Forget(ex => Log.WriteWarning($"{LogPrefix}Import wallet flow failed: {ex}"));
+        }
+
+        private async Task<bool> ImportSingleWalletAsync(bool openAfterImport, bool saveAccounts)
         {
             var importPrompt = await ShowModalAsync(
                 "Wallet Import",
@@ -33,25 +38,29 @@ namespace Poltergeist.UiToolkit.Accounts
 
             if (importPrompt.result != PromptResult.Success)
             {
-                return;
+                return false;
             }
 
             var key = importPrompt.input?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(key))
             {
                 await ShowErrorWithStatusAsync("Seed phrase or private key that you entered is incorrect.");
-                return;
+                return false;
             }
 
             if (PhantasmaAPI.IsValidPrivateKey(key) && !key.Contains(' '))
             {
                 var legacy = await AskLegacySeedAsync("private key");
-                var walletIndex = await ImportWalletAsync(key, -1, 1, null, legacy);
+                var walletIndex = await ImportWalletAsync(key, -1, 1, null, legacy, saveAccounts);
                 if (walletIndex >= 0)
                 {
-                    await OpenAccountAtIndexAsync(walletIndex, false);
+                    if (openAfterImport)
+                    {
+                        await OpenAccountAtIndexAsync(walletIndex, false);
+                    }
+                    return true;
                 }
-                return;
+                return false;
             }
 
             if ((key.Length == 64 || (key.Length == 66 && key.ToUpper().StartsWith("0X"))) && !key.Contains(' '))
@@ -61,10 +70,14 @@ namespace Poltergeist.UiToolkit.Accounts
                     var priv = Base16.Decode(key);
                     var tempKey = new PhantasmaKeys(priv);
                     var legacy = await AskLegacySeedAsync("WIF");
-                    var walletIndex = await ImportWalletAsync(tempKey.ToWIF(), -1, 1, null, legacy);
+                    var walletIndex = await ImportWalletAsync(tempKey.ToWIF(), -1, 1, null, legacy, saveAccounts);
                     if (walletIndex >= 0)
                     {
-                        await OpenAccountAtIndexAsync(walletIndex, false);
+                        if (openAfterImport)
+                        {
+                            await OpenAccountAtIndexAsync(walletIndex, false);
+                        }
+                        return true;
                     }
                 }
                 catch (Exception e)
@@ -72,17 +85,17 @@ namespace Poltergeist.UiToolkit.Accounts
                     Log.WriteWarning($"{LogPrefix}Failed to import HEX/WIF key: {e}");
                     await ShowErrorWithStatusAsync("Incorrect private key format.");
                 }
-                return;
+                return false;
             }
 
             var wordCount = key.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Length;
             if (wordCount == 12 || wordCount == 24)
             {
-                await ImportSeedPhraseAsync(key);
-                return;
+                return await ImportSeedPhraseAsync(key, openAfterImport, saveAccounts);
             }
 
             await ShowErrorWithStatusAsync("Seed phrase or private key that you entered is incorrect.\nPlease check your spelling carefully, and try again.\n\nEnsure that:\n* If copy / pasting - That you've selected the entire set of characters.\n* If copy / pasting - That the characters have been copied into your clipboard correctly.\n* If typing it - Take care to check that you're using English keyboard layout and the correct case for each letter.");
+            return false;
         }
 
         private async Task<bool> AskLegacySeedAsync(string kind)
@@ -100,15 +113,15 @@ namespace Poltergeist.UiToolkit.Accounts
             return result != PromptResult.Success;
         }
 
-        private async Task ImportSeedPhraseAsync(string mnemonicPhrase)
+        private async Task<bool> ImportSeedPhraseAsync(string mnemonicPhrase, bool openAfterImport, bool saveAccounts)
         {
             var derivationCount = await PromptWalletDerivationAsync(mnemonicPhrase);
             if (!derivationCount.HasValue)
             {
-                return;
+                return false;
             }
 
-            await DeriveAccountsFromSeedAsync(mnemonicPhrase, derivationCount.Value);
+            return await DeriveAccountsFromSeedAsync(mnemonicPhrase, derivationCount.Value, openAfterImport, saveAccounts);
         }
     }
 }

@@ -181,7 +181,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             manageFooter = WalletUiCommon.BuildFooter(
                 out _,
-                ("Import", () => ImportWalletsAsync(true).Forget(ex => Log.WriteWarning($"{LogPrefix}Import failed: {ex}"))),
+                ("Import", () => OnManageImportClickedAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Import failed: {ex}"))),
                 ("Export", () => ExportSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Export failed: {ex}"))),
                 ("Revert", HideManagePanel),
                 ("Apply", SaveAccounts)
@@ -440,6 +440,49 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 UpdateManageStatus("Export cancelled.");
             }
+        }
+
+        private async Task OnManageImportClickedAsync()
+        {
+            var am = AccountManager.Instance;
+            if (am == null)
+            {
+                UpdateManageStatus("Account manager is not ready.");
+                return;
+            }
+
+            var choice = await WalletUiModalHelper.ShowChoiceDialogAsync(
+                modalHost,
+                "Wallet import",
+                "Choose how you want to add wallets to this device.",
+                new (string title, string description)[]
+                {
+                    ("Seed / Private key", "Enter a seed phrase or private key manually."),
+                    ("Wallets export data", "Paste data exported from Wallet Management.")
+                },
+                cancelLabel: "Cancel",
+                onBeforeShow: DetachListForModal,
+                onAfterHide: RestoreListAfterModal);
+
+            if (choice < 0)
+            {
+                UpdateManageStatus("Import cancelled.");
+                return;
+            }
+
+            if (choice == 0)
+            {
+                var imported = await ImportSingleWalletAsync(false, false);
+                if (imported)
+                {
+                    RefreshManagePanel();
+                    Refresh();
+                    manageDirty = true;
+                }
+                return;
+            }
+
+            await ImportWalletsAsync(true);
         }
 
         private async Task ImportWalletsAsync(bool fromManage = false)

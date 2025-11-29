@@ -261,6 +261,113 @@ namespace Poltergeist.UiToolkit
             return tcs.Task;
         }
 
+        /// <summary>
+        /// Displays a modal with vertically stacked action buttons to pick one of the supplied options.
+        /// Returns the zero-based index of the chosen option or -1 when cancelled.
+        /// </summary>
+        public static Task<int> ShowChoiceDialogAsync(
+            WalletUiModalHost host,
+            string title,
+            string caption,
+            IReadOnlyList<(string title, string description)> options,
+            string cancelLabel = "Cancel",
+            Action onBeforeShow = null,
+            Action onAfterHide = null)
+        {
+            if (host == null || options == null || options.Count == 0)
+            {
+                return Task.FromResult(-1);
+            }
+
+            var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            void Complete(int choice)
+            {
+                host.HidePanel(onAfterHide);
+                tcs.TrySetResult(choice);
+            }
+
+            var panel = WalletUiCommon.CreateModalPanel(520, 820);
+            panel.style.maxWidth = new Length(95, LengthUnit.Percent);
+
+            var titleLabel = new Label(string.IsNullOrWhiteSpace(title) ? "Choose option" : title)
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(titleLabel);
+            panel.Add(titleLabel);
+
+            if (!string.IsNullOrWhiteSpace(caption))
+            {
+                var captionLabel = new Label(caption)
+                {
+                    style =
+                    {
+                        color = WalletUiTheme.TextSecondary,
+                        fontSize = 14,
+                        unityTextAlign = TextAnchor.MiddleLeft,
+                        marginBottom = 10,
+                        whiteSpace = WhiteSpace.Normal
+                    }
+                };
+                WalletUiCommon.ApplyDefaultFont(captionLabel);
+                panel.Add(captionLabel);
+            }
+
+            var optionsContainer = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    alignItems = Align.Stretch,
+                    marginTop = 4,
+                    marginBottom = 6
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(optionsContainer);
+
+            for (var i = 0; i < options.Count; i++)
+            {
+                var option = options[i];
+                var optionIndex = i; // Capture per-iteration index to avoid all buttons resolving to the last option.
+                var button = CreateChoiceButton(option.title, option.description, () => Complete(optionIndex));
+                if (i > 0)
+                {
+                    button.style.marginTop = 8;
+                }
+                optionsContainer.Add(button);
+            }
+            panel.Add(optionsContainer);
+
+            var actions = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.FlexEnd,
+                    alignItems = Align.Center,
+                    marginTop = 8,
+                    flexShrink = 0
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(actions);
+
+            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, () => Complete(-1), 16, 36);
+            cancelBtn.style.minWidth = 120;
+            actions.Add(cancelBtn);
+            panel.Add(actions);
+
+            host.ShowPanel(panel, onBeforeShow);
+            return tcs.Task;
+        }
+
         private static VisualElement CreateListRow(int index, string title, string subtitle)
         {
             var row = new VisualElement
@@ -351,6 +458,55 @@ namespace Poltergeist.UiToolkit
 
             row.Add(textColumn);
             return row;
+        }
+
+        private static Button CreateChoiceButton(string title, string description, Action onClick)
+        {
+            var button = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(title) ? "Select" : title, onClick, 16, 56);
+            button.text = string.Empty;
+            button.style.flexDirection = FlexDirection.Column;
+            button.style.alignItems = Align.FlexStart;
+            button.style.justifyContent = Justify.Center;
+            button.style.width = new Length(100, LengthUnit.Percent);
+            button.style.whiteSpace = WhiteSpace.Normal;
+            button.style.unityTextAlign = TextAnchor.UpperLeft;
+            button.style.paddingTop = 12;
+            button.style.paddingBottom = 12;
+            button.style.paddingLeft = 14;
+            button.style.paddingRight = 14;
+
+            var titleLabel = new Label(string.IsNullOrWhiteSpace(title) ? "Select" : title)
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = 16,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                    whiteSpace = WhiteSpace.Normal
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(titleLabel);
+            button.Add(titleLabel);
+
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                var descriptionLabel = new Label(description)
+                {
+                    style =
+                    {
+                        color = WalletUiTheme.TextSecondary,
+                        fontSize = 13,
+                        unityTextAlign = TextAnchor.MiddleLeft,
+                        marginTop = 4,
+                        whiteSpace = WhiteSpace.Normal
+                    }
+                };
+                WalletUiCommon.ApplyDefaultFont(descriptionLabel);
+                button.Add(descriptionLabel);
+            }
+
+            return button;
         }
 
         public static Task<(PromptResult result, string input)> ShowErrorAsync(WalletUiModalHost host, string title, string message, Action onBeforeShow = null, Action onAfterHide = null, bool showSecondary = false)
