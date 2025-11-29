@@ -79,6 +79,10 @@ namespace Poltergeist.UiToolkit.Balances
         private Button burnButton;
         private Button smRewardButton;
         private Button infoButton;
+        private Button tokenExplorerButton;
+        private Button tokenHoldersButton;
+        private Button coingeckoButton;
+        private Button cmcButton;
         private Button navBalances;
         private Button navHistory;
         private Button navAccount;
@@ -275,11 +279,12 @@ namespace Poltergeist.UiToolkit.Balances
             actionsRow = BuildActionsRow();
             scrollContent.Add(actionsRow);
 
-            advancedActions = BuildAdvancedActionsRow();
-            scrollContent.Add(advancedActions);
-
             var infoSection = BuildInfoSection();
             scrollContent.Add(infoSection);
+
+            advancedActions = BuildAdvancedActionsRow();
+            advancedActions.style.marginTop = 10;
+            scrollContent.Add(advancedActions);
 
             scrollView.Add(scrollContent);
             listWrapper.style.flexGrow = 1;
@@ -487,19 +492,6 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(container);
 
-            var label = new Label("Advanced")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 14,
-                    color = WalletUiTheme.TextSecondary,
-                    marginBottom = 6
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(label);
-            container.Add(label);
-
             var row = new VisualElement
             {
                 style =
@@ -528,6 +520,30 @@ namespace Poltergeist.UiToolkit.Balances
             infoButton.style.marginRight = 8;
             infoButton.style.marginBottom = 8;
             row.Add(infoButton);
+
+            tokenExplorerButton = WalletUiCommon.CreateSecondaryButton("Token explorer", () => OpenUrl(BuildTokenExplorerUrl(currentSymbol)), 14, 36);
+            tokenExplorerButton.style.minWidth = 140;
+            tokenExplorerButton.style.marginRight = 8;
+            tokenExplorerButton.style.marginBottom = 8;
+            row.Add(tokenExplorerButton);
+
+            tokenHoldersButton = WalletUiCommon.CreateSecondaryButton("Top holders", () => OpenUrl(BuildTokenHoldersUrl(currentSymbol)), 14, 36);
+            tokenHoldersButton.style.minWidth = 120;
+            tokenHoldersButton.style.marginRight = 8;
+            tokenHoldersButton.style.marginBottom = 8;
+            row.Add(tokenHoldersButton);
+
+            coingeckoButton = WalletUiCommon.CreateSecondaryButton("Coingecko", () => OpenUrl("https://www.coingecko.com/en/coins/phantasma"), 14, 36);
+            coingeckoButton.style.minWidth = 120;
+            coingeckoButton.style.marginRight = 8;
+            coingeckoButton.style.marginBottom = 8;
+            row.Add(coingeckoButton);
+
+            cmcButton = WalletUiCommon.CreateSecondaryButton("CoinMarketCap", () => OpenUrl("https://coinmarketcap.com/en/currencies/phantasma"), 14, 36);
+            cmcButton.style.minWidth = 150;
+            cmcButton.style.marginRight = 8;
+            cmcButton.style.marginBottom = 8;
+            row.Add(cmcButton);
 
             container.Add(row);
             return container;
@@ -890,7 +906,27 @@ namespace Poltergeist.UiToolkit.Balances
 
             SetActionButtonState(infoButton, devMode);
             infoButton.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
-            advancedActions.style.display = (burnEligible || smEligible || devMode) ? DisplayStyle.Flex : DisplayStyle.None;
+
+            var tokenUrl = BuildTokenExplorerUrl(entry.Symbol);
+            var holdersUrl = BuildTokenHoldersUrl(entry.Symbol);
+            var showExplorer = isPhantasma && !string.IsNullOrWhiteSpace(tokenUrl);
+            var showHolders = isPhantasma && !string.IsNullOrWhiteSpace(holdersUrl);
+            var isSoul = string.Equals(entry.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase);
+
+            SetActionButtonState(tokenExplorerButton, showExplorer);
+            tokenExplorerButton.style.display = showExplorer ? DisplayStyle.Flex : DisplayStyle.None;
+
+            SetActionButtonState(tokenHoldersButton, showHolders);
+            tokenHoldersButton.style.display = showHolders ? DisplayStyle.Flex : DisplayStyle.None;
+
+            SetActionButtonState(coingeckoButton, isSoul);
+            coingeckoButton.style.display = isSoul ? DisplayStyle.Flex : DisplayStyle.None;
+
+            SetActionButtonState(cmcButton, isSoul);
+            cmcButton.style.display = isSoul ? DisplayStyle.Flex : DisplayStyle.None;
+
+            var showAdvanced = burnEligible || smEligible || devMode || showExplorer || showHolders || isSoul;
+            advancedActions.style.display = showAdvanced ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private async Task SendAsync()
@@ -1571,6 +1607,39 @@ namespace Poltergeist.UiToolkit.Balances
         {
             statusLabel.text = text ?? string.Empty;
             statusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private string BuildTokenExplorerUrl(string symbol)
+        {
+            var settings = AccountManager.Instance?.Settings;
+            var baseUrl = settings?.phantasmaExplorer;
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                return string.Empty;
+            }
+
+            if (!baseUrl.EndsWith("/"))
+            {
+                baseUrl += "/";
+            }
+
+            return $"{baseUrl}en/token?id={symbol}";
+        }
+
+        private string BuildTokenHoldersUrl(string symbol)
+        {
+            var url = BuildTokenExplorerUrl(symbol);
+            return string.IsNullOrWhiteSpace(url) ? string.Empty : $"{url}&tab=holders";
+        }
+
+        private void OpenUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return;
+            }
+
+            Application.OpenURL(url);
         }
 
         private void UpdateNavSelection()
