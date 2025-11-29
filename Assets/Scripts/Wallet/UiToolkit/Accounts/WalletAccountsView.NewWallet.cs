@@ -116,13 +116,6 @@ namespace Poltergeist.UiToolkit.Accounts
                 return false;
             }
 
-            var overlay = BeginCustomModal();
-            if (overlay == null)
-            {
-                SetStatus("Cannot display backup dialog.");
-                return false;
-            }
-
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             var panel = WalletUiCommon.CreateModalPanel(840, 1020);
@@ -217,7 +210,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var continueBtn = WalletUiCommon.CreateOutlineButton("Continue", () =>
             {
-                HideCustomModal();
+                HidePanel();
                 tcs.TrySetResult(true);
             }, 16, 36);
             continueBtn.style.marginLeft = 10;
@@ -227,7 +220,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var cancelBtn = WalletUiCommon.CreateSecondaryButton("Cancel", () =>
             {
                 ResetNewWalletState();
-                HideCustomModal();
+                HidePanel();
                 SetStatus("New wallet creation canceled.");
                 tcs.TrySetResult(false);
             }, 16, 36);
@@ -236,7 +229,7 @@ namespace Poltergeist.UiToolkit.Accounts
             actions.Add(cancelBtn);
 
             panel.Add(actions);
-            overlay.Add(panel);
+            ShowPanel(panel);
             Log.Write($"{LogPrefix}Backup modal shown for new wallet.");
 
             return await tcs.Task;

@@ -98,9 +98,7 @@ namespace Poltergeist.UiToolkit.Settings
         private VisualElement bodyContainer;
 
         // Modal UI
-        private VisualElement modalOverlay;
-        private VisualElement promptContainer;
-        private WalletUiPromptController promptController;
+        private readonly WalletUiModalHost modalHost;
 
         private VisualElement copyPanel;
         private Label copyPanelTitle;
@@ -110,13 +108,14 @@ namespace Poltergeist.UiToolkit.Settings
 
         private bool isPopulating;
 
-        public WalletSettingsView(VisualElement host, WalletApplicationContext context, Action onReady, Action onExit)
+        public WalletSettingsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onReady, Action onExit)
         {
             presenter = context.SettingsPresenter ?? throw new ArgumentNullException(nameof(context.SettingsPresenter));
             actions = context.SettingsActions ?? throw new ArgumentNullException(nameof(context.SettingsActions));
             viewState = presenter.State ?? new WalletSettingsViewState();
             this.onReady = onReady;
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
+            this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
 
             BuildLayout(host ?? throw new ArgumentNullException(nameof(host)));
             Refresh();
@@ -1273,7 +1272,7 @@ namespace Poltergeist.UiToolkit.Settings
 
         private async void OnAddressInfo()
         {
-            var modalResult = await ShowModalAsync("Phantasma address info", "Enter an address", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
+            var modalResult = await ShowModalAsync("Phantasma address info", "Enter an address", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: false);
             if (modalResult.result != PromptResult.Success)
             {
                 return;
@@ -1399,43 +1398,15 @@ namespace Poltergeist.UiToolkit.Settings
 
         private void BuildModal(VisualElement parent)
         {
-            modalOverlay = WalletUiModalFactory.CreateOverlay();
-            promptContainer = new VisualElement
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center,
-                    width = new Length(100, LengthUnit.Percent),
-                    height = new Length(100, LengthUnit.Percent),
-                    display = DisplayStyle.None
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(promptContainer);
-            // Keep prompt UI in its own host so copy panel can reuse the same overlay without clearing prompts.
-            modalOverlay.Add(promptContainer);
-
             copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, WalletUiCommon.ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
-
-            modalOverlay.Add(copyPanel);
-            modalOverlay.style.display = DisplayStyle.None;
-
-            promptController = new WalletUiPromptController(modalOverlay, promptContainer, WalletUiCommon.ApplyDefaultFont, OnPromptShown, OnPromptHidden);
-            parent.Add(modalOverlay);
         }
 
         private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool showSecondary = true, string primaryText = "Confirm", bool isPassword = false, string initialValue = "", bool multiline = false)
         {
-            if (promptController == null)
-            {
-                return Task.FromResult((PromptResult.Failure, string.Empty));
-            }
-
             var effectiveAllowEmpty = allowEmpty || !hasInput || minLength <= 0;
             var secondaryText = showSecondary ? "Cancel" : "Close";
 
-            return promptController.ShowAsync(
+            return modalHost.ShowPromptAsync(
                 title,
                 caption,
                 minLength,
@@ -1444,17 +1415,17 @@ namespace Poltergeist.UiToolkit.Settings
                 hasInput,
                 isPassword,
                 multiline,
-                primaryLabel: string.IsNullOrWhiteSpace(primaryText) ? "Confirm" : primaryText,
-                secondaryLabel: secondaryText,
-                showSecondary: showSecondary,
-                initialValue: initialValue ?? string.Empty,
+                string.IsNullOrWhiteSpace(primaryText) ? "Confirm" : primaryText,
+                secondaryText,
+                showSecondary,
+                initialValue ?? string.Empty,
                 successResult: PromptResult.Success,
                 cancelResult: PromptResult.Failure);
         }
 
         private void ShowCopyPanel(string title, string caption, string value, string copyStatus)
         {
-            promptController?.CancelActivePrompt(PromptResult.Failure);
+            modalHost.HideAll();
             HideCopyPanel();
             copyPanelCopyStatus = copyStatus;
 
@@ -1463,13 +1434,7 @@ namespace Poltergeist.UiToolkit.Settings
             copyPanelValueField.value = value ?? string.Empty;
             copyPanelValueField.SetEnabled(true);
 
-            if (promptContainer != null)
-            {
-                promptContainer.style.display = DisplayStyle.None;
-            }
-
-            copyPanel.style.display = DisplayStyle.Flex;
-            modalOverlay.style.display = DisplayStyle.Flex;
+            modalHost.ShowPanel(copyPanel);
         }
 
         private void HideCopyPanel()
@@ -1502,24 +1467,10 @@ namespace Poltergeist.UiToolkit.Settings
             HideModal();
         }
 
-        private void OnPromptShown()
-        {
-            HideCopyPanel();
-        }
-
-        private void OnPromptHidden()
-        {
-            HideCopyPanel();
-        }
-
         private void HideModal()
         {
-            promptController?.CancelActivePrompt(PromptResult.Failure);
+            modalHost.HideAll();
             HideCopyPanel();
-            if (modalOverlay != null)
-            {
-                modalOverlay.style.display = DisplayStyle.None;
-            }
         }
 
         private void ExitToMain()

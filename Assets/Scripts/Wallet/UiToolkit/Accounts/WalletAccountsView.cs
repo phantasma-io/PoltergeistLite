@@ -30,10 +30,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private VisualElement listWrapper;
         private Label statusLabel;
         private WalletUiSignals uiSignals;
-        private VisualElement modalOverlay;
-        private VisualElement modalPromptContainer;
-        private VisualElement modalContentContainer;
-        private WalletUiPromptController modalPrompt;
+        private readonly WalletUiModalHost modalHost;
         private bool listWasEnabled = true;
         private bool rootWheelHooked;
         private bool listTemporarilyHidden;
@@ -41,12 +38,13 @@ namespace Poltergeist.UiToolkit.Accounts
         private int listIndexBeforeDetach = -1;
         private PickingMode listPickingModeBeforeModal;
 
-        public WalletAccountsView(VisualElement host, WalletApplicationContext context, Action onLoginSuccess, Action onShowSettings)
+        public WalletAccountsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onLoginSuccess, Action onShowSettings)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             authService = context.AuthService ?? throw new ArgumentNullException(nameof(context.AuthService));
             this.onLoginSuccess = onLoginSuccess;
             this.onShowSettings = onShowSettings ?? throw new ArgumentNullException(nameof(onShowSettings));
+            this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
             uiSignals = context.UiSignals;
 
             BuildLayout(host ?? throw new ArgumentNullException(nameof(host)));
@@ -197,7 +195,7 @@ namespace Poltergeist.UiToolkit.Accounts
             listWrapper = WalletUiCommon.BuildScrollContainer(
                 out list,
                 onScrollChanged: null,
-                shouldBlockWheel: () => modalOverlay != null && modalOverlay.style.display == DisplayStyle.Flex,
+                shouldBlockWheel: () => modalHost?.Overlay != null && modalHost.Overlay.style.display == DisplayStyle.Flex,
                 paddingLeft: 6f,
                 paddingRight: 6f,
                 paddingTop: 8f,
@@ -210,47 +208,12 @@ namespace Poltergeist.UiToolkit.Accounts
             list.pickingMode = PickingMode.Position;
             list.visible = true;
 
-            modalOverlay = WalletUiCommon.CreateModalOverlay();
-            modalPromptContainer = new VisualElement
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center,
-                    width = new Length(100, LengthUnit.Percent),
-                    height = new Length(100, LengthUnit.Percent),
-                    display = DisplayStyle.None
-                }
-            };
-            modalContentContainer = new VisualElement
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    justifyContent = Justify.Center,
-                    alignItems = Align.Center,
-                    width = new Length(100, LengthUnit.Percent),
-                    height = new Length(100, LengthUnit.Percent),
-                    display = DisplayStyle.None
-                }
-            };
-            ApplyDefaultFont(modalPromptContainer);
-            ApplyDefaultFont(modalContentContainer);
-            // Separate hosts so custom modals can clear their content without destroying the shared prompt UI.
-            modalOverlay.Add(modalPromptContainer);
-            modalOverlay.Add(modalContentContainer);
-            modalPrompt = new WalletUiPromptController(modalOverlay, modalPromptContainer, ApplyDefaultFont, PreparePromptModal, RestorePromptModal);
-            modalOverlay.RegisterCallback<WheelEvent>(evt => evt.StopPropagation());
-            modalOverlay.RegisterCallback<PointerDownEvent>(evt => evt.StopPropagation());
-            modalOverlay.RegisterCallback<PointerMoveEvent>(evt => evt.StopPropagation());
-
             if (!rootWheelHooked && root != null)
             {
                 // Swallow wheel events during modal display (Unity 1.0 UITK sends wheel to ScrollView even if disabled).
                 root.RegisterCallback<WheelEvent>(evt =>
                 {
-                    if (modalOverlay != null && modalOverlay.style.display == DisplayStyle.Flex)
+                    if (modalHost?.Overlay != null && modalHost.Overlay.style.display == DisplayStyle.Flex)
                     {
                         evt.StopImmediatePropagation();
                     }
@@ -267,7 +230,6 @@ namespace Poltergeist.UiToolkit.Accounts
             content.Add(footer);
 
             root.Add(content);
-            root.Add(modalOverlay);
         }
 
         private VisualElement BuildDivider(float height = 8)
@@ -537,15 +499,6 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private void EnsureModalOverlayParent()
-        {
-            if (modalOverlay != null && root?.parent != null && modalOverlay.parent != root.parent)
-            {
-                modalOverlay.RemoveFromHierarchy();
-                root.parent.Add(modalOverlay);
-            }
-        }
-
         private void DetachListForModal()
         {
             if (list == null)
@@ -589,82 +542,14 @@ namespace Poltergeist.UiToolkit.Accounts
             list.style.display = DisplayStyle.Flex;
         }
 
-        private void PreparePromptModal()
-        {
-            EnsureModalOverlayParent();
-            DetachListForModal();
-            if (modalContentContainer != null)
-            {
-                modalContentContainer.Clear();
-                modalContentContainer.style.display = DisplayStyle.None;
-            }
-        }
-
-        private void RestorePromptModal()
-        {
-            if (modalPromptContainer != null)
-            {
-                modalPromptContainer.style.display = DisplayStyle.None;
-            }
-            RestoreListAfterModal();
-        }
-
-        private VisualElement BeginCustomModal()
-        {
-            modalPrompt?.CancelActivePrompt(PromptResult.Failure);
-            EnsureModalOverlayParent();
-            DetachListForModal();
-            if (modalPromptContainer != null)
-            {
-                modalPromptContainer.style.display = DisplayStyle.None;
-            }
-
-            if (modalContentContainer != null)
-            {
-                modalContentContainer.Clear();
-                modalContentContainer.style.display = DisplayStyle.Flex;
-            }
-
-            modalOverlay.style.display = DisplayStyle.Flex;
-            return modalContentContainer ?? modalOverlay;
-        }
-
-        private void HideModal()
-        {
-            HideCustomModal();
-            modalPrompt?.CancelActivePrompt(PromptResult.Failure);
-        }
-
-        private void HideCustomModal()
-        {
-            if (modalContentContainer != null)
-            {
-                modalContentContainer.Clear();
-                modalContentContainer.style.display = DisplayStyle.None;
-            }
-
-            if (modalOverlay != null)
-            {
-                modalOverlay.style.display = DisplayStyle.None;
-            }
-
-            RestoreListAfterModal();
-            Log.Write($"{LogPrefix}HideModal complete. modal children={modalOverlay?.childCount} listEnabled={list?.enabledSelf} listVisible={list?.visible}");
-        }
-
         protected Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
         {
-            if (modalPrompt == null)
-            {
-                return Task.FromResult((PromptResult.Failure, string.Empty));
-            }
-
             var allowEmpty = isError || !showInput || minLength <= 0;
             var successResult = isError ? PromptResult.Failure : PromptResult.Success;
             var primary = string.IsNullOrWhiteSpace(primaryLabel) ? (isError ? "Close" : "OK") : primaryLabel;
             var secondary = string.IsNullOrWhiteSpace(secondaryLabel) ? "Cancel" : secondaryLabel;
 
-            return modalPrompt.ShowAsync(
+            return modalHost.ShowPromptAsync(
                 title,
                 caption,
                 minLength,
@@ -678,7 +563,9 @@ namespace Poltergeist.UiToolkit.Accounts
                 showSecondary: true,
                 initialValue: initialValue ?? string.Empty,
                 successResult: successResult,
-                cancelResult: PromptResult.Failure);
+                cancelResult: PromptResult.Failure,
+                onBeforeShow: DetachListForModal,
+                onAfterHide: RestoreListAfterModal);
         }
 
         protected async Task ShowErrorAsync(string message, string statusAfterClose = null)
@@ -688,6 +575,22 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 SetStatus(statusAfterClose);
             }
+        }
+
+        private void ShowPanel(VisualElement panel)
+        {
+            modalHost.ShowPanel(panel, DetachListForModal);
+        }
+
+        private void HidePanel()
+        {
+            modalHost.HidePanel(RestoreListAfterModal);
+        }
+
+        private void HideModal()
+        {
+            modalHost.HideAll();
+            RestoreListAfterModal();
         }
 
         private void ApplyDefaultFont(VisualElement element)

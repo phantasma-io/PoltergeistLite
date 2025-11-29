@@ -31,6 +31,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly WalletFeeRequirement feeRequirement;
         private readonly WalletTransactionOrchestrator transactionOrchestrator;
         private readonly IWalletAuthUi sharedAuthUi;
+        private readonly WalletUiModalHost modalHost;
         private readonly Action onShowBalances;
         private readonly Action onShowHistory;
         private readonly Action onShowAccount;
@@ -48,8 +49,6 @@ namespace Poltergeist.UiToolkit.Accounts
         private Button navHistory;
         private Button navAccount;
         private Button navExit;
-        private VisualElement modalOverlay;
-        private VisualElement modalWindow;
         private VisualElement chainPickerPanel;
         private VisualElement copyPanel;
         private Label copyPanelTitle;
@@ -59,22 +58,12 @@ namespace Poltergeist.UiToolkit.Accounts
         private WalletUiTransactionDialogs transactionDialogs;
         private VisualElement verificationPanel;
         private Label verificationMessageLabel;
-        private Label modalTitle;
-        private Label modalCaption;
-        private TextField modalInput;
-        private Button modalPrimary;
-        private Button modalSecondary;
-        private TaskCompletionSource<(PromptResult result, string input)> modalTcs;
         private TaskCompletionSource<string> chainPickerTcs;
-        private int modalMinLength;
-        private int modalMaxLength;
-        private bool modalHasInput;
-        private bool modalAllowEmpty;
         private HeaderElements header;
         private SubHeaderElements subHeader;
         private List<Button> actionButtons = new List<Button>();
 
-        public WalletAccountView(VisualElement host, WalletApplicationContext context, IWalletAuthUi sharedAuthUi, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit)
+        public WalletAccountView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, IWalletAuthUi sharedAuthUi, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             authService = context.AuthService ?? throw new ArgumentNullException(nameof(context.AuthService));
@@ -82,6 +71,7 @@ namespace Poltergeist.UiToolkit.Accounts
             feeRequirement = context.FeeRequirement ?? throw new ArgumentNullException(nameof(context.FeeRequirement));
             transactionOrchestrator = new WalletTransactionOrchestrator(() => AccountManager.Instance, new AccountTransactionUi(authService, sharedAuthUi ?? throw new ArgumentNullException(nameof(sharedAuthUi)), SetStatus, SetActionsEnabled, ShowSendProgressDialog, StartConfirmationWait));
             this.sharedAuthUi = sharedAuthUi ?? throw new ArgumentNullException(nameof(sharedAuthUi));
+            this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
             this.onShowBalances = onShowBalances ?? throw new ArgumentNullException(nameof(onShowBalances));
             this.onShowHistory = onShowHistory ?? throw new ArgumentNullException(nameof(onShowHistory));
             this.onShowAccount = onShowAccount ?? (() => { });
@@ -951,9 +941,8 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             HideModal();
             chainPickerTcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-            modalWindow.style.display = DisplayStyle.None;
             chainPickerPanel.style.display = DisplayStyle.Flex;
-            modalOverlay.style.display = DisplayStyle.Flex;
+            modalHost.ShowPanel(chainPickerPanel);
             return chainPickerTcs.Task;
         }
 
@@ -1009,18 +998,8 @@ namespace Poltergeist.UiToolkit.Accounts
                 copyPanelValueField.SetEnabled(true);
             }
 
-            modalWindow.style.display = DisplayStyle.None;
-            if (chainPickerPanel != null)
-            {
-                chainPickerPanel.style.display = DisplayStyle.None;
-            }
-            if (verificationPanel != null)
-            {
-                verificationPanel.style.display = DisplayStyle.None;
-            }
-
             copyPanel.style.display = DisplayStyle.Flex;
-            modalOverlay.style.display = DisplayStyle.Flex;
+            modalHost.ShowPanel(copyPanel);
         }
 
         private void ShowVerificationResult(bool valid)
@@ -1032,77 +1011,38 @@ namespace Poltergeist.UiToolkit.Accounts
                 verificationMessageLabel.style.color = valid ? WalletUiTheme.TextPrimary : Color.red;
             }
 
-            modalWindow.style.display = DisplayStyle.None;
-            if (chainPickerPanel != null)
-            {
-                chainPickerPanel.style.display = DisplayStyle.None;
-            }
-            if (copyPanel != null)
-            {
-                copyPanel.style.display = DisplayStyle.None;
-            }
-
             verificationPanel.style.display = DisplayStyle.Flex;
-            modalOverlay.style.display = DisplayStyle.Flex;
+            modalHost.ShowPanel(verificationPanel);
         }
 
         private void BuildModal(VisualElement parent)
         {
-            modalOverlay = WalletUiModalFactory.CreateOverlay();
-            modalWindow = WalletUiModalFactory.CreateModalWindow(OnModalPrimary, OnModalSecondary, ApplyDefaultFont, out modalTitle, out modalCaption, out modalInput, out modalPrimary, out modalSecondary);
             chainPickerPanel = WalletUiModalFactory.CreateChainPickerPanel(HandleChainPickerSelection, CancelChainPicker, ApplyDefaultFont);
             copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
             verificationPanel = WalletUiModalFactory.CreateVerificationPanel(HideModal, ApplyDefaultFont, out verificationMessageLabel);
 
-            modalOverlay.Add(modalWindow);
-            modalOverlay.Add(chainPickerPanel);
-            modalOverlay.Add(copyPanel);
-            modalOverlay.Add(verificationPanel);
-
-            transactionDialogs = new WalletUiTransactionDialogs(modalOverlay, () => AccountManager.Instance, SetStatus);
-            transactionDialogs.RegisterBlockingPanels(modalWindow, chainPickerPanel, copyPanel, verificationPanel);
-            parent.Add(modalOverlay);
+            transactionDialogs = new WalletUiTransactionDialogs(modalHost, () => AccountManager.Instance, SetStatus);
+            transactionDialogs.RegisterBlockingPanels(null, chainPickerPanel, copyPanel, verificationPanel);
         }
 
-        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool multiline = false)
+        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool multiline = false, bool isPassword = false)
         {
-            modalTcs = new TaskCompletionSource<(PromptResult result, string input)>(TaskCreationOptions.RunContinuationsAsynchronously);
-            modalMinLength = minLength;
-            modalMaxLength = maxLength;
-            modalHasInput = hasInput;
-            modalAllowEmpty = allowEmpty;
-            chainPickerTcs = null;
-            if (chainPickerPanel != null)
-            {
-                chainPickerPanel.style.display = DisplayStyle.None;
-            }
-            if (copyPanel != null)
-            {
-                copyPanel.style.display = DisplayStyle.None;
-            }
-            if (verificationPanel != null)
-            {
-                verificationPanel.style.display = DisplayStyle.None;
-            }
-            if (modalWindow != null)
-            {
-                modalWindow.style.display = DisplayStyle.Flex;
-            }
-
-            modalTitle.text = title ?? string.Empty;
-            modalCaption.text = caption ?? string.Empty;
-            modalInput.value = string.Empty;
-            modalInput.visible = hasInput;
-            modalInput.SetEnabled(hasInput);
-            modalInput.multiline = multiline;
-            WalletUiCommon.StyleModalInput(modalInput, multiline, multiline ? 80 : 40);
-            modalOverlay.style.display = DisplayStyle.Flex;
-            if (hasInput)
-            {
-                modalInput.Focus();
-            }
-
-            return modalTcs.Task;
+            var effectiveAllowEmpty = allowEmpty || !hasInput || minLength <= 0;
+            return modalHost.ShowPromptAsync(
+                title,
+                caption,
+                minLength,
+                maxLength,
+                effectiveAllowEmpty,
+                hasInput,
+                isPassword,
+                multiline,
+                "Confirm",
+                "Cancel",
+                showSecondary: true,
+                initialValue: string.Empty,
+                successResult: PromptResult.Success,
+                cancelResult: PromptResult.Failure);
         }
 
         private void ShowSendProgressDialog(string description, int txCount, Action<PromptResult> callback)
@@ -1115,69 +1055,19 @@ namespace Poltergeist.UiToolkit.Accounts
             transactionDialogs?.StartConfirmation(hash, refreshBalanceAfterConfirmation, callback);
         }
 
-        private void OnModalPrimary()
-        {
-            var input = modalHasInput ? modalInput.text ?? string.Empty : string.Empty;
-            if (!modalAllowEmpty)
-            {
-                if (modalMaxLength > 0 && input.Length > modalMaxLength)
-                {
-                    modalCaption.text = $"Input must be <= {modalMaxLength} characters.";
-                    return;
-                }
-
-                if (input.Length < modalMinLength)
-                {
-                    modalCaption.text = $"Input must be >= {modalMinLength} characters.";
-                    return;
-                }
-            }
-
-            var tcs = modalTcs;
-            modalTcs = null;
-            HideModal();
-            tcs?.TrySetResult((PromptResult.Success, input));
-        }
-
-        private void OnModalSecondary()
-        {
-            var tcs = modalTcs;
-            modalTcs = null;
-            HideModal();
-            tcs?.TrySetResult((PromptResult.Failure, string.Empty));
-        }
-
         private void HideModal()
         {
-            modalOverlay.style.display = DisplayStyle.None;
-            modalInput.value = string.Empty;
-            modalTcs = null;
+            modalHost.HideAll();
             chainPickerTcs = null;
             transactionDialogs?.HideTransactionPanels();
-            if (chainPickerPanel != null)
-            {
-                chainPickerPanel.style.display = DisplayStyle.None;
-            }
-            if (copyPanel != null)
-            {
-                copyPanel.style.display = DisplayStyle.None;
-            }
             if (copyPanelValueField != null)
             {
                 copyPanelValueField.value = string.Empty;
             }
             copyPanelCopyStatus = null;
-            if (verificationPanel != null)
-            {
-                verificationPanel.style.display = DisplayStyle.None;
-            }
             if (verificationMessageLabel != null)
             {
                 verificationMessageLabel.text = string.Empty;
-            }
-            if (modalWindow != null)
-            {
-                modalWindow.style.display = DisplayStyle.Flex;
             }
         }
 

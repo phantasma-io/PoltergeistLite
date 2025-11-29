@@ -37,6 +37,7 @@ namespace Poltergeist.UiToolkit
         private VisualElement historyRoot;
         private VisualElement accountRoot;
         private VisualElement settingsRoot;
+        private WalletUiModalHost modalHost;
         private bool initializationFailed;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -306,17 +307,21 @@ namespace Poltergeist.UiToolkit
             accountRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             settingsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
 
-            accountsView = new WalletAccountsView(accountsRoot, context, ShowBalances, ShowSettings);
+            modalHost = new WalletUiModalHost(root, WalletUiCommon.ApplyDefaultFont);
+
+            accountsView = new WalletAccountsView(accountsRoot, context, modalHost, ShowBalances, ShowSettings);
             balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
-            accountView = new WalletAccountView(accountRoot, context, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
-            settingsView = new WalletSettingsView(settingsRoot, context, DisableLegacyUi, ExitToWallets);
+            accountView = new WalletAccountView(accountRoot, context, modalHost, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
+            settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets);
 
             root.Add(accountsRoot);
             root.Add(balancesRoot);
             root.Add(historyRoot);
             root.Add(accountRoot);
             root.Add(settingsRoot);
+
+            modalHost.BringToFront(root);
 
             Log.Write($"{LogPrefix}Views initialized (accounts + balances + history + account + settings).");
         }

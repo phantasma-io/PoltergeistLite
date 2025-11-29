@@ -15,7 +15,7 @@ namespace Poltergeist.UiToolkit
     /// </summary>
     public sealed class WalletUiTransactionDialogs : IDisposable
     {
-        private readonly VisualElement overlay;
+        private readonly WalletUiModalHost modalHost;
         private readonly Func<AccountManager> accountProvider;
         private readonly Action<string> setStatus;
 
@@ -36,17 +36,14 @@ namespace Poltergeist.UiToolkit
         private Action<Hash, TransactionResult, string> confirmationCallback;
         private Action<PromptResult> sendProgressCallback;
 
-        public WalletUiTransactionDialogs(VisualElement overlay, Func<AccountManager> accountProvider, Action<string> setStatus)
+        public WalletUiTransactionDialogs(WalletUiModalHost modalHost, Func<AccountManager> accountProvider, Action<string> setStatus)
         {
-            this.overlay = overlay ?? throw new ArgumentNullException(nameof(overlay));
+            this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
             this.accountProvider = accountProvider ?? throw new ArgumentNullException(nameof(accountProvider));
             this.setStatus = setStatus ?? throw new ArgumentNullException(nameof(setStatus));
 
             sendProgressPanel = BuildSendProgressPanel();
-            overlay.Add(sendProgressPanel);
-
             confirmationPanel = BuildConfirmationPanel();
-            overlay.Add(confirmationPanel);
         }
 
         public void RegisterBlockingPanels(VisualElement modalWindow, VisualElement chainPickerPanel, VisualElement copyPanel, VisualElement verificationPanel)
@@ -69,7 +66,7 @@ namespace Poltergeist.UiToolkit
 
             HideOtherPanels();
             sendProgressPanel.style.display = DisplayStyle.Flex;
-            overlay.style.display = DisplayStyle.Flex;
+            modalHost.ShowPanel(sendProgressPanel);
         }
 
         public void StartConfirmation(Hash hash, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
@@ -90,7 +87,7 @@ namespace Poltergeist.UiToolkit
         {
             sendProgressPanel.style.display = DisplayStyle.None;
             confirmationPanel.style.display = DisplayStyle.None;
-            overlay.style.display = DisplayStyle.None;
+            modalHost.HidePanel();
             sendProgressCallback = null;
             confirmationCallback = null;
             confirmationCts?.Cancel();
@@ -208,7 +205,7 @@ namespace Poltergeist.UiToolkit
         private void CompleteSendProgress(PromptResult result)
         {
             sendProgressPanel.style.display = DisplayStyle.None;
-            overlay.style.display = DisplayStyle.None;
+            modalHost.HidePanel();
 
             var cb = sendProgressCallback;
             sendProgressCallback = null;
@@ -224,7 +221,7 @@ namespace Poltergeist.UiToolkit
 
             HideOtherPanels();
             confirmationPanel.style.display = DisplayStyle.Flex;
-            overlay.style.display = DisplayStyle.Flex;
+            modalHost.ShowPanel(confirmationPanel);
         }
 
         private async void PollConfirmationAsync(CancellationToken token)
@@ -296,7 +293,7 @@ namespace Poltergeist.UiToolkit
             confirmationCheckCount = 0;
 
             confirmationPanel.style.display = DisplayStyle.None;
-            overlay.style.display = DisplayStyle.None;
+            modalHost.HidePanel();
 
             if (string.IsNullOrEmpty(error))
             {
