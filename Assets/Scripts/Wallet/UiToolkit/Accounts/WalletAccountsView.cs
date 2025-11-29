@@ -573,6 +573,14 @@ namespace Poltergeist.UiToolkit.Accounts
         private void EnterManageMode()
         {
             manageSelection.Clear();
+            manageDirty = false;
+            manageOriginalAccounts = CloneAccounts(AccountManager.Instance?.Accounts);
+            if (manageOriginalAccounts == null)
+            {
+                Log.WriteWarning($"{LogPrefix}Cannot open wallet management: failed to snapshot accounts.");
+                SetStatus("Cannot open wallet management right now. Please try again.");
+                return;
+            }
             if (listWrapper != null)
             {
                 listWrapper.style.display = DisplayStyle.None;
@@ -592,6 +600,14 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void ExitManageMode()
         {
+            if (manageDirty && manageOriginalAccounts != null && AccountManager.Instance != null)
+            {
+                AccountManager.Instance.Accounts.Clear();
+                AccountManager.Instance.Accounts.AddRange(CloneAccounts(manageOriginalAccounts));
+                manageDirty = false;
+                Refresh();
+                SetStatus("Changes discarded.");
+            }
             manageSelection.Clear();
             UpdateManageStatus(string.Empty);
             if (manageRoot != null)
@@ -608,6 +624,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             subtitleLabel.text = "Wallet List";
+            Refresh();
         }
 
         private void ApplyDefaultFont(VisualElement element)

@@ -23,6 +23,12 @@ namespace Poltergeist.UiToolkit.Accounts
         private ScrollView manageList;
         private Label manageStatusLabel;
         private VisualElement manageFooter;
+        private VisualElement manageActionsCloud;
+        private Button manageRenameButton;
+        private Button manageMoveUpButton;
+        private Button manageMoveDownButton;
+        private List<Account> manageOriginalAccounts;
+        private bool manageDirty;
         private readonly HashSet<string> manageSelection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private void OnManageWallets()
@@ -94,21 +100,7 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(panel);
 
-            var title = new Label("Manage wallets")
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 20,
-                    color = WalletUiTheme.TextPrimary,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginBottom = 6
-                }
-            };
-            ApplyDefaultFont(title);
-            panel.Add(title);
-
-            var caption = new Label("Reorder, rename, export/import or delete wallets on this device.")
+            var caption = new Label("Rename, reorder, import/export or delete wallets on this device.")
             {
                 style =
                 {
@@ -143,9 +135,9 @@ namespace Poltergeist.UiToolkit.Accounts
                 paddingLeft: 8f,
                 paddingRight: 8f,
                 paddingTop: 6f,
-                paddingBottom: 80f,
+                paddingBottom: 0f,
                 marginTop: 6f,
-                marginBottom: 12f,
+                marginBottom: 0f,
                 maxWidth: 0f,
                 alignSelf: Align.Stretch);
             manageList.style.flexGrow = 1;
@@ -155,13 +147,41 @@ namespace Poltergeist.UiToolkit.Accounts
 
             root.Add(panel);
 
+            var actionsContainer = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = 1680,
+                    alignSelf = Align.Center,
+                    flexShrink = 0,
+                    marginTop = 10,
+                    marginBottom = 8
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(actionsContainer);
+
+            var renameBtn = WalletUiCommon.CreateSecondaryButton("Rename", () => RenameSelectedAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Rename selected failed: {ex}")), 14, 32);
+            manageRenameButton = renameBtn;
+            var moveUpBtn = WalletUiCommon.CreateSecondaryButton("Up", () => MoveSelectedAsync(-1).Forget(ex => Log.WriteWarning($"{LogPrefix}Move up failed: {ex}")), 14, 32);
+            manageMoveUpButton = moveUpBtn;
+            var moveDownBtn = WalletUiCommon.CreateSecondaryButton("Down", () => MoveSelectedAsync(1).Forget(ex => Log.WriteWarning($"{LogPrefix}Move down failed: {ex}")), 14, 32);
+            manageMoveDownButton = moveDownBtn;
+            var deleteBtn = WalletUiCommon.CreateSecondaryButton("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}")), 14, 32);
+            manageActionsCloud = WalletUiFormFactory.CreateButtonCloud(renameBtn, moveUpBtn, moveDownBtn, deleteBtn);
+            manageActionsCloud.style.marginTop = 0;
+            manageActionsCloud.style.marginBottom = 0;
+            actionsContainer.Add(manageActionsCloud);
+
+            root.Add(actionsContainer);
+
             manageFooter = WalletUiCommon.BuildFooter(
                 out _,
-                ("Export", () => ExportSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Export failed: {ex}"))),
                 ("Import", () => ImportWalletsAsync(true).Forget(ex => Log.WriteWarning($"{LogPrefix}Import failed: {ex}"))),
-                ("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}"))),
-                ("Save", SaveAccounts),
-                ("Close", HideManagePanel)
+                ("Export", () => ExportSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Export failed: {ex}"))),
+                ("Revert", HideManagePanel),
+                ("Apply", SaveAccounts)
             );
             manageFooter.style.alignSelf = Align.Center;
             manageFooter.style.width = new Length(100, LengthUnit.Percent);
@@ -179,6 +199,7 @@ namespace Poltergeist.UiToolkit.Accounts
             if (am == null || am.Accounts == null || am.Accounts.Count == 0)
             {
                 UpdateManageStatus("No wallets to manage.");
+                UpdateManageActionsState();
                 return;
             }
 
@@ -186,11 +207,12 @@ namespace Poltergeist.UiToolkit.Accounts
             for (var i = 0; i < am.Accounts.Count; i++)
             {
                 var account = am.Accounts[i];
-                manageList.Add(CreateManageRow(account, i, am.Accounts.Count));
+                manageList.Add(CreateManageRow(account, i));
             }
+            UpdateManageActionsState();
         }
 
-        private VisualElement CreateManageRow(Account account, int index, int totalCount)
+        private VisualElement CreateManageRow(Account account, int index)
         {
             var row = new VisualElement
             {
@@ -198,7 +220,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
-                    justifyContent = Justify.SpaceBetween,
+                    justifyContent = Justify.FlexStart,
                     flexShrink = 0,
                     paddingTop = 8,
                     paddingBottom = 8,
@@ -223,17 +245,9 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(info);
 
-            var toggle = new Toggle
+            var toggle = WalletUiFormFactory.CreateToggle(string.Empty, manageSelection.Contains(account.phaAddress), newValue =>
             {
-                value = manageSelection.Contains(account.phaAddress),
-                style =
-                {
-                    flexShrink = 0
-                }
-            };
-            toggle.RegisterValueChangedCallback(evt =>
-            {
-                if (evt.newValue)
+                if (newValue)
                 {
                     manageSelection.Add(account.phaAddress);
                 }
@@ -241,7 +255,9 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     manageSelection.RemoveWhere(x => string.Equals(x, account.phaAddress, StringComparison.OrdinalIgnoreCase));
                 }
+                UpdateManageActionsState();
             });
+            toggle.style.marginLeft = 4;
             row.Add(toggle);
 
             var nameLabel = new Label($"{index + 1}. {account.name}")
@@ -271,61 +287,7 @@ namespace Poltergeist.UiToolkit.Accounts
             info.Add(addressLabel);
 
             row.Add(info);
-
-            var buttons = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.FlexEnd,
-                    flexShrink = 0,
-                    minWidth = 240
-                }
-            };
-
-            var renameBtn = WalletUiCommon.CreateOutlineButton("Rename", () => RenameAccountAsync(account, index).Forget(ex => Log.WriteWarning($"{LogPrefix}Rename failed: {ex}")), 14, 30);
-            renameBtn.style.minWidth = 90;
-            buttons.Add(renameBtn);
-
-            var upBtn = WalletUiCommon.CreateSecondaryButton("Up", () => MoveAccountAsync(index, -1).Forget(ex => Log.WriteWarning($"{LogPrefix}Move up failed: {ex}")), 14, 30);
-            upBtn.style.minWidth = 70;
-            upBtn.SetEnabled(index > 0);
-            upBtn.style.marginLeft = 6;
-            buttons.Add(upBtn);
-
-            var downBtn = WalletUiCommon.CreateSecondaryButton("Down", () => MoveAccountAsync(index, 1).Forget(ex => Log.WriteWarning($"{LogPrefix}Move down failed: {ex}")), 14, 30);
-            downBtn.style.minWidth = 70;
-            downBtn.SetEnabled(index < totalCount - 1);
-            downBtn.style.marginLeft = 6;
-            buttons.Add(downBtn);
-
-            row.Add(buttons);
             return row;
-        }
-
-        private async Task MoveAccountAsync(int index, int delta)
-        {
-            var am = AccountManager.Instance;
-            if (am?.Accounts == null)
-            {
-                UpdateManageStatus("Account list is not ready.");
-                return;
-            }
-
-            var newIndex = index + delta;
-            if (newIndex < 0 || newIndex >= am.Accounts.Count)
-            {
-                return;
-            }
-
-            var accountToMove = am.Accounts[index];
-            am.Accounts.RemoveAt(index);
-            am.Accounts.Insert(newIndex, accountToMove);
-            UpdateManageStatus($"Moved '{accountToMove.name}' to position {newIndex + 1}.");
-            RefreshManagePanel();
-            Refresh();
-            await Task.CompletedTask;
         }
 
         private async Task RenameAccountAsync(Account account, int index)
@@ -379,9 +341,10 @@ namespace Poltergeist.UiToolkit.Accounts
             account.name = newName;
             am.Accounts[index] = account;
             UpdateManageStatus($"Wallet renamed to '{newName}'.");
-            am.SaveAccounts();
             RefreshManagePanel();
             Refresh();
+            UpdateManageActionsState();
+            manageDirty = true;
         }
 
         private async Task ExportSelectedWalletsAsync()
@@ -639,12 +602,103 @@ namespace Poltergeist.UiToolkit.Accounts
                 am.Accounts.Add(account);
             }
 
-            am.SaveAccounts();
             manageSelection.Clear();
             UpdateManageStatus($"{accountsToImport.Count} wallet(s) imported.");
             SetStatus($"{accountsToImport.Count} wallet(s) imported.");
             RefreshManagePanel();
             Refresh();
+            UpdateManageActionsState();
+            manageDirty = true;
+        }
+
+        private async Task RenameSelectedAsync()
+        {
+            var am = AccountManager.Instance;
+            if (am?.Accounts == null)
+            {
+                UpdateManageStatus("Account manager is not ready.");
+                return;
+            }
+
+            if (manageSelection.Count != 1)
+            {
+                UpdateManageStatus("Select exactly one wallet to rename.");
+                return;
+            }
+
+            var address = manageSelection.First();
+            var index = am.Accounts.FindIndex(x => string.Equals(x.phaAddress, address, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+            {
+                UpdateManageStatus("Selected wallet is not available.");
+                return;
+            }
+
+            await RenameAccountAsync(am.Accounts[index], index);
+        }
+
+        private async Task MoveSelectedAsync(int delta)
+        {
+            var am = AccountManager.Instance;
+            if (am?.Accounts == null)
+            {
+                UpdateManageStatus("Account list is not ready.");
+                return;
+            }
+
+            if (manageSelection.Count == 0)
+            {
+                UpdateManageStatus("Select wallets to move.");
+                return;
+            }
+
+            var targets = am.Accounts
+                .Select((acct, idx) => (acct, idx))
+                .Where(t => manageSelection.Contains(t.acct.phaAddress))
+                .ToList();
+
+            if (targets.Count == 0)
+            {
+                UpdateManageStatus("Selected wallets are not available.");
+                return;
+            }
+
+            var ordered = delta < 0
+                ? targets.OrderBy(t => t.idx).ToList()
+                : targets.OrderByDescending(t => t.idx).ToList();
+
+            var moved = 0;
+            foreach (var target in ordered)
+            {
+                var currentIndex = am.Accounts.FindIndex(x => string.Equals(x.phaAddress, target.acct.phaAddress, StringComparison.OrdinalIgnoreCase));
+                if (currentIndex < 0)
+                {
+                    continue;
+                }
+
+                var newIndex = Mathf.Clamp(currentIndex + delta, 0, am.Accounts.Count - 1);
+                if (newIndex == currentIndex)
+                {
+                    continue;
+                }
+
+                am.Accounts.RemoveAt(currentIndex);
+                am.Accounts.Insert(newIndex, target.acct);
+                moved++;
+            }
+
+            if (moved == 0)
+            {
+                UpdateManageStatus("Nothing to move.");
+                return;
+            }
+
+            UpdateManageStatus($"Moved {moved} wallet(s) {(delta < 0 ? "up" : "down")}.");
+            RefreshManagePanel();
+            Refresh();
+            UpdateManageActionsState();
+            manageDirty = true;
+            await Task.CompletedTask;
         }
 
         private async Task DeleteSelectedWalletsAsync()
@@ -689,11 +743,12 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             manageSelection.Clear();
-            am.SaveAccounts();
             UpdateManageStatus($"{removed} wallet(s) removed from this device.");
             SetStatus($"{removed} wallet(s) removed.");
             RefreshManagePanel();
             Refresh();
+            UpdateManageActionsState();
+            manageDirty = true;
         }
 
         private void SaveAccounts()
@@ -706,8 +761,34 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             am.SaveAccounts();
+            manageOriginalAccounts = CloneAccounts(am.Accounts);
+            manageDirty = manageOriginalAccounts == null;
             UpdateManageStatus("Changes saved.");
             SetStatus("Changes saved.");
+            HideManagePanel();
+        }
+
+        private void UpdateManageActionsState()
+        {
+            var am = AccountManager.Instance;
+            var indices = new List<int>();
+            var total = am?.Accounts?.Count ?? 0;
+
+            if (am?.Accounts != null)
+            {
+                for (var i = 0; i < am.Accounts.Count; i++)
+                {
+                    if (manageSelection.Contains(am.Accounts[i].phaAddress))
+                    {
+                        indices.Add(i);
+                    }
+                }
+            }
+
+            var hasSelection = indices.Count > 0;
+            manageRenameButton?.SetEnabled(manageSelection.Count == 1);
+            manageMoveUpButton?.SetEnabled(hasSelection && indices.Min() > 0);
+            manageMoveDownButton?.SetEnabled(hasSelection && indices.Max() < total - 1);
         }
 
         private void UpdateManageStatus(string message)
@@ -719,6 +800,25 @@ namespace Poltergeist.UiToolkit.Accounts
 
             manageStatusLabel.text = message ?? string.Empty;
             manageStatusLabel.style.display = string.IsNullOrWhiteSpace(message) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private List<Account> CloneAccounts(IReadOnlyCollection<Account> source)
+        {
+            if (source == null)
+            {
+                return new List<Account>();
+            }
+
+            try
+            {
+                var bytes = Serialization.Serialize(source.ToArray());
+                return Serialization.Unserialize<Account[]>(bytes).ToList();
+            }
+            catch
+            {
+                Log.WriteWarning($"{LogPrefix}Failed to clone accounts snapshot; revert will be unavailable for this session.");
+                return null;
+            }
         }
 
     }
