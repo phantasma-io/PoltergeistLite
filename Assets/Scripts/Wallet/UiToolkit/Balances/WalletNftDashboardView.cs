@@ -608,6 +608,9 @@ namespace Poltergeist.UiToolkit.Balances
 
             contractInfoButton = WalletUiCommon.CreateSecondaryButton("Contract info", () => OpenContractInfo(), 14, 32);
             contractInfoButton.style.marginLeft = 8;
+            contractInfoButton.style.minWidth = 140;
+            contractInfoButton.style.whiteSpace = WhiteSpace.NoWrap;
+            contractInfoButton.style.flexShrink = 0;
 
             contractGroup.Add(contractInfoButton);
 
