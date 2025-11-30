@@ -545,21 +545,8 @@ namespace Poltergeist.UiToolkit.Balances
 
             if (isSoulMaster && isSoulToken)
             {
-                var smLabel = new Label("★ SM ★")
-                {
-                    style =
-                    {
-                        color = WalletUiTheme.TextPrimary,
-                        fontSize = 16,
-                        unityFontStyleAndWeight = FontStyle.Bold,
-                        unityTextAlign = TextAnchor.MiddleCenter,
-                        marginLeft = 12,
-                        paddingTop = 2,
-                        paddingBottom = 2,
-                        alignSelf = Align.Center
-                    }
-                };
-                ApplyDefaultFont(smLabel);
+                var smLabel = WalletUiCommon.CreateSoulMasterBadge(16f, 10f, 4f);
+                smLabel.style.marginLeft = 12;
                 titleRow.Add(smLabel);
             }
 

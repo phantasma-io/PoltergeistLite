@@ -910,6 +910,33 @@ namespace Poltergeist.UiToolkit
             label.style.minHeight = 20;
         }
 
+        /// <summary>
+        /// Builds the unified Soul Master badge so both the balances list and token dashboard stay visually aligned.
+        /// </summary>
+        internal static Label CreateSoulMasterBadge(float fontSize = 16f, float paddingHorizontal = 10f, float paddingVertical = 4f)
+        {
+            var label = new Label("★ SM ★")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = fontSize,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    paddingLeft = paddingHorizontal,
+                    paddingRight = paddingHorizontal,
+                    paddingTop = paddingVertical,
+                    paddingBottom = paddingVertical,
+                    backgroundColor = Color.clear,
+                    flexShrink = 0
+                }
+            };
+            ApplyDefaultFont(label);
+            label.style.minHeight = fontSize + paddingVertical * 2f;
+            label.style.alignSelf = Align.Center;
+            return label;
+        }
+
         internal static bool IsSoulMaster(AccountManager accountManager)
         {
             if (accountManager == null || accountManager.CurrentPlatform != PlatformKind.Phantasma)

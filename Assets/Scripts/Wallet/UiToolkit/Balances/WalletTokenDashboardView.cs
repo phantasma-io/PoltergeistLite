@@ -405,22 +405,7 @@ namespace Poltergeist.UiToolkit.Balances
                     justifyContent = Justify.Center
                 }
             };
-            soulMasterLabel = new Label("★ SM ★")
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextPrimary,
-                    fontSize = 30,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    paddingLeft = 10,
-                    paddingRight = 10,
-                    paddingTop = 4,
-                    paddingBottom = 4,
-                    backgroundColor = Color.clear
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(soulMasterLabel);
+            soulMasterLabel = WalletUiCommon.CreateSoulMasterBadge(30f, 10f, 4f);
             soulMasterOverlay.Add(soulMasterLabel);
             soulMasterOverlay.style.display = DisplayStyle.None;
 
