@@ -5,10 +5,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
-using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Unity.Core.Logging;
-using Poltergeist.UiToolkit;
 
 namespace Poltergeist.UiToolkit.Balances
 {
@@ -487,7 +485,7 @@ namespace Poltergeist.UiToolkit.Balances
                 style =
                 {
                     flexDirection = FlexDirection.Column,
-                    flexGrow = 1,
+                    flexGrow = 0,
                     marginLeft = 2
                 }
             };
@@ -515,13 +513,6 @@ namespace Poltergeist.UiToolkit.Balances
             ApplyDefaultFont(title);
             titleRow.Add(title);
 
-            if (isSoulMaster && isSoulToken)
-            {
-                var smLabel = WalletUiCommon.CreateSoulMasterBadge(16f, 10f, 4f);
-                smLabel.style.marginLeft = 12;
-                titleRow.Add(smLabel);
-            }
-
             textBlock.Add(titleRow);
 
             var secondaryText = BuildSecondaryLine(entry);
@@ -542,6 +533,37 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             row.Add(textBlock);
+
+            if (isSoulMaster && isSoulToken)
+            {
+                var textBlockSM = new VisualElement
+                {
+                    style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 0,
+                    marginLeft = 2
+                }
+                };
+
+                var smLabel = WalletUiCommon.CreateSoulMasterBadge(16f, 10f, 4f);
+                smLabel.style.marginLeft = 12;
+                textBlockSM.Add(smLabel);
+                row.Add(textBlockSM);
+            }
+
+            var spacer = new VisualElement
+            {
+                style =
+                {
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    flexBasis = 0,
+                    minHeight = 0,
+                    alignSelf = Align.Stretch
+                }
+            };
+            row.Add(spacer);
 
             if (onShowToken != null)
             {
