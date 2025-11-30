@@ -566,6 +566,7 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(btn);
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            MakeButtonNonNavigable(btn);
             btn.clicked += () => onClick?.Invoke();
             return btn;
         }
@@ -602,6 +603,7 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(btn);
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            MakeButtonNonNavigable(btn);
             btn.clicked += () => onClick?.Invoke();
             return btn;
         }
@@ -638,6 +640,7 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(btn);
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            MakeButtonNonNavigable(btn);
             btn.clicked += () => onClick?.Invoke();
             return btn;
         }
@@ -655,6 +658,7 @@ namespace Poltergeist.UiToolkit
             btn.style.borderBottomLeftRadius = WalletUiTheme.RadiusSmall;
             btn.style.borderBottomRightRadius = WalletUiTheme.RadiusSmall;
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            MakeButtonNonNavigable(btn);
             return btn;
         }
 
@@ -690,6 +694,7 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(btn);
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+            MakeButtonNonNavigable(btn);
             btn.clicked += () => onClick?.Invoke();
             return btn;
         }
@@ -822,6 +827,49 @@ namespace Poltergeist.UiToolkit
             }, TrickleDown.TrickleDown);
 
             return scroll;
+        }
+
+        private static void MakeButtonNonNavigable(Button btn)
+        {
+            if (btn == null)
+            {
+                return;
+            }
+
+            // Disable keyboard focus to avoid hidden tab/enter activation; modal handlers manage Enter explicitly.
+            btn.focusable = false;
+            btn.tabIndex = -1;
+            btn.pickingMode = PickingMode.Position;
+        }
+
+        // Blocks Tab navigation on a container to avoid hidden focus cycling that can trigger buttons via Enter.
+        internal static EventCallback<KeyDownEvent> BlockTabNavigation(VisualElement element)
+        {
+            if (element == null)
+            {
+                return null;
+            }
+
+            EventCallback<KeyDownEvent> handler = evt =>
+            {
+                if (evt.keyCode == KeyCode.Tab)
+                {
+                    evt.StopImmediatePropagation();
+                }
+            };
+
+            element.RegisterCallback(handler, TrickleDown.TrickleDown);
+            return handler;
+        }
+
+        internal static void UnblockTabNavigation(VisualElement element, EventCallback<KeyDownEvent> handler)
+        {
+            if (element == null || handler == null)
+            {
+                return;
+            }
+
+            element.UnregisterCallback(handler, TrickleDown.TrickleDown);
         }
 
         // Logs scroll/geometry state for debugging scroll issues.

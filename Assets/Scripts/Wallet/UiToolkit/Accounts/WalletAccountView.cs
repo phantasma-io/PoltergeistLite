@@ -38,6 +38,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly Action onShowAccount;
         private readonly Action onShowSettings;
         private readonly Action onExit;
+        private EventCallback<KeyDownEvent> tabBlockHandler;
 
         private VisualElement root;
         private Label statusLabel;
@@ -97,6 +98,8 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             ClearQrTexture();
             transactionDialogs?.Dispose();
+            WalletUiCommon.UnblockTabNavigation(root, tabBlockHandler);
+            tabBlockHandler = null;
         }
 
         public void OnAccountsReady()
@@ -156,6 +159,7 @@ namespace Poltergeist.UiToolkit.Accounts
             root.style.overflow = Overflow.Hidden;
             root.style.position = Position.Relative;
             ApplyDefaultFont(root);
+            tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
             var content = new VisualElement
             {

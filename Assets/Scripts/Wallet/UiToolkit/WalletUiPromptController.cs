@@ -45,6 +45,9 @@ namespace Poltergeist.UiToolkit
             this.onHide = onHide;
 
             panel = WalletUiModalFactory.CreateModalWindow(OnPrimaryClicked, OnSecondaryClicked, applyDefaultFont, out titleLabel, out captionLabel, out inputField, out primaryButton, out secondaryButton);
+            panel.focusable = true;
+            panel.tabIndex = 0;
+            panel.pickingMode = PickingMode.Position;
             validationLabel = new Label(string.Empty)
             {
                 style =

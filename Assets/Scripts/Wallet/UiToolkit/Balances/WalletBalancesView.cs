@@ -46,6 +46,7 @@ namespace Poltergeist.UiToolkit.Balances
         private Button navHistory;
         private Button navAccount;
         private Button navExit;
+        private EventCallback<KeyDownEvent> tabBlockHandler;
 
         public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit, Action<string> onShowToken)
         {
@@ -71,6 +72,8 @@ namespace Poltergeist.UiToolkit.Balances
         public void Dispose()
         {
             Unsubscribe();
+            WalletUiCommon.UnblockTabNavigation(root, tabBlockHandler);
+            tabBlockHandler = null;
         }
 
         private void BuildLayout(VisualElement host)
@@ -85,6 +88,7 @@ namespace Poltergeist.UiToolkit.Balances
             root.style.paddingBottom = 16;
             root.style.color = WalletUiTheme.TextPrimary;
             ApplyDefaultFont(root);
+            tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
             var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 

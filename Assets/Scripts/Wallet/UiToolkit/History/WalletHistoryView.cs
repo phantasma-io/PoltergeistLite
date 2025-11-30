@@ -25,6 +25,7 @@ namespace Poltergeist.UiToolkit.History
         private readonly Action onShowAccount;
         private readonly Action onShowSettings;
         private readonly Action onExit;
+        private EventCallback<KeyDownEvent> tabBlockHandler;
 
         private VisualElement root;
         private ScrollView listView;
@@ -63,6 +64,8 @@ namespace Poltergeist.UiToolkit.History
         public void Dispose()
         {
             Unsubscribe();
+            WalletUiCommon.UnblockTabNavigation(root, tabBlockHandler);
+            tabBlockHandler = null;
         }
 
         public void ForceRefresh()
@@ -137,6 +140,7 @@ namespace Poltergeist.UiToolkit.History
             root.style.paddingBottom = 16;
             root.style.color = WalletUiTheme.TextPrimary;
             ApplyDefaultFont(root);
+            tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
             content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 

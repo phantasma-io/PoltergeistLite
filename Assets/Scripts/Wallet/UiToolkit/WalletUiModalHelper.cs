@@ -260,6 +260,7 @@ namespace Poltergeist.UiToolkit
             buttons.Add(closeBtn);
             panel.Add(buttons);
 
+            RegisterModalKeys(panel, () => Complete(PromptResult.Success), () => Complete(PromptResult.Failure), focusPanel: true);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -614,11 +615,25 @@ namespace Poltergeist.UiToolkit
             };
             WalletUiCommon.ApplyDefaultFont(buttons);
 
-            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, () => Complete(PromptResult.Failure, string.Empty), 16, 36);
+            void Cancel()
+            {
+                Complete(PromptResult.Failure, string.Empty);
+            }
+
+            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, Cancel, 16, 36);
             cancelBtn.style.minWidth = 110;
             buttons.Add(cancelBtn);
 
             confirmBtn = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(confirmLabel) ? "Confirm" : confirmLabel, () =>
+            {
+                Confirm();
+            }, 16, 36);
+            confirmBtn.style.minWidth = 120;
+            confirmBtn.style.marginLeft = 10;
+            buttons.Add(confirmBtn);
+            panel.Add(buttons);
+
+            void Confirm()
             {
                 var trimmed = destinationField.value?.Trim() ?? string.Empty;
                 if (!IsInputValid(trimmed))
@@ -629,11 +644,7 @@ namespace Poltergeist.UiToolkit
                 }
 
                 Complete(PromptResult.Success, trimmed);
-            }, 16, 36);
-            confirmBtn.style.minWidth = 120;
-            confirmBtn.style.marginLeft = 10;
-            buttons.Add(confirmBtn);
-            panel.Add(buttons);
+            }
 
             destinationField.RegisterValueChangedCallback(evt =>
             {
@@ -657,6 +668,7 @@ namespace Poltergeist.UiToolkit
                 pasteSchedule = null;
             });
 
+            RegisterModalKeys(panel, Confirm, Cancel);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -785,12 +797,17 @@ namespace Poltergeist.UiToolkit
             };
             WalletUiCommon.ApplyDefaultFont(buttons);
 
-            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, () => Complete(PromptResult.Failure, string.Empty), 16, 36);
+            void Cancel()
+            {
+                Complete(PromptResult.Failure, string.Empty);
+            }
+
+            var cancelBtn = WalletUiCommon.CreateSecondaryButton(string.IsNullOrWhiteSpace(cancelLabel) ? "Cancel" : cancelLabel, Cancel, 16, 36);
             cancelBtn.style.minWidth = 110;
             buttons.Add(cancelBtn);
 
             Button confirmBtn = null;
-            confirmBtn = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(confirmLabel) ? "Confirm" : confirmLabel, () =>
+            void Confirm()
             {
                 var trimmed = amountField.value?.Trim() ?? string.Empty;
                 var (valid, error) = validateInput?.Invoke(trimmed) ?? (true, string.Empty);
@@ -802,7 +819,9 @@ namespace Poltergeist.UiToolkit
                 }
 
                 Complete(PromptResult.Success, trimmed);
-            }, 16, 36);
+            }
+
+            confirmBtn = WalletUiCommon.CreateOutlineButton(string.IsNullOrWhiteSpace(confirmLabel) ? "Confirm" : confirmLabel, Confirm, 16, 36);
             confirmBtn.style.minWidth = 120;
             confirmBtn.style.marginLeft = 10;
             buttons.Add(confirmBtn);
@@ -848,6 +867,7 @@ namespace Poltergeist.UiToolkit
             var (initialValid, initialError) = validateInput?.Invoke(initialInput) ?? (true, string.Empty);
             UpdateStatus(initialValid ? string.Empty : (string.IsNullOrWhiteSpace(initialError) ? "Enter a valid number." : initialError));
 
+            RegisterModalKeys(panel, Confirm, Cancel);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -955,6 +975,7 @@ namespace Poltergeist.UiToolkit
             actions.Add(cancelBtn);
             panel.Add(actions);
 
+            RegisterModalKeys(panel, () => Complete(0), () => Complete(-1), focusPanel: true);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -1049,6 +1070,41 @@ namespace Poltergeist.UiToolkit
             row.style.borderRightColor = borderColor;
             row.style.borderBottomColor = borderColor;
             row.style.borderTopColor = isSelected ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.HighlightEdge;
+        }
+
+        private static void RegisterModalKeys(VisualElement panel, Action onPrimary, Action onSecondary = null, bool focusPanel = false)
+        {
+            if (panel == null || onPrimary == null)
+            {
+                return;
+            }
+
+            panel.focusable = true;
+            panel.tabIndex = 0;
+            panel.pickingMode = PickingMode.Position;
+
+            if (focusPanel)
+            {
+                panel.schedule.Execute(() => panel.Focus()).StartingIn(30);
+            }
+
+            EventCallback<KeyDownEvent> handler = null;
+            handler = evt =>
+            {
+                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
+                {
+                    onPrimary();
+                    evt.StopImmediatePropagation();
+                }
+                else if (evt.keyCode == KeyCode.Escape)
+                {
+                    onSecondary?.Invoke();
+                    evt.StopImmediatePropagation();
+                }
+            };
+
+            panel.RegisterCallback(handler, TrickleDown.TrickleDown);
+            panel.RegisterCallback<DetachFromPanelEvent>(_ => panel.UnregisterCallback(handler, TrickleDown.TrickleDown));
         }
 
         private static VisualElement CreateListRow(int index, string title, string subtitle)

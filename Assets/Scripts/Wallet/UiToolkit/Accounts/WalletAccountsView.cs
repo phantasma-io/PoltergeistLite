@@ -40,6 +40,7 @@ namespace Poltergeist.UiToolkit.Accounts
         private bool listDetachedForModal;
         private int listIndexBeforeDetach = -1;
         private PickingMode listPickingModeBeforeModal;
+        private EventCallback<KeyDownEvent> tabBlockHandler;
 
         public WalletAccountsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onLoginSuccess, Action onShowSettings)
         {
@@ -58,6 +59,8 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             Unsubscribe();
             HideModal();
+            WalletUiCommon.UnblockTabNavigation(root, tabBlockHandler);
+            tabBlockHandler = null;
         }
 
         public void Refresh()
@@ -204,6 +207,7 @@ namespace Poltergeist.UiToolkit.Accounts
             root.style.alignItems = Align.Stretch;
             root.style.overflow = Overflow.Hidden;
             ApplyDefaultFont(root);
+            tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
             var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 

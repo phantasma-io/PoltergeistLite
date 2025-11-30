@@ -34,6 +34,7 @@ namespace Poltergeist.UiToolkit.Settings
         private readonly WalletSettingsViewState viewState;
         private readonly Action onReady;
         private readonly Action onExit;
+        private EventCallback<KeyDownEvent> tabBlockHandler;
 
         private VisualElement root;
         private ScrollView scrollView;
@@ -128,6 +129,8 @@ namespace Poltergeist.UiToolkit.Settings
         public void Dispose()
         {
             HideModal();
+            WalletUiCommon.UnblockTabNavigation(root, tabBlockHandler);
+            tabBlockHandler = null;
         }
 
         public void OnAccountsReady()
@@ -207,6 +210,7 @@ namespace Poltergeist.UiToolkit.Settings
             root.style.overflow = Overflow.Hidden;
             root.style.backgroundColor = Color.clear;
             WalletUiCommon.ApplyDefaultFont(root);
+            tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
             var content = new VisualElement
             {
@@ -684,17 +688,17 @@ namespace Poltergeist.UiToolkit.Settings
                 {
                     text = label,
                     style =
-                    {
-                        backgroundColor = WalletUiTheme.CardBackground,
-                        color = WalletUiTheme.TextPrimary,
-                        unityFontStyleAndWeight = FontStyle.Bold,
-                        fontSize = 15,
-                        paddingLeft = 14,
-                        paddingRight = 14,
-                        paddingTop = 8,
-                        paddingBottom = 8,
-                        minHeight = 36,
-                        marginRight = 8,
+                {
+                    backgroundColor = WalletUiTheme.CardBackground,
+                    color = WalletUiTheme.TextPrimary,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 15,
+                    paddingLeft = 14,
+                    paddingRight = 14,
+                    paddingTop = 8,
+                    paddingBottom = 8,
+                    minHeight = 36,
+                    marginRight = 8,
                         borderTopLeftRadius = WalletUiTheme.RadiusSmall,
                         borderTopRightRadius = WalletUiTheme.RadiusSmall,
                         borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
@@ -710,6 +714,9 @@ namespace Poltergeist.UiToolkit.Settings
                     }
                 };
                 WalletUiCommon.ApplyDefaultFont(btn);
+                btn.focusable = false;
+                btn.tabIndex = -1;
+                btn.pickingMode = PickingMode.Position;
                 btn.style.unityTextAlign = TextAnchor.MiddleCenter;
                 tabButtons[key] = btn;
                 tabsBar.Add(btn);
