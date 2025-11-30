@@ -229,7 +229,7 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void OnSettingsChanged()
         {
-            RefreshNetworkBadge();
+            RefreshView();
         }
 
         private void BuildLayout(VisualElement host)
@@ -1260,14 +1260,16 @@ namespace Poltergeist.UiToolkit.Balances
             var selectionCount = nftPresenter.State.SelectedCount;
             var hasSelection = selectionCount > 0;
             var platform = accountManager.CurrentPlatform;
+            var devMode = accountManager.Settings?.devMode ?? false;
             var showSend = platform == PlatformKind.Phantasma && Tokens.GetToken(symbol, platform, out var token) && !string.IsNullOrEmpty(token.Flags) && token.IsTransferable();
 
             SetActionButtonState(sendButton, hasSelection && showSend);
             sendButton.style.display = showSend ? DisplayStyle.Flex : DisplayStyle.None;
 
-            var canBurn = platform == PlatformKind.Phantasma && hasSelection;
+            // Keep NFT burn strictly behind dev mode: visible in dev mode, enabled only when Phantasma + selection.
+            var canBurn = devMode && platform == PlatformKind.Phantasma && hasSelection;
             SetActionButtonState(burnButton, canBurn);
-            burnButton.style.display = DisplayStyle.Flex;
+            burnButton.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
 
             SetActionButtonState(clearSelectionButton, hasSelection);
             SetActionButtonState(selectAllButton, true);
@@ -1348,6 +1350,13 @@ namespace Poltergeist.UiToolkit.Balances
 
         private async Task BurnAsync()
         {
+            var settings = AccountManager.Instance?.Settings;
+            if (settings == null || !settings.devMode)
+            {
+                SetStatus("Burn is available only in developer mode.");
+                return;
+            }
+
             var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
             var selectedIds = nftPresenter.SelectionSnapshot();
             if (string.IsNullOrWhiteSpace(symbol) || selectedIds.Count == 0)
