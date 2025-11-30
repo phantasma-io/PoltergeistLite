@@ -147,6 +147,11 @@ namespace Poltergeist.UiToolkit
             historyView?.Dispose();
             accountView?.Dispose();
             settingsView?.Dispose();
+            // Avoid leaving a stale WalletLink bridge when this root is destroyed (e.g., scene reload or duplicate cleanup).
+            if (uiBridge != null)
+            {
+                WalletUiBridge.Unregister(uiBridge);
+            }
             uiBridge?.Dispose();
             accountsView = null;
             balancesView = null;
@@ -353,6 +358,7 @@ namespace Poltergeist.UiToolkit
             historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             accountView = new WalletAccountView(accountRoot, context, modalHost, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets);
+            EnsureUiBridgeRegistered();
 
             root.Add(accountsRoot);
             root.Add(balancesRoot);
@@ -451,6 +457,7 @@ namespace Poltergeist.UiToolkit
 
         private void ShowAccounts()
         {
+            WalletUiBridge.Unregister(uiBridge);
             if (accountsRoot != null)
             {
                 accountsRoot.style.display = DisplayStyle.Flex;
@@ -490,6 +497,7 @@ namespace Poltergeist.UiToolkit
 
         private void ShowBalances()
         {
+            EnsureUiBridgeRegistered();
             if (accountsRoot != null)
             {
                 accountsRoot.style.display = DisplayStyle.None;
@@ -542,6 +550,7 @@ namespace Poltergeist.UiToolkit
                 return;
             }
 
+            EnsureUiBridgeRegistered();
             var isFungible = IsFungibleSymbol(symbol);
 
             if (accountsRoot != null)
@@ -620,6 +629,7 @@ namespace Poltergeist.UiToolkit
 
         private void ShowHistory()
         {
+            EnsureUiBridgeRegistered();
             if (accountsRoot != null)
             {
                 accountsRoot.style.display = DisplayStyle.None;
@@ -664,6 +674,7 @@ namespace Poltergeist.UiToolkit
 
         private void ShowAccount()
         {
+            EnsureUiBridgeRegistered();
             if (accountsRoot != null)
             {
                 accountsRoot.style.display = DisplayStyle.None;
@@ -705,6 +716,7 @@ namespace Poltergeist.UiToolkit
 
         private void ShowSettings()
         {
+            EnsureUiBridgeRegistered();
             if (accountsRoot != null)
             {
                 accountsRoot.style.display = DisplayStyle.None;
@@ -796,6 +808,15 @@ namespace Poltergeist.UiToolkit
                 }
             };
             root.Add(label);
+        }
+
+        private void EnsureUiBridgeRegistered()
+        {
+            // WalletLink should only be active while a wallet view is shown; re-register on entry to those screens.
+            if (uiBridge != null && !ReferenceEquals(WalletUiBridge.Current, uiBridge))
+            {
+                WalletUiBridge.Register(uiBridge);
+            }
         }
     }
 }

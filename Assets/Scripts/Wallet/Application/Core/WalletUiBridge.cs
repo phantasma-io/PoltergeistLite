@@ -27,5 +27,18 @@ namespace Poltergeist.Wallet
         {
             Current = bridge ?? throw new ArgumentNullException(nameof(bridge));
         }
+
+        public static void Unregister(IWalletUiBridge bridge)
+        {
+            if (bridge == null)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(Current, bridge))
+            {
+                Current = null;
+            }
+        }
     }
 }
