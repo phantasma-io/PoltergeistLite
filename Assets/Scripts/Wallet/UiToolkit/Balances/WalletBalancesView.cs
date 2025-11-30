@@ -571,7 +571,7 @@ namespace Poltergeist.UiToolkit.Balances
 
             row.Add(textBlock);
 
-            if (entry.Fungible && onShowToken != null)
+            if (onShowToken != null)
             {
                 var actions = new VisualElement
                 {
@@ -585,7 +585,7 @@ namespace Poltergeist.UiToolkit.Balances
                     flexShrink = 0
                 }
             };
-                var openButton = WalletUiCommon.CreateOutlineButton("Open Asset", () => OpenToken(entry.Symbol), 14, 32);
+                var openButton = WalletUiCommon.CreateOutlineButton(entry.Fungible ? "Open Asset" : "Open Asset", () => OpenToken(entry.Symbol), 14, 32);
                 openButton.style.minWidth = 120;
                 openButton.style.paddingLeft = 14;
                 openButton.style.paddingRight = 14;

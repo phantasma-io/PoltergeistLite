@@ -10,6 +10,9 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist.UiToolkit.History;
 using Poltergeist.UiToolkit.Settings;
 using UnityEngine.EventSystems;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Protocol;
+using System.Linq;
 using UnityEngine.SceneManagement;
 
 namespace Poltergeist.UiToolkit
@@ -28,6 +31,7 @@ namespace Poltergeist.UiToolkit
         private WalletAccountsView accountsView;
         private WalletBalancesView balancesView;
         private WalletTokenDashboardView tokenView;
+        private WalletNftDashboardView nftView;
         private WalletHistoryView historyView;
         private WalletAccountView accountView;
         private WalletSettingsView settingsView;
@@ -36,12 +40,14 @@ namespace Poltergeist.UiToolkit
         private VisualElement accountsRoot;
         private VisualElement balancesRoot;
         private VisualElement tokenRoot;
+        private VisualElement nftRoot;
         private VisualElement historyRoot;
         private VisualElement accountRoot;
         private VisualElement settingsRoot;
         private WalletUiModalHost modalHost;
         private WalletUiToolkitBridge uiBridge;
         private bool initializationFailed;
+        private static bool cacheInitialized;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -78,6 +84,7 @@ namespace Poltergeist.UiToolkit
             try
             {
                 EnsureAccountManagerHost();
+                EnsureCacheReady();
                 EnsureEventSystem();
                 DisableLegacyUi("UITK bootstrap");
                 EnsurePanelSettings();
@@ -180,6 +187,25 @@ namespace Poltergeist.UiToolkit
             DontDestroyOnLoad(host);
             host.AddComponent<AccountManager>();
             Log.Write($"{LogPrefix}Spawned AccountManagerHost_UITK.");
+        }
+
+        private void EnsureCacheReady()
+        {
+            if (cacheInitialized)
+            {
+                return;
+            }
+
+            try
+            {
+                Cache.Init("cache");
+                cacheInitialized = true;
+                Log.Write($"{LogPrefix}Cache initialized for UITK mode.");
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{FatalPrefix}Failed to initialize cache: {e}");
+            }
         }
 
         private bool InitializeViewsSafe()
@@ -312,6 +338,7 @@ namespace Poltergeist.UiToolkit
             accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = Color.clear } };
             balancesRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             tokenRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
+            nftRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             historyRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             accountRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
             settingsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };
@@ -324,6 +351,7 @@ namespace Poltergeist.UiToolkit
             accountsView = new WalletAccountsView(accountsRoot, context, modalHost, ShowBalances, ShowSettings);
             balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, ShowToken);
             tokenView = new WalletTokenDashboardView(tokenRoot, context, modalHost, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, accountsView);
+            nftView = new WalletNftDashboardView(nftRoot, context, modalHost, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, accountsView);
             historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             accountView = new WalletAccountView(accountRoot, context, modalHost, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets);
@@ -331,13 +359,14 @@ namespace Poltergeist.UiToolkit
             root.Add(accountsRoot);
             root.Add(balancesRoot);
             root.Add(tokenRoot);
+            root.Add(nftRoot);
             root.Add(historyRoot);
             root.Add(accountRoot);
             root.Add(settingsRoot);
 
             modalHost.BringToFront(root);
 
-            Log.Write($"{LogPrefix}Views initialized (accounts + balances + token + history + account + settings).");
+            Log.Write($"{LogPrefix}Views initialized (accounts + balances + token + nft + history + account + settings).");
         }
 
         private void DisableLegacyUi()
@@ -439,6 +468,11 @@ namespace Poltergeist.UiToolkit
                 tokenRoot.style.display = DisplayStyle.None;
             }
 
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = DisplayStyle.None;
+            }
+
             if (historyRoot != null)
             {
                 historyRoot.style.display = DisplayStyle.None;
@@ -473,6 +507,11 @@ namespace Poltergeist.UiToolkit
                 tokenRoot.style.display = DisplayStyle.None;
             }
 
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = DisplayStyle.None;
+            }
+
             if (historyRoot != null)
             {
                 historyRoot.style.display = DisplayStyle.None;
@@ -505,6 +544,8 @@ namespace Poltergeist.UiToolkit
                 return;
             }
 
+            var isFungible = IsFungibleSymbol(symbol);
+
             if (accountsRoot != null)
             {
                 accountsRoot.style.display = DisplayStyle.None;
@@ -517,7 +558,12 @@ namespace Poltergeist.UiToolkit
 
             if (tokenRoot != null)
             {
-                tokenRoot.style.display = DisplayStyle.Flex;
+                tokenRoot.style.display = isFungible ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = isFungible ? DisplayStyle.None : DisplayStyle.Flex;
             }
 
             if (historyRoot != null)
@@ -535,10 +581,43 @@ namespace Poltergeist.UiToolkit
                 settingsRoot.style.display = DisplayStyle.None;
             }
 
-            tokenView?.ShowToken(symbol);
-            tokenView?.MarkAsActive();
-            tokenView?.OnAccountsReady();
-            Log.Write($"{LogPrefix}ShowToken done. symbol={symbol} tokenVisible={tokenRoot?.style.display}");
+            if (isFungible)
+            {
+                tokenView?.ShowToken(symbol);
+                tokenView?.MarkAsActive();
+                tokenView?.OnAccountsReady();
+            }
+            else
+            {
+                nftView?.ShowToken(symbol);
+                nftView?.MarkAsActive();
+                nftView?.OnAccountsReady();
+            }
+
+            Log.Write($"{LogPrefix}ShowToken done. symbol={symbol} fungible={isFungible} tokenVisible={tokenRoot?.style.display} nftVisible={nftRoot?.style.display}");
+        }
+
+        private bool IsFungibleSymbol(string symbol)
+        {
+            try
+            {
+                var ctx = WalletApplicationContext.Instance;
+                var snapshot = ctx?.ViewState?.GetBalancesSnapshot(() => ctx.BalancePresenter.BuildSnapshot());
+                var entry = snapshot?.Balances?.FirstOrDefault(x => string.Equals(x.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
+                if (entry != null)
+                {
+                    return entry.Fungible;
+                }
+
+                var platform = AccountManager.Instance?.CurrentPlatform ?? PlatformKind.None;
+                var token = Tokens.GetToken(symbol, platform);
+                return token?.IsFungible() ?? true;
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}Failed to detect asset type for {symbol}: {e}");
+                return true;
+            }
         }
 
         private void ShowHistory()
@@ -561,6 +640,11 @@ namespace Poltergeist.UiToolkit
             if (tokenRoot != null)
             {
                 tokenRoot.style.display = DisplayStyle.None;
+            }
+
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = DisplayStyle.None;
             }
 
             if (accountRoot != null)
@@ -595,6 +679,11 @@ namespace Poltergeist.UiToolkit
             if (tokenRoot != null)
             {
                 tokenRoot.style.display = DisplayStyle.None;
+            }
+
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = DisplayStyle.None;
             }
 
             if (historyRoot != null)
@@ -636,6 +725,11 @@ namespace Poltergeist.UiToolkit
             if (tokenRoot != null)
             {
                 tokenRoot.style.display = DisplayStyle.None;
+            }
+
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = DisplayStyle.None;
             }
 
             if (accountRoot != null)
