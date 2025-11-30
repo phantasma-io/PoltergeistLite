@@ -52,7 +52,7 @@ namespace Poltergeist.UiToolkit
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
-            var existing = FindObjectOfType<WalletUiToolkitRoot>();
+            var existing = UnityEngine.Object.FindFirstObjectByType<WalletUiToolkitRoot>();
             if (existing != null)
             {
                 instance = existing;
@@ -379,7 +379,7 @@ namespace Poltergeist.UiToolkit
 
         private void TryDisableLegacyUi(string reason)
         {
-            var legacy = GameObject.FindObjectsOfType<WalletGUI>(true);
+            var legacy = UnityEngine.Object.FindObjectsByType<WalletGUI>(FindObjectsSortMode.None);
             if (legacy == null || legacy.Length == 0)
             {
                 Debug.Log($"{LogPrefix}No legacy WalletGUI instances found to disable ({reason}).");
