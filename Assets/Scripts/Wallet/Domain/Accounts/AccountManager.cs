@@ -83,7 +83,26 @@ namespace Poltergeist
         public bool Ready => Status == "ok";
         public bool BalanceRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].BalanceRefreshing : false;
         public bool NftsRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].NftsRefreshing : false;
-        public bool HistoryRefreshing => _refreshStatus.ContainsKey(CurrentPlatform) ? _refreshStatus[CurrentPlatform].HistoryRefreshing : false;
+        public bool HistoryRefreshing
+        {
+            get
+            {
+                lock (_refreshStatus)
+                {
+                    // History calls are currently Phantasma-only; using the aggregate state prevents
+                    // UI refresh loops when CurrentPlatform points to another chain (caused stack overflows).
+                    foreach (var status in _refreshStatus.Values)
+                    {
+                        if (status.HistoryRefreshing)
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+        }
         internal string GetBalanceError(PlatformKind platform)
         {
             lock (_refreshStatus)
