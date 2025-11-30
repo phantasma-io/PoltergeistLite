@@ -211,20 +211,19 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 
-            header = WalletUiCommon.BuildHeader("Wallet List");
-            var topBar = header.Root;
-            topBar.style.flexShrink = 0;
-            topBar.style.marginBottom = 12;
-
-            subHeader = WalletUiCommon.BuildSubHeader("Wallet List");
+            var headerBlock = WalletUiCommon.BuildHeaderBlock("Wallet List", "Wallet List", headerMarginBottom: 12f, subHeaderMarginTop: 6f, subHeaderMarginBottom: 6f);
+            header = headerBlock.Header;
+            subHeader = headerBlock.SubHeader;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;
             walletsLabel = subHeader.LeftLabel;
-            subHeader.Root.style.marginBottom = 6;
-            subHeader.Root.style.flexShrink = 0;
+            headerBlock.Root.style.flexShrink = 0;
 
             statusLabel = WalletUiCommon.CreateStatusLabel();
             statusLabel.style.flexShrink = 0;
+            statusLabel.style.alignSelf = Align.Center;
+            statusLabel.style.width = new Length(100, LengthUnit.Percent);
+            statusLabel.style.maxWidth = 1680;
 
             listWrapper = WalletUiCommon.BuildScrollContainer(
                 out list,
@@ -236,8 +235,8 @@ namespace Poltergeist.UiToolkit.Accounts
                 paddingBottom: 80f,
                 marginTop: 4f,
                 marginBottom: 12f,
-                maxWidth: 0f,
-                alignSelf: Align.Stretch);
+                maxWidth: 1680f,
+                alignSelf: Align.Center);
             list.style.display = DisplayStyle.Flex;
             list.pickingMode = PickingMode.Position;
             list.visible = true;
@@ -256,8 +255,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 rootWheelHooked = true;
             }
 
-            content.Add(topBar);
-            content.Add(subHeader.Root);
+            content.Add(headerBlock.Root);
             content.Add(statusLabel);
             content.Add(listWrapper);
             manageRoot = BuildManageRoot();
