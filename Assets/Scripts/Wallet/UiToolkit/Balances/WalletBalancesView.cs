@@ -116,24 +116,11 @@ namespace Poltergeist.UiToolkit.Balances
             ApplyDefaultFont(headerAddressLabel);
             content.Add(headerAddressLabel);
 
-            var headerButtons = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    alignSelf = Align.Center,
-                    marginBottom = 6
-                }
-            };
             var copyHeaderBtn = WalletUiCommon.CreateSecondaryButton("Copy Address", CopyAddress, 14, 32);
             copyHeaderBtn.style.minWidth = 140;
             var explorerHeaderBtn = WalletUiCommon.CreateSecondaryButton("Explorer", OpenExplorer, 14, 32);
             explorerHeaderBtn.style.minWidth = 140;
-            explorerHeaderBtn.style.marginLeft = 10;
-            headerButtons.Add(copyHeaderBtn);
-            headerButtons.Add(explorerHeaderBtn);
+            var headerButtons = WalletUiCommon.CreateButtonRow(10f, copyHeaderBtn, explorerHeaderBtn);
             content.Add(headerButtons);
 
             statusLabel = WalletUiCommon.CreateStatusLabel();

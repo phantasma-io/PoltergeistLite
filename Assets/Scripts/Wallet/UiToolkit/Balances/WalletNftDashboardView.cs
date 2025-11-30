@@ -643,7 +643,8 @@ namespace Poltergeist.UiToolkit.Balances
             burnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(BurnAsync), 16, 44);
             burnButton.style.minWidth = 140;
 
-            return WalletUiFormFactory.CreateButtonCloud(sendButton, burnButton);
+            var row = WalletUiCommon.CreateButtonRow(8f, sendButton, burnButton);
+            return row;
         }
 
         private VisualElement BuildPaginationRow()

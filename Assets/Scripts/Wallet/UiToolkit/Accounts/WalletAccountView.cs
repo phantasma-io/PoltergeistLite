@@ -198,31 +198,13 @@ namespace Poltergeist.UiToolkit.Accounts
             statusLabel.style.maxWidth = 1680;
             content.Add(statusLabel);
 
-            var explorerRow = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    alignSelf = Align.Center,
-                    marginBottom = 10
-                }
-            };
-            ApplyDefaultFont(explorerRow);
-
             var ethExplorerBtn = WalletUiCommon.CreateSecondaryButton("Open Etherscan", () => OpenExplorerFor(PlatformKind.Ethereum), 14, 30);
             ethExplorerBtn.style.minWidth = 140;
             var bscExplorerBtn = WalletUiCommon.CreateSecondaryButton("Open BscScan", () => OpenExplorerFor(PlatformKind.BSC), 14, 30);
             bscExplorerBtn.style.minWidth = 140;
-            bscExplorerBtn.style.marginLeft = 8;
             var neoExplorerBtn = WalletUiCommon.CreateSecondaryButton("Open Neotube", () => OpenExplorerFor(PlatformKind.Neo), 14, 30);
             neoExplorerBtn.style.minWidth = 140;
-            neoExplorerBtn.style.marginLeft = 8;
-
-            explorerRow.Add(ethExplorerBtn);
-            explorerRow.Add(bscExplorerBtn);
-            explorerRow.Add(neoExplorerBtn);
+            var explorerRow = WalletUiCommon.CreateButtonRow(8f, ethExplorerBtn, bscExplorerBtn, neoExplorerBtn);
             content.Add(explorerRow);
 
             qrImage = new Image
@@ -256,28 +238,11 @@ namespace Poltergeist.UiToolkit.Accounts
             ApplyDefaultFont(qrImage);
             content.Add(qrImage);
 
-            var actionsRow = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.Center,
-                    alignSelf = Align.Center,
-                    marginTop = 4,
-                    marginBottom = 4
-                }
-            };
-            ApplyDefaultFont(actionsRow);
-
             var exportWifBtn = WalletUiCommon.CreateSecondaryButton("Copy WIF", ExportWif, 14, 36);
             exportWifBtn.style.minWidth = 140;
             var exportHexBtn = WalletUiCommon.CreateSecondaryButton("Copy HEX", ExportHex, 14, 36);
             exportHexBtn.style.minWidth = 140;
-            exportHexBtn.style.marginLeft = 10;
-
-            actionsRow.Add(exportWifBtn);
-            actionsRow.Add(exportHexBtn);
+            var actionsRow = WalletUiCommon.CreateButtonRow(10f, exportWifBtn, exportHexBtn);
             content.Add(actionsRow);
 
             content.Add(new VSpacer());
@@ -293,9 +258,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", OnVerifySignature, 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
-            var actionCloud = WalletUiFormFactory.CreateButtonCloud(migrateButton, setNameButton, proofBtn, signBtn, verifyBtn);
-            actionCloud.style.marginTop = 6;
-            actionCloud.style.marginBottom = 6;
+            var actionCloud = WalletUiCommon.CreateButtonRow(8f, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn);
             content.Add(actionCloud);
 
             actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn });

@@ -170,9 +170,7 @@ namespace Poltergeist.UiToolkit.Accounts
             manageUnhideButton = unhideBtn;
             var deleteBtn = WalletUiCommon.CreateSecondaryButton("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}")), 14, 32);
             manageDeleteButton = deleteBtn;
-            manageActionsCloud = WalletUiFormFactory.CreateButtonCloud(renameBtn, moveUpBtn, moveDownBtn, hideBtn, unhideBtn, deleteBtn);
-            manageActionsCloud.style.marginTop = 0;
-            manageActionsCloud.style.marginBottom = 0;
+            manageActionsCloud = WalletUiCommon.CreateButtonRow(8f, renameBtn, moveUpBtn, moveDownBtn, hideBtn, unhideBtn, deleteBtn);
             actionsContainer.Add(manageActionsCloud);
 
             root.Add(actionsContainer);

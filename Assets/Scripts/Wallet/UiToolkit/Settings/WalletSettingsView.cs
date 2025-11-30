@@ -502,18 +502,14 @@ namespace Poltergeist.UiToolkit.Settings
             var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", OnDecodeTransaction, 14, 32);
             var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", OnVerifyProofOfAddresses, 14, 32);
             var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", OnLegacySeedToWif, 14, 32);
-            devToolsSection = WalletUiFormFactory.CreateButtonCloud(stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
-            devToolsSection.style.marginTop = 4;
-            devToolsSection.style.marginBottom = 6;
+            devToolsSection = WalletUiCommon.CreateButtonRow(8f, stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
             actionsContainer.Add(devToolsSection);
 
             var clearCacheBtn = WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDelete(actions.ClearCacheConfirmation, OnClearCache), 14, 32);
             var resetNotificationsBtn = WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32);
             var resetSettingsBtn = WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDelete(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32);
             deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32);
-            var utilitiesCloud = WalletUiFormFactory.CreateButtonCloud(clearCacheBtn, resetNotificationsBtn, resetSettingsBtn, deleteEverythingButton);
-            utilitiesCloud.style.marginTop = 6;
-            utilitiesCloud.style.marginBottom = 12;
+            var utilitiesCloud = WalletUiCommon.CreateButtonRow(8f, clearCacheBtn, resetNotificationsBtn, resetSettingsBtn, deleteEverythingButton);
             actionsContainer.Add(utilitiesCloud);
 
             ApplyDebugLayout();

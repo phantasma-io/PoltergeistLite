@@ -588,6 +588,66 @@ namespace Poltergeist.UiToolkit
             return wrapper;
         }
 
+        // Shared button row: always wraps on narrow widths, with uniform padding/spacing to keep layout consistent.
+        internal static VisualElement CreateButtonRow(params Button[] buttons)
+        {
+            return CreateButtonRow(8f, buttons);
+        }
+
+        internal static VisualElement CreateButtonRow(float spacing, params Button[] buttons)
+        {
+            var row = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                    alignSelf = Align.Center,
+                    marginTop = 0,
+                    marginBottom = 0,
+                    flexWrap = Wrap.Wrap,
+                    paddingLeft = 4,
+                    paddingRight = 4,
+                    paddingTop = 4,
+                    paddingBottom = 4
+                }
+            };
+            ApplyDefaultFont(row);
+
+            if (buttons != null && buttons.Length > 0)
+            {
+                var index = 0;
+                foreach (var button in buttons)
+                {
+                    if (button == null)
+                    {
+                        continue;
+                    }
+
+                    if (index > 0 && spacing > 0f)
+                    {
+                        button.style.marginLeft = spacing;
+                    }
+
+                    button.style.marginTop = 0;
+                    button.style.marginBottom = 4;
+                    button.style.alignSelf = Align.Center;
+                    var minHeight = button.style.minHeight;
+                    var currentMinHeight = minHeight.keyword == StyleKeyword.Undefined ? minHeight.value.value : 0f;
+                    if (currentMinHeight < 32f)
+                    {
+                        button.style.minHeight = 32;
+                    }
+
+                    row.Add(button);
+                    index++;
+                }
+            }
+
+            return row;
+        }
+
         internal static Button CreateFooterButton(string text, Action onClick)
         {
             var btn = new Button
