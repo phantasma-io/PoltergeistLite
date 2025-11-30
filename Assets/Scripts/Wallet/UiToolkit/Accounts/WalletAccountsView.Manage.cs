@@ -27,8 +27,12 @@ namespace Poltergeist.UiToolkit.Accounts
         private Button manageRenameButton;
         private Button manageMoveUpButton;
         private Button manageMoveDownButton;
+        private Button manageHideButton;
+        private Button manageUnhideButton;
         private Button manageDeleteButton;
         private List<Account> manageOriginalAccounts;
+        private HashSet<string> manageHiddenWorking;
+        private HashSet<string> manageOriginalHidden;
         private bool manageDirty;
         private readonly HashSet<string> manageSelection = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -172,9 +176,13 @@ namespace Poltergeist.UiToolkit.Accounts
             manageMoveUpButton = moveUpBtn;
             var moveDownBtn = WalletUiCommon.CreateSecondaryButton("Down", () => MoveSelectedAsync(1).Forget(ex => Log.WriteWarning($"{LogPrefix}Move down failed: {ex}")), 14, 32);
             manageMoveDownButton = moveDownBtn;
+            var hideBtn = WalletUiCommon.CreateSecondaryButton("Hide", () => ApplyHiddenSelection(true), 14, 32);
+            manageHideButton = hideBtn;
+            var unhideBtn = WalletUiCommon.CreateSecondaryButton("Unhide", () => ApplyHiddenSelection(false), 14, 32);
+            manageUnhideButton = unhideBtn;
             var deleteBtn = WalletUiCommon.CreateSecondaryButton("Delete", () => DeleteSelectedWalletsAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Delete failed: {ex}")), 14, 32);
             manageDeleteButton = deleteBtn;
-            manageActionsCloud = WalletUiFormFactory.CreateButtonCloud(renameBtn, moveUpBtn, moveDownBtn, deleteBtn);
+            manageActionsCloud = WalletUiFormFactory.CreateButtonCloud(renameBtn, moveUpBtn, moveDownBtn, hideBtn, unhideBtn, deleteBtn);
             manageActionsCloud.style.marginTop = 0;
             manageActionsCloud.style.marginBottom = 0;
             actionsContainer.Add(manageActionsCloud);
@@ -238,6 +246,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             ApplyDefaultFont(row);
+            var isHidden = manageHiddenWorking != null && manageHiddenWorking.Contains(account.phaAddress);
 
             var info = new VisualElement
             {
@@ -249,6 +258,10 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             ApplyDefaultFont(info);
+            if (isHidden)
+            {
+                row.style.opacity = 0.7f;
+            }
 
             var toggle = WalletUiFormFactory.CreateToggle(string.Empty, manageSelection.Contains(account.phaAddress), newValue =>
             {
@@ -269,20 +282,37 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 style =
                 {
-                    color = WalletUiTheme.TextPrimary,
+                    color = isHidden ? WalletUiTheme.TextMuted : WalletUiTheme.TextPrimary,
                     fontSize = 15,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     unityTextAlign = TextAnchor.MiddleLeft
                 }
             };
             ApplyDefaultFont(nameLabel);
-            info.Add(nameLabel);
+            var nameRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.FlexStart
+                }
+            };
+            ApplyDefaultFont(nameRow);
+            nameRow.Add(nameLabel);
+            if (isHidden)
+            {
+                var hiddenBadge = CreateHiddenBadge();
+                hiddenBadge.style.marginLeft = 8;
+                nameRow.Add(hiddenBadge);
+            }
+            info.Add(nameRow);
 
             var addressLabel = new Label(account.phaAddress)
             {
                 style =
                 {
-                    color = WalletUiTheme.TextSecondary,
+                    color = isHidden ? WalletUiTheme.TextMuted : WalletUiTheme.TextSecondary,
                     fontSize = 13,
                     unityTextAlign = TextAnchor.MiddleLeft,
                     whiteSpace = WhiteSpace.Normal
@@ -749,6 +779,60 @@ namespace Poltergeist.UiToolkit.Accounts
             await Task.CompletedTask;
         }
 
+        private void ApplyHiddenSelection(bool hide)
+        {
+            var am = AccountManager.Instance;
+            if (am?.Accounts == null)
+            {
+                UpdateManageStatus("Account list is not ready.");
+                return;
+            }
+
+            if (manageSelection.Count == 0)
+            {
+                UpdateManageStatus("Select wallets to hide or unhide.");
+                return;
+            }
+
+            manageHiddenWorking ??= CloneHiddenAddresses(am.HiddenPhantasmaAddresses) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var selectedAddresses = am.Accounts
+                .Where(x => manageSelection.Contains(x.phaAddress) && !string.IsNullOrWhiteSpace(x.phaAddress))
+                .Select(x => x.phaAddress)
+                .ToList();
+            if (selectedAddresses.Count == 0)
+            {
+                UpdateManageStatus("Selected wallet is not available.");
+                return;
+            }
+
+            var changed = 0;
+            foreach (var address in selectedAddresses)
+            {
+                var isHidden = manageHiddenWorking.Contains(address);
+                if (hide && !isHidden)
+                {
+                    manageHiddenWorking.Add(address);
+                    changed++;
+                }
+                else if (!hide && isHidden)
+                {
+                    manageHiddenWorking.Remove(address);
+                    changed++;
+                }
+            }
+
+            if (changed == 0)
+            {
+                UpdateManageStatus(hide ? "Selected wallets are already hidden." : "Selected wallets are already visible.");
+                return;
+            }
+
+            manageDirty = true;
+            RefreshManagePanel();
+            UpdateManageActionsState();
+            UpdateManageStatus($"{(hide ? "Hidden" : "Unhidden")} {changed} wallet(s).");
+        }
+
         private async Task DeleteSelectedWalletsAsync()
         {
             var am = AccountManager.Instance;
@@ -785,6 +869,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 var idx = am.Accounts.FindIndex(x => string.Equals(x.phaAddress, address, StringComparison.OrdinalIgnoreCase));
                 if (idx >= 0)
                 {
+                    manageHiddenWorking?.Remove(address);
                     am.Accounts.RemoveAt(idx);
                     removed++;
                 }
@@ -808,9 +893,12 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
+            am.ApplyHiddenWallets(manageHiddenWorking ?? CloneHiddenAddresses(am.HiddenPhantasmaAddresses) ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase), false);
             am.SaveAccounts();
             manageOriginalAccounts = CloneAccounts(am.Accounts);
-            manageDirty = manageOriginalAccounts == null;
+            manageOriginalHidden = CloneHiddenAddresses(am.HiddenPhantasmaAddresses);
+            manageHiddenWorking = CloneHiddenAddresses(am.HiddenPhantasmaAddresses);
+            manageDirty = manageOriginalAccounts == null || manageOriginalHidden == null || manageHiddenWorking == null;
             UpdateManageStatus("Changes saved.");
             SetStatus("Changes saved.");
             HideManagePanel();
@@ -837,6 +925,13 @@ namespace Poltergeist.UiToolkit.Accounts
             WalletUiCommon.SetButtonEnabledVisual(manageRenameButton, manageSelection.Count == 1, Color.white);
             WalletUiCommon.SetButtonEnabledVisual(manageMoveUpButton, hasSelection && indices.Min() > 0, Color.white);
             WalletUiCommon.SetButtonEnabledVisual(manageMoveDownButton, hasSelection && indices.Max() < total - 1, Color.white);
+            var hiddenSet = manageHiddenWorking ?? (am?.HiddenPhantasmaAddresses != null
+                ? new HashSet<string>(am.HiddenPhantasmaAddresses, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            var hiddenSelectionCount = hasSelection ? manageSelection.Count(addr => hiddenSet.Contains(addr)) : 0;
+            var visibleSelectionCount = hasSelection ? manageSelection.Count - hiddenSelectionCount : 0;
+            WalletUiCommon.SetButtonEnabledVisual(manageHideButton, hasSelection && visibleSelectionCount > 0, Color.white);
+            WalletUiCommon.SetButtonEnabledVisual(manageUnhideButton, hasSelection && hiddenSelectionCount > 0, Color.white);
             WalletUiCommon.SetButtonEnabledVisual(manageDeleteButton, hasSelection, Color.white);
         }
 
@@ -849,6 +944,41 @@ namespace Poltergeist.UiToolkit.Accounts
 
             manageStatusLabel.text = message ?? string.Empty;
             manageStatusLabel.style.display = string.IsNullOrWhiteSpace(message) ? DisplayStyle.None : DisplayStyle.Flex;
+        }
+
+        private Label CreateHiddenBadge()
+        {
+            // Small badge to make hidden wallets stand out without changing the row layout.
+            var badge = new Label("HIDDEN")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = 11,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    backgroundColor = WalletUiTheme.ScreenGlassStrong,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.HighlightEdge,
+                    borderRightColor = WalletUiTheme.HighlightEdge,
+                    borderTopColor = WalletUiTheme.HighlightEdge,
+                    borderBottomColor = WalletUiTheme.HighlightEdge,
+                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
+                    paddingLeft = 8,
+                    paddingRight = 8,
+                    paddingTop = 4,
+                    paddingBottom = 4,
+                    minHeight = 20
+                }
+            };
+            ApplyDefaultFont(badge);
+            return badge;
         }
 
         private List<Account> CloneAccounts(IReadOnlyCollection<Account> source)
@@ -866,6 +996,21 @@ namespace Poltergeist.UiToolkit.Accounts
             catch
             {
                 Log.WriteWarning($"{LogPrefix}Failed to clone accounts snapshot; revert will be unavailable for this session.");
+                return null;
+            }
+        }
+
+        private HashSet<string> CloneHiddenAddresses(IEnumerable<string> source)
+        {
+            try
+            {
+                return source == null
+                    ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                    : new HashSet<string>(source.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()), StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}Failed to clone hidden wallets snapshot: {e}");
                 return null;
             }
         }

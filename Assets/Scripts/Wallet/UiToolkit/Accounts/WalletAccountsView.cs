@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -63,6 +64,7 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             var am = AccountManager.Instance;
             list.Clear();
+            var isManageMode = manageRoot != null && manageRoot.style.display == DisplayStyle.Flex;
 
             subtitleLabel.text = "Wallet List";
             var headerSettings = AccountManager.Instance?.Settings;
@@ -79,7 +81,10 @@ namespace Poltergeist.UiToolkit.Accounts
             if (am == null || am.Accounts == null || am.Accounts.Count == 0)
             {
                 walletsLabel.text = "0 wallets";
-                SetStatus("No wallets found. Import or create one first.");
+                if (!isManageMode)
+                {
+                    SetStatus("No wallets found. Import or create one first.");
+                }
                 var empty = new Label("No wallets available.")
                 {
                     style =
@@ -95,8 +100,10 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
+            var hiddenSet = new HashSet<string>(am.HiddenPhantasmaAddresses ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            var hiddenCount = 0;
+            var visibleCount = 0;
             walletsLabel.text = $"{am.Accounts.Count} wallet(s)";
-            SetStatus(string.Empty);
             var settings = am.Settings;
             if (settings != null && header != null)
             {
@@ -109,7 +116,46 @@ namespace Poltergeist.UiToolkit.Accounts
 
             for (var i = 0; i < am.Accounts.Count; i++)
             {
-                list.Add(CreateRow(am.Accounts[i], i));
+                var account = am.Accounts[i];
+                if (!string.IsNullOrWhiteSpace(account.phaAddress) && hiddenSet.Contains(account.phaAddress))
+                {
+                    hiddenCount++;
+                    continue;
+                }
+
+                list.Add(CreateRow(account, i));
+                visibleCount++;
+            }
+
+            var hiddenSuffix = hiddenCount > 0 ? $" ({hiddenCount} hidden)" : string.Empty;
+            walletsLabel.text = $"{visibleCount} wallet(s){hiddenSuffix}";
+
+            if (visibleCount == 0)
+            {
+                var message = hiddenCount > 0 ? "All wallets are hidden. Use Wallet Management to show them." : "No wallets found. Import or create one first.";
+                if (!isManageMode)
+                {
+                    SetStatus(message);
+                }
+                var empty = new Label(hiddenCount > 0 ? "All wallets are hidden.\nUse Wallet Management to show them." : "No wallets available.")
+                {
+                    style =
+                    {
+                        color = WalletUiTheme.TextSecondary,
+                        unityTextAlign = TextAnchor.MiddleCenter,
+                        fontSize = 16,
+                        marginTop = 10,
+                        whiteSpace = WhiteSpace.Normal
+                    }
+                };
+                ApplyDefaultFont(empty);
+                list.Add(empty);
+                return;
+            }
+
+            if (!isManageMode)
+            {
+                SetStatus(hiddenCount > 0 ? "Some wallets are hidden in Wallet Management." : string.Empty);
             }
         }
 
@@ -569,9 +615,11 @@ namespace Poltergeist.UiToolkit.Accounts
             manageSelection.Clear();
             manageDirty = false;
             manageOriginalAccounts = CloneAccounts(AccountManager.Instance?.Accounts);
-            if (manageOriginalAccounts == null)
+            manageOriginalHidden = CloneHiddenAddresses(AccountManager.Instance?.HiddenPhantasmaAddresses);
+            manageHiddenWorking = CloneHiddenAddresses(AccountManager.Instance?.HiddenPhantasmaAddresses);
+            if (manageOriginalAccounts == null || manageOriginalHidden == null || manageHiddenWorking == null)
             {
-                Log.WriteWarning($"{LogPrefix}Cannot open wallet management: failed to snapshot accounts.");
+                Log.WriteWarning($"{LogPrefix}Cannot open wallet management: failed to snapshot accounts or hidden list.");
                 SetStatus("Cannot open wallet management right now. Please try again.");
                 return;
             }
@@ -603,12 +651,19 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 AccountManager.Instance.Accounts.Clear();
                 AccountManager.Instance.Accounts.AddRange(CloneAccounts(manageOriginalAccounts));
+                if (manageOriginalHidden != null)
+                {
+                    AccountManager.Instance.ApplyHiddenWallets(manageOriginalHidden, false);
+                    manageHiddenWorking = CloneHiddenAddresses(manageOriginalHidden);
+                }
                 manageDirty = false;
                 Refresh();
                 SetStatus("Changes discarded.");
             }
             manageSelection.Clear();
             UpdateManageStatus(string.Empty);
+            manageHiddenWorking = null;
+            manageOriginalHidden = null;
             if (manageRoot != null)
             {
                 manageRoot.style.display = DisplayStyle.None;

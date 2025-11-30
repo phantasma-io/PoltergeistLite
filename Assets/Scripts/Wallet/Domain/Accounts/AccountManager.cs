@@ -32,11 +32,14 @@ namespace Poltergeist
         public static readonly int MinAccountNameLength = 3;
         public static readonly int MaxAccountNameLength = 16;
         public string WalletIdentifier => "PGL" + UnityEngine.Application.version;
+        public const string HiddenWalletsTag = "wallet.hidden.phantasma";
 
         public Settings Settings { get; private set; }
 
         public List<Account> Accounts { get; private set; }
         public bool AccountsAreReadyToBeUsed = false;
+        private readonly HashSet<string> hiddenPhantasmaAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public IReadOnlyCollection<string> HiddenPhantasmaAddresses => hiddenPhantasmaAddresses;
 
         private Dictionary<string, decimal> _tokenPrices = new Dictionary<string, decimal>();
         public string CurrentTokenCurrency { get; private set; }
@@ -523,6 +526,7 @@ namespace Poltergeist
             }
 
             AccountsAreReadyToBeUsed = true;
+            LoadHiddenWallets();
 
             if (Settings.lastShownInformationScreen == 0)
             {
@@ -563,7 +567,111 @@ The Phoenix team", "Notice");
 
             var bytes = stream.ToArray();//Serialization.Serialize(Accounts.ToArray());
             PlayerPrefs.SetString(WalletTag, Base16.Encode(bytes));
+            PruneHiddenWallets();
+            SaveHiddenWalletsInternal(false);
             PlayerPrefs.Save();
+        }
+
+        public bool IsWalletHidden(string phaAddress)
+        {
+            if (string.IsNullOrWhiteSpace(phaAddress))
+            {
+                return false;
+            }
+
+            return hiddenPhantasmaAddresses.Contains(phaAddress.Trim());
+        }
+
+        public void ApplyHiddenWallets(IEnumerable<string> addresses, bool persistImmediately = true)
+        {
+            // Hidden wallets live in a separate list so UI can filter them out without mutating account data.
+            // Changes can be staged (persistImmediately=false) while the user is inside Wallet Management.
+            hiddenPhantasmaAddresses.Clear();
+            if (addresses != null)
+            {
+                foreach (var address in addresses)
+                {
+                    var normalized = address?.Trim();
+                    if (string.IsNullOrWhiteSpace(normalized))
+                    {
+                        continue;
+                    }
+
+                    hiddenPhantasmaAddresses.Add(normalized);
+                }
+            }
+
+            PruneHiddenWallets();
+            if (persistImmediately)
+            {
+                SaveHiddenWalletsInternal(true);
+            }
+        }
+
+        private void LoadHiddenWallets()
+        {
+            hiddenPhantasmaAddresses.Clear();
+            var serialized = PlayerPrefs.GetString(HiddenWalletsTag, string.Empty);
+            if (string.IsNullOrWhiteSpace(serialized))
+            {
+                return;
+            }
+
+            try
+            {
+                var bytes = Base16.Decode(serialized);
+                var addresses = Serialization.Unserialize<string[]>(bytes) ?? Array.Empty<string>();
+                foreach (var address in addresses)
+                {
+                    var normalized = address?.Trim();
+                    if (string.IsNullOrWhiteSpace(normalized))
+                    {
+                        continue;
+                    }
+
+                    hiddenPhantasmaAddresses.Add(normalized);
+                }
+
+                PruneHiddenWallets();
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"Failed to load hidden wallets: {e}");
+                hiddenPhantasmaAddresses.Clear();
+            }
+        }
+
+        private void SaveHiddenWalletsInternal(bool flush)
+        {
+            try
+            {
+                var bytes = Serialization.Serialize(hiddenPhantasmaAddresses.ToArray());
+                PlayerPrefs.SetString(HiddenWalletsTag, Base16.Encode(bytes));
+                if (flush)
+                {
+                    PlayerPrefs.Save();
+                }
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"Failed to save hidden wallets: {e}");
+            }
+        }
+
+        private void PruneHiddenWallets()
+        {
+            // Keep hidden flags in sync with the currently available wallets and avoid persisting stale entries
+            // for accounts that were removed during this session.
+            if (Accounts == null || Accounts.Count == 0)
+            {
+                hiddenPhantasmaAddresses.Clear();
+                return;
+            }
+
+            var known = new HashSet<string>(
+                Accounts.Where(x => !string.IsNullOrWhiteSpace(x.phaAddress)).Select(x => x.phaAddress),
+                StringComparer.OrdinalIgnoreCase);
+            hiddenPhantasmaAddresses.RemoveWhere(address => !known.Contains(address));
         }
 
         private async Task<TokenResult[]> GetTokensAsync(CancellationToken cancellationToken)
