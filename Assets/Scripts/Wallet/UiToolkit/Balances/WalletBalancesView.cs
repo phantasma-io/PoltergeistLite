@@ -426,25 +426,11 @@ namespace Poltergeist.UiToolkit.Balances
                     paddingTop = 16,
                     paddingBottom = 16,
                     marginBottom = 10,
-                    minHeight = 90,
-                    backgroundColor = WalletUiTheme.CardBackground,
-                    backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.HighlightEdge,
-                    borderBottomColor = WalletUiTheme.CardBorder
+                    minHeight = 90
                 }
             };
             ApplyDefaultFont(row);
+            WalletUiCommon.ApplyCardStyle(row, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusMedium);
 
             var accountManager = AccountManager.Instance;
             var isSoulMaster = WalletUiCommon.IsSoulMaster(accountManager);

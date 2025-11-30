@@ -139,26 +139,12 @@ namespace Poltergeist.UiToolkit.Balances
                     paddingTop = 12,
                     paddingBottom = 12,
                     marginBottom = 12,
-                    backgroundColor = WalletUiTheme.CardBackground,
-                    backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.HighlightEdge,
-                    borderBottomColor = WalletUiTheme.CardBorder,
                     overflow = Overflow.Hidden,
                     width = new Length(100, LengthUnit.Percent)
                 }
             };
             WalletUiCommon.ApplyDefaultFont(card);
+            WalletUiCommon.ApplyCardStyle(card, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusMedium);
 
             detailImage = new Image
             {
@@ -633,19 +619,15 @@ namespace Poltergeist.UiToolkit.Balances
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
                     justifyContent = Justify.SpaceBetween,
-                    backgroundColor = WalletUiTheme.CardBackground,
                     paddingLeft = 10,
                     paddingRight = 10,
                     paddingTop = 8,
                     paddingBottom = 8,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
                     marginBottom = 6
                 }
             };
             WalletUiCommon.ApplyDefaultFont(row);
+            WalletUiCommon.ApplyCardStyle(row, null, WalletUiTheme.RadiusSmall, WalletUiTheme.CardBackground, WalletUiTheme.CardBackground, WalletUiTheme.CardBackground, 0f);
 
             var left = new Label($"{amount} {symbol}")
             {
@@ -728,23 +710,11 @@ namespace Poltergeist.UiToolkit.Balances
                     paddingRight = 10,
                     paddingTop = 8,
                     paddingBottom = 8,
-                    marginBottom = 8,
-                    backgroundColor = WalletUiTheme.CardBackground,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.HighlightEdge,
-                    borderBottomColor = WalletUiTheme.CardBorder
+                    marginBottom = 8
                 }
             };
             WalletUiCommon.ApplyDefaultFont(card);
+            WalletUiCommon.ApplyCardStyle(card, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusMedium);
 
             var image = new Image
             {
@@ -883,11 +853,6 @@ namespace Poltergeist.UiToolkit.Balances
                 style =
                 {
                     flexDirection = FlexDirection.Column,
-                    backgroundColor = WalletUiTheme.CardBackground,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
                     paddingLeft = 10,
                     paddingRight = 10,
                     paddingTop = 8,
@@ -900,6 +865,7 @@ namespace Poltergeist.UiToolkit.Balances
                 }
             };
             WalletUiCommon.ApplyDefaultFont(chip);
+            WalletUiCommon.ApplyCardStyle(chip, null, WalletUiTheme.RadiusSmall, WalletUiTheme.CardBackground, WalletUiTheme.CardBackground, WalletUiTheme.CardBackground, 0f);
 
             var labelEl = new Label(label)
             {

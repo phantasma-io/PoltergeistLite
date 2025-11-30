@@ -356,24 +356,11 @@ namespace Poltergeist.UiToolkit.Settings
                     minHeight = 520,
                     flexGrow = 0,
                     flexShrink = 0,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    backgroundImage = new StyleBackground(WalletUiTheme.GetPanelGradientTexture()),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
-                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
-                    borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.HighlightEdge,
-                    borderBottomColor = WalletUiTheme.CardBorder
+                    backgroundColor = WalletUiTheme.PanelBackground
                 }
             };
             WalletUiCommon.ApplyDefaultFont(tabContent);
+            WalletUiCommon.ApplyCardStyle(tabContent, WalletUiTheme.GetPanelGradientTexture(), WalletUiTheme.RadiusMedium, WalletUiTheme.PanelBackground, WalletUiTheme.CardBorder, WalletUiTheme.HighlightEdge);
 
             generalSection = WalletUiFormFactory.CreateFormSection(string.Empty);
             currencyDropdown = WalletUiFormFactory.CreateDropdown("Currency", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetCurrencyIndex(idx)));
@@ -677,7 +664,6 @@ namespace Poltergeist.UiToolkit.Settings
                     text = label,
                     style =
                 {
-                    backgroundColor = WalletUiTheme.CardBackground,
                     color = WalletUiTheme.TextPrimary,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     fontSize = 15,
@@ -687,21 +673,10 @@ namespace Poltergeist.UiToolkit.Settings
                     paddingBottom = 8,
                     minHeight = 36,
                     marginRight = 8,
-                        borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                        borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                        borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                        borderBottomRightRadius = WalletUiTheme.RadiusSmall,
-                        borderLeftWidth = 1,
-                        borderRightWidth = 1,
-                        borderTopWidth = 1,
-                        borderBottomWidth = 1,
-                        borderLeftColor = WalletUiTheme.CardBorder,
-                        borderRightColor = WalletUiTheme.CardBorder,
-                        borderTopColor = WalletUiTheme.HighlightEdge,
-                        borderBottomColor = WalletUiTheme.CardBorder
                     }
                 };
                 WalletUiCommon.ApplyDefaultFont(btn);
+                WalletUiCommon.ApplyCardStyle(btn, null, WalletUiTheme.RadiusSmall);
                 btn.focusable = false;
                 btn.tabIndex = -1;
                 btn.pickingMode = PickingMode.Position;

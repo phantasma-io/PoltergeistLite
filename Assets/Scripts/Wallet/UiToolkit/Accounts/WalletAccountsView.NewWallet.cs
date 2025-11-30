@@ -248,24 +248,11 @@ namespace Poltergeist.UiToolkit.Accounts
                     paddingRight = 12,
                     paddingTop = 10,
                     paddingBottom = 10,
-                    backgroundColor = WalletUiTheme.CardBackground,
-                    backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
-                    borderLeftWidth = 1,
-                    borderRightWidth = 1,
-                    borderTopWidth = 1,
-                    borderBottomWidth = 1,
-                    borderLeftColor = WalletUiTheme.CardBorder,
-                    borderRightColor = WalletUiTheme.CardBorder,
-                    borderTopColor = WalletUiTheme.HighlightEdge,
-                    borderBottomColor = WalletUiTheme.CardBorder,
                     minWidth = 180
                 }
             };
             ApplyDefaultFont(container);
+            WalletUiCommon.ApplyCardStyle(container, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusSmall);
 
             var indexLabel = new Label($"{index + 1:00}")
             {

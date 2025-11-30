@@ -331,9 +331,7 @@ namespace Poltergeist.UiToolkit
             root.style.minWidth = 0;
             root.style.alignItems = Align.Stretch;
             root.style.overflow = Overflow.Hidden;
-            root.style.backgroundColor = WalletUiTheme.ScreenBackground;
-            root.style.backgroundImage = new StyleBackground(WalletUiTheme.GetScreenGradientTexture());
-            root.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
+            WalletUiCommon.ApplyCardStyle(root, WalletUiTheme.GetScreenGradientTexture(), 0f, WalletUiTheme.ScreenBackground, WalletUiTheme.ScreenBackground, WalletUiTheme.ScreenBackground, 0f);
 
             accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = Color.clear } };
             balancesRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.None, backgroundColor = Color.clear } };

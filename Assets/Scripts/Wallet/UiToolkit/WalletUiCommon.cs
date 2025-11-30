@@ -42,7 +42,6 @@ namespace Poltergeist.UiToolkit
                     justifyContent = Justify.Center,
                     position = Position.Relative,
                     backgroundImage = new StyleBackground(),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
                     borderTopColor = WalletUiTheme.HeaderBorder,
                     borderBottomColor = WalletUiTheme.HeaderBorder,
                     borderLeftColor = WalletUiTheme.HeaderBorder,
@@ -570,7 +569,6 @@ namespace Poltergeist.UiToolkit
             // margins/max-width live on the wrapper. This mirrors the Settings layout that does not
             // resize during scroll, and keeps the same code working on desktop and mobile.
             scrollView.style.backgroundImage = new StyleBackground();
-            scrollView.style.unityBackgroundScaleMode = ScaleMode.StretchToFill;
             scrollView.style.borderTopLeftRadius = 0;
             scrollView.style.borderTopRightRadius = 0;
             scrollView.style.borderBottomLeftRadius = 0;
@@ -1179,6 +1177,62 @@ namespace Poltergeist.UiToolkit
             return Application.version;
         }
 
+        // Applies a full-size background image without tiling to replace deprecated unityBackgroundScaleMode usage.
+        internal static void ApplyBackgroundFill(VisualElement element, StyleBackground background)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            element.style.backgroundImage = background;
+            element.style.backgroundRepeat = new BackgroundRepeat(Repeat.NoRepeat, Repeat.NoRepeat);
+            element.style.backgroundPositionX = new BackgroundPosition(BackgroundPositionKeyword.Center);
+            element.style.backgroundPositionY = new BackgroundPosition(BackgroundPositionKeyword.Center);
+            element.style.backgroundSize = new BackgroundSize(new Length(100, LengthUnit.Percent), new Length(100, LengthUnit.Percent));
+        }
+
+        // Shared card styling (background + borders) to avoid duplicating radius/border settings across screens.
+        internal static void ApplyCardStyle(
+            VisualElement element,
+            Texture2D backgroundTexture,
+            float radius = -1f,
+            Color? backgroundColor = null,
+            Color? borderColor = null,
+            Color? topBorderColor = null,
+            float borderWidth = 1f)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            var radiusValue = radius < 0f ? WalletUiTheme.RadiusMedium : radius;
+            element.style.backgroundColor = backgroundColor ?? WalletUiTheme.CardBackground;
+            if (backgroundTexture != null)
+            {
+                ApplyBackgroundFill(element, new StyleBackground(backgroundTexture));
+            }
+
+            element.style.borderTopLeftRadius = radiusValue;
+            element.style.borderTopRightRadius = radiusValue;
+            element.style.borderBottomLeftRadius = radiusValue;
+            element.style.borderBottomRightRadius = radiusValue;
+
+            var sideColor = borderColor ?? WalletUiTheme.CardBorder;
+            var topColor = topBorderColor ?? WalletUiTheme.HighlightEdge;
+
+            element.style.borderLeftColor = sideColor;
+            element.style.borderRightColor = sideColor;
+            element.style.borderBottomColor = sideColor;
+            element.style.borderTopColor = topColor;
+
+            element.style.borderLeftWidth = borderWidth;
+            element.style.borderRightWidth = borderWidth;
+            element.style.borderTopWidth = borderWidth;
+            element.style.borderBottomWidth = borderWidth;
+        }
+
         internal static string BuildNetworkLabel(NexusKind kind)
         {
             switch (kind)
@@ -1262,9 +1316,6 @@ namespace Poltergeist.UiToolkit
                 {
                     width = width,
                     maxWidth = maxWidth,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    backgroundImage = new StyleBackground(WalletUiTheme.GetPanelGradientTexture()),
-                    unityBackgroundScaleMode = ScaleMode.StretchToFill,
                     paddingLeft = 22,
                     paddingRight = 22,
                     paddingTop = 18,
@@ -1286,6 +1337,7 @@ namespace Poltergeist.UiToolkit
                 }
             };
             ApplyDefaultFont(panel);
+            ApplyCardStyle(panel, WalletUiTheme.GetPanelGradientTexture(), WalletUiTheme.RadiusLarge, WalletUiTheme.PanelBackground, WalletUiTheme.CardBorder, WalletUiTheme.HighlightEdge);
             return panel;
         }
 
