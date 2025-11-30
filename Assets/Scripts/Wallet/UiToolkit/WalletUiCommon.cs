@@ -199,7 +199,7 @@ namespace Poltergeist.UiToolkit
         }
 
         // Shared header + subheader block so all screens stay consistent; callers can tweak margins for edge cases.
-        internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 12f, float subHeaderMarginTop = 8f, float subHeaderMarginBottom = 10f)
+        internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, VisualElement middleContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 12f, float subHeaderMarginTop = 8f, float subHeaderMarginBottom = 10f)
         {
             var container = new VisualElement
             {
@@ -217,6 +217,13 @@ namespace Poltergeist.UiToolkit
             header.Root.style.width = new Length(100, LengthUnit.Percent);
             header.Root.style.alignSelf = Align.Stretch;
             container.Add(header.Root);
+
+            if (middleContent != null)
+            {
+                ApplyDefaultFont(middleContent);
+                middleContent.style.alignSelf = Align.Center;
+                container.Add(middleContent);
+            }
 
             var subHeader = BuildSubHeader(subHeaderSubtitle, subHeaderLeft);
             subHeader.Root.style.marginTop = subHeaderMarginTop;

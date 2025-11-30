@@ -15,6 +15,7 @@ using PhantasmaPhoenix.VM;
 using Poltergeist;
 using Poltergeist.UiToolkit;
 using Poltergeist.Wallet;
+using Poltergeist.Build;
 
 namespace Poltergeist.UiToolkit.Settings
 {
@@ -43,6 +44,7 @@ namespace Poltergeist.UiToolkit.Settings
         private HeaderBlockElements headerBlock;
         private HeaderElements header;
         private SubHeaderElements subHeader;
+        private Label buildInfoLabel;
 
         // Controls for refresh/update
         private PopupField<string> currencyDropdown;
@@ -212,6 +214,19 @@ namespace Poltergeist.UiToolkit.Settings
             WalletUiCommon.ApplyDefaultFont(root);
             tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
+            buildInfoLabel = new Label($"Version was built on: {Info.Instance.BuildTime} UTC")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 14,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    marginBottom = 12,
+                    marginTop = -22
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(buildInfoLabel);
+
             var content = new VisualElement
             {
                 style =
@@ -232,7 +247,7 @@ namespace Poltergeist.UiToolkit.Settings
             };
             WalletUiCommon.ApplyDefaultFont(content);
 
-            headerBlock = WalletUiCommon.BuildHeaderBlock("Settings", "Settings", headerMarginBottom: 10f, subHeaderMarginTop: 12f, subHeaderMarginBottom: 6f);
+            headerBlock = WalletUiCommon.BuildHeaderBlock("Settings", "Settings", headerMarginBottom: 8f, subHeaderMarginTop: 6f, subHeaderMarginBottom: 8f, middleContent: buildInfoLabel);
             header = headerBlock.Header;
             subHeader = headerBlock.SubHeader;
             headerBlock.Root.style.flexShrink = 0;
