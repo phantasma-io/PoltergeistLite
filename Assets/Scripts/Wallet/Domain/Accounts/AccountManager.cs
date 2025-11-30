@@ -1181,6 +1181,8 @@ The Phoenix team", "Notice");
 
             CurrentPlatform = platforms.FirstOrDefault();
             _states.Clear();
+            _history.Clear(); // Drop cached history so a newly selected wallet never shows transactions from a previous session.
+            _refreshStatus.Clear(); // Reset refresh flags/errors to avoid carrying over stale state between wallets.
 
             accountBalanceNotLoaded = true;
             accountHistoryNotLoaded = true;
@@ -1205,6 +1207,7 @@ The Phoenix team", "Notice");
             _states.Clear();
             _nfts.Clear();
             _roms.Clear();
+            _history.Clear(); // Ensure no history entries leak into the next wallet session.
             TtrsStore.Clear();
             GameStore.Clear();
             NftImages.Clear();
@@ -1291,7 +1294,11 @@ The Phoenix team", "Notice");
             {
                 lock (_refreshStatus)
                 {
-                    var refreshStatus = _refreshStatus[platform];
+                    if (!_refreshStatus.TryGetValue(platform, out var refreshStatus))
+                    {
+                        refreshStatus = new RefreshStatus();
+                        Log.Write($"[History] ReportWalletHistory: created missing RefreshStatus for {platform}");
+                    }
                     refreshStatus.HistoryRefreshing = false;
                     _refreshStatus[platform] = refreshStatus;
                 }
@@ -1897,6 +1904,8 @@ The Phoenix team", "Notice");
                     return;
                 }
 
+                var accountName = string.IsNullOrEmpty(currentAccount.name) ? "(unknown)" : currentAccount.name;
+                Log.Write($"[History] RefreshHistory start force={force} currentAccount={accountName} currentPlatform={CurrentPlatform} platformsArg={platforms}");
                 List<PlatformKind> platformsList;
                 if (platforms == PlatformKind.None)
                     platformsList = CurrentAccount.platforms.Split();
@@ -1936,6 +1945,7 @@ The Phoenix team", "Notice");
                 }
 
                 var wif = this.CurrentWif;
+                accountHistoryNotLoaded = false; // First refresh attempt for this wallet has been triggered.
 
                 var keys = PhantasmaKeys.FromWIF(wif);
                 try
@@ -1957,6 +1967,8 @@ The Phoenix team", "Notice");
                         });
                     }
 
+                    var platformsLabel = string.Join(",", platformsList);
+                    Log.Write($"[History] RefreshHistory success txCount={history.Count} platforms={platformsLabel}");
                     ReportWalletHistory(PlatformKind.Phantasma, history);
                 }
                 catch (PhantasmaRequestException ex)
@@ -1965,6 +1977,13 @@ The Phoenix team", "Notice");
                     {
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
                     }
+                    Log.WriteWarning($"[History] RefreshHistory failed (SDK) {ex.ErrorType}: {ex.Message}");
+                    ReportWalletHistory(PlatformKind.Phantasma, null);
+                }
+                catch (Exception ex)
+                {
+                    // Ensure UI does not stay stuck in a perpetual refresh state on unexpected failures.
+                    Log.WriteWarning($"RefreshHistory[PHA] unexpected error: {ex}");
                     ReportWalletHistory(PlatformKind.Phantasma, null);
                 }
             }

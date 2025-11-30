@@ -284,49 +284,30 @@ namespace Poltergeist.UiToolkit.History
                     return;
                 }
 
-                var historyMissing = accountManager.CurrentHistory == null || accountManager.CurrentHistory.Length == 0;
-                if (!accountManager.HistoryRefreshing && historyMissing)
+                // Only trigger refresh when there is no history data at all; empty histories should be rendered as 0 transactions instead of looping.
+                var historyMissing = accountManager.CurrentHistory == null;
+                if (!accountManager.HistoryRefreshing && historyMissing && accountManager.accountHistoryNotLoaded)
                 {
+                    accountManager.accountHistoryNotLoaded = false;
+                    context.ViewState.MarkHistoryDirty();
                     presenter.Refresh(true);
+                    listView.Clear();
                     SetStatus("Fetching history...");
                     summaryLabel.text = string.Empty;
                     return;
                 }
 
                 var snapshot = context.ViewState.GetHistorySnapshot(() => presenter.BuildSnapshot());
+                Log.Write($"{LogPrefix}History snapshot: refreshing={snapshot.IsRefreshing} hasError={snapshot.HasError} entries={snapshot.Entries?.Count ?? -1} currentPlatform={accountManager.CurrentPlatform} viewPlatform={snapshot.Platform} statusLabel='{statusLabel?.text}'");
                 UpdateContextLabels(accountManager, snapshot);
-
-                // If we have no history yet and nothing is refreshing, kick off a fetch.
-                if (!snapshot.IsRefreshing && (snapshot.Entries == null || snapshot.Entries.Count == 0) && string.IsNullOrEmpty(snapshot.ErrorMessage))
-                {
-                    context.ViewState.MarkHistoryDirty();
-                    presenter.Refresh(true);
-                    SetStatus("Fetching history...");
-                    summaryLabel.text = string.Empty;
-                    return;
-                }
-
                 listView.Clear();
 
-                if (snapshot.IsRefreshing)
+                // If history is empty and we are not refreshing, show empty state instead of looping refreshes.
+                if (!snapshot.IsRefreshing && (snapshot.Entries == null || snapshot.Entries.Count == 0) && string.IsNullOrEmpty(snapshot.ErrorMessage))
                 {
-                    SetStatus("Fetching history...");
-                    summaryLabel.text = string.Empty;
-                    return;
-                }
-
-                if (snapshot.HasError)
-                {
-                    SetStatus(snapshot.ErrorMessage);
-                    summaryLabel.text = string.Empty;
-                    return;
-                }
-
-                if (snapshot.Entries == null || snapshot.Entries.Count == 0)
-                {
-                    SetStatus($"No transactions found for this {snapshot.Platform} account.");
+                    SetStatus(string.Empty);
                     summaryLabel.text = "0 transactions";
-                    listView.Add(new Label(statusLabel.text)
+                    listView.Add(new Label($"No transactions found for this {snapshot.Platform} account.")
                     {
                         style =
                         {
@@ -336,6 +317,23 @@ namespace Poltergeist.UiToolkit.History
                             color = WalletUiTheme.TextSecondary
                         }
                     });
+                    Log.Write($"{LogPrefix}History empty for account '{snapshot.AccountName}' platform={snapshot.Platform} (no refresh loop).");
+                    return;
+                }
+
+                if (snapshot.IsRefreshing)
+                {
+                    SetStatus("Fetching history...");
+                    summaryLabel.text = string.Empty;
+                    Log.Write($"{LogPrefix}History still refreshing; waiting for update.");
+                    return;
+                }
+
+                if (snapshot.HasError)
+                {
+                    SetStatus(snapshot.ErrorMessage);
+                    summaryLabel.text = string.Empty;
+                    Log.Write($"{LogPrefix}History error: {snapshot.ErrorMessage}");
                     return;
                 }
 
