@@ -389,7 +389,6 @@ namespace Poltergeist.UiToolkit.Settings
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log level", logLevelDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("UI Theme", uiThemeDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log folder path", logFolderPathField, "Leave empty to use default log location"));
-            AddTabSection("general", "General", generalSection);
 
             endpointsSection = WalletUiFormFactory.CreateFormSection(string.Empty);
             nexusDropdown = WalletUiFormFactory.CreateDropdown("Nexus", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetNexusIndex(idx), true));
@@ -422,7 +421,10 @@ namespace Poltergeist.UiToolkit.Settings
             endpointsSection.Add(poaUrlRow);
             endpointsSection.Add(nexusNameRow);
             endpointsSection.Add(defaultEndpointInfoLabel);
+
+            // Chain first, then General to match requested order.
             AddTabSection("chain", "Chain", endpointsSection);
+            AddTabSection("general", "General", generalSection);
 
             feesSection = WalletUiFormFactory.CreateFormSection(string.Empty);
             feePriceField = WalletUiFormFactory.CreateTextField("Phantasma fee price", string.Empty, value => OnChanged(() => presenter.SetFeePrice(value)));
