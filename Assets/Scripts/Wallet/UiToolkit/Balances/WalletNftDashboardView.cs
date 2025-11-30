@@ -265,29 +265,7 @@ namespace Poltergeist.UiToolkit.Balances
             headerBlock.Root.style.flexShrink = 0;
             content.Add(headerBlock.Root);
 
-            statusLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 14,
-                    color = WalletUiTheme.TextSecondary,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginBottom = 10,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 4,
-                    paddingBottom = 4,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
-                    minHeight = 24
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(statusLabel);
-            statusLabel.style.display = DisplayStyle.None;
+            statusLabel = WalletUiCommon.CreateStatusLabel();
             content.Add(statusLabel);
 
             listContainer = new VisualElement
@@ -1824,8 +1802,7 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void SetStatus(string text)
         {
-            statusLabel.text = text ?? string.Empty;
-            statusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
         }
 
         private void UpdateNavSelection()

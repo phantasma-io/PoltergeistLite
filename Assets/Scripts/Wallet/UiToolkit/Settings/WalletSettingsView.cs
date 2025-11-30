@@ -253,6 +253,12 @@ namespace Poltergeist.UiToolkit.Settings
             headerBlock.Root.style.flexShrink = 0;
             content.Add(headerBlock.Root);
 
+            statusLabel = WalletUiCommon.CreateStatusLabel();
+            statusLabel.style.alignSelf = Align.Center;
+            statusLabel.style.width = new Length(100, LengthUnit.Percent);
+            statusLabel.style.maxWidth = 1680;
+            content.Add(statusLabel);
+
             bodyContainer = new VisualElement
             {
                 style =
@@ -308,35 +314,6 @@ namespace Poltergeist.UiToolkit.Settings
                 bodyContainer.Add(actionsContainer);
             }
             content.Add(bodyContainer);
-
-            statusLabel = new Label
-            {
-                text = string.Empty,
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 14,
-                    marginTop = 4,
-                    marginBottom = 6,
-                    color = WalletUiTheme.TextSecondary,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    alignSelf = Align.Center,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 4,
-                    paddingBottom = 4,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    minHeight = 24
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(statusLabel);
-            statusLabel.style.visibility = Visibility.Hidden;
-            statusLabel.style.flexShrink = 0;
-            content.Add(statusLabel);
 
             content.Add(BuildSettingsFooter());
 
@@ -1360,8 +1337,7 @@ namespace Poltergeist.UiToolkit.Settings
 
         private void SetStatus(string text, bool isError = false)
         {
-            statusLabel.text = string.IsNullOrWhiteSpace(text) ? string.Empty : text;
-            statusLabel.style.visibility = string.IsNullOrWhiteSpace(text) ? Visibility.Hidden : Visibility.Visible;
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
             statusLabel.style.color = isError ? Color.red : WalletUiTheme.TextSecondary;
         }
 

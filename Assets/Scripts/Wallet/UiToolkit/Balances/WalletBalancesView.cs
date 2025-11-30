@@ -138,33 +138,7 @@ namespace Poltergeist.UiToolkit.Balances
             headerButtons.Add(explorerHeaderBtn);
             content.Add(headerButtons);
 
-            statusLabel = new Label
-            {
-                text = "Initializing wallet UI...",
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 14,
-                    marginTop = 0,
-                    marginBottom = 0,
-                    color = WalletUiTheme.TextSecondary,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    alignSelf = Align.Center,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 4,
-                    paddingBottom = 4,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    minHeight = 24
-                }
-            };
-            ApplyDefaultFont(statusLabel);
-            statusLabel.style.visibility = Visibility.Hidden;
-            statusLabel.style.flexShrink = 0;
+            statusLabel = WalletUiCommon.CreateStatusLabel();
             content.Add(statusLabel);
 
             var listWrapper = WalletUiCommon.BuildScrollContainer(
@@ -266,13 +240,7 @@ namespace Poltergeist.UiToolkit.Balances
         private void SetStatus(string text)
         {
             // Keep a tiny reserved strip and toggle visibility instead of display so the list top never jumps when switching tabs.
-            var hasText = !string.IsNullOrEmpty(text);
-            statusLabel.style.marginTop = hasText ? 6 : 0;
-            statusLabel.style.marginBottom = hasText ? 10 : 0;
-            statusLabel.style.minHeight = hasText ? 24 : 0;
-            statusLabel.text = text ?? string.Empty;
-            statusLabel.style.visibility = hasText ? Visibility.Visible : Visibility.Hidden;
-            statusLabel.style.display = DisplayStyle.Flex;
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
         }
 
         private void RefreshView()
@@ -700,4 +668,3 @@ namespace Poltergeist.UiToolkit.Balances
         }
     }
 }
-

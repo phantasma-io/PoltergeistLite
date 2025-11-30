@@ -105,21 +105,9 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(panel);
 
-            manageStatusLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    color = WalletUiTheme.TextSecondary,
-                    fontSize = 13,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginBottom = 6,
-                    display = DisplayStyle.None,
-                    alignSelf = Align.Center,
-                    width = new Length(100, LengthUnit.Percent),
-                    maxWidth = 1680
-                }
-            };
-            ApplyDefaultFont(manageStatusLabel);
+            manageStatusLabel = WalletUiCommon.CreateStatusLabel(TextAnchor.MiddleCenter, Align.Center);
+            manageStatusLabel.style.width = new Length(100, LengthUnit.Percent);
+            manageStatusLabel.style.maxWidth = 1680;
 
             var caption = new Label("Rename, reorder, import/export or delete wallets on this device.")
             {
@@ -959,8 +947,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            manageStatusLabel.text = message ?? string.Empty;
-            manageStatusLabel.style.display = string.IsNullOrWhiteSpace(message) ? DisplayStyle.None : DisplayStyle.Flex;
+            WalletUiCommon.UpdateStatusLabel(manageStatusLabel, message);
         }
 
         private Label CreateHiddenBadge()

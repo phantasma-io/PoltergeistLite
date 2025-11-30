@@ -223,19 +223,7 @@ namespace Poltergeist.UiToolkit.Accounts
             subHeader.Root.style.marginBottom = 6;
             subHeader.Root.style.flexShrink = 0;
 
-            statusLabel = new Label(string.Empty)
-            {
-                style =
-                {
-                    fontSize = 13,
-                    color = WalletUiTheme.TextSecondary,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                    marginBottom = 8
-                }
-            };
-            ApplyDefaultFont(statusLabel);
-            statusLabel.style.display = DisplayStyle.None;
+            statusLabel = WalletUiCommon.CreateStatusLabel();
             statusLabel.style.flexShrink = 0;
 
             listWrapper = WalletUiCommon.BuildScrollContainer(
@@ -629,8 +617,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
             if (statusLabel != null)
             {
-                statusLabel.text = string.Empty;
-                statusLabel.style.display = DisplayStyle.None;
+                WalletUiCommon.UpdateStatusLabel(statusLabel, string.Empty);
             }
             if (listWrapper != null)
             {
@@ -689,13 +676,11 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             if (manageRoot != null && manageRoot.style.display == DisplayStyle.Flex && manageStatusLabel != null)
             {
-                manageStatusLabel.text = text ?? string.Empty;
-                manageStatusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+                WalletUiCommon.UpdateStatusLabel(manageStatusLabel, text);
                 return;
             }
 
-            statusLabel.text = text ?? string.Empty;
-            statusLabel.style.display = string.IsNullOrEmpty(text) ? DisplayStyle.None : DisplayStyle.Flex;
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
         }
 
         private void ApplyDefaultFont(VisualElement element)

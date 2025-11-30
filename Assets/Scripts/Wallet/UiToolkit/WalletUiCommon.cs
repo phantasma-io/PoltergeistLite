@@ -198,6 +198,55 @@ namespace Poltergeist.UiToolkit
             return new SubHeaderElements(row, leftLabel, subtitle, network);
         }
 
+        // Shared status strip builder to keep status messages visually consistent across screens.
+        internal static Label CreateStatusLabel(TextAnchor alignment = TextAnchor.MiddleCenter, Align alignSelf = Align.Stretch)
+        {
+            var statusLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 14,
+                    color = WalletUiTheme.TextSecondary,
+                    unityTextAlign = alignment,
+                    alignSelf = alignSelf,
+                    paddingLeft = 8,
+                    paddingRight = 8,
+                    paddingTop = 4,
+                    paddingBottom = 4,
+                    backgroundColor = WalletUiTheme.PanelBackground,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
+                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
+                    minHeight = 24,
+                    marginTop = 0,
+                    marginBottom = 0
+                }
+            };
+            ApplyDefaultFont(statusLabel);
+            statusLabel.style.visibility = Visibility.Hidden;
+            statusLabel.style.display = DisplayStyle.Flex;
+            statusLabel.style.flexShrink = 0;
+            return statusLabel;
+        }
+
+        internal static void UpdateStatusLabel(Label label, string text, float marginTopWhenVisible = 6f, float marginBottomWhenVisible = 10f)
+        {
+            if (label == null)
+            {
+                return;
+            }
+
+            var hasText = !string.IsNullOrWhiteSpace(text);
+            label.text = hasText ? text : string.Empty;
+            label.style.visibility = hasText ? Visibility.Visible : Visibility.Hidden;
+            label.style.display = DisplayStyle.Flex;
+            label.style.marginTop = hasText ? marginTopWhenVisible : 0f;
+            label.style.marginBottom = hasText ? marginBottomWhenVisible : 0f;
+            label.style.minHeight = hasText ? 24f : 0f;
+        }
+
         // Shared header + subheader block so all screens stay consistent; callers can tweak margins for edge cases.
         internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, VisualElement middleContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 12f, float subHeaderMarginTop = 8f, float subHeaderMarginBottom = 10f)
         {

@@ -192,6 +192,12 @@ namespace Poltergeist.UiToolkit.Accounts
             accountInfo.Root.style.alignSelf = Align.Center;
             content.Add(accountInfo.Root);
 
+            statusLabel = WalletUiCommon.CreateStatusLabel();
+            statusLabel.style.alignSelf = Align.Center;
+            statusLabel.style.width = new Length(100, LengthUnit.Percent);
+            statusLabel.style.maxWidth = 1680;
+            content.Add(statusLabel);
+
             var explorerRow = new VisualElement
             {
                 style =
@@ -294,34 +300,6 @@ namespace Poltergeist.UiToolkit.Accounts
             content.Add(actionCloud);
 
             actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn });
-
-            statusLabel = new Label
-            {
-                text = "Initializing account view...",
-                style =
-                {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 14,
-                    marginTop = 2,
-                    marginBottom = 6,
-                    color = WalletUiTheme.TextSecondary,
-                    unityTextAlign = TextAnchor.MiddleCenter,
-                    alignSelf = Align.Center,
-                    paddingLeft = 8,
-                    paddingRight = 8,
-                    paddingTop = 4,
-                    paddingBottom = 4,
-                    backgroundColor = WalletUiTheme.PanelBackground,
-                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
-                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
-                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    minHeight = 24
-                }
-            };
-            ApplyDefaultFont(statusLabel);
-            statusLabel.style.visibility = Visibility.Hidden;
-            content.Add(statusLabel);
 
             var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
             content.Add(footer);
@@ -1145,8 +1123,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void SetStatus(string text)
         {
-            statusLabel.text = string.IsNullOrWhiteSpace(text) ? string.Empty : text;
-            statusLabel.style.visibility = string.IsNullOrWhiteSpace(text) ? Visibility.Hidden : Visibility.Visible;
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
         }
 
         private void UpdateNavSelection()
