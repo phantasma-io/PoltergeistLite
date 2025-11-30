@@ -552,18 +552,7 @@ namespace Poltergeist.UiToolkit.Balances
                 row.Add(textBlockSM);
             }
 
-            var spacer = new VisualElement
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 0,
-                    alignSelf = Align.Stretch
-                }
-            };
-            row.Add(spacer);
+            row.Add(new HSpacer());
 
             if (onShowToken != null)
             {

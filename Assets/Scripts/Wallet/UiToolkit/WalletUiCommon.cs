@@ -1224,6 +1224,33 @@ namespace Poltergeist.UiToolkit
         }
     }
 
+    /// <summary>
+    /// Flexible spacer for horizontal rows to push trailing content without repeating raw VisualElement setup.
+    /// </summary>
+    internal sealed class HSpacer : VisualElement
+    {
+        internal HSpacer()
+        {
+            style.flexGrow = 1;
+            style.flexShrink = 1;
+            style.flexBasis = 0;
+            style.minHeight = 0;
+            style.alignSelf = Align.Stretch;
+        }
+    }
+
+    /// <summary>
+    /// Flexible spacer for vertical column layouts to occupy remaining space cleanly.
+    /// </summary>
+    internal sealed class VSpacer : VisualElement
+    {
+        internal VSpacer()
+        {
+            style.flexGrow = 1;
+            style.minHeight = 0;
+        }
+    }
+
     internal sealed class HeaderElements
     {
         internal HeaderElements(VisualElement root, Label subtitleLabel, Label networkLabel)

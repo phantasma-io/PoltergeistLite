@@ -280,8 +280,7 @@ namespace Poltergeist.UiToolkit.Accounts
             actionsRow.Add(exportHexBtn);
             content.Add(actionsRow);
 
-            var spacer = new VisualElement { style = { flexGrow = 1, minHeight = 0 } };
-            content.Add(spacer);
+            content.Add(new VSpacer());
 
             migrateButton = WalletUiCommon.CreateSecondaryButton("Migrate", OnMigrate, 14, 32);
             setNameButton = WalletUiCommon.CreateSecondaryButton("Set Name", OnSetName, 14, 32);
