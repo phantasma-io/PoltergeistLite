@@ -1,7 +1,5 @@
 using System.Globalization;
 using PhantasmaPhoenix.Cryptography;
-using PhantasmaPhoenix.Cryptography;
-using PhantasmaPhoenix.Cryptography;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist;
 

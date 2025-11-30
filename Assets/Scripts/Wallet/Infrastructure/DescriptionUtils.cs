@@ -11,14 +11,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Poltergeist.Wallet;
-using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
-using Poltergeist.Wallet;
 using PhantasmaPhoenix.Unity.Core;
+using Poltergeist.Wallet;
 
 namespace Poltergeist
 {

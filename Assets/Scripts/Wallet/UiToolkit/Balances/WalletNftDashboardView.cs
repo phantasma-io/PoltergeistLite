@@ -678,7 +678,7 @@ namespace Poltergeist.UiToolkit.Balances
             return row;
         }
 
-        private async void RefreshView()
+        private void RefreshView()
         {
             try
             {

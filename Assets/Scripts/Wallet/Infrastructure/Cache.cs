@@ -296,7 +296,7 @@ public static class Cache
 
         return cache;
     }
-    public static TokenDataResult? FindTokenData(TokenDataResult[] cache, string id)
+    public static TokenDataResult FindTokenData(TokenDataResult[] cache, string id)
     {
         if(cache == null)
         {

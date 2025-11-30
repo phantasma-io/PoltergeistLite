@@ -552,7 +552,7 @@ namespace Poltergeist.UiToolkit.Accounts
             list.style.display = DisplayStyle.Flex;
         }
 
-        protected Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
+        private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool isError = false, bool showInput = true, bool isPassword = true, bool multiline = false, string primaryLabel = null, string secondaryLabel = null, string initialValue = "")
         {
             var primary = string.IsNullOrWhiteSpace(primaryLabel) ? (isError ? "Close" : "OK") : primaryLabel;
             var secondary = string.IsNullOrWhiteSpace(secondaryLabel) ? "Cancel" : secondaryLabel;
@@ -577,7 +577,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 onAfterHide: RestoreListAfterModal);
         }
 
-        protected async Task ShowErrorWithStatusAsync(string message, string statusAfterClose = null, bool singleButton = true)
+        private async Task ShowErrorWithStatusAsync(string message, string statusAfterClose = null, bool singleButton = true)
         {
             await WalletUiModalHelper.ShowErrorAsync(modalHost, "Error", message, DetachListForModal, RestoreListAfterModal, showSecondary: !singleButton);
             if (!string.IsNullOrWhiteSpace(statusAfterClose))

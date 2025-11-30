@@ -6,9 +6,10 @@ using UnityEngine;
 public class IntentPluginManager : MonoBehaviour
 {
     public static IntentPluginManager Instance { get; private set; }
+#if UNITY_ANDROID
     [SerializeField] private string PluginName = "com.phantasma.poltergeistmodule.MainActivity";
-    
     private AndroidJavaObject _PluginInstance;
+#endif
 
     private void Awake()
     {

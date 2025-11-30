@@ -16,7 +16,6 @@ using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.NFT;
 using PhantasmaPhoenix.NFT.Extensions;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
-using Poltergeist.Wallet;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1744,7 +1743,7 @@ The Phoenix team", "Notice");
 
                                             foreach (var id in balanceEntry.Ids)
                                             {
-                                                TokenDataResult? tokenData = Cache.FindTokenData(cache, id);
+                                                TokenDataResult tokenData = Cache.FindTokenData(cache, id);
 
                                                 if (tokenData != null)
                                                 {

@@ -26,7 +26,7 @@ namespace Poltergeist.UiToolkit.Settings
     public sealed class WalletSettingsView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
-        private const bool ShowOnlyFirstSettingsField = false; // Show full settings form (set true for debugging layout)
+        private static readonly bool ShowOnlyFirstSettingsField = false; // Show full settings form (set true for debugging layout)
         private const bool EnableScrollDebugLog = true;
         private const string ScrollLogPrefix = "[UITK][Settings][Scroll] ";
 
