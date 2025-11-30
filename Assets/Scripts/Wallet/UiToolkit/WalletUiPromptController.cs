@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -21,6 +22,7 @@ namespace Poltergeist.UiToolkit
         private readonly Label titleLabel;
         private readonly Label captionLabel;
         private readonly Label validationLabel;
+        private readonly Label warningLabel;
         private readonly TextField inputField;
         private readonly Button primaryButton;
         private readonly Button secondaryButton;
@@ -61,6 +63,20 @@ namespace Poltergeist.UiToolkit
                 }
             };
             this.applyDefaultFont(validationLabel);
+            warningLabel = new Label(string.Empty)
+            {
+                style =
+                {
+                    color = new Color(1f, 0.85f, 0.4f),
+                    fontSize = 13,
+                    marginBottom = 6,
+                    display = DisplayStyle.None,
+                    whiteSpace = WhiteSpace.Normal,
+                    unityTextAlign = TextAnchor.MiddleLeft
+                }
+            };
+            this.applyDefaultFont(warningLabel);
+            panel.Insert(panel.IndexOf(inputField), warningLabel);
             panel.Insert(panel.IndexOf(inputField), validationLabel);
             panel.style.display = DisplayStyle.None;
             host.style.flexGrow = 1;
@@ -138,6 +154,8 @@ namespace Poltergeist.UiToolkit
             inputField.visible = hasInput;
             inputField.SetEnabled(hasInput);
             WalletUiCommon.StyleModalInput(inputField, multiline, multiline ? 80 : 40);
+            inputField.RegisterValueChangedCallback(evt => UpdateWarnings(evt.newValue ?? string.Empty));
+            UpdateWarnings(initialValue ?? string.Empty);
         }
 
         private void OnPrimaryClicked()
@@ -214,6 +232,11 @@ namespace Poltergeist.UiToolkit
                     return;
                 }
 
+                if (hasInput && isPassword)
+                {
+                    UpdateWarnings(inputField?.text ?? string.Empty);
+                }
+
                 if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
                 {
                     OnPrimaryClicked();
@@ -240,6 +263,35 @@ namespace Poltergeist.UiToolkit
             panel.UnregisterCallback(keyHandler, TrickleDown.TrickleDown);
             overlay.UnregisterCallback(keyHandler, TrickleDown.TrickleDown);
             keyHandler = null;
+        }
+
+        private void UpdateWarnings(string input)
+        {
+            if (!hasInput || !isPassword || warningLabel == null || inputField == null)
+            {
+                if (warningLabel != null)
+                {
+                    warningLabel.style.display = DisplayStyle.None;
+                }
+                return;
+            }
+
+            var warnings = new System.Collections.Generic.List<string>();
+            var hasNonAscii = !string.IsNullOrEmpty(input) && input.Any(ch => ch > 127);
+            if (hasNonAscii)
+            {
+                warnings.Add("Password uses non-ASCII characters; check keyboard layout.");
+            }
+
+            if (warnings.Count == 0)
+            {
+                warningLabel.text = string.Empty;
+                warningLabel.style.display = DisplayStyle.None;
+                return;
+            }
+
+            warningLabel.text = string.Join("\n", warnings);
+            warningLabel.style.display = DisplayStyle.Flex;
         }
     }
 }
