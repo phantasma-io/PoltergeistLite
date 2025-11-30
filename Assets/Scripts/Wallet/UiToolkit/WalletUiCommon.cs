@@ -392,7 +392,7 @@ namespace Poltergeist.UiToolkit
                 ("Balances", onBalances),
                 ("History", onHistory),
                 ("Account", onAccount),
-                ("Exit", onExit)
+                ("Wallets", onExit)
             );
 
             balances = buttons.Length > 0 ? buttons[0] : null;
