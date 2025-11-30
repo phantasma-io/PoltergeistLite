@@ -193,7 +193,7 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void OnSettingsChanged()
         {
-            RefreshNetworkBadge();
+            RefreshView();
         }
 
         private void BuildLayout(VisualElement host)
@@ -912,6 +912,8 @@ namespace Poltergeist.UiToolkit.Balances
             var token = Tokens.GetToken(entry.Symbol, platform);
             var isFungible = token?.IsFungible() ?? entry.Fungible;
             var devMode = accountManager.Settings?.devMode ?? false;
+            // Keep unstable token actions hidden unless dev mode explicitly opts in.
+            var showUnstableTools = devMode && (accountManager.Settings?.showUnstableTools ?? false);
 
             SetActionButtonState(sendButton, isPhantasma && isFungible && entry.Available > BigInteger.Zero && (token?.IsTransferable() ?? true));
             sendButton.text = "Send";
@@ -952,14 +954,15 @@ namespace Poltergeist.UiToolkit.Balances
             SetActionButtonState(burnButton, burnEligible);
             burnButton.style.display = burnEligible ? DisplayStyle.Flex : DisplayStyle.None;
 
-            var smEligible = devMode &&
+            var smEligible = showUnstableTools &&
                 string.Equals(entry.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase) &&
                 entry.Staked >= WalletAmountParser.FromDecimal(50000m, entry.Decimals);
             SetActionButtonState(smRewardButton, smEligible);
             smRewardButton.style.display = smEligible ? DisplayStyle.Flex : DisplayStyle.None;
 
-            SetActionButtonState(infoButton, devMode);
-            infoButton.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+            var showAddressInfo = showUnstableTools;
+            SetActionButtonState(infoButton, showAddressInfo);
+            infoButton.style.display = showAddressInfo ? DisplayStyle.Flex : DisplayStyle.None;
 
             var tokenUrl = BuildTokenExplorerUrl(entry.Symbol);
             var holdersUrl = BuildTokenHoldersUrl(entry.Symbol);
@@ -979,7 +982,7 @@ namespace Poltergeist.UiToolkit.Balances
             SetActionButtonState(cmcButton, isSoul);
             cmcButton.style.display = isSoul ? DisplayStyle.Flex : DisplayStyle.None;
 
-            var showAdvanced = burnEligible || smEligible || devMode || showExplorer || showHolders || isSoul;
+            var showAdvanced = burnEligible || smEligible || showAddressInfo || showExplorer || showHolders || isSoul;
             advancedActions.style.display = showAdvanced ? DisplayStyle.Flex : DisplayStyle.None;
         }
 

@@ -113,6 +113,7 @@ namespace Poltergeist
 
         public const string DevModeTag = "developer.mode";
         public const string DevNoValidationModeTag = "developer.no.validation.mode";
+        public const string ShowUnstableToolsTag = "unstable.tools.visible";
         public const string LastShownInformationScreenTag = "last.shown.information.screen";
         public const string PreferScriptlessTxesTag = "prefer.scriptless.txes";
         public const string ScriptlessMaxGasTag = "scriptless.max.gas";
@@ -145,6 +146,7 @@ namespace Poltergeist
         public PasswordMode passwordMode;
         public bool devMode;
         public bool devMode_NoValidation;
+        public bool showUnstableTools;
         public int lastShownInformationScreen;
         public bool preferScriptlessTxes;
         public BigInteger scriptlessMaxGas;
@@ -175,6 +177,7 @@ namespace Poltergeist
                 "Password mode: " + this.passwordMode + "\n" +
                 "Developer mode: " + this.devMode + "\n" +
                 "Developer mode (no validation): " + this.devMode_NoValidation + "\n" +
+                "Show unstable tools: " + this.showUnstableTools + "\n" +
                 "Prefer scriptless txes: " + this.preferScriptlessTxes + "\n" +
                 "Scriptless max gas: " + this.scriptlessMaxGas + "\n" +
                 "Scriptless max data: " + this.scriptlessMaxData + "\n" +
@@ -281,6 +284,7 @@ namespace Poltergeist
 
             this.devMode = PlayerPrefs.GetInt(DevModeTag, 0) != 0;
             this.devMode_NoValidation = PlayerPrefs.GetInt(DevNoValidationModeTag, 0) != 0;
+            this.showUnstableTools = PlayerPrefs.GetInt(ShowUnstableToolsTag, 0) != 0;
 
             this.lastShownInformationScreen = PlayerPrefs.GetInt(LastShownInformationScreenTag, 0);
 
@@ -455,6 +459,7 @@ namespace Poltergeist
             PlayerPrefs.SetString(PasswordModeTag, this.passwordMode.ToString());
             PlayerPrefs.SetInt(DevModeTag, this.devMode ? 1 : 0);
             PlayerPrefs.SetInt(DevNoValidationModeTag, this.devMode_NoValidation ? 1 : 0);
+            PlayerPrefs.SetInt(ShowUnstableToolsTag, this.showUnstableTools ? 1 : 0);
 
             PlayerPrefs.SetInt(PreferScriptlessTxesTag, this.preferScriptlessTxes ? 1 : 0);
             PlayerPrefs.SetString(ScriptlessMaxGasTag, this.scriptlessMaxGas.ToString());

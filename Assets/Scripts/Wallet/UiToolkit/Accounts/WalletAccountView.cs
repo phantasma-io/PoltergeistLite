@@ -50,6 +50,8 @@ namespace Poltergeist.UiToolkit.Accounts
         private Button navHistory;
         private Button navAccount;
         private Button navExit;
+        private Button migrateButton;
+        private Button setNameButton;
         private VisualElement chainPickerPanel;
         private VisualElement copyPanel;
         private Label copyPanelTitle;
@@ -106,6 +108,7 @@ namespace Poltergeist.UiToolkit.Accounts
         public void MarkAsActive()
         {
             UpdateNavSelection();
+            UpdateUnstableActionVisibility(AccountManager.Instance?.Settings);
         }
 
         public void RefreshView()
@@ -128,6 +131,7 @@ namespace Poltergeist.UiToolkit.Accounts
             subtitleLabel.text = WalletUiCommon.BuildContextSubtitle("Account", accountName, AccountManager.Instance?.CurrentPlatform);
             subHeader.LeftLabel.text = string.Empty;
             WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, nexusName, nexusKind);
+            UpdateUnstableActionVisibility(settings);
             UpdateLabels(accountName, address, nexusKind, nexusName);
             UpdateQr(accountManager);
             SetStatus(string.Empty);
@@ -269,23 +273,23 @@ namespace Poltergeist.UiToolkit.Accounts
             var spacer = new VisualElement { style = { flexGrow = 1, minHeight = 0 } };
             content.Add(spacer);
 
-            var migrateBtn = WalletUiCommon.CreateSecondaryButton("Migrate", OnMigrate, 14, 32);
-            var setNameBtn = WalletUiCommon.CreateSecondaryButton("Set Name", OnSetName, 14, 32);
+            migrateButton = WalletUiCommon.CreateSecondaryButton("Migrate", OnMigrate, 14, 32);
+            setNameButton = WalletUiCommon.CreateSecondaryButton("Set Name", OnSetName, 14, 32);
             var proofBtn = WalletUiCommon.CreateSecondaryButton("Proof of Addresses", OnProofOfAddresses, 14, 32);
-            migrateBtn.style.minWidth = 140;
-            setNameBtn.style.minWidth = 140;
+            migrateButton.style.minWidth = 140;
+            setNameButton.style.minWidth = 140;
             proofBtn.style.minWidth = 180;
 
             var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", OnSignMessage, 14, 32);
             var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", OnVerifySignature, 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
-            var actionCloud = WalletUiFormFactory.CreateButtonCloud(migrateBtn, setNameBtn, proofBtn, signBtn, verifyBtn);
+            var actionCloud = WalletUiFormFactory.CreateButtonCloud(migrateButton, setNameButton, proofBtn, signBtn, verifyBtn);
             actionCloud.style.marginTop = 6;
             actionCloud.style.marginBottom = 6;
             content.Add(actionCloud);
 
-            actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateBtn, setNameBtn, proofBtn, signBtn, verifyBtn });
+            actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn });
 
             statusLabel = new Label
             {
@@ -1147,6 +1151,22 @@ namespace Poltergeist.UiToolkit.Accounts
             WalletUiCommon.SetNavState(navHistory, false);
             WalletUiCommon.SetNavState(navAccount, true);
             WalletUiCommon.SetNavState(navExit, false);
+        }
+
+        // Hide unstable account actions unless a developer explicitly opts in.
+        private void UpdateUnstableActionVisibility(Poltergeist.Settings settings)
+        {
+            var showUnstableTools = settings != null && settings.devMode && settings.showUnstableTools;
+
+            if (migrateButton != null)
+            {
+                migrateButton.style.display = showUnstableTools ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (setNameButton != null)
+            {
+                setNameButton.style.display = showUnstableTools ? DisplayStyle.Flex : DisplayStyle.None;
+            }
         }
 
         private void ApplyDefaultFont(VisualElement element)

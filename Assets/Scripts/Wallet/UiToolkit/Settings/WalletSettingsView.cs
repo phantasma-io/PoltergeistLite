@@ -70,6 +70,7 @@ namespace Poltergeist.UiToolkit.Settings
         private Toggle devNoValidationToggle;
         private Toggle preferScriptlessToggle;
         private Toggle logOverwriteToggle;
+        private Toggle showUnstableToolsToggle;
         private VisualElement devToolsSection;
         private VisualElement rpcUrlRow;
         private VisualElement explorerUrlRow;
@@ -78,9 +79,12 @@ namespace Poltergeist.UiToolkit.Settings
         private VisualElement nexusNameRow;
         private VisualElement devNoValidationRow;
         private VisualElement preferScriptlessRow;
+        private VisualElement showUnstableToolsRow;
         private VisualElement scriptlessGasRow;
         private VisualElement scriptlessDataRow;
         private Button deleteEverythingButton;
+        private Button stakingInfoButton;
+        private Button addressInfoButton;
         private VisualElement tabsBar;
         private VisualElement tabContent;
         private readonly Dictionary<string, VisualElement> tabs = new Dictionary<string, VisualElement>();
@@ -457,12 +461,22 @@ namespace Poltergeist.UiToolkit.Settings
             devModeToggle = WalletUiFormFactory.CreateToggle("Developer mode", false, value => OnChanged(() => presenter.SetDevMode(value), true));
             devNoValidationToggle = WalletUiFormFactory.CreateToggle("Developer mode (no validation)", false, value => OnChanged(() => presenter.SetDevModeNoValidation(value)));
             preferScriptlessToggle = WalletUiFormFactory.CreateToggle("Prefer scriptless transactions", false, value => OnChanged(() => presenter.SetPreferScriptlessTxes(value)));
+            showUnstableToolsToggle = WalletUiFormFactory.CreateToggle(
+                "Show unstable tools",
+                false,
+                value => OnChanged(() =>
+                {
+                    presenter.SetShowUnstableTools(value);
+                    UpdateUnstableToolVisibility(devModeToggle?.value ?? false, value);
+                }));
             advancedSection.Add(WalletUiFormFactory.CreateLabeledRow(string.Empty, logOverwriteToggle));
             advancedSection.Add(WalletUiFormFactory.CreateLabeledRow(string.Empty, devModeToggle));
             devNoValidationRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, devNoValidationToggle);
             preferScriptlessRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, preferScriptlessToggle);
+            showUnstableToolsRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, showUnstableToolsToggle);
             advancedSection.Add(devNoValidationRow);
             advancedSection.Add(preferScriptlessRow);
+            advancedSection.Add(showUnstableToolsRow);
             AddTabSection("advanced", "Advanced", advancedSection);
 
             BuildTabsBar();
@@ -486,13 +500,13 @@ namespace Poltergeist.UiToolkit.Settings
             };
             WalletUiCommon.ApplyDefaultFont(actionsContainer);
 
-            var stakingInfoBtn = WalletUiCommon.CreateSecondaryButton("Staking info", OnStakingInfo, 14, 32);
-            var addressInfoBtn = WalletUiCommon.CreateSecondaryButton("Address info", OnAddressInfo, 14, 32);
+            stakingInfoButton = WalletUiCommon.CreateSecondaryButton("Staking info", OnStakingInfo, 14, 32);
+            addressInfoButton = WalletUiCommon.CreateSecondaryButton("Address info", OnAddressInfo, 14, 32);
             var describeScriptBtn = WalletUiCommon.CreateSecondaryButton("Describe script", OnDescribeScript, 14, 32);
             var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", OnDecodeTransaction, 14, 32);
             var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", OnVerifyProofOfAddresses, 14, 32);
             var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", OnLegacySeedToWif, 14, 32);
-            devToolsSection = WalletUiFormFactory.CreateButtonCloud(stakingInfoBtn, addressInfoBtn, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
+            devToolsSection = WalletUiFormFactory.CreateButtonCloud(stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
             devToolsSection.style.marginTop = 4;
             devToolsSection.style.marginBottom = 6;
             actionsContainer.Add(devToolsSection);
@@ -778,6 +792,7 @@ namespace Poltergeist.UiToolkit.Settings
             devModeToggle.value = snapshot.DevMode;
             devNoValidationToggle.value = snapshot.DevModeNoValidation;
             preferScriptlessToggle.value = snapshot.PreferScriptlessTxes;
+            showUnstableToolsToggle.value = snapshot.ShowUnstableTools;
 
             if (!ShowOnlyFirstSettingsField)
             {
@@ -817,7 +832,7 @@ namespace Poltergeist.UiToolkit.Settings
             }
             }
 
-            ToggleDevVisibility(snapshot.DevMode);
+            ToggleDevVisibility(snapshot.DevMode, snapshot.ShowUnstableTools);
 
             if (deleteEverythingButton != null)
             {
@@ -835,7 +850,7 @@ namespace Poltergeist.UiToolkit.Settings
             ApplyDebugLayout();
         }
 
-        private void ToggleDevVisibility(bool devMode)
+        private void ToggleDevVisibility(bool devMode, bool showUnstableTools)
         {
             if (ShowOnlyFirstSettingsField)
             {
@@ -843,6 +858,7 @@ namespace Poltergeist.UiToolkit.Settings
                 {
                     devToolsSection.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
                 }
+                UpdateUnstableToolVisibility(devMode, showUnstableTools);
                 return;
             }
 
@@ -854,6 +870,11 @@ namespace Poltergeist.UiToolkit.Settings
             if (preferScriptlessRow != null)
             {
                 preferScriptlessRow.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (showUnstableToolsRow != null)
+            {
+                showUnstableToolsRow.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (scriptlessGasRow != null)
@@ -869,6 +890,24 @@ namespace Poltergeist.UiToolkit.Settings
             if (devToolsSection != null)
             {
                 devToolsSection.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            UpdateUnstableToolVisibility(devMode, showUnstableTools);
+        }
+
+        // Keep unstable dev tools hidden unless explicitly enabled in dev mode.
+        private void UpdateUnstableToolVisibility(bool devMode, bool showUnstableTools)
+        {
+            var show = devMode && showUnstableTools;
+
+            if (stakingInfoButton != null)
+            {
+                stakingInfoButton.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            if (addressInfoButton != null)
+            {
+                addressInfoButton.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
             }
         }
 

@@ -80,6 +80,7 @@ namespace Poltergeist.Wallet
 
             DevMode = settings.devMode;
             DevModeNoValidation = settings.devMode_NoValidation;
+            ShowUnstableTools = settings.showUnstableTools;
             PreferScriptlessTxes = settings.preferScriptlessTxes;
 
             HasCustomEndpoints = hasCustomEndpoints;
@@ -132,6 +133,7 @@ namespace Poltergeist.Wallet
 
         public bool DevMode { get; }
         public bool DevModeNoValidation { get; }
+        public bool ShowUnstableTools { get; }
         public bool PreferScriptlessTxes { get; }
 
         public bool HasCustomEndpoints { get; }

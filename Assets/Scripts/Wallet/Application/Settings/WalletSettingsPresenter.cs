@@ -258,6 +258,11 @@ namespace Poltergeist.Wallet
             GetSettings().devMode_NoValidation = value;
         }
 
+        public void SetShowUnstableTools(bool value)
+        {
+            GetSettings().showUnstableTools = value;
+        }
+
         public void SetPreferScriptlessTxes(bool value)
         {
             GetSettings().preferScriptlessTxes = value;
