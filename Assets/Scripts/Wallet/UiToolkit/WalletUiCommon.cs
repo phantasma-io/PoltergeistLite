@@ -387,9 +387,9 @@ namespace Poltergeist.UiToolkit
             {
                 style =
                 {
-                    flexDirection = FlexDirection.Row,
-                    justifyContent = Justify.SpaceBetween,
-                    alignItems = Align.Center,
+                    flexDirection = FlexDirection.Column,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Stretch,
                     paddingTop = 14,
                     paddingBottom = 14,
                     paddingLeft = 12,
@@ -423,11 +423,29 @@ namespace Poltergeist.UiToolkit
                 var (text, onClick) = entries[i];
                 var btn = CreateFooterButton(text, onClick);
                 btn.style.flexGrow = 1;
-                btn.style.marginLeft = i == 0 ? 0 : 8;
+                btn.style.flexShrink = 1;
+                btn.style.flexBasis = 0;
+                btn.style.minWidth = 140;
+                btn.style.marginLeft = 0;
+                btn.style.marginRight = 8;
+                btn.style.marginBottom = 8;
                 buttons[i] = btn;
-                bar.Add(btn);
             }
 
+            var buttonRow = CreateButtonRow(0f, buttons);
+            buttonRow.style.marginTop = 0;
+            buttonRow.style.marginBottom = 0;
+            buttonRow.style.paddingLeft = 0;
+            buttonRow.style.paddingRight = 0;
+            buttonRow.style.paddingTop = 0;
+            buttonRow.style.paddingBottom = 0;
+            buttonRow.style.justifyContent = Justify.FlexStart;
+            buttonRow.style.alignItems = Align.Center;
+            buttonRow.style.width = new Length(100, LengthUnit.Percent);
+            buttonRow.style.alignSelf = Align.Stretch;
+            buttonRow.style.flexWrap = Wrap.Wrap;
+
+            bar.Add(buttonRow);
             return bar;
         }
 
