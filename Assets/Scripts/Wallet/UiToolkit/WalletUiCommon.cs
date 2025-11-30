@@ -958,18 +958,19 @@ namespace Poltergeist.UiToolkit
 
             scroll.RegisterCallback<WheelEvent>(evt =>
             {
+                var focusController = scroll?.panel?.focusController;
                 if (shouldBlockWheel != null && shouldBlockWheel())
                 {
+                    focusController?.IgnoreEvent(evt);
                     evt.StopImmediatePropagation();
-                    evt.PreventDefault();
                     return;
                 }
 
                 var scroller = scroll.verticalScroller;
                 if (scroller == null || scroll.contentContainer == null)
                 {
+                    focusController?.IgnoreEvent(evt);
                     evt.StopImmediatePropagation();
-                    evt.PreventDefault();
                     return;
                 }
 
@@ -998,8 +999,8 @@ namespace Poltergeist.UiToolkit
                 offset.y = target;
                 scroll.scrollOffset = offset;
                 onScrollChanged?.Invoke(target);
+                focusController?.IgnoreEvent(evt);
                 evt.StopImmediatePropagation();
-                evt.PreventDefault();
             }, TrickleDown.TrickleDown);
 
             return scroll;

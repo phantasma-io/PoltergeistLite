@@ -145,14 +145,15 @@ namespace Poltergeist.UiToolkit
             // and use our own anchored menu instead. We swallow pointer events to prevent the default popup path.
             dropdown.RegisterCallback<PointerDownEvent>(evt =>
             {
+                // Swallow default dropdown popup and use our anchored menu instead.
+                dropdown?.panel?.focusController?.IgnoreEvent(evt);
                 evt.StopImmediatePropagation();
-                evt.PreventDefault();
                 ShowDropdownMenu(dropdown, onChanged);
             }, TrickleDown.TrickleDown);
             dropdown.RegisterCallback<PointerUpEvent>(evt =>
             {
+                dropdown?.panel?.focusController?.IgnoreEvent(evt);
                 evt.StopImmediatePropagation();
-                evt.PreventDefault();
             }, TrickleDown.TrickleDown);
 
             if (!string.IsNullOrWhiteSpace(hint))

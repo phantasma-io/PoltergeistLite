@@ -249,6 +249,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     if (modalHost?.Overlay != null && modalHost.Overlay.style.display == DisplayStyle.Flex)
                     {
+                        root?.panel?.focusController?.IgnoreEvent(evt);
                         evt.StopImmediatePropagation();
                     }
                 }, TrickleDown.TrickleDown);
