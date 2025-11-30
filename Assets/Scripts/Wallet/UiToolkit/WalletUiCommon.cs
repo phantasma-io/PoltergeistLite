@@ -855,6 +855,50 @@ namespace Poltergeist.UiToolkit
             btn.style.borderBottomWidth = borderWidth;
         }
 
+        // Centralized handler for modal-style Enter/Escape shortcuts to avoid duplicating hotkey wiring across dialogs.
+        internal static void RegisterModalKeyHandlers(VisualElement panel, Action onPrimary, Action onSecondary = null, bool focusPanel = false)
+        {
+            if (panel == null || onPrimary == null)
+            {
+                return;
+            }
+
+            panel.focusable = true;
+            panel.tabIndex = 0;
+            panel.pickingMode = PickingMode.Position;
+
+            if (focusPanel)
+            {
+                void FocusIfReady()
+                {
+                    if (panel.panel != null)
+                    {
+                        panel.Focus();
+                    }
+                }
+
+                panel.schedule.Execute(FocusIfReady).StartingIn(30);
+                panel.RegisterCallback<AttachToPanelEvent>(_ => panel.schedule.Execute(FocusIfReady).StartingIn(10));
+            }
+
+            EventCallback<KeyDownEvent> handler = null;
+            handler = evt =>
+            {
+                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
+                {
+                    onPrimary();
+                    evt.StopImmediatePropagation();
+                }
+                else if (evt.keyCode == KeyCode.Escape)
+                {
+                    onSecondary?.Invoke();
+                    evt.StopImmediatePropagation();
+                }
+            };
+
+            panel.RegisterCallback(handler, TrickleDown.TrickleDown);
+        }
+
         /// <summary>
         /// Applies enabled/disabled state and keeps text color in sync so disabled actions are visually clear.
         /// </summary>

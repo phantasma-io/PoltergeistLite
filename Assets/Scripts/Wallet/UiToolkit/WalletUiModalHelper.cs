@@ -260,7 +260,7 @@ namespace Poltergeist.UiToolkit
             buttons.Add(closeBtn);
             panel.Add(buttons);
 
-            RegisterModalKeys(panel, () => Complete(PromptResult.Success), () => Complete(PromptResult.Failure), focusPanel: true);
+            WalletUiCommon.RegisterModalKeyHandlers(panel, () => Complete(PromptResult.Success), () => Complete(PromptResult.Failure), focusPanel: true);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -668,7 +668,20 @@ namespace Poltergeist.UiToolkit
                 pasteSchedule = null;
             });
 
-            RegisterModalKeys(panel, Confirm, Cancel);
+            // Force the text field to grab focus when the modal appears so Enter/Escape hotkeys work without an extra click.
+            panel.schedule.Execute(() =>
+            {
+                if (destinationField?.panel != null)
+                {
+                    destinationField.Focus();
+                }
+                else if (panel.panel != null)
+                {
+                    panel.Focus();
+                }
+            }).StartingIn(40);
+
+            WalletUiCommon.RegisterModalKeyHandlers(panel, Confirm, Cancel);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -867,7 +880,20 @@ namespace Poltergeist.UiToolkit
             var (initialValid, initialError) = validateInput?.Invoke(initialInput) ?? (true, string.Empty);
             UpdateStatus(initialValid ? string.Empty : (string.IsNullOrWhiteSpace(initialError) ? "Enter a valid number." : initialError));
 
-            RegisterModalKeys(panel, Confirm, Cancel);
+            // Keep the modal in focus from the start so keyboard shortcuts are processed even before clicking the dialog.
+            panel.schedule.Execute(() =>
+            {
+                if (amountField?.panel != null)
+                {
+                    amountField.Focus();
+                }
+                else if (panel.panel != null)
+                {
+                    panel.Focus();
+                }
+            }).StartingIn(40);
+
+            WalletUiCommon.RegisterModalKeyHandlers(panel, Confirm, Cancel);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -975,7 +1001,7 @@ namespace Poltergeist.UiToolkit
             actions.Add(cancelBtn);
             panel.Add(actions);
 
-            RegisterModalKeys(panel, () => Complete(0), () => Complete(-1), focusPanel: true);
+            WalletUiCommon.RegisterModalKeyHandlers(panel, () => Complete(0), () => Complete(-1), focusPanel: true);
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }
@@ -1070,41 +1096,6 @@ namespace Poltergeist.UiToolkit
             row.style.borderRightColor = borderColor;
             row.style.borderBottomColor = borderColor;
             row.style.borderTopColor = isSelected ? WalletUiTheme.AccentPrimarySoft : WalletUiTheme.HighlightEdge;
-        }
-
-        private static void RegisterModalKeys(VisualElement panel, Action onPrimary, Action onSecondary = null, bool focusPanel = false)
-        {
-            if (panel == null || onPrimary == null)
-            {
-                return;
-            }
-
-            panel.focusable = true;
-            panel.tabIndex = 0;
-            panel.pickingMode = PickingMode.Position;
-
-            if (focusPanel)
-            {
-                panel.schedule.Execute(() => panel.Focus()).StartingIn(30);
-            }
-
-            EventCallback<KeyDownEvent> handler = null;
-            handler = evt =>
-            {
-                if (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter)
-                {
-                    onPrimary();
-                    evt.StopImmediatePropagation();
-                }
-                else if (evt.keyCode == KeyCode.Escape)
-                {
-                    onSecondary?.Invoke();
-                    evt.StopImmediatePropagation();
-                }
-            };
-
-            panel.RegisterCallback(handler, TrickleDown.TrickleDown);
-            panel.RegisterCallback<DetachFromPanelEvent>(_ => panel.UnregisterCallback(handler, TrickleDown.TrickleDown));
         }
 
         private static VisualElement CreateListRow(int index, string title, string subtitle)

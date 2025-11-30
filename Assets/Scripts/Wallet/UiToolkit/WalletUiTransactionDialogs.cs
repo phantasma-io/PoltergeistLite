@@ -158,6 +158,8 @@ namespace Poltergeist.UiToolkit
             buttons.Add(confirmBtn);
             panel.Add(buttons);
 
+            WalletUiCommon.RegisterModalKeyHandlers(panel, OnSendProgressConfirm, OnSendProgressCancel, focusPanel: true);
+
             return panel;
         }
 
