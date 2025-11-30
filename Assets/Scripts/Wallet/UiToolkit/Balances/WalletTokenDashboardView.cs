@@ -53,6 +53,8 @@ namespace Poltergeist.UiToolkit.Balances
         private Label statusLabel;
         private Label tokenTitleLabel;
         private Label tokenSubtitleLabel;
+        private Label soulMasterLabel;
+        private VisualElement soulMasterOverlay;
         private Label totalValueLabel;
         private Label availableValueLabel;
         private Label stakedValueLabel;
@@ -313,6 +315,7 @@ namespace Poltergeist.UiToolkit.Balances
                     paddingRight = 18,
                     paddingTop = 16,
                     paddingBottom = 16,
+                    position = Position.Relative,
                     marginBottom = 12,
                     backgroundColor = WalletUiTheme.CardBackground,
                     backgroundImage = new StyleBackground(WalletUiTheme.GetCardGradientTexture()),
@@ -371,13 +374,70 @@ namespace Poltergeist.UiToolkit.Balances
                     color = WalletUiTheme.TextSecondary,
                     fontSize = 14,
                     unityTextAlign = TextAnchor.MiddleLeft,
-                    marginTop = 4
+                    marginTop = 0
                 }
             };
             WalletUiCommon.ApplyDefaultFont(tokenSubtitleLabel);
 
-            titleBlock.Add(tokenTitleLabel);
-            titleBlock.Add(tokenSubtitleLabel);
+            var titleRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    marginTop = 0
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(titleRow);
+            titleRow.Add(tokenTitleLabel);
+
+            soulMasterOverlay = new VisualElement
+            {
+                pickingMode = PickingMode.Ignore,
+                style =
+                {
+                    position = Position.Absolute,
+                    left = 0,
+                    right = 0,
+                    top = 0,
+                    bottom = 0,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center
+                }
+            };
+            soulMasterLabel = new Label("★ SM ★")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextPrimary,
+                    fontSize = 30,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    paddingLeft = 10,
+                    paddingRight = 10,
+                    paddingTop = 4,
+                    paddingBottom = 4,
+                    backgroundColor = Color.clear
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(soulMasterLabel);
+            soulMasterOverlay.Add(soulMasterLabel);
+            soulMasterOverlay.style.display = DisplayStyle.None;
+
+            var subtitleRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    marginTop = 2
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(subtitleRow);
+            subtitleRow.Add(tokenSubtitleLabel);
+
+            titleBlock.Add(titleRow);
+            titleBlock.Add(subtitleRow);
 
             var totalBlock = new VisualElement
             {
@@ -415,6 +475,7 @@ namespace Poltergeist.UiToolkit.Balances
 
             card.Add(titleBlock);
             card.Add(totalBlock);
+            card.Add(soulMasterOverlay);
             return card;
         }
 
@@ -784,7 +845,7 @@ namespace Poltergeist.UiToolkit.Balances
                 summaryLabel.text = $"{entry.Symbol} • {entry.Decimals} decimals";
                 WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
 
-                UpdateHero(entry, accountManager.CurrentPlatform);
+                UpdateHero(entry, accountManager);
                 UpdateStats(entry);
                 UpdateInfo(entry, accountManager.CurrentPlatform);
                 UpdateActions(entry, accountManager);
@@ -806,8 +867,9 @@ namespace Poltergeist.UiToolkit.Balances
             }
         }
 
-        private void UpdateHero(WalletBalanceEntry entry, PlatformKind platform)
+        private void UpdateHero(WalletBalanceEntry entry, AccountManager accountManager)
         {
+            var platform = accountManager?.CurrentPlatform ?? PlatformKind.None;
             var token = Tokens.GetToken(entry.Symbol, platform);
             tokenTitleLabel.text = $"{entry.Symbol} {(string.IsNullOrWhiteSpace(token?.Name) ? string.Empty : $"• {token.Name}")}".Trim();
             tokenSubtitleLabel.text = string.Empty;
@@ -827,6 +889,13 @@ namespace Poltergeist.UiToolkit.Balances
             totalValueLabel.text = $"{totalText} {entry.Symbol}";
             var totalFiat = SumFiat(entry.FiatWorth, entry.StakedFiatWorth);
             totalFiatLabel.text = FormatFiat(totalFiat);
+            var isSoulToken = string.Equals(entry.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase);
+            var isSoulMaster = WalletUiCommon.IsSoulMaster(accountManager);
+            var showSm = isSoulToken && isSoulMaster;
+            if (soulMasterOverlay != null)
+            {
+                soulMasterOverlay.style.display = showSm ? DisplayStyle.Flex : DisplayStyle.None;
+            }
         }
 
         private void UpdateStats(WalletBalanceEntry entry)
@@ -1583,6 +1652,10 @@ namespace Poltergeist.UiToolkit.Balances
         {
             tokenTitleLabel.text = "Token";
             tokenSubtitleLabel.text = string.Empty;
+            if (soulMasterOverlay != null)
+            {
+                soulMasterOverlay.style.display = DisplayStyle.None;
+            }
             totalValueLabel.text = "0";
             totalFiatLabel.text = string.Empty;
             if (tokenIcon != null)

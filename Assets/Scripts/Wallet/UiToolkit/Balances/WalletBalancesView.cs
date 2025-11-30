@@ -5,6 +5,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 using Poltergeist.Wallet;
+using PhantasmaPhoenix.Core;
+using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist.UiToolkit;
 
@@ -330,6 +332,7 @@ namespace Poltergeist.UiToolkit.Balances
                     return;
                 }
 
+
                 var balances = snapshot.Balances ?? Array.Empty<WalletBalanceEntry>();
                 var filteredBalances = FilterBalances(balances, accountManager.Settings.balanceDisplayThreshold);
                 Log.Write($"{LogPrefix}Balances snapshot stats: raw={balances.Count()} filtered={filteredBalances.Count} refreshing={snapshot.IsRefreshing} error={snapshot.ErrorMessage}");
@@ -486,6 +489,10 @@ namespace Poltergeist.UiToolkit.Balances
             };
             ApplyDefaultFont(row);
 
+            var accountManager = AccountManager.Instance;
+            var isSoulMaster = WalletUiCommon.IsSoulMaster(accountManager);
+            var isSoulToken = string.Equals(entry.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase);
+
             var iconTexture = ResourceManager.Instance?.GetToken(entry.Symbol, platform) as Texture2D;
             if (iconTexture != null)
             {
@@ -514,6 +521,16 @@ namespace Poltergeist.UiToolkit.Balances
             };
 
             var fiat = string.IsNullOrEmpty(entry.FiatWorth) ? string.Empty : $" ({entry.FiatWorth})";
+            var titleRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center
+                }
+            };
+            ApplyDefaultFont(titleRow);
+
             var title = new Label($"{entry.AvailableText} {entry.Symbol}{fiat}")
             {
                 style =
@@ -524,7 +541,29 @@ namespace Poltergeist.UiToolkit.Balances
                 }
             };
             ApplyDefaultFont(title);
-            textBlock.Add(title);
+            titleRow.Add(title);
+
+            if (isSoulMaster && isSoulToken)
+            {
+                var smLabel = new Label("★ SM ★")
+                {
+                    style =
+                    {
+                        color = WalletUiTheme.TextPrimary,
+                        fontSize = 16,
+                        unityFontStyleAndWeight = FontStyle.Bold,
+                        unityTextAlign = TextAnchor.MiddleCenter,
+                        marginLeft = 12,
+                        paddingTop = 2,
+                        paddingBottom = 2,
+                        alignSelf = Align.Center
+                    }
+                };
+                ApplyDefaultFont(smLabel);
+                titleRow.Add(smLabel);
+            }
+
+            textBlock.Add(titleRow);
 
             var secondaryText = BuildSecondaryLine(entry);
             if (!string.IsNullOrEmpty(secondaryText))
@@ -535,7 +574,8 @@ namespace Poltergeist.UiToolkit.Balances
                     {
                         color = WalletUiTheme.TextSecondary,
                         fontSize = 13,
-                        unityFontStyleAndWeight = FontStyle.Bold
+                        unityFontStyleAndWeight = FontStyle.Bold,
+                        marginTop = 6
                     }
                 };
                 ApplyDefaultFont(secondary);

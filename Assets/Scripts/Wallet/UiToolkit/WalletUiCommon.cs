@@ -5,6 +5,7 @@ using UnityEngine.UIElements;
 using Poltergeist;
 using Poltergeist.Wallet;
 using PhantasmaPhoenix.Unity.Core.Logging;
+using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist.UiToolkit
 {
@@ -907,6 +908,17 @@ namespace Poltergeist.UiToolkit
             label.style.paddingBottom = 4;
             label.style.marginLeft = 6;
             label.style.minHeight = 20;
+        }
+
+        internal static bool IsSoulMaster(AccountManager accountManager)
+        {
+            if (accountManager == null || accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return false;
+            }
+
+            var state = accountManager.CurrentState;
+            return state != null && state.flags.HasFlag(AccountFlags.Master);
         }
 
         internal static string BuildVersionLabel()
