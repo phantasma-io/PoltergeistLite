@@ -101,14 +101,31 @@ namespace Poltergeist.UiToolkit.History
 
         private void OnHistoryRefreshStarted(PlatformKind platform)
         {
+            if (!ShouldHandleHistoryEvent(platform))
+            {
+                return;
+            }
+
             context.ViewState.MarkHistoryDirty();
             RefreshView();
         }
 
         private void OnHistoryUpdated(PlatformKind platform)
         {
+            if (!ShouldHandleHistoryEvent(platform))
+            {
+                return;
+            }
+
             context.ViewState.MarkHistoryDirty();
             RefreshView();
+        }
+
+        private bool ShouldHandleHistoryEvent(PlatformKind platform)
+        {
+            // History is fetched only from Phantasma; ignoring other platforms prevents useless
+            // refresh loops when CurrentPlatform is temporarily switched by another flow.
+            return platform == PlatformKind.Phantasma;
         }
 
         private void RequestInitialRefresh()
