@@ -23,6 +23,7 @@ namespace Poltergeist.UiToolkit.Balances
     public sealed class WalletTokenDashboardView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
+        private const float CompactWidthThreshold = 1200f;
 
         private readonly WalletApplicationContext context;
         private readonly WalletBalancePresenter balancePresenter;
@@ -92,6 +93,7 @@ namespace Poltergeist.UiToolkit.Balances
         private Button navExit;
         private readonly Dictionary<Button, bool> actionEnableCache = new Dictionary<Button, bool>();
         private string currentSymbol;
+        private WalletBalanceEntry lastEntry;
 
         public WalletTokenDashboardView(
             VisualElement host,
@@ -202,6 +204,7 @@ namespace Poltergeist.UiToolkit.Balances
         private void BuildLayout(VisualElement host)
         {
             root = host;
+            root.RegisterCallback<GeometryChangedEvent>(OnRootGeometryChanged);
             root.Clear();
             WalletUiCommon.ConfigureScreenRoot(root);
             root.style.backgroundColor = Color.clear;
@@ -838,7 +841,11 @@ namespace Poltergeist.UiToolkit.Balances
         {
             var platform = accountManager?.CurrentPlatform ?? PlatformKind.None;
             var token = Tokens.GetToken(entry.Symbol, platform);
-            tokenTitleLabel.text = $"{entry.Symbol} {(string.IsNullOrWhiteSpace(token?.Name) ? string.Empty : $"• {token.Name}")}".Trim();
+            lastEntry = entry;
+            var hideName = ShouldHideTokenName();
+            tokenTitleLabel.text = hideName || string.IsNullOrWhiteSpace(token?.Name)
+                ? entry.Symbol
+                : $"{entry.Symbol} • {token.Name}";
             tokenSubtitleLabel.text = string.Empty;
 
             if (ResourceManager.Instance != null)
@@ -863,6 +870,42 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 soulMasterOverlay.style.display = showSm ? DisplayStyle.Flex : DisplayStyle.None;
             }
+        }
+
+        private bool ShouldHideTokenName()
+        {
+            var width = root?.resolvedStyle.width ?? float.NaN;
+            if (!float.IsNaN(width) && width > 0f && width < CompactWidthThreshold)
+            {
+                return true;
+            }
+
+            // Fallback to screen width in case geometry is not yet measured (early refresh or platform quirk).
+            if (float.IsNaN(width) || width <= 0f)
+            {
+                if (Screen.width > 0 && Screen.width < CompactWidthThreshold)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void OnRootGeometryChanged(GeometryChangedEvent evt)
+        {
+            if (lastEntry == null)
+            {
+                return;
+            }
+
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                return;
+            }
+
+            UpdateHero(lastEntry, accountManager);
         }
 
         private void UpdateStats(WalletBalanceEntry entry)
@@ -1620,6 +1663,7 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void ClearUi()
         {
+            lastEntry = null;
             tokenTitleLabel.text = "Token";
             tokenSubtitleLabel.text = string.Empty;
             if (soulMasterOverlay != null)
