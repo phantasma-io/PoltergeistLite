@@ -156,11 +156,11 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            if (!isManageMode)
-            {
-                SetStatus(hiddenCount > 0 ? "Some wallets are hidden in Wallet Management." : string.Empty);
+                if (!isManageMode)
+                {
+                    SetStatus(string.Empty);
+                }
             }
-        }
 
         private void Subscribe()
         {
