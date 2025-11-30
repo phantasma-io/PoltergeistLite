@@ -153,12 +153,14 @@ namespace Poltergeist.UiToolkit
                 if (maxLength > 0 && input.Length > maxLength)
                 {
                     ShowValidation($"Input must be <= {maxLength} characters.");
+                    inputField.schedule.Execute(() => inputField.Focus()).StartingIn(30);
                     return;
                 }
 
                 if (input.Length < minLength)
                 {
                     ShowValidation($"Input must be >= {minLength} characters.");
+                    inputField.schedule.Execute(() => inputField.Focus()).StartingIn(30);
                     return;
                 }
             }
