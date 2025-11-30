@@ -97,7 +97,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 }
             };
             ApplyDefaultFont(panel);
-            WalletUiCommon.ApplyCardStyle(panel, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusMedium);
+            WalletUiCommon.ApplyCardStyle(panel, null, WalletUiTheme.RadiusMedium, WalletUiTheme.PanelBackground, WalletUiTheme.CardBorder, WalletUiTheme.HighlightEdge);
 
             manageStatusLabel = WalletUiCommon.CreateStatusLabel(TextAnchor.MiddleCenter, Align.Center);
             manageStatusLabel.style.width = new Length(100, LengthUnit.Percent);
