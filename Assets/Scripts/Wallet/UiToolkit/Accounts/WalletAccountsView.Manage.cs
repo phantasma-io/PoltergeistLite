@@ -315,11 +315,28 @@ namespace Poltergeist.UiToolkit.Accounts
                     color = isHidden ? WalletUiTheme.TextMuted : WalletUiTheme.TextSecondary,
                     fontSize = 13,
                     unityTextAlign = TextAnchor.MiddleLeft,
-                    whiteSpace = WhiteSpace.Normal
+                    whiteSpace = WhiteSpace.Normal,
+                    marginTop = 4
                 }
             };
             ApplyDefaultFont(addressLabel);
             info.Add(addressLabel);
+
+            var quickActions = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    marginTop = 6
+                }
+            };
+            var copyBtn = MakePillButton("Copy", () => CopyAddress(account.phaAddress));
+            quickActions.Add(copyBtn);
+            var explorerBtn = MakePillButton("Explorer", () => OpenExplorer(account.phaAddress));
+            explorerBtn.style.marginLeft = 6;
+            quickActions.Add(explorerBtn);
+            info.Add(quickActions);
 
             row.Add(info);
             return row;
