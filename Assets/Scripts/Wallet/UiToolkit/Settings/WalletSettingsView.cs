@@ -326,6 +326,7 @@ namespace Poltergeist.UiToolkit.Settings
             scroll.Clear();
 
             warningLabel = BuildWarningLabel();
+            // Tabs bar must wrap on narrow screens so labels stay readable on mobile.
             tabsBar = new VisualElement
             {
                 style =
@@ -333,6 +334,8 @@ namespace Poltergeist.UiToolkit.Settings
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
                     justifyContent = Justify.FlexStart,
+                    flexWrap = Wrap.Wrap,
+                    alignContent = Align.FlexStart,
                     marginTop = 8,
                     marginBottom = 12,
                     width = new Length(100, LengthUnit.Percent)
@@ -663,16 +666,18 @@ namespace Poltergeist.UiToolkit.Settings
                 {
                     text = label,
                     style =
-                {
-                    color = WalletUiTheme.TextPrimary,
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    fontSize = 15,
-                    paddingLeft = 14,
-                    paddingRight = 14,
-                    paddingTop = 8,
-                    paddingBottom = 8,
-                    minHeight = 36,
-                    marginRight = 8,
+                    {
+                        color = WalletUiTheme.TextPrimary,
+                        unityFontStyleAndWeight = FontStyle.Bold,
+                        fontSize = 15,
+                        paddingLeft = 14,
+                        paddingRight = 14,
+                        paddingTop = 8,
+                        paddingBottom = 8,
+                        minHeight = 36,
+                        minWidth = 108,
+                        marginRight = 8,
+                        marginBottom = 8
                     }
                 };
                 WalletUiCommon.ApplyDefaultFont(btn);
@@ -681,6 +686,8 @@ namespace Poltergeist.UiToolkit.Settings
                 btn.tabIndex = -1;
                 btn.pickingMode = PickingMode.Position;
                 btn.style.unityTextAlign = TextAnchor.MiddleCenter;
+                btn.style.whiteSpace = WhiteSpace.NoWrap;
+                btn.style.flexShrink = 0;
                 tabButtons[key] = btn;
                 tabsBar.Add(btn);
             }
