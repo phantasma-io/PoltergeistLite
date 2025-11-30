@@ -4,6 +4,25 @@ using System.Collections.Generic;
 namespace Poltergeist.Wallet
 {
     /// <summary>
+    /// Immutable descriptor of an NFT inspection step used to restore the navigation trail.
+    /// </summary>
+    public readonly struct WalletNftInspectEntry
+    {
+        public WalletNftInspectEntry(string symbol, string tokenId, bool locked)
+        {
+            Symbol = symbol ?? string.Empty;
+            TokenId = tokenId ?? string.Empty;
+            Locked = locked;
+        }
+
+        public string Symbol { get; }
+        public string TokenId { get; }
+        public bool Locked { get; }
+
+        public bool IsValid => !string.IsNullOrEmpty(Symbol) && !string.IsNullOrEmpty(TokenId);
+    }
+
+    /// <summary>
     /// Caches view-ready snapshots and shared selection state used by UI layers.
     /// </summary>
     public sealed class WalletViewState
@@ -11,6 +30,7 @@ namespace Poltergeist.Wallet
         private readonly Dictionary<string, WalletNftViewSnapshot> nftSnapshots = new Dictionary<string, WalletNftViewSnapshot>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> dirtyNftSymbols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> selectedAccounts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly List<WalletNftInspectEntry> nftInspectTrail = new List<WalletNftInspectEntry>();
 
         public WalletBalanceViewSnapshot BalancesSnapshot { get; private set; }
         public WalletHistoryViewSnapshot HistorySnapshot { get; private set; }
@@ -23,6 +43,8 @@ namespace Poltergeist.Wallet
         public string TokenDashboardSymbol { get; set; }
         public IReadOnlyCollection<string> SelectedAccounts => selectedAccounts;
         public int SelectedAccountCount => selectedAccounts.Count;
+        public IReadOnlyList<WalletNftInspectEntry> NftInspectTrail => nftInspectTrail;
+        public bool HasNftInspect => nftInspectTrail.Count > 0;
 
         public WalletBalanceViewSnapshot GetBalancesSnapshot(Func<WalletBalanceViewSnapshot> builder)
         {
@@ -115,6 +137,7 @@ namespace Poltergeist.Wallet
             NftScrollY = 0f;
             NftTransferScrollY = 0f;
             TokenDashboardSymbol = null;
+            ClearNftInspectTrail();
             MarkBalancesDirty();
             MarkHistoryDirty();
         }
@@ -143,6 +166,44 @@ namespace Poltergeist.Wallet
         public void ClearAccountSelection()
         {
             selectedAccounts.Clear();
+        }
+
+        public void PushNftInspect(WalletNftInspectEntry entry)
+        {
+            if (!entry.IsValid)
+            {
+                return;
+            }
+
+            nftInspectTrail.Add(entry);
+        }
+
+        public bool TryPopNftInspect(out WalletNftInspectEntry entry)
+        {
+            if (nftInspectTrail.Count > 0)
+            {
+                entry = nftInspectTrail[nftInspectTrail.Count - 1];
+                nftInspectTrail.RemoveAt(nftInspectTrail.Count - 1);
+                return true;
+            }
+
+            entry = default;
+            return false;
+        }
+
+        public WalletNftInspectEntry? PeekNftInspect()
+        {
+            if (nftInspectTrail.Count == 0)
+            {
+                return null;
+            }
+
+            return nftInspectTrail[nftInspectTrail.Count - 1];
+        }
+
+        public void ClearNftInspectTrail()
+        {
+            nftInspectTrail.Clear();
         }
     }
 }

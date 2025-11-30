@@ -23,7 +23,7 @@ namespace Poltergeist.UiToolkit.Balances
     /// <summary>
     /// NFT-centric dashboard: filtering, selection, transfer and burn flows in a single UITK screen.
     /// </summary>
-    public sealed class WalletNftDashboardView : IDisposable
+    public sealed partial class WalletNftDashboardView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
 
@@ -66,6 +66,7 @@ namespace Poltergeist.UiToolkit.Balances
         private VisualElement filtersPanel;
         private VisualElement selectionActionsCloud;
         private VisualElement paginationRow;
+        private VisualElement listContainer;
         private Button refreshButton;
         private Button sendButton;
         private Button burnButton;
@@ -181,6 +182,7 @@ namespace Poltergeist.UiToolkit.Balances
         private void PrepareStateForSymbol(string symbol)
         {
             context.ViewState.NftScrollY = 0f;
+            context.ViewState.ClearNftInspectTrail();
             nftPresenter.ClearSelection();
             nftPresenter.ResetFiltersAndPagination();
             nftPresenter.ResetSorting();
@@ -288,12 +290,22 @@ namespace Poltergeist.UiToolkit.Balances
             statusLabel.style.display = DisplayStyle.None;
             content.Add(statusLabel);
 
+            listContainer = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    flexGrow = 1
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(listContainer);
+
             heroCard = BuildHeroCard();
             heroCard.style.marginTop = 12;
-            content.Add(heroCard);
+            listContainer.Add(heroCard);
 
             filtersPanel = BuildFiltersPanel();
-            content.Add(filtersPanel);
+            listContainer.Add(filtersPanel);
 
             var listWrapper = WalletUiCommon.BuildScrollContainer(
                 out listView,
@@ -310,15 +322,20 @@ namespace Poltergeist.UiToolkit.Balances
             listView.style.flexGrow = 1;
             listView.style.flexShrink = 1;
             listWrapper.style.flexGrow = 1;
-            content.Add(listWrapper);
+            listContainer.Add(listWrapper);
 
             selectionActionsCloud = BuildActionsRow();
-            content.Add(selectionActionsCloud);
+            listContainer.Add(selectionActionsCloud);
 
             paginationRow = BuildPaginationRow();
-            content.Add(paginationRow);
+            listContainer.Add(paginationRow);
+            content.Add(listContainer);
 
-            var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onShowBalances?.Invoke());
+            detailContainer = BuildDetailContainer();
+            detailContainer.style.display = DisplayStyle.None;
+            content.Add(detailContainer);
+
+            var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), HandleBackNavigation);
             if (navExit != null)
             {
                 navExit.text = "Back";
@@ -731,36 +748,47 @@ namespace Poltergeist.UiToolkit.Balances
                     return;
             }
 
-            var nftSnapshot = context.ViewState.GetNftSnapshot(symbol, s => nftPresenter.BuildSnapshot(s));
-            UpdateFiltersUi(symbol);
-            if (nftSnapshot == null)
-            {
-                SetStatus("No NFTs to show.");
-                ClearUi();
-                return;
-            }
-
-            if (nftSnapshot.IsRefreshing && (nftSnapshot.FilteredTokens == null || nftSnapshot.FilteredTokens.Count == 0))
-            {
-                SetStatus("Fetching NFTs...");
+                var nftSnapshot = context.ViewState.GetNftSnapshot(symbol, s => nftPresenter.BuildSnapshot(s));
+                UpdateFiltersUi(symbol);
+                if (nftSnapshot == null)
+                {
+                    SetStatus("No NFTs to show.");
                     ClearUi();
                     return;
                 }
 
-            if (nftSnapshot.HasError)
-            {
-                SetStatus(nftSnapshot.ErrorMessage);
-                ClearUi();
-                return;
-            }
+                if (nftSnapshot.IsRefreshing && (nftSnapshot.FilteredTokens == null || nftSnapshot.FilteredTokens.Count == 0))
+                {
+                    SetStatus("Fetching NFTs...");
+                    ClearUi();
+                    return;
+                }
+
+                if (nftSnapshot.HasError)
+                {
+                    SetStatus(nftSnapshot.ErrorMessage);
+                    ClearUi();
+                    return;
+                }
 
                 subtitleLabel.text = WalletUiCommon.BuildContextSubtitle("NFTs", accountManager.CurrentAccount.name, accountManager.CurrentPlatform);
                 WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
 
-            nftPresenter.PruneSelection(nftSource.CurrentNfts?.Select(x => x.Id));
-            nftPresenter.State.ApplyPagination(nftSnapshot.TotalCount, nftSnapshot.PageCount, nftSnapshot.PageNumber);
+                nftPresenter.PruneSelection(nftSource.CurrentNfts?.Select(x => x.Id));
+                nftPresenter.State.ApplyPagination(nftSnapshot.TotalCount, nftSnapshot.PageCount, nftSnapshot.PageNumber);
 
+                if (context.ViewState.HasNftInspect)
+                {
+                    ShowDetailMode();
+                    UpdateHero(symbol, nftSnapshot);
+                    RenderDetailView(accountManager);
+                    SetStatus(string.Empty);
+                    return;
+                }
+
+                ShowListMode();
                 UpdateHero(symbol, nftSnapshot);
+                summaryLabel.text = $"{nftSnapshot.TotalCount} item(s) • {nftPresenter.State.SelectedCount} selected";
                 RenderList(symbol, nftSnapshot, accountManager);
                 UpdateActions(symbol, accountManager);
                 SetStatus(string.Empty);
@@ -1103,7 +1131,7 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(actions);
 
-            var viewButton = WalletUiCommon.CreateOutlineButton("View", () => OpenNftExplorer(symbol, tokenId), 14, 30);
+            var viewButton = WalletUiCommon.CreateOutlineButton("View", () => OpenNftDetails(symbol, tokenId, false, true), 14, 30);
             viewButton.style.minWidth = 90;
             actions.Add(viewButton);
 
@@ -1259,6 +1287,43 @@ namespace Poltergeist.UiToolkit.Balances
             return token.GetPropertyValue("ImageURL");
         }
 
+        private void OpenNftDetails(string symbol, string tokenId, bool locked, bool resetTrail)
+        {
+            if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(tokenId))
+            {
+                return;
+            }
+
+            if (resetTrail)
+            {
+                context.ViewState.ClearNftInspectTrail();
+            }
+
+            var current = context.ViewState.PeekNftInspect();
+            if (!current.HasValue || !string.Equals(current.Value.Symbol, symbol, StringComparison.OrdinalIgnoreCase) || !string.Equals(current.Value.TokenId, tokenId, StringComparison.OrdinalIgnoreCase))
+            {
+                context.ViewState.PushNftInspect(new WalletNftInspectEntry(symbol, tokenId, locked));
+            }
+
+            RefreshView();
+        }
+
+        private string BuildDetailSubtitle(string symbol, string tokenId, TokenDataResult token, DateTime mintDate)
+        {
+            var parts = new List<string> { $"{symbol} #{FormatId(tokenId, 6)}" };
+            if (!string.IsNullOrWhiteSpace(token?.ChainName))
+            {
+                parts.Add(token.ChainName);
+            }
+
+            if (mintDate != DateTime.MinValue)
+            {
+                parts.Add(mintDate.ToString("dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture));
+            }
+
+            return string.Join(" • ", parts.Where(x => !string.IsNullOrWhiteSpace(x)));
+        }
+
         private void UpdateActions(string symbol, AccountManager accountManager)
         {
             var selectionCount = nftPresenter.State.SelectedCount;
@@ -1294,7 +1359,12 @@ namespace Poltergeist.UiToolkit.Balances
             RefreshView();
         }
 
-        private async Task SendAsync()
+        private Task SendAsync()
+        {
+            return SendAsync(null, null);
+        }
+
+        private async Task SendAsync(string symbolOverride, IReadOnlyCollection<string> customIds)
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null)
@@ -1303,8 +1373,8 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
-            var selectedIds = nftPresenter.SelectionSnapshot();
+            var symbol = string.IsNullOrWhiteSpace(symbolOverride) ? (string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol) : symbolOverride;
+            var selectedIds = customIds?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? nftPresenter.SelectionSnapshot().ToList();
             if (string.IsNullOrWhiteSpace(symbol) || selectedIds.Count == 0)
             {
                 SetStatus("No NFTs selected.");
@@ -1349,10 +1419,19 @@ namespace Poltergeist.UiToolkit.Balances
             context.ViewState.NftScrollY = 0f;
             nftPresenter.ClearSelection();
             context.ViewState.MarkNftDirty(symbol);
+            if (customIds != null)
+            {
+                context.ViewState.ClearNftInspectTrail();
+            }
             RefreshView();
         }
 
-        private async Task BurnAsync()
+        private Task BurnAsync()
+        {
+            return BurnAsync(null, null);
+        }
+
+        private async Task BurnAsync(string symbolOverride, IReadOnlyCollection<string> customIds)
         {
             var settings = AccountManager.Instance?.Settings;
             if (settings == null || !settings.devMode)
@@ -1361,8 +1440,8 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
-            var selectedIds = nftPresenter.SelectionSnapshot();
+            var symbol = string.IsNullOrWhiteSpace(symbolOverride) ? (string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol) : symbolOverride;
+            var selectedIds = customIds?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? nftPresenter.SelectionSnapshot().ToList();
             if (string.IsNullOrWhiteSpace(symbol) || selectedIds.Count == 0)
             {
                 SetStatus("No NFTs selected.");
@@ -1388,6 +1467,10 @@ namespace Poltergeist.UiToolkit.Balances
             context.ViewState.NftScrollY = 0f;
             nftPresenter.ClearSelection();
             context.ViewState.MarkNftDirty(symbol);
+            if (customIds != null)
+            {
+                context.ViewState.ClearNftInspectTrail();
+            }
             RefreshView();
         }
 
@@ -1645,6 +1728,51 @@ namespace Poltergeist.UiToolkit.Balances
             }
         }
 
+        private void HandleBackNavigation()
+        {
+            // Walk back through the inspected NFT trail before leaving the asset dashboard entirely.
+            if (context.ViewState.HasNftInspect && context.ViewState.TryPopNftInspect(out _))
+            {
+                if (context.ViewState.HasNftInspect)
+                {
+                    RefreshView();
+                    return;
+                }
+
+                ShowListMode();
+                RefreshView();
+                return;
+            }
+
+            onShowBalances?.Invoke();
+        }
+
+        private void ShowListMode()
+        {
+            if (listContainer != null)
+            {
+                listContainer.style.display = DisplayStyle.Flex;
+            }
+
+            if (detailContainer != null)
+            {
+                detailContainer.style.display = DisplayStyle.None;
+            }
+        }
+
+        private void ShowDetailMode()
+        {
+            if (listContainer != null)
+            {
+                listContainer.style.display = DisplayStyle.None;
+            }
+
+            if (detailContainer != null)
+            {
+                detailContainer.style.display = DisplayStyle.Flex;
+            }
+        }
+
         private void ClearUi()
         {
             listView?.Clear();
@@ -1653,6 +1781,45 @@ namespace Poltergeist.UiToolkit.Balances
             pageInfoLabel.text = "Page 1 / 1";
             filterHintLabel.text = string.Empty;
             tokenIcon.image = null;
+            if (summaryLabel != null)
+            {
+                summaryLabel.text = string.Empty;
+            }
+            if (detailTitleLabel != null)
+            {
+                detailTitleLabel.text = "NFT";
+            }
+
+            if (detailSubtitleLabel != null)
+            {
+                detailSubtitleLabel.text = string.Empty;
+            }
+
+            if (detailDescriptionLabel != null)
+            {
+                detailDescriptionLabel.text = string.Empty;
+            }
+            detailTagContainer?.Clear();
+            detailPropertiesContainer?.Clear();
+            detailFungibleList?.Clear();
+            detailNftList?.Clear();
+            if (detailLockLabel != null)
+            {
+                detailLockLabel.style.display = DisplayStyle.None;
+            }
+            if (detailFungibleContainer != null)
+            {
+                detailFungibleContainer.style.display = DisplayStyle.None;
+            }
+            if (detailNftContainer != null)
+            {
+                detailNftContainer.style.display = DisplayStyle.None;
+            }
+            if (detailImage != null)
+            {
+                detailImage.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+            }
+            ShowListMode();
         }
 
         private void SetStatus(string text)
