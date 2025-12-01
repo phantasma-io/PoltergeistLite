@@ -43,7 +43,8 @@ namespace Poltergeist
         private Dictionary<string, decimal> _tokenPrices = new Dictionary<string, decimal>();
         public string CurrentTokenCurrency { get; private set; }
 
-        private int _selectedAccountIndex;
+        // Keep selection unset until the user explicitly opens a wallet to avoid auto-opening arbitrary accounts on startup.
+        private int _selectedAccountIndex = -1;
         public int CurrentIndex => _selectedAccountIndex;
         public Account CurrentAccount => HasSelection ? Accounts[_selectedAccountIndex] : new Account() { };
         public string CurrentPasswordHash;
