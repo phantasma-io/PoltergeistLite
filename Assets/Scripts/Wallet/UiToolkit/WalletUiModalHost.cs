@@ -190,5 +190,8 @@ namespace Poltergeist.UiToolkit
                 overlay.style.display = DisplayStyle.None;
             }
         }
+
+        // Expose whether a prompt or custom panel is currently occupying the shared overlay.
+        public bool IsBusy => promptActive || activePanel != null;
     }
 }
