@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Poltergeist;
 using Poltergeist.Wallet;
 using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Unity.Core.Logging;
@@ -99,6 +100,9 @@ namespace Poltergeist.UiToolkit.Balances
             summaryLabel = subHeader.LeftLabel;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;
+            subtitleNetworkLabel.style.display = DisplayStyle.Flex;
+            subtitleNetworkLabel.style.visibility = Visibility.Hidden;
+            subtitleNetworkLabel.style.minWidth = 64; // Reserve badge footprint early to avoid subtitle jitter on first layout.
             headerBlock.Root.style.flexShrink = 0;
             content.Add(headerBlock.Root);
 
@@ -149,6 +153,9 @@ namespace Poltergeist.UiToolkit.Balances
             content.Add(footer);
 
             root.Add(content);
+
+            // Apply initial badge to avoid layout jitter on first render.
+            UpdateNetworkBadge(AccountManager.Instance?.Settings);
         }
 
         private void Subscribe()
@@ -235,12 +242,12 @@ namespace Poltergeist.UiToolkit.Balances
                 UpdateNavSelection(NavTarget.Balances);
                 subtitleLabel.text = "Balances";
                 summaryLabel.text = string.Empty;
-                subtitleNetworkLabel.style.display = DisplayStyle.None;
 
                 var snapshot = context.ViewState.GetBalancesSnapshot(() => presenter.BuildSnapshot());
                 SetStatus("Loading balances...");
                 var accountManager = AccountManager.Instance;
                 var settings = accountManager?.Settings;
+                UpdateNetworkBadge(settings);
                 Log.Write($"{LogPrefix}RefreshView snapshot built. accountsReady={accountManager?.AccountsAreReadyToBeUsed} accounts={accountManager?.Accounts?.Count} selection={accountManager?.CurrentIndex}");
                 if (accountManager == null || accountManager.Accounts == null || accountManager.Accounts.Count == 0)
                 {
@@ -255,12 +262,9 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     SetStatus("Settings are not loaded yet.");
                     listView.Clear();
-                    subtitleNetworkLabel.style.display = DisplayStyle.None;
                     NotifyReady("settings missing");
                     return;
                 }
-
-                WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
 
                 if (!accountManager.HasSelection)
                 {
@@ -338,6 +342,23 @@ namespace Poltergeist.UiToolkit.Balances
                 Log.WriteWarning($"[UITK] Balances refresh failed: {e}\n{e.StackTrace}");
                 NotifyReady("exception");
             }
+        }
+
+        private void UpdateNetworkBadge(Poltergeist.Settings settings)
+        {
+            if (subtitleNetworkLabel == null)
+            {
+                return;
+            }
+
+            if (settings == null)
+            {
+                subtitleNetworkLabel.style.display = DisplayStyle.Flex;
+                subtitleNetworkLabel.style.visibility = Visibility.Hidden;
+                return;
+            }
+
+            WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
         }
 
         private void NotifyReady(string reason)

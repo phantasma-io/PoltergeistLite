@@ -136,6 +136,7 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(row);
 
+            // Left label keeps a fixed footprint; we mirror it on the right to keep the subtitle centered without absolute positioning.
             var leftLabel = new Label(leftText ?? string.Empty)
             {
                 style =
@@ -150,6 +151,7 @@ namespace Poltergeist.UiToolkit
                 }
             };
             ApplyDefaultFont(leftLabel);
+            leftLabel.style.flexShrink = 0;
 
             var subtitleGroup = new VisualElement
             {
@@ -158,9 +160,7 @@ namespace Poltergeist.UiToolkit
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
                     justifyContent = Justify.Center,
-                    position = Position.Absolute,
-                    left = 0,
-                    right = 0
+                    flexGrow = 1
                 }
             };
 
@@ -191,8 +191,22 @@ namespace Poltergeist.UiToolkit
             subtitleGroup.Add(subtitle);
             subtitleGroup.Add(network);
 
+            // Spacer matches left label dimensions so subtitle + badge stay centered even while RPC/network badge toggles visibility.
+            var rightSpacer = new VisualElement
+            {
+                style =
+                {
+                    minWidth = leftLabel.style.minWidth,
+                    maxWidth = leftLabel.style.maxWidth,
+                    marginLeft = leftLabel.style.marginRight,
+                    flexShrink = 0,
+                    flexGrow = 0
+                }
+            };
+
             row.Add(leftLabel);
             row.Add(subtitleGroup);
+            row.Add(rightSpacer);
 
             return new SubHeaderElements(row, leftLabel, subtitle, network);
         }
@@ -1102,14 +1116,17 @@ namespace Poltergeist.UiToolkit
             var text = BuildNetworkLabel(kind);
             if (string.IsNullOrWhiteSpace(text))
             {
+                // Keep layout stable even when the badge is hidden to avoid subtitle jitter on first refresh.
                 label.text = string.Empty;
-                label.style.display = DisplayStyle.None;
+                label.style.visibility = Visibility.Hidden;
+                label.style.display = DisplayStyle.Flex;
                 return;
             }
 
             var palette = GetNetworkBadgePalette(kind);
             label.text = text;
             label.style.display = DisplayStyle.Flex;
+            label.style.visibility = Visibility.Visible;
             label.style.unityTextAlign = TextAnchor.MiddleCenter;
             label.style.unityFontStyleAndWeight = FontStyle.Bold;
             label.style.fontSize = 12;
@@ -1133,6 +1150,7 @@ namespace Poltergeist.UiToolkit
             label.style.paddingBottom = 4;
             label.style.marginLeft = 6;
             label.style.minHeight = 20;
+            label.style.minWidth = 64; // Reserve width to avoid layout shifts when the badge text appears.
         }
 
         /// <summary>

@@ -471,10 +471,6 @@ namespace Poltergeist.UiToolkit
         {
             if (modalHost == null || modalHost.IsBusy)
             {
-                if (modalHost != null && modalHost.IsBusy)
-                {
-                    Log.Write($"{LogPrefix}Message pump skipped: modal busy.");
-                }
                 return;
             }
 
