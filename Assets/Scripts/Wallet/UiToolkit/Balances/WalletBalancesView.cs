@@ -540,7 +540,7 @@ namespace Poltergeist.UiToolkit.Balances
                     marginTop = 4,
                     flexShrink = 0
                 }
-            };
+                };
                 var openButton = WalletUiCommon.CreateOutlineButton(entry.Fungible ? "Open Asset" : "Open Asset", () => OpenToken(entry.Symbol), 14, 32);
                 openButton.style.minWidth = 120;
                 openButton.style.paddingLeft = 14;
@@ -561,8 +561,8 @@ namespace Poltergeist.UiToolkit.Balances
 
             if (entry.Staked > System.Numerics.BigInteger.Zero)
             {
-            var fiat = string.IsNullOrEmpty(entry.StakedFiatWorth) ? string.Empty : $" ({entry.StakedFiatWorth})";
-            parts.Add($"Staked {entry.StakedText}{fiat}");
+                var fiat = string.IsNullOrEmpty(entry.StakedFiatWorth) ? string.Empty : $" ({entry.StakedFiatWorth})";
+                parts.Add($"Staked {entry.StakedText}{fiat}");
             }
 
             if (entry.Claimable > System.Numerics.BigInteger.Zero)

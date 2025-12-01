@@ -773,40 +773,40 @@ namespace Poltergeist.UiToolkit.Settings
 
             if (!ShowOnlyFirstSettingsField)
             {
-            if (rpcUrlRow != null)
-            {
-                rpcUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                rpcUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-            }
+                if (rpcUrlRow != null)
+                {
+                    rpcUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                    rpcUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                }
 
-            if (explorerUrlRow != null)
-            {
-                explorerUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                explorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-            }
+                if (explorerUrlRow != null)
+                {
+                    explorerUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                    explorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                }
 
-            if (nftExplorerRow != null)
-            {
-                nftExplorerRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                nftExplorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-            }
+                if (nftExplorerRow != null)
+                {
+                    nftExplorerRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                    nftExplorerUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                }
 
-            if (poaUrlRow != null)
-            {
-                poaUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-                poaUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
-            }
+                if (poaUrlRow != null)
+                {
+                    poaUrlRow.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                    poaUrlField.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.Flex : DisplayStyle.None;
+                }
 
-            if (nexusNameRow != null)
-            {
-                nexusNameRow.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
-                nexusNameField.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
-            }
+                if (nexusNameRow != null)
+                {
+                    nexusNameRow.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
+                    nexusNameField.style.display = snapshot.HasCustomName ? DisplayStyle.Flex : DisplayStyle.None;
+                }
 
-            if (defaultEndpointInfoLabel != null)
-            {
-                defaultEndpointInfoLabel.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.None : DisplayStyle.Flex;
-            }
+                if (defaultEndpointInfoLabel != null)
+                {
+                    defaultEndpointInfoLabel.style.display = snapshot.HasCustomEndpoints ? DisplayStyle.None : DisplayStyle.Flex;
+                }
             }
 
             ToggleDevVisibility(snapshot.DevMode, snapshot.ShowUnstableTools);
@@ -1090,23 +1090,23 @@ namespace Poltergeist.UiToolkit.Settings
             SetStatus("Parsing script...");
             try
             {
-                    var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        SetStatus("Error during script parsing.", true);
-                        await ShowInfoAsync("Script error", "Error during script parsing.\nDetails: " + error);
-                        return;
-                    }
+                var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
+                if (!string.IsNullOrEmpty(error))
+                {
+                    SetStatus("Error during script parsing.", true);
+                    await ShowInfoAsync("Script error", "Error during script parsing.\nDetails: " + error);
+                    return;
+                }
 
                 ShowCopyPanel("Script description", "Copy the generated description", description, "Description copied to clipboard.");
                 SetStatus("Script parsed.");
             }
-                catch (Exception e)
-                {
-                    SetStatus("Error during script parsing.", true);
-                    await ShowInfoAsync("Script error", "Error during script parsing.\nDetails: " + e);
-                }
+            catch (Exception e)
+            {
+                SetStatus("Error during script parsing.", true);
+                await ShowInfoAsync("Script error", "Error during script parsing.\nDetails: " + e);
             }
+        }
 
         private async Task OnDecodeTransactionAsync()
         {

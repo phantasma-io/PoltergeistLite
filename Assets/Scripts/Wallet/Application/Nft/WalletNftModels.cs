@@ -47,4 +47,3 @@ namespace Poltergeist.Wallet
         public string ImageUrl { get; }
     }
 }
-

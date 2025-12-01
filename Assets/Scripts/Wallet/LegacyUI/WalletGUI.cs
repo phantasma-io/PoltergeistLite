@@ -2604,8 +2604,8 @@ namespace Poltergeist
 
                                     StakeSOUL(selectedAmount, message + twoSmsWarning, (hash, txResult, error) =>
                         {
-                                                    TxResultMessage(hash, txResult, error, "Your SOUL tokens were staked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
-                                                });
+                            TxResultMessage(hash, txResult, error, "Your SOUL tokens were staked!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
+                        });
                                 });
                             };
                         }

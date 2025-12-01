@@ -31,7 +31,7 @@ public class ResourceManager : MonoBehaviour
     }
 
     private Dictionary<string, Texture> _symbols = new Dictionary<string, Texture>();
-    
+
     public void UnloadTokens()
     {
         _symbols.Clear();
@@ -56,10 +56,10 @@ public class ResourceManager : MonoBehaviour
         var themeName = AccountManager.Instance.Settings.uiThemeName;
         var texture = Resources.Load<Texture>($"LegacyUI/Skins/{themeName}/Tokens/" + symbol);
 
-        if(texture == null)
+        if (texture == null)
             texture = Resources.Load<Texture>("Common/Tokens/" + symbol);
 
-        if(texture == null)
+        if (texture == null)
         {
             texture = Resources.Load<Texture>("Common/Tokens/UNKNOWN_TOKEN_" + platform.ToString().ToUpper());
         }

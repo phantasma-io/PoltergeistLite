@@ -13,7 +13,7 @@ public static class Cache
         JSON,
         PNG
     }
-    
+
     private static string FolderPath;
     private static string ImageFolderPath;
     private static string FilePath;
@@ -123,7 +123,7 @@ public static class Cache
 
     private static string GetFilePath(string CacheId, FileType FileType)
     {
-        if(FileType == FileType.PNG)
+        if (FileType == FileType.PNG)
             return Path.Combine(ImageFolderPath, "cache." + CacheId + "." + FileType.ToString().ToLower());
         else
             return Path.Combine(FolderPath, "cache." + CacheId + "." + FileType.ToString().ToLower());
@@ -279,7 +279,7 @@ public static class Cache
         if (String.IsNullOrEmpty(cacheContents))
             return null;
 
-        TokenDataResult[] cache = new TokenDataResult[]{};
+        TokenDataResult[] cache = new TokenDataResult[] { };
         try
         {
             cache = JsonConvert.DeserializeObject<TokenDataResult[]>(cacheContents);
@@ -289,16 +289,16 @@ public static class Cache
             Log.Write("Cache is corrupted, probably old version");
         }
 
-        if(cache == null)
+        if (cache == null)
         {
-            cache = new TokenDataResult[]{};
+            cache = new TokenDataResult[] { };
         }
 
         return cache;
     }
     public static TokenDataResult FindTokenData(TokenDataResult[] cache, string id)
     {
-        if(cache == null)
+        if (cache == null)
         {
             return null;
         }

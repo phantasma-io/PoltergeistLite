@@ -284,5 +284,4 @@ namespace Poltergeist.Wallet
             return WalletTransactionDraftResult.CreateSuccess(plan);
         }
     }
-
 }

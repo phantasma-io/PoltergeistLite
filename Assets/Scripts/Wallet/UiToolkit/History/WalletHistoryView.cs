@@ -503,16 +503,3 @@ namespace Poltergeist.UiToolkit.History
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -12,38 +12,40 @@ namespace Poltergeist.Build
         {
             get
             {
-                if (_instance == null) {
+                if (_instance == null)
+                {
                     _instance = new Info();
                 }
- 
+
                 return _instance;
             }
         }
- 
+
         public DateTime BuildTime { get; private set; }
- 
+
         protected Info()
         {
             byte[] ByteInfo = this.ReadStreamingAsset("BuildInfo");
- 
+
             // file does not exists. set defaults!
             if (ByteInfo.Length == 0)
             {
                 BuildTime = DateTime.UtcNow;
- 
+
                 return;
             }
             // else, read the infos from file
- 
-            using (BinaryReader Reader = new BinaryReader(new MemoryStream(ByteInfo, false))) {
+
+            using (BinaryReader Reader = new BinaryReader(new MemoryStream(ByteInfo, false)))
+            {
                 BuildTime = DateTime.FromBinary(Reader.ReadInt64());
             }
         }
- 
+
         public byte[] ReadStreamingAsset(string path)
         {
             string filePath = Path.Combine(Application.streamingAssetsPath, path);
- 
+
             // add file prefix
             if (Application.platform != RuntimePlatform.Android)
             {
@@ -53,16 +55,16 @@ namespace Poltergeist.Build
             UnityWebRequest fileContent = UnityWebRequest.Get(filePath);
             fileContent.SendWebRequest();
             while (!fileContent.isDone) { }
- 
+
             return fileContent.downloadHandler.data;
         }
     }
- 
+
 #if UNITY_EDITOR
     public class AndroidBuildPrepartion : UnityEditor.Build.IPreprocessBuildWithReport
     {
         public int callbackOrder { get { return 0; } }
- 
+
         public void OnPreprocessBuild(UnityEditor.Build.Reporting.BuildReport report)
         {
             using (BinaryWriter Writer = new BinaryWriter(File.Open("Assets/StreamingAssets/BuildInfo", FileMode.Create)))

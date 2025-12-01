@@ -156,11 +156,11 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-                if (!isManageMode)
-                {
-                    SetStatus(string.Empty);
-                }
+            if (!isManageMode)
+            {
+                SetStatus(string.Empty);
             }
+        }
 
         private void Subscribe()
         {
@@ -672,6 +672,3 @@ namespace Poltergeist.UiToolkit.Accounts
         }
     }
 }
-
-
-

@@ -37,17 +37,17 @@ public static class Tokens
         SupportedTokens.Clear();
         CoingeckoApiSymbols.Clear();
     }
-    
+
     public static void AddTokens(TokenResult[] tokens)
     {
         SupportedTokens.AddRange(tokens);
     }
-    
+
     public static void AddToken(TokenResult token)
     {
         SupportedTokens.Add(token);
     }
-    
+
     public static void LoadCoinGeckoSymbols()
     {
         var resource = Resources.Load<TextAsset>("Common/Tokens.CoinGecko");
@@ -75,16 +75,16 @@ public static class Tokens
     }
     public static void Init(TokenResult[] mainnetTokens)
     {
-            Tokens.Reset();
+        Tokens.Reset();
 
-            Tokens.AddTokens(mainnetTokens);
-            TokenIconCache.RebuildFromTokens(mainnetTokens);
+        Tokens.AddTokens(mainnetTokens);
+        TokenIconCache.RebuildFromTokens(mainnetTokens);
 
-            Tokens.LoadCoinGeckoSymbols();
+        Tokens.LoadCoinGeckoSymbols();
 
-            Log.Write($"{Tokens.GetTokens().Length} tokens supported", Log.Level.Debug1);
+        Log.Write($"{Tokens.GetTokens().Length} tokens supported", Log.Level.Debug1);
 
-            Tokens.ToLog();
+        Tokens.ToLog();
     }
 
     public static TokenResult[] GetTokens(string symbol)

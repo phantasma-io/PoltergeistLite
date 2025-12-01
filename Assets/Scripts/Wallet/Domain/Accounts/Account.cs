@@ -20,8 +20,8 @@ namespace Poltergeist
         public string password; // Not used after account upgrade to version 2.
         public string misc;
         public string neoAddressN3;
-        public int version; 
-        
+        public int version;
+
         public override string ToString()
         {
             return $"{name.ToUpper()}";
@@ -74,7 +74,7 @@ namespace Poltergeist
             {
                 neoAddressN3 = reader.ReadVarString();
                 version = reader.ReadInt32() != 3 ? 2 : 3;
-                
+
                 if (version == 2)
                 {
                     reader.BaseStream.Position = headerReader;
@@ -82,8 +82,8 @@ namespace Poltergeist
                     version = 2;
                     return;
                 }
-                
-                if (string.IsNullOrEmpty(neoAddressN3) || !neoAddressN3.StartsWith("N") || neoAddressN3.Length < 21 )
+
+                if (string.IsNullOrEmpty(neoAddressN3) || !neoAddressN3.StartsWith("N") || neoAddressN3.Length < 21)
                 {
                     return;
                 }

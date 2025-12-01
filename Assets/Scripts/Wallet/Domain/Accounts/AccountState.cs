@@ -28,7 +28,7 @@ namespace Poltergeist
             {
                 return BigInteger.Zero;
             }
-            
+
             for (int i = 0; i < balances.Length; i++)
             {
                 var entry = balances[i];

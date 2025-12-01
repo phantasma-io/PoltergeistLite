@@ -714,7 +714,7 @@ namespace Poltergeist.UiToolkit.Balances
                     SetStatus("Account state is unavailable.");
                     ClearUi();
                     return;
-            }
+                }
 
                 var nftSnapshot = context.ViewState.GetNftSnapshot(symbol, s => nftPresenter.BuildSnapshot(s));
                 UpdateFiltersUi(symbol);

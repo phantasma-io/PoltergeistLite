@@ -9,4 +9,3 @@ namespace Poltergeist.Wallet
         HexWifCancel = 1
     }
 }
-

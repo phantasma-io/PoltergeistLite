@@ -18,9 +18,9 @@ public class IntentPluginManager : MonoBehaviour
 
     void Start()
     {
-        #if UNITY_ANDROID
+#if UNITY_ANDROID
         InitializePlugin(PluginName);
-        #endif
+#endif
     }
 
     private void InitializePlugin(string pluginName)
@@ -32,10 +32,10 @@ public class IntentPluginManager : MonoBehaviour
             Debug.LogError("Error Loading Plugin..");
         }
 #endif
-        
+
         //_PluginInstance.CallStatic("ReceiveActivity", UnityActivity);
     }
-    
+
     public void CallMethodByName(string msg)
     {
 #if UNITY_ANDROID

@@ -253,12 +253,12 @@ namespace Poltergeist.UiToolkit
                 {
                     Log.Write($"{LogPrefix}AccountManager became ready after wait ({attempt + 1} ticks). accounts={am.Accounts?.Count ?? 0}");
                     accountsView?.Refresh();
-                        if (ShouldForceSettings(am))
-                        {
-                            ShowSettings();
-                            settingsView?.OnAccountsReady();
-                            return;
-                        }
+                    if (ShouldForceSettings(am))
+                    {
+                        ShowSettings();
+                        settingsView?.OnAccountsReady();
+                        return;
+                    }
                     if (am.HasSelection && (!am.CurrentAccount.passwordProtected || !string.IsNullOrEmpty(am.CurrentPasswordHash)))
                     {
                         ShowBalances();
