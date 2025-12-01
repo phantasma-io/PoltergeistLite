@@ -250,11 +250,11 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(detailActionsRow);
 
-            detailSendButton = WalletUiCommon.CreateSecondaryButton("Send", () => RunSafeAsync(() => SendCurrentNftAsync()), 16, 44);
+            detailSendButton = WalletUiCommon.CreateSecondaryButton("Send", () => RunSafeAsync(SendCurrentNftAsync).Forget(ex => PhantasmaPhoenix.Unity.Core.Logging.Log.WriteWarning($"{LogPrefix}Detail send failed: {ex}")), 16, 44);
             detailSendButton.style.minWidth = 150;
             detailSendButton.style.marginRight = 8;
 
-            detailBurnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(() => BurnCurrentNftAsync()), 16, 44);
+            detailBurnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(BurnCurrentNftAsync).Forget(ex => PhantasmaPhoenix.Unity.Core.Logging.Log.WriteWarning($"{LogPrefix}Detail burn failed: {ex}")), 16, 44);
             detailBurnButton.style.minWidth = 130;
             detailBurnButton.style.marginRight = 8;
 

@@ -238,24 +238,24 @@ namespace Poltergeist.UiToolkit.Accounts
             ApplyDefaultFont(qrImage);
             content.Add(qrImage);
 
-            var exportWifBtn = WalletUiCommon.CreateSecondaryButton("Copy WIF", ExportWif, 14, 36);
+            var exportWifBtn = WalletUiCommon.CreateSecondaryButton("Copy WIF", () => ExportWifAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}ExportWIF failed: {ex}")), 14, 36);
             exportWifBtn.style.minWidth = 140;
-            var exportHexBtn = WalletUiCommon.CreateSecondaryButton("Copy HEX", ExportHex, 14, 36);
+            var exportHexBtn = WalletUiCommon.CreateSecondaryButton("Copy HEX", () => ExportHexAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}ExportHEX failed: {ex}")), 14, 36);
             exportHexBtn.style.minWidth = 140;
             var actionsRow = WalletUiCommon.CreateButtonRow(10f, exportWifBtn, exportHexBtn);
             content.Add(actionsRow);
 
             content.Add(new VSpacer());
 
-            migrateButton = WalletUiCommon.CreateSecondaryButton("Migrate", OnMigrate, 14, 32);
-            setNameButton = WalletUiCommon.CreateSecondaryButton("Set Name", OnSetName, 14, 32);
-            var proofBtn = WalletUiCommon.CreateSecondaryButton("Proof of Addresses", OnProofOfAddresses, 14, 32);
+            migrateButton = WalletUiCommon.CreateSecondaryButton("Migrate", () => OnMigrateAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Migrate failed: {ex}")), 14, 32);
+            setNameButton = WalletUiCommon.CreateSecondaryButton("Set Name", () => OnSetNameAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Set name failed: {ex}")), 14, 32);
+            var proofBtn = WalletUiCommon.CreateSecondaryButton("Proof of Addresses", () => OnProofOfAddressesAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Proof of addresses failed: {ex}")), 14, 32);
             migrateButton.style.minWidth = 140;
             setNameButton.style.minWidth = 140;
             proofBtn.style.minWidth = 180;
 
-            var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", OnSignMessage, 14, 32);
-            var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", OnVerifySignature, 14, 32);
+            var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", () => OnSignMessageAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Sign message failed: {ex}")), 14, 32);
+            var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", () => OnVerifySignatureAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify signature failed: {ex}")), 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
             var actionCloud = WalletUiCommon.CreateButtonRow(8f, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn);
@@ -423,7 +423,7 @@ namespace Poltergeist.UiToolkit.Accounts
             };
         }
 
-        private async void ExportWif()
+        private async Task ExportWifAsync()
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
@@ -452,7 +452,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private async void ExportHex()
+        private async Task ExportHexAsync()
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
@@ -482,7 +482,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private async void OnMigrate()
+        private async Task OnMigrateAsync()
         {
             var wifPrompt = await ShowModalAsync("Account migration", "Insert WIF of the target account", 32, 128, allowEmpty: false);
             if (wifPrompt.result != PromptResult.Success)
@@ -541,7 +541,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private async void OnSetName()
+        private async Task OnSetNameAsync()
         {
             var accountManager = AccountManager.Instance;
             if (accountManager?.CurrentState == null)
@@ -627,7 +627,7 @@ namespace Poltergeist.UiToolkit.Accounts
             RefreshView();
         }
 
-        private async void OnSignMessage()
+        private async Task OnSignMessageAsync()
         {
             var chainAndMessage = await PromptChainAndMessageAsync();
             if (chainAndMessage == null)
@@ -677,7 +677,7 @@ namespace Poltergeist.UiToolkit.Accounts
             SetStatus("Signature generated.");
         }
 
-        private async void OnVerifySignature()
+        private async Task OnVerifySignatureAsync()
         {
             var chainMessageAndSig = await PromptChainMessageAndSignatureAsync();
             if (chainMessageAndSig == null)
@@ -750,7 +750,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private async void OnProofOfAddresses()
+        private async Task OnProofOfAddressesAsync()
         {
             if (!await RequirePasswordAsync())
             {

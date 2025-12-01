@@ -487,18 +487,18 @@ namespace Poltergeist.UiToolkit.Settings
             WalletUiCommon.ApplyDefaultFont(actionsContainer);
 
             stakingInfoButton = WalletUiCommon.CreateSecondaryButton("Staking info", OnStakingInfo, 14, 32);
-            addressInfoButton = WalletUiCommon.CreateSecondaryButton("Address info", OnAddressInfo, 14, 32);
-            var describeScriptBtn = WalletUiCommon.CreateSecondaryButton("Describe script", OnDescribeScript, 14, 32);
-            var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", OnDecodeTransaction, 14, 32);
-            var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", OnVerifyProofOfAddresses, 14, 32);
-            var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", OnLegacySeedToWif, 14, 32);
+            addressInfoButton = WalletUiCommon.CreateSecondaryButton("Address info", () => OnAddressInfoAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Address info failed: {ex}")), 14, 32);
+            var describeScriptBtn = WalletUiCommon.CreateSecondaryButton("Describe script", () => OnDescribeScriptAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Describe script failed: {ex}")), 14, 32);
+            var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", () => OnDecodeTransactionAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Decode transaction failed: {ex}")), 14, 32);
+            var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", () => OnVerifyProofOfAddressesAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify POA failed: {ex}")), 14, 32);
+            var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", () => OnLegacySeedToWifAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Legacy seed conversion failed: {ex}")), 14, 32);
             devToolsSection = WalletUiCommon.CreateButtonRow(8f, stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
             actionsContainer.Add(devToolsSection);
 
-            var clearCacheBtn = WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDelete(actions.ClearCacheConfirmation, OnClearCache), 14, 32);
+            var clearCacheBtn = WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDeleteAsync(actions.ClearCacheConfirmation, OnClearCache).Forget(ex => Log.WriteWarning($"{LogPrefix}Clear cache confirm failed: {ex}")), 14, 32);
             var resetNotificationsBtn = WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32);
-            var resetSettingsBtn = WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDelete(actions.ResetSettingsConfirmation, OnResetSettings), 14, 32);
-            deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDelete(actions.DeleteEverythingConfirmation, OnDeleteEverything), 14, 32);
+            var resetSettingsBtn = WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDeleteAsync(actions.ResetSettingsConfirmation, OnResetSettings).Forget(ex => Log.WriteWarning($"{LogPrefix}Reset settings confirm failed: {ex}")), 14, 32);
+            deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDeleteAsync(actions.DeleteEverythingConfirmation, OnDeleteEverything).Forget(ex => Log.WriteWarning($"{LogPrefix}Delete everything confirm failed: {ex}")), 14, 32);
             var utilitiesCloud = WalletUiCommon.CreateButtonRow(8f, clearCacheBtn, resetNotificationsBtn, resetSettingsBtn, deleteEverythingButton);
             actionsContainer.Add(utilitiesCloud);
 
@@ -983,7 +983,7 @@ namespace Poltergeist.UiToolkit.Settings
             var ok = presenter.ValidateAndApply(error =>
             {
                 SetStatus(error, true);
-                ShowInfo("Validation error", error);
+                ShowInfoAsync("Validation error", error).Forget(ex => Log.WriteWarning($"{LogPrefix}Validation dialog failed: {ex}"));
             });
 
             if (ok)
@@ -1016,7 +1016,7 @@ namespace Poltergeist.UiToolkit.Settings
             ExitToMain();
         }
 
-        private async void OnVerifyProofOfAddresses()
+        private async Task OnVerifyProofOfAddressesAsync()
         {
             var (result, input) = await ShowModalAsync("Verify proof of addresses", actions.ProofOfAddressesPrompt, 1, -1, allowEmpty: false, hasInput: true, multiline: true);
             if (result != PromptResult.Success)
@@ -1028,15 +1028,15 @@ namespace Poltergeist.UiToolkit.Settings
             if (!verifyResult.Success)
             {
                 SetStatus(verifyResult.Error, true);
-                ShowInfo("Verification failed", verifyResult.Error);
+                await ShowInfoAsync("Verification failed", verifyResult.Error);
                 return;
             }
 
-            ShowInfo("Verification", verifyResult.Data);
+            await ShowInfoAsync("Verification", verifyResult.Data);
             SetStatus("Proof of addresses verified.");
         }
 
-        private async void OnLegacySeedToWif()
+        private async Task OnLegacySeedToWifAsync()
         {
             var seedPrompt = await ShowModalAsync("Old seed to WIF", actions.LegacySeedPrompt, 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
             if (seedPrompt.result != PromptResult.Success || string.IsNullOrWhiteSpace(seedPrompt.input))
@@ -1054,7 +1054,7 @@ namespace Poltergeist.UiToolkit.Settings
             if (!conversionResult.Success)
             {
                 SetStatus(conversionResult.Error, true);
-                ShowInfo("Conversion failed", conversionResult.Error);
+                await ShowInfoAsync("Conversion failed", conversionResult.Error);
                 return;
             }
 
@@ -1062,7 +1062,7 @@ namespace Poltergeist.UiToolkit.Settings
             SetStatus("WIF generated.");
         }
 
-        private async void OnDescribeScript()
+        private async Task OnDescribeScriptAsync()
         {
             var modalResult = await ShowModalAsync("Transaction script", "Enter transaction script in Base16 encoding", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
             if (modalResult.result != PromptResult.Success)
@@ -1090,25 +1090,25 @@ namespace Poltergeist.UiToolkit.Settings
             SetStatus("Parsing script...");
             try
             {
-                var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
-                if (!string.IsNullOrEmpty(error))
-                {
-                    SetStatus("Error during script parsing.", true);
-                    ShowInfo("Script error", "Error during script parsing.\nDetails: " + error);
-                    return;
-                }
+                    var (description, error) = await DescriptionUtils.GetDescriptionAsync(script, true, CancellationToken.None);
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        SetStatus("Error during script parsing.", true);
+                        await ShowInfoAsync("Script error", "Error during script parsing.\nDetails: " + error);
+                        return;
+                    }
 
                 ShowCopyPanel("Script description", "Copy the generated description", description, "Description copied to clipboard.");
                 SetStatus("Script parsed.");
             }
-            catch (Exception e)
-            {
-                SetStatus("Error during script parsing.", true);
-                ShowInfo("Script error", "Error during script parsing.\nDetails: " + e);
+                catch (Exception e)
+                {
+                    SetStatus("Error during script parsing.", true);
+                    await ShowInfoAsync("Script error", "Error during script parsing.\nDetails: " + e);
+                }
             }
-        }
 
-        private async void OnDecodeTransaction()
+        private async Task OnDecodeTransactionAsync()
         {
             var modalResult = await ShowModalAsync("Decode transaction", "Enter transaction in Base16 encoding", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: true);
             if (modalResult.result != PromptResult.Success)
@@ -1124,7 +1124,7 @@ namespace Poltergeist.UiToolkit.Settings
             catch (Exception e)
             {
                 SetStatus("Cannot parse transaction.", true);
-                ShowInfo("Decode failed", $"Cannot parse transaction.\nDetails: {e}");
+                await ShowInfoAsync("Decode failed", $"Cannot parse transaction.\nDetails: {e}");
                 return;
             }
 
@@ -1141,7 +1141,7 @@ namespace Poltergeist.UiToolkit.Settings
                 if (!string.IsNullOrEmpty(error))
                 {
                     SetStatus("Error during tx parsing.", true);
-                    ShowInfo("Decode failed", "Error during tx parsing.\nDetails: " + error);
+                    await ShowInfoAsync("Decode failed", "Error during tx parsing.\nDetails: " + error);
                     return;
                 }
 
@@ -1168,7 +1168,7 @@ namespace Poltergeist.UiToolkit.Settings
             catch (Exception e)
             {
                 SetStatus("Error during tx parsing.", true);
-                ShowInfo("Decode failed", "Error during tx parsing.\nDetails: " + e);
+                await ShowInfoAsync("Decode failed", "Error during tx parsing.\nDetails: " + e);
             }
         }
 
@@ -1205,7 +1205,7 @@ namespace Poltergeist.UiToolkit.Settings
             }
             catch (Exception e)
             {
-                ShowInfo("Something went wrong", "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace);
+                ShowInfoAsync("Something went wrong", "Something went wrong!\n" + e.Message + "\n\n" + e.StackTrace).Forget(ex => Log.WriteWarning($"{LogPrefix}ShowInfo failed: {ex}"));
                 return;
             }
 
@@ -1214,7 +1214,7 @@ namespace Poltergeist.UiToolkit.Settings
             {
                 if (!string.IsNullOrEmpty(masterClaimInvokeError))
                 {
-                    ShowInfo("Script invocation error", "Script invocation error!\n\n" + masterClaimInvokeError);
+                    ShowInfoAsync("Script invocation error", "Script invocation error!\n\n" + masterClaimInvokeError).Forget(ex => Log.WriteWarning($"{LogPrefix}Staking info dialog failed: {ex}"));
                     SetStatus("Staking info failed.", true);
                     return;
                 }
@@ -1227,7 +1227,7 @@ namespace Poltergeist.UiToolkit.Settings
                 {
                     if (!string.IsNullOrEmpty(claimMasterCountInvokeError))
                     {
-                        ShowInfo("Script invocation error", "Script invocation error!\n\n" + claimMasterCountInvokeError);
+                        ShowInfoAsync("Script invocation error", "Script invocation error!\n\n" + claimMasterCountInvokeError).Forget(ex => Log.WriteWarning($"{LogPrefix}Staking info dialog failed: {ex}"));
                         SetStatus("Staking info failed.", true);
                         return;
                     }
@@ -1236,7 +1236,7 @@ namespace Poltergeist.UiToolkit.Settings
                     {
                         if (!string.IsNullOrEmpty(masterCountInvokeError))
                         {
-                            ShowInfo("Script invocation error", "Script invocation error!\n\n" + masterCountInvokeError);
+                            ShowInfoAsync("Script invocation error", "Script invocation error!\n\n" + masterCountInvokeError).Forget(ex => Log.WriteWarning($"{LogPrefix}Staking info dialog failed: {ex}"));
                             SetStatus("Staking info failed.", true);
                             return;
                         }
@@ -1245,7 +1245,7 @@ namespace Poltergeist.UiToolkit.Settings
                         {
                             if (!string.IsNullOrEmpty(masterThresholdInvokeError))
                             {
-                                ShowInfo("Script invocation error", "Script invocation error!\n\n" + masterThresholdInvokeError);
+                                ShowInfoAsync("Script invocation error", "Script invocation error!\n\n" + masterThresholdInvokeError).Forget(ex => Log.WriteWarning($"{LogPrefix}Staking info dialog failed: {ex}"));
                                 SetStatus("Staking info failed.", true);
                                 return;
                             }
@@ -1270,7 +1270,7 @@ namespace Poltergeist.UiToolkit.Settings
             });
         }
 
-        private async void OnAddressInfo()
+        private async Task OnAddressInfoAsync()
         {
             var modalResult = await ShowModalAsync("Phantasma address info", "Enter an address", 1, -1, allowEmpty: false, hasInput: true, isPassword: false, multiline: false);
             if (modalResult.result != PromptResult.Success)
@@ -1290,7 +1290,7 @@ namespace Poltergeist.UiToolkit.Settings
             var (infoText, errorText) = await tcs.Task;
             if (!string.IsNullOrEmpty(errorText))
             {
-                ShowInfo("Error", "Something went wrong!\n" + errorText);
+                await ShowInfoAsync("Error", "Something went wrong!\n" + errorText);
                 SetStatus("Failed to get address info.", true);
                 return;
             }
@@ -1299,7 +1299,7 @@ namespace Poltergeist.UiToolkit.Settings
             SetStatus("Address info fetched.");
         }
 
-        private async void ConfirmDelete(string message, Action onConfirm)
+        private async Task ConfirmDeleteAsync(string message, Action onConfirm)
         {
             var result = await WalletUiModalHelper.ShowConfirmAsync(modalHost, "Confirm", message, "Confirm", "Cancel");
             if (result == PromptResult.Success)
@@ -1308,7 +1308,7 @@ namespace Poltergeist.UiToolkit.Settings
             }
         }
 
-        private async void ShowInfo(string title, string message)
+        private async Task ShowInfoAsync(string title, string message)
         {
             await WalletUiModalHelper.ShowInfoAsync(modalHost, title, message);
         }

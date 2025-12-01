@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using System.Collections;
 using Poltergeist.Wallet;
 using Poltergeist.UiToolkit.Balances;
 using Poltergeist.UiToolkit.Accounts;
@@ -14,6 +13,8 @@ using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using System.Linq;
 using UnityEngine.SceneManagement;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Poltergeist.UiToolkit
 {
@@ -48,6 +49,7 @@ namespace Poltergeist.UiToolkit
         private WalletUiToolkitBridge uiBridge;
         private bool initializationFailed;
         private static bool cacheInitialized;
+        private CancellationTokenSource accountsReadyCts;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -93,7 +95,8 @@ namespace Poltergeist.UiToolkit
                 {
                     return;
                 }
-                StartCoroutine(WaitForAccountsReady());
+                accountsReadyCts = new CancellationTokenSource();
+                WaitForAccountsReadyAsync(accountsReadyCts.Token).Forget(ex => Log.WriteWarning($"{FatalPrefix}WaitForAccountsReady failed: {ex}"));
             }
             catch (Exception e)
             {
@@ -153,6 +156,12 @@ namespace Poltergeist.UiToolkit
                 WalletUiBridge.Unregister(uiBridge);
             }
             uiBridge?.Dispose();
+            if (accountsReadyCts != null && !accountsReadyCts.IsCancellationRequested)
+            {
+                accountsReadyCts.Cancel();
+            }
+            accountsReadyCts?.Dispose();
+            accountsReadyCts = null;
             accountsView = null;
             balancesView = null;
             tokenView = null;
@@ -232,7 +241,7 @@ namespace Poltergeist.UiToolkit
             }
         }
 
-        private IEnumerator WaitForAccountsReady()
+        private async Task WaitForAccountsReadyAsync(CancellationToken token)
         {
             const int maxAttempts = 150;
             const float delaySeconds = 0.1f;
@@ -244,12 +253,12 @@ namespace Poltergeist.UiToolkit
                 {
                     Log.Write($"{LogPrefix}AccountManager became ready after wait ({attempt + 1} ticks). accounts={am.Accounts?.Count ?? 0}");
                     accountsView?.Refresh();
-                    if (ShouldForceSettings(am))
-                    {
-                        ShowSettings();
-                        settingsView?.OnAccountsReady();
-                        yield break;
-                    }
+                        if (ShouldForceSettings(am))
+                        {
+                            ShowSettings();
+                            settingsView?.OnAccountsReady();
+                            return;
+                        }
                     if (am.HasSelection && (!am.CurrentAccount.passwordProtected || !string.IsNullOrEmpty(am.CurrentPasswordHash)))
                     {
                         ShowBalances();
@@ -263,10 +272,18 @@ namespace Poltergeist.UiToolkit
                     {
                         ShowAccounts();
                     }
-                    yield break;
+                    return;
                 }
 
-                yield return new WaitForSeconds(delaySeconds);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Log.Write($"{LogPrefix}WaitForAccountsReady cancelled.");
+                    return;
+                }
             }
 
             Log.WriteWarning($"{LogPrefix}AccountManager did not become ready in time; balances view may stay empty.");

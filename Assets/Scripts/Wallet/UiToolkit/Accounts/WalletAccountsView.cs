@@ -261,7 +261,10 @@ namespace Poltergeist.UiToolkit.Accounts
             manageRoot = BuildManageRoot();
             manageRoot.style.display = DisplayStyle.None;
             content.Add(manageRoot);
-            mainFooter = WalletUiCommon.BuildMainFooter(OnNewWallet, OnManageWallets, OnSettings);
+            mainFooter = WalletUiCommon.BuildMainFooter(
+                () => StartNewWalletFlowAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}New wallet flow failed: {ex}")),
+                OnManageWallets,
+                OnSettings);
             mainFooter.style.flexShrink = 0;
             content.Add(mainFooter);
 
@@ -346,7 +349,7 @@ namespace Poltergeist.UiToolkit.Accounts
             quickActions.Add(explorerBtn);
             text.Add(quickActions);
 
-            var openButton = WalletUiCommon.CreateOutlineButton("Open", () => OnOpenClicked(index), 22, 54);
+            var openButton = WalletUiCommon.CreateOutlineButton("Open", () => OpenAccountAtIndexAsync(index, false).Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to open wallet at index {index}: {ex}")), 22, 54);
             openButton.style.minWidth = 140;
             openButton.style.maxWidth = 200;
             openButton.style.paddingLeft = 24;
@@ -434,11 +437,6 @@ namespace Poltergeist.UiToolkit.Accounts
         private void OnSettings()
         {
             onShowSettings?.Invoke();
-        }
-
-        private async void OnOpenClicked(int index)
-        {
-            await OpenAccountAtIndexAsync(index, false);
         }
 
         private async Task OpenAccountAtIndexAsync(int index, bool isNewWallet)

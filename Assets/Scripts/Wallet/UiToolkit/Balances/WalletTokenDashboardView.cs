@@ -470,25 +470,25 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(row);
 
-            sendButton = WalletUiCommon.CreateSecondaryButton("Send", () => RunSafeAsync(SendAsync), 16, 44);
+            sendButton = WalletUiCommon.CreateSecondaryButton("Send", () => RunSafeAsync(SendAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Send failed: {ex}")), 16, 44);
             sendButton.style.minWidth = 160;
             sendButton.style.marginRight = 10;
             sendButton.style.marginBottom = 10;
             row.Add(sendButton);
 
-            stakeButton = WalletUiCommon.CreateSecondaryButton("Stake", () => RunSafeAsync(StakeAsync), 16, 44);
+            stakeButton = WalletUiCommon.CreateSecondaryButton("Stake", () => RunSafeAsync(StakeAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Stake failed: {ex}")), 16, 44);
             stakeButton.style.minWidth = 140;
             stakeButton.style.marginRight = 10;
             stakeButton.style.marginBottom = 10;
             row.Add(stakeButton);
 
-            unstakeButton = WalletUiCommon.CreateSecondaryButton("Unstake", () => RunSafeAsync(UnstakeAsync), 16, 44);
+            unstakeButton = WalletUiCommon.CreateSecondaryButton("Unstake", () => RunSafeAsync(UnstakeAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Unstake failed: {ex}")), 16, 44);
             unstakeButton.style.minWidth = 140;
             unstakeButton.style.marginRight = 10;
             unstakeButton.style.marginBottom = 10;
             row.Add(unstakeButton);
 
-            claimButton = WalletUiCommon.CreateSecondaryButton("Claim", () => RunSafeAsync(ClaimAsync), 16, 44);
+            claimButton = WalletUiCommon.CreateSecondaryButton("Claim", () => RunSafeAsync(ClaimAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Claim failed: {ex}")), 16, 44);
             claimButton.style.minWidth = 130;
             claimButton.style.marginRight = 10;
             claimButton.style.marginBottom = 10;
@@ -520,19 +520,19 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(row);
 
-            burnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(BurnAsync), 14, 36);
+            burnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(BurnAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Burn failed: {ex}")), 14, 36);
             burnButton.style.minWidth = 110;
             burnButton.style.marginRight = 8;
             burnButton.style.marginBottom = 8;
             row.Add(burnButton);
 
-            smRewardButton = WalletUiCommon.CreateSecondaryButton("SM reward", () => RunSafeAsync(ClaimSmRewardAsync), 14, 36);
+            smRewardButton = WalletUiCommon.CreateSecondaryButton("SM reward", () => RunSafeAsync(ClaimSmRewardAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}SM reward failed: {ex}")), 14, 36);
             smRewardButton.style.minWidth = 130;
             smRewardButton.style.marginRight = 8;
             smRewardButton.style.marginBottom = 8;
             row.Add(smRewardButton);
 
-            infoButton = WalletUiCommon.CreateSecondaryButton("Address info", () => RunSafeAsync(ShowDevInfoAsync), 14, 36);
+            infoButton = WalletUiCommon.CreateSecondaryButton("Address info", () => RunSafeAsync(ShowDevInfoAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Address info failed: {ex}")), 14, 36);
             infoButton.style.minWidth = 140;
             infoButton.style.marginRight = 8;
             infoButton.style.marginBottom = 8;
@@ -1710,22 +1710,17 @@ namespace Poltergeist.UiToolkit.Balances
             WalletUiCommon.SetNavState(navExit, false);
         }
 
-        private void RunSafeAsync(Func<Task> action)
+        private async Task RunSafeAsync(Func<Task> action)
         {
-            async void Wrapper()
+            try
             {
-                try
-                {
-                    await action();
-                }
-                catch (Exception e)
-                {
-                    Log.WriteWarning($"{LogPrefix}Action failed: {e}");
-                    await ShowErrorAsync($"Error: {e.Message}");
-                }
+                await action();
             }
-
-            Wrapper();
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}Action failed: {e}");
+                await ShowErrorAsync($"Error: {e.Message}");
+            }
         }
     }
 }

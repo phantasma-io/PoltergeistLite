@@ -21,11 +21,6 @@ namespace Poltergeist.UiToolkit.Accounts
             "fuckyou", "trustno1", "ranger","buster","thomas","robert","bitcoin","phantasma","wallet","crypto"
         };
 
-        private async void OnNewWallet()
-        {
-            await StartNewWalletFlowAsync();
-        }
-
         private async Task StartNewWalletFlowAsync()
         {
             var am = AccountManager.Instance;

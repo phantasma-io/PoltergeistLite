@@ -7,6 +7,7 @@ using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.RPC.Models;
 using Poltergeist.Wallet;
 using PhantasmaPhoenix.Cryptography;
+using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist.UiToolkit
 {
@@ -15,6 +16,8 @@ namespace Poltergeist.UiToolkit
     /// </summary>
     public sealed class WalletUiTransactionDialogs : IDisposable
     {
+        private const string LogPrefix = "[UITK] ";
+
         private readonly WalletUiModalHost modalHost;
         private readonly Func<AccountManager> accountProvider;
         private readonly Action<string> setStatus;
@@ -82,7 +85,7 @@ namespace Poltergeist.UiToolkit
             confirmationCts = new CancellationTokenSource();
 
             ShowConfirmationPanel(hash);
-            PollConfirmationAsync(confirmationCts.Token);
+            PollConfirmationAsync(confirmationCts.Token).Forget(ex => Log.WriteWarning($"{LogPrefix}Confirmation polling failed: {ex}"));
             return confirmationTcs.Task;
         }
 
@@ -231,7 +234,7 @@ namespace Poltergeist.UiToolkit
             modalHost.ShowPanel(confirmationPanel);
         }
 
-        private async void PollConfirmationAsync(CancellationToken token)
+        private async Task PollConfirmationAsync(CancellationToken token)
         {
             const int confirmationDelayMs = 3000;
 

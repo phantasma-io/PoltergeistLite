@@ -569,11 +569,11 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(selectionGroup);
 
-            selectAllButton = WalletUiCommon.CreateSecondaryButton("Select filtered", () => RunSafeAsync(SelectFilteredAsync), 14, 32);
+            selectAllButton = WalletUiCommon.CreateSecondaryButton("Select filtered", () => RunSafeAsync(SelectFilteredAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Select filtered failed: {ex}")), 14, 32);
             selectAllButton.style.marginRight = 8;
-            invertSelectionButton = WalletUiCommon.CreateSecondaryButton("Invert selection", () => RunSafeAsync(InvertSelectionAsync), 14, 32);
+            invertSelectionButton = WalletUiCommon.CreateSecondaryButton("Invert selection", () => RunSafeAsync(InvertSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Invert selection failed: {ex}")), 14, 32);
             invertSelectionButton.style.marginRight = 8;
-            clearSelectionButton = WalletUiCommon.CreateSecondaryButton("Clear selection", () => RunSafeAsync(ClearSelectionAsync), 14, 32);
+            clearSelectionButton = WalletUiCommon.CreateSecondaryButton("Clear selection", () => RunSafeAsync(ClearSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Clear selection failed: {ex}")), 14, 32);
             clearSelectionButton.style.marginRight = 8;
 
             selectionGroup.Add(selectAllButton);
@@ -626,10 +626,10 @@ namespace Poltergeist.UiToolkit.Balances
 
         private VisualElement BuildActionsRow()
         {
-            sendButton = WalletUiCommon.CreateSecondaryButton("Send", () => RunSafeAsync(SendAsync), 16, 44);
+            sendButton = WalletUiCommon.CreateSecondaryButton("Send", () => RunSafeAsync(SendAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Send failed: {ex}")), 16, 44);
             sendButton.style.minWidth = 160;
 
-            burnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(BurnAsync), 16, 44);
+            burnButton = WalletUiCommon.CreateSecondaryButton("Burn", () => RunSafeAsync(BurnAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Burn failed: {ex}")), 16, 44);
             burnButton.style.minWidth = 140;
 
             var row = WalletUiCommon.CreateButtonRow(8f, sendButton, burnButton);
@@ -1213,7 +1213,7 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     target.image = loaded.Texture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
                 }
-            });
+            }).Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to load NFT image: {ex}"));
         }
 
         private string ResolveNftImageUrl(string symbol, TokenDataResult token)
@@ -1856,22 +1856,17 @@ namespace Poltergeist.UiToolkit.Balances
             SetStatus(message);
         }
 
-        private void RunSafeAsync(Func<Task> action)
+        private async Task RunSafeAsync(Func<Task> action)
         {
-            async void Wrapper()
+            try
             {
-                try
-                {
-                    await action();
-                }
-                catch (Exception e)
-                {
-                    Log.WriteWarning($"{LogPrefix}Action failed: {e}");
-                    await ShowErrorAsync($"Error: {e.Message}");
-                }
+                await action();
             }
-
-            Wrapper();
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}Action failed: {e}");
+                await ShowErrorAsync($"Error: {e.Message}");
+            }
         }
 
         private enum PageChange
