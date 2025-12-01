@@ -234,8 +234,8 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 UpdateNavSelection(NavTarget.Balances);
                 subtitleLabel.text = "Balances";
-                subtitleNetworkLabel.text = string.Empty;
                 summaryLabel.text = string.Empty;
+                subtitleNetworkLabel.style.display = DisplayStyle.None;
 
                 var snapshot = context.ViewState.GetBalancesSnapshot(() => presenter.BuildSnapshot());
                 SetStatus("Loading balances...");
@@ -247,8 +247,6 @@ namespace Poltergeist.UiToolkit.Balances
                     SetStatus("No accounts loaded yet...");
                     summaryLabel.text = "0 assets";
                     listView.Clear();
-                    subtitleLabel.text = "Balances";
-                    subtitleNetworkLabel.text = string.Empty;
                     NotifyReady("no accounts");
                     return;
                 }
@@ -257,33 +255,29 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     SetStatus("Settings are not loaded yet.");
                     listView.Clear();
-                    subtitleLabel.text = "Balances";
-                    subtitleNetworkLabel.text = string.Empty;
+                    subtitleNetworkLabel.style.display = DisplayStyle.None;
                     NotifyReady("settings missing");
                     return;
                 }
+
+                WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
 
                 if (!accountManager.HasSelection)
                 {
                     SetStatus("Select a wallet to see balances.");
                     listView.Clear();
-                    subtitleLabel.text = "Balances";
-                    subtitleNetworkLabel.text = string.Empty;
                     NotifyReady("no selection");
                     return;
                 }
 
                 var headerSubtitle = WalletUiCommon.BuildContextSubtitle("Balances", snapshot.AccountName, snapshot.Platform);
                 subtitleLabel.text = headerSubtitle;
-                WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
                 headerAddressLabel.text = accountManager.CurrentAccount.phaAddress ?? string.Empty;
 
                 if (accountManager.CurrentAccount.passwordProtected && string.IsNullOrEmpty(accountManager.CurrentPasswordHash))
                 {
                     SetStatus("Wallet is locked. Open it from the wallet list.");
                     listView.Clear();
-                    subtitleLabel.text = "Balances";
-                    subtitleNetworkLabel.text = string.Empty;
                     summaryLabel.text = string.Empty;
                     NotifyReady("locked");
                     return;
@@ -299,9 +293,6 @@ namespace Poltergeist.UiToolkit.Balances
                 if (snapshot.IsRefreshing)
                 {
                     SetStatus("Fetching balances...");
-                    subtitleLabel.text = "Balances";
-                    subtitleNetworkLabel.text = string.Empty;
-                    summaryLabel.text = string.Empty;
                     NotifyReady("refreshing");
                     return;
                 }
@@ -309,9 +300,6 @@ namespace Poltergeist.UiToolkit.Balances
                 if (snapshot.HasError)
                 {
                     SetStatus(snapshot.ErrorMessage);
-                    subtitleLabel.text = "Balances";
-                    subtitleNetworkLabel.text = string.Empty;
-                    summaryLabel.text = string.Empty;
                     NotifyReady("error");
                     return;
                 }
