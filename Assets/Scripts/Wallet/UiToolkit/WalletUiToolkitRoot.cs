@@ -50,7 +50,8 @@ namespace Poltergeist.UiToolkit
         private bool initializationFailed;
         private static bool cacheInitialized;
         private CancellationTokenSource accountsReadyCts;
-        private CancellationTokenSource messagePumpCts;
+        private float nextMessageCheckTime;
+        private bool settingsForcedDueToRpcFailure;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
@@ -98,8 +99,6 @@ namespace Poltergeist.UiToolkit
                 }
                 accountsReadyCts = new CancellationTokenSource();
                 WaitForAccountsReadyAsync(accountsReadyCts.Token).Forget(ex => Log.WriteWarning($"{FatalPrefix}WaitForAccountsReady failed: {ex}"));
-                messagePumpCts = new CancellationTokenSource();
-                RunMessagePumpAsync(messagePumpCts.Token).Forget(ex => Log.WriteWarning($"{FatalPrefix}Message pump failed: {ex}"));
             }
             catch (Exception e)
             {
@@ -165,12 +164,6 @@ namespace Poltergeist.UiToolkit
             }
             accountsReadyCts?.Dispose();
             accountsReadyCts = null;
-            if (messagePumpCts != null && !messagePumpCts.IsCancellationRequested)
-            {
-                messagePumpCts.Cancel();
-            }
-            messagePumpCts?.Dispose();
-            messagePumpCts = null;
             accountsView = null;
             balancesView = null;
             tokenView = null;
@@ -296,61 +289,6 @@ namespace Poltergeist.UiToolkit
             }
 
             Log.WriteWarning($"{LogPrefix}AccountManager did not become ready in time; balances view may stay empty.");
-        }
-
-        private async Task RunMessagePumpAsync(CancellationToken token)
-        {
-            // Mirror legacy message queue handling so user-facing warnings (e.g., Link port conflicts) surface in UITK.
-            const int idleDelayMs = 400;
-            while (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    var context = WalletApplicationContext.Instance;
-                    var queue = context?.Messages;
-                    if (queue == null || modalHost == null)
-                    {
-                        await Task.Delay(idleDelayMs, token);
-                        continue;
-                    }
-
-                    if (modalHost.IsBusy)
-                    {
-                        await Task.Delay(200, token);
-                        continue;
-                    }
-
-                    if (!queue.TryDequeue(out var message))
-                    {
-                        await Task.Delay(idleDelayMs, token);
-                        continue;
-                    }
-
-                    var title = string.IsNullOrWhiteSpace(message.Title) ? "Message" : message.Title;
-                    var body = string.IsNullOrWhiteSpace(message.Body) ? string.Empty : message.Body;
-                    switch (message.Kind)
-                    {
-                        case MessageKind.Error:
-                            await WalletUiModalHelper.ShowErrorAsync(modalHost, title, body);
-                            break;
-                        case MessageKind.Success:
-                            await WalletUiModalHelper.ShowInfoAsync(modalHost, string.IsNullOrWhiteSpace(message.Title) ? "Success" : message.Title, body);
-                            break;
-                        default:
-                            await WalletUiModalHelper.ShowInfoAsync(modalHost, title, body);
-                            break;
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-                catch (Exception e)
-                {
-                    Log.WriteWarning($"{LogPrefix}Message pump iteration failed: {e}");
-                    await Task.Delay(1000, token);
-                }
-            }
         }
 
         private void EnsurePanelSettings()
@@ -509,6 +447,103 @@ namespace Poltergeist.UiToolkit
             if (type == LogType.Error || type == LogType.Exception || type == LogType.Assert)
             {
                 Log.WriteWarning($"{LogPrefix}Unity {type}: {condition}\n{stackTrace}");
+            }
+        }
+
+        private void Update()
+        {
+            if (initializationFailed || modalHost == null)
+            {
+                return;
+            }
+
+            // Legacy IMGUI polled for pending messages every frame; mirror that cadence but throttle slightly to reduce overhead.
+            if (Time.unscaledTime < nextMessageCheckTime)
+            {
+                return;
+            }
+
+            nextMessageCheckTime = Time.unscaledTime + 0.35f;
+            ProcessMessagesAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Message pump failed: {ex}"));
+        }
+
+        private async Task ProcessMessagesAsync()
+        {
+            if (modalHost == null || modalHost.IsBusy)
+            {
+                if (modalHost != null && modalHost.IsBusy)
+                {
+                    Log.Write($"{LogPrefix}Message pump skipped: modal busy.");
+                }
+                return;
+            }
+
+            // Surface RPC connectivity failures first, matching legacy behavior.
+            var accountManager = AccountManager.Instance;
+            var settings = accountManager?.Settings;
+
+            // Reset guard once the user fixes settings.
+            if (settingsForcedDueToRpcFailure && settings != null && !settings.settingRequireReconfiguration)
+            {
+                settingsForcedDueToRpcFailure = false;
+            }
+
+            if (accountManager != null)
+            {
+                // If tokens/bootstrap failed and settings require reconfiguration, force the Settings screen even if the failure happened after initial init.
+                if (settings != null && settings.settingRequireReconfiguration && !settingsForcedDueToRpcFailure)
+                {
+                    settingsForcedDueToRpcFailure = true;
+                    Log.Write($"{LogPrefix}Forcing settings view due to RPC configuration failure.");
+                    ShowSettings();
+                    await WalletUiModalHelper.ShowErrorAsync(modalHost, "Connection failed", "Cannot reach the configured RPC endpoint. Please review your settings.");
+                    return;
+                }
+
+                if (accountManager.ReportGetPeersFailure)
+                {
+                    accountManager.ReportGetPeersFailure = false;
+                    Log.Write($"{LogPrefix}Showing RPC list failure warning.");
+                    await WalletUiModalHelper.ShowErrorAsync(modalHost, "Warning", "Couldn't load RPCs list.\nWallet might malfunction.");
+                    return;
+                }
+
+                if (accountManager.ReportAllRpcsUnavailabe)
+                {
+                    accountManager.ReportAllRpcsUnavailabe = false;
+                    Log.Write($"{LogPrefix}Showing all RPCs unavailable warning.");
+                    await WalletUiModalHelper.ShowErrorAsync(modalHost, "Warning", "All Phantasma RPC servers are unavailable.\nPlease check your network connection.");
+                    return;
+                }
+            }
+
+            var queue = WalletApplicationContext.Instance?.Messages;
+            if (queue == null)
+            {
+                return;
+            }
+
+            if (!queue.TryDequeue(out var message))
+            {
+                return;
+            }
+
+            var title = string.IsNullOrWhiteSpace(message.Title) ? "Message" : message.Title;
+            var body = string.IsNullOrWhiteSpace(message.Body) ? string.Empty : message.Body;
+            switch (message.Kind)
+            {
+                case MessageKind.Error:
+                    Log.Write($"{LogPrefix}Showing queued error: {title} | {body}");
+                    await WalletUiModalHelper.ShowErrorAsync(modalHost, title, body);
+                    break;
+                case MessageKind.Success:
+                    Log.Write($"{LogPrefix}Showing queued success: {title} | {body}");
+                    await WalletUiModalHelper.ShowInfoAsync(modalHost, string.IsNullOrWhiteSpace(message.Title) ? "Success" : message.Title, body);
+                    break;
+                default:
+                    Log.Write($"{LogPrefix}Showing queued message: {title} | {body}");
+                    await WalletUiModalHelper.ShowInfoAsync(modalHost, title, body);
+                    break;
             }
         }
 
