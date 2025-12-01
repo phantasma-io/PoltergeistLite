@@ -574,6 +574,7 @@ namespace Poltergeist.UiToolkit
             {
                 accountsRoot.style.display = DisplayStyle.Flex;
             }
+            accountsView?.ClearStatus();
 
             if (balancesRoot != null)
             {

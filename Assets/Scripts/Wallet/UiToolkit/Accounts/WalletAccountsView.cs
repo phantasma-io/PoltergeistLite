@@ -439,6 +439,12 @@ namespace Poltergeist.UiToolkit.Accounts
             onShowSettings?.Invoke();
         }
 
+        // Clear any lingering status text when the wallets screen is re-entered (e.g., after failed login).
+        public void ClearStatus()
+        {
+            SetStatus(string.Empty);
+        }
+
         private async Task OpenAccountAtIndexAsync(int index, bool isNewWallet)
         {
             var am = AccountManager.Instance;
