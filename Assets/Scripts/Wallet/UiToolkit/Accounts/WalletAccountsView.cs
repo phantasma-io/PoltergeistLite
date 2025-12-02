@@ -403,12 +403,12 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             if (string.IsNullOrWhiteSpace(address) || address == "(no address)")
             {
-                SetStatus("No address to copy.");
+                SetStatus("No address to copy.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             GUIUtility.systemCopyBuffer = address;
-            SetStatus($"Copied {address}.");
+            SetStatus($"Copied {address}.", WalletUiStatusIntent.TransientShort);
             Log.Write($"{LogPrefix}Copied address to clipboard.");
         }
 
@@ -416,7 +416,7 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             if (string.IsNullOrWhiteSpace(address) || address == "(no address)")
             {
-                SetStatus("No address to open.");
+                SetStatus("No address to open.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
@@ -424,13 +424,13 @@ namespace Poltergeist.UiToolkit.Accounts
             var url = am?.GetPhantasmaAddressURL(address);
             if (string.IsNullOrWhiteSpace(url))
             {
-                SetStatus("Explorer URL is not configured.");
+                SetStatus("Explorer URL is not configured.", WalletUiStatusIntent.TransientLong);
                 Log.WriteWarning($"{LogPrefix}Explorer URL missing for address {address}");
                 return;
             }
 
             Application.OpenURL(url);
-            SetStatus("Opening explorer...");
+            SetStatus("Opening explorer...", WalletUiStatusIntent.TransientShort);
             Log.Write($"{LogPrefix}Opening explorer for {address}: {url}");
         }
 
@@ -661,15 +661,15 @@ namespace Poltergeist.UiToolkit.Accounts
             Refresh();
         }
 
-        private void SetStatus(string text)
+        private void SetStatus(string text, WalletUiStatusIntent intent = WalletUiStatusIntent.None)
         {
             if (manageRoot != null && manageRoot.style.display == DisplayStyle.Flex && manageStatusLabel != null)
             {
-                WalletUiCommon.UpdateStatusLabel(manageStatusLabel, text);
+                WalletUiCommon.UpdateStatusLabel(manageStatusLabel, text, autoHideSeconds: 0f, intent: intent);
                 return;
             }
 
-            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text, autoHideSeconds: 0f, intent: intent);
         }
 
         private void ApplyDefaultFont(VisualElement element)

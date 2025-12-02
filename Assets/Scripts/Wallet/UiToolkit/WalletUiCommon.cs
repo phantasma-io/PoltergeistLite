@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -9,6 +10,13 @@ using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist.UiToolkit
 {
+    internal enum WalletUiStatusIntent
+    {
+        None = 0,
+        TransientShort,
+        TransientLong
+    }
+
     /// <summary>
     /// Shared UI building blocks for the UITK wallet screens.
     /// Keeps styling consistent with the legacy IMGUI look while we migrate.
@@ -17,6 +25,16 @@ namespace Poltergeist.UiToolkit
     {
         private const string AppTitle = "Poltergeist Lite";
         private static readonly Color SoftOutlineWhite = WalletUiTheme.Hex("#dfe3f0");
+        internal const float StatusAutoHideSeconds = 3f;
+        internal const float StatusAutoHideLongSeconds = 5f;
+
+        private sealed class StatusLabelState
+        {
+            public IVisualElementScheduledItem ScheduledItem;
+            public int Version;
+        }
+
+        private static readonly Dictionary<Label, StatusLabelState> StatusStates = new Dictionary<Label, StatusLabelState>();
 
         internal static HeaderElements BuildHeader(string subtitleText, VisualElement rightContent = null, bool showSubtitle = false)
         {
@@ -244,7 +262,45 @@ namespace Poltergeist.UiToolkit
             return statusLabel;
         }
 
-        internal static void UpdateStatusLabel(Label label, string text, float marginTopWhenVisible = 6f, float marginBottomWhenVisible = 10f)
+        private static StatusLabelState GetStatusState(Label label)
+        {
+            if (!StatusStates.TryGetValue(label, out var state))
+            {
+                state = new StatusLabelState();
+                StatusStates[label] = state;
+            }
+
+            return state;
+        }
+
+        private static void CancelScheduledClear(StatusLabelState state)
+        {
+            if (state?.ScheduledItem != null)
+            {
+                state.ScheduledItem.Pause();
+                state.ScheduledItem = null;
+            }
+        }
+
+        private static float GetAutoHideSeconds(WalletUiStatusIntent intent, float overrideSeconds)
+        {
+            if (overrideSeconds > 0f)
+            {
+                return overrideSeconds;
+            }
+
+            switch (intent)
+            {
+                case WalletUiStatusIntent.TransientShort:
+                    return StatusAutoHideSeconds;
+                case WalletUiStatusIntent.TransientLong:
+                    return StatusAutoHideLongSeconds;
+                default:
+                    return 0f;
+            }
+        }
+
+        internal static void UpdateStatusLabel(Label label, string text, float marginTopWhenVisible = 6f, float marginBottomWhenVisible = 10f, float autoHideSeconds = 0f, WalletUiStatusIntent intent = WalletUiStatusIntent.None)
         {
             if (label == null)
             {
@@ -258,6 +314,29 @@ namespace Poltergeist.UiToolkit
             label.style.marginTop = hasText ? marginTopWhenVisible : 0f;
             label.style.marginBottom = hasText ? marginBottomWhenVisible : 0f;
             label.style.minHeight = hasText ? 24f : 0f;
+
+            var state = GetStatusState(label);
+            state.Version++;
+            CancelScheduledClear(state);
+
+            var resolvedAutoHide = GetAutoHideSeconds(intent, autoHideSeconds);
+            if (!hasText || resolvedAutoHide <= 0f)
+            {
+                return;
+            }
+
+            var versionAtSchedule = state.Version;
+            var delayMs = Mathf.Max(1, Mathf.RoundToInt(resolvedAutoHide * 1000f));
+            state.ScheduledItem = label.schedule.Execute(() =>
+            {
+                if (!StatusStates.TryGetValue(label, out var currentState) || currentState.Version != versionAtSchedule)
+                {
+                    return;
+                }
+
+                CancelScheduledClear(currentState);
+                UpdateStatusLabel(label, string.Empty, marginTopWhenVisible, marginBottomWhenVisible);
+            }).StartingIn(delayMs);
         }
 
         // Shared header + subheader block so all screens stay consistent; callers can tweak margins for edge cases.

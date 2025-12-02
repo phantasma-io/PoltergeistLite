@@ -76,7 +76,7 @@ namespace Poltergeist.UiToolkit.Accounts
             transactionUi = new WalletUiTransactionAdapter(
                 authService,
                 sharedAuthUi ?? throw new ArgumentNullException(nameof(sharedAuthUi)),
-                SetStatus,
+                SetStatusText,
                 SetActionsEnabled,
                 ShowSendProgressAsync,
                 StartConfirmationAsync);
@@ -323,19 +323,19 @@ namespace Poltergeist.UiToolkit.Accounts
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
             {
-                SetStatus("No address to copy.");
+                SetStatus("No address to copy.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             var address = accountManager.CurrentAccount.phaAddress;
             if (string.IsNullOrWhiteSpace(address))
             {
-                SetStatus("No address to copy.");
+                SetStatus("No address to copy.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             GUIUtility.systemCopyBuffer = address;
-            SetStatus("Address copied.");
+            SetStatus("Address copied.", WalletUiStatusIntent.TransientShort);
         }
 
         private void OpenExplorer()
@@ -343,7 +343,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
             {
-                SetStatus("No address to open.");
+                SetStatus("No address to open.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
@@ -351,19 +351,19 @@ namespace Poltergeist.UiToolkit.Accounts
             var address = accountManager.GetAddress(accountManager.CurrentIndex, platform);
             if (string.IsNullOrWhiteSpace(address))
             {
-                SetStatus("No address to open.");
+                SetStatus("No address to open.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             var url = GetExplorerUrl(accountManager, platform, address);
             if (string.IsNullOrWhiteSpace(url))
             {
-                SetStatus("Explorer URL is not configured.");
+                SetStatus("Explorer URL is not configured.", WalletUiStatusIntent.TransientLong);
                 return;
             }
 
             Application.OpenURL(url);
-            SetStatus("Opening explorer...");
+            SetStatus("Opening explorer...", WalletUiStatusIntent.TransientShort);
         }
 
         private void OpenExplorerFor(PlatformKind platform)
@@ -371,7 +371,7 @@ namespace Poltergeist.UiToolkit.Accounts
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
             {
-                SetStatus("No wallet selected.");
+                SetStatus("No wallet selected.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
@@ -389,7 +389,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             if (string.IsNullOrWhiteSpace(address))
             {
-                SetStatus("Address is not available.");
+                SetStatus("Address is not available.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
@@ -403,12 +403,12 @@ namespace Poltergeist.UiToolkit.Accounts
 
             if (string.IsNullOrWhiteSpace(url))
             {
-                SetStatus("Explorer URL is not configured.");
+                SetStatus("Explorer URL is not configured.", WalletUiStatusIntent.TransientLong);
                 return;
             }
 
             Application.OpenURL(url);
-            SetStatus("Opening explorer...");
+            SetStatus("Opening explorer...", WalletUiStatusIntent.TransientShort);
         }
 
         private static string GetExplorerUrl(AccountManager accountManager, PlatformKind platform, string address)
@@ -893,7 +893,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             if (!string.IsNullOrWhiteSpace(copyPanelCopyStatus))
             {
-                SetStatus(copyPanelCopyStatus);
+                SetStatus(copyPanelCopyStatus, WalletUiStatusIntent.TransientShort);
             }
 
             HideModal();
@@ -943,7 +943,7 @@ namespace Poltergeist.UiToolkit.Accounts
             copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
             verificationPanel = WalletUiModalFactory.CreateVerificationPanel(HideModal, ApplyDefaultFont, out verificationMessageLabel);
 
-            transactionDialogs = new WalletUiTransactionDialogs(modalHost, () => AccountManager.Instance, SetStatus);
+            transactionDialogs = new WalletUiTransactionDialogs(modalHost, () => AccountManager.Instance, SetStatusText);
             transactionDialogs.RegisterBlockingPanels(null, chainPickerPanel, copyPanel, verificationPanel);
         }
 
@@ -1083,9 +1083,14 @@ namespace Poltergeist.UiToolkit.Accounts
             }
         }
 
-        private void SetStatus(string text)
+        private void SetStatus(string text, WalletUiStatusIntent intent = WalletUiStatusIntent.None)
         {
-            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text, autoHideSeconds: 0f, intent: intent);
+        }
+
+        private void SetStatusText(string text)
+        {
+            SetStatus(text);
         }
 
         private void UpdateNavSelection()

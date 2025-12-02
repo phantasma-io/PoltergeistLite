@@ -462,7 +462,7 @@ namespace Poltergeist.UiToolkit.Accounts
             if (copyPrompt == PromptResult.Success)
             {
                 GUIUtility.systemCopyBuffer = serializedExportData;
-                SetStatus("Wallet export copied to clipboard.");
+                SetStatus("Wallet export copied to clipboard.", WalletUiStatusIntent.TransientShort);
                 UpdateManageStatus("Export data copied to clipboard.");
             }
             else

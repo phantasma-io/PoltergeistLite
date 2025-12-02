@@ -226,10 +226,10 @@ namespace Poltergeist.UiToolkit.History
             WalletUiCommon.SetNavState(navExit, false);
         }
 
-        private void SetStatus(string text)
+        private void SetStatus(string text, WalletUiStatusIntent intent = WalletUiStatusIntent.None)
         {
             // Keep a tiny reserved strip and toggle visibility instead of display so the list top stays aligned with balances.
-            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text, autoHideSeconds: 0f, intent: intent);
         }
 
         private void RefreshView()
@@ -435,12 +435,12 @@ namespace Poltergeist.UiToolkit.History
         {
             if (entry == null || string.IsNullOrWhiteSpace(entry.Url))
             {
-                SetStatus("No explorer URL available.");
+                SetStatus("No explorer URL available.", WalletUiStatusIntent.TransientLong);
                 return;
             }
 
             Application.OpenURL(entry.Url);
-            SetStatus("Opening transaction...");
+            SetStatus("Opening transaction...", WalletUiStatusIntent.TransientShort);
         }
 
         private void CopyAddress()
@@ -448,19 +448,19 @@ namespace Poltergeist.UiToolkit.History
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
             {
-                SetStatus("No address to copy.");
+                SetStatus("No address to copy.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             var address = accountManager.CurrentAccount.phaAddress;
             if (string.IsNullOrWhiteSpace(address))
             {
-                SetStatus("No address to copy.");
+                SetStatus("No address to copy.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             GUIUtility.systemCopyBuffer = address;
-            SetStatus("Address copied.");
+            SetStatus("Address copied.", WalletUiStatusIntent.TransientShort);
         }
 
         private void OpenExplorer()
@@ -468,26 +468,26 @@ namespace Poltergeist.UiToolkit.History
             var accountManager = AccountManager.Instance;
             if (accountManager == null || !accountManager.HasSelection)
             {
-                SetStatus("No address to open.");
+                SetStatus("No address to open.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             var address = accountManager.CurrentAccount.phaAddress;
             if (string.IsNullOrWhiteSpace(address))
             {
-                SetStatus("No address to open.");
+                SetStatus("No address to open.", WalletUiStatusIntent.TransientShort);
                 return;
             }
 
             var url = accountManager.GetPhantasmaAddressURL(address);
             if (string.IsNullOrWhiteSpace(url))
             {
-                SetStatus("Explorer URL is not configured.");
+                SetStatus("Explorer URL is not configured.", WalletUiStatusIntent.TransientLong);
                 return;
             }
 
             Application.OpenURL(url);
-            SetStatus("Opening explorer...");
+            SetStatus("Opening explorer...", WalletUiStatusIntent.TransientShort);
         }
 
         private void ApplyDefaultFont(VisualElement element)

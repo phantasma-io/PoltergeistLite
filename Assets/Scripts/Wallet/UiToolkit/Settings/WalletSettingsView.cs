@@ -897,7 +897,7 @@ namespace Poltergeist.UiToolkit.Settings
         private void OnClearCache()
         {
             actions.ClearCache();
-            SetStatus(actions.ClearCacheSuccess);
+            SetStatus(actions.ClearCacheSuccess, intent: WalletUiStatusIntent.TransientLong);
         }
 
         private void OnResetNotifications()
@@ -905,7 +905,7 @@ namespace Poltergeist.UiToolkit.Settings
             var result = actions.ResetNotifications();
             if (result.Success)
             {
-                SetStatus(actions.ResetNotificationsSuccess);
+                SetStatus(actions.ResetNotificationsSuccess, intent: WalletUiStatusIntent.TransientLong);
             }
             else
             {
@@ -924,7 +924,7 @@ namespace Poltergeist.UiToolkit.Settings
 
             presenter.ResetStateFromSettings();
             Refresh();
-            SetStatus(actions.ResetSettingsSuccess);
+            SetStatus(actions.ResetSettingsSuccess, intent: WalletUiStatusIntent.TransientLong);
         }
 
         private void OnDeleteEverything()
@@ -936,7 +936,7 @@ namespace Poltergeist.UiToolkit.Settings
                 return;
             }
 
-            SetStatus(actions.DeleteEverythingSuccess);
+            SetStatus(actions.DeleteEverythingSuccess, intent: WalletUiStatusIntent.TransientLong);
             onExit?.Invoke();
         }
 
@@ -966,7 +966,7 @@ namespace Poltergeist.UiToolkit.Settings
                         UseShellExecute = true
                     };
                     Process.Start(startInfo);
-                    SetStatus("Opening log folder...");
+                    SetStatus("Opening log folder...", intent: WalletUiStatusIntent.TransientShort);
                     return;
                 }
                 catch (Exception e)
@@ -996,7 +996,7 @@ namespace Poltergeist.UiToolkit.Settings
 
                 WalletApplicationContext.Instance?.ViewState?.ResetSnapshots();
                 WalletApplicationContext.Instance?.UiSignals?.RaiseSettingsChanged();
-                SetStatus("Settings applied.");
+                SetStatus("Settings applied.", intent: WalletUiStatusIntent.TransientLong);
                 ExitToMain();
             }
         }
@@ -1012,7 +1012,7 @@ namespace Poltergeist.UiToolkit.Settings
 
             am.Settings.Load();
             presenter.ResetStateFromSettings();
-            SetStatus("Changes reverted.");
+            SetStatus("Changes reverted.", intent: WalletUiStatusIntent.TransientLong);
             ExitToMain();
         }
 
@@ -1033,7 +1033,7 @@ namespace Poltergeist.UiToolkit.Settings
             }
 
             await ShowInfoAsync("Verification", verifyResult.Data);
-            SetStatus("Proof of addresses verified.");
+            SetStatus("Proof of addresses verified.", intent: WalletUiStatusIntent.TransientLong);
         }
 
         private async Task OnLegacySeedToWifAsync()
@@ -1059,7 +1059,7 @@ namespace Poltergeist.UiToolkit.Settings
             }
 
             ShowCopyPanel("WIF", "Copy the generated WIF", conversionResult.Data, "WIF copied to clipboard.");
-            SetStatus("WIF generated.");
+            SetStatus("WIF generated.", intent: WalletUiStatusIntent.TransientLong);
         }
 
         private async Task OnDescribeScriptAsync()
@@ -1099,7 +1099,7 @@ namespace Poltergeist.UiToolkit.Settings
                 }
 
                 ShowCopyPanel("Script description", "Copy the generated description", description, "Description copied to clipboard.");
-                SetStatus("Script parsed.");
+                SetStatus("Script parsed.", intent: WalletUiStatusIntent.TransientLong);
             }
             catch (Exception e)
             {
@@ -1163,7 +1163,7 @@ namespace Poltergeist.UiToolkit.Settings
                 sb.AppendLine().Append(description);
 
                 ShowCopyPanel("Tx description", "Copy the decoded transaction info", sb.ToString(), "Transaction description copied.");
-                SetStatus("Transaction decoded.");
+                SetStatus("Transaction decoded.", intent: WalletUiStatusIntent.TransientLong);
             }
             catch (Exception e)
             {
@@ -1263,7 +1263,7 @@ namespace Poltergeist.UiToolkit.Settings
                                           $"SM threshold: {masterThreshold} SOUL\n";
 
                             ShowCopyPanel("Account information", message, message, "Staking info copied.");
-                            SetStatus("Staking info fetched.");
+                            SetStatus("Staking info fetched.", intent: WalletUiStatusIntent.TransientLong);
                         });
                     });
                 });
@@ -1296,7 +1296,7 @@ namespace Poltergeist.UiToolkit.Settings
             }
 
             ShowCopyPanel("Account information", infoText, infoText, "Info copied to clipboard.");
-            SetStatus("Address info fetched.");
+            SetStatus("Address info fetched.", intent: WalletUiStatusIntent.TransientLong);
         }
 
         private async Task ConfirmDeleteAsync(string message, Action onConfirm)
@@ -1313,9 +1313,10 @@ namespace Poltergeist.UiToolkit.Settings
             await WalletUiModalHelper.ShowInfoAsync(modalHost, title, message);
         }
 
-        private void SetStatus(string text, bool isError = false)
+        private void SetStatus(string text, bool isError = false, WalletUiStatusIntent intent = WalletUiStatusIntent.None)
         {
-            WalletUiCommon.UpdateStatusLabel(statusLabel, text);
+            var resolvedIntent = isError ? WalletUiStatusIntent.None : intent;
+            WalletUiCommon.UpdateStatusLabel(statusLabel, text, autoHideSeconds: 0f, intent: resolvedIntent);
             statusLabel.style.color = isError ? Color.red : WalletUiTheme.TextSecondary;
         }
 
@@ -1460,7 +1461,7 @@ namespace Poltergeist.UiToolkit.Settings
 
             if (!string.IsNullOrWhiteSpace(copyPanelCopyStatus))
             {
-                SetStatus(copyPanelCopyStatus);
+                SetStatus(copyPanelCopyStatus, intent: WalletUiStatusIntent.TransientShort);
             }
 
             HideModal();
