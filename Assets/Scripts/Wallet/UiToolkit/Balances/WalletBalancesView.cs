@@ -529,7 +529,7 @@ namespace Poltergeist.UiToolkit.Balances
                 }
                 };
 
-                var smLabel = WalletUiCommon.CreateSoulMasterBadge(16f, 10f, 4f);
+                var smLabel = WalletUiCommon.CreateSoulMasterBadge(24f, 15f, 6f);
                 smLabel.style.marginLeft = 12;
                 textBlockSM.Add(smLabel);
                 row.Add(textBlockSM);
