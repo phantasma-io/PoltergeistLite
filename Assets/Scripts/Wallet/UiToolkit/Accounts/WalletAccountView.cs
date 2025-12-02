@@ -63,7 +63,6 @@ namespace Poltergeist.UiToolkit.Accounts
         private VisualElement verificationPanel;
         private Label verificationMessageLabel;
         private TaskCompletionSource<string> chainPickerTcs;
-        private HeaderElements header;
         private SubHeaderElements subHeader;
         private List<Button> actionButtons = new List<Button>();
 
@@ -179,8 +178,14 @@ namespace Poltergeist.UiToolkit.Accounts
             };
             ApplyDefaultFont(content);
 
-            var headerBlock = WalletUiCommon.BuildHeaderBlock("Account", "Account", headerMarginBottom: 10f, subHeaderMarginTop: 12f, subHeaderMarginBottom: 6f);
-            header = headerBlock.Header;
+            var headerBlock = WalletUiCommon.BuildHeaderBlock(
+                subHeaderSubtitle: "Account",
+                subHeaderLeft: string.Empty,
+                rightContent: null,
+                middleContent: null,
+                headerMarginBottom: 10f,
+                subHeaderMarginTop: 12f,
+                subHeaderMarginBottom: 6f);
             subHeader = headerBlock.SubHeader;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;

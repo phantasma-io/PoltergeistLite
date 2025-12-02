@@ -21,7 +21,6 @@ namespace Poltergeist.UiToolkit.Accounts
         private readonly WalletAuthService authService;
         private readonly Action onLoginSuccess;
         private readonly Action onShowSettings;
-        private HeaderElements header;
         private SubHeaderElements subHeader;
         private Label subtitleLabel;
         private Label subtitleNetworkLabel;
@@ -107,16 +106,6 @@ namespace Poltergeist.UiToolkit.Accounts
             var hiddenCount = 0;
             var visibleCount = 0;
             walletsLabel.text = $"{am.Accounts.Count} wallet(s)";
-            var settings = am.Settings;
-            if (settings != null && header != null)
-            {
-                WalletUiCommon.ApplyNetworkBadge(header.NetworkLabel, settings.nexusName, settings.nexusKind);
-            }
-            else if (header != null)
-            {
-                header.NetworkLabel.text = string.Empty;
-            }
-
             for (var i = 0; i < am.Accounts.Count; i++)
             {
                 var account = am.Accounts[i];
@@ -185,7 +174,6 @@ namespace Poltergeist.UiToolkit.Accounts
             if (headerSettings != null)
             {
                 WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, headerSettings.nexusName, headerSettings.nexusKind);
-                WalletUiCommon.ApplyNetworkBadge(header.NetworkLabel, headerSettings.nexusName, headerSettings.nexusKind);
             }
         }
 
@@ -211,8 +199,14 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 
-            var headerBlock = WalletUiCommon.BuildHeaderBlock("Wallet List", "Wallet List", headerMarginBottom: 12f, subHeaderMarginTop: 6f, subHeaderMarginBottom: 6f);
-            header = headerBlock.Header;
+            var headerBlock = WalletUiCommon.BuildHeaderBlock(
+                subHeaderSubtitle: "Wallet List",
+                subHeaderLeft: string.Empty,
+                rightContent: null,
+                middleContent: null,
+                headerMarginBottom: 12f,
+                subHeaderMarginTop: 6f,
+                subHeaderMarginBottom: 6f);
             subHeader = headerBlock.SubHeader;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;

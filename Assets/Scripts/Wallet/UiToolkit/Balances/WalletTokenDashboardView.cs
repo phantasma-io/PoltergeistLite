@@ -47,7 +47,6 @@ namespace Poltergeist.UiToolkit.Balances
 
         private VisualElement root;
         private ScrollView scrollView;
-        private HeaderElements header;
         private SubHeaderElements subHeader;
         private Label subtitleLabel;
         private Label subtitleNetworkLabel;
@@ -221,8 +220,14 @@ namespace Poltergeist.UiToolkit.Balances
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
             refreshButton.style.minWidth = 120;
 
-            var headerBlock = WalletUiCommon.BuildHeaderBlock("Asset", "Asset", string.Empty, refreshButton, showHeaderSubtitle: false, headerMarginBottom: 10f, subHeaderMarginTop: 10f, subHeaderMarginBottom: 8f);
-            header = headerBlock.Header;
+            var headerBlock = WalletUiCommon.BuildHeaderBlock(
+                subHeaderSubtitle: "Asset",
+                subHeaderLeft: string.Empty,
+                rightContent: refreshButton,
+                middleContent: null,
+                headerMarginBottom: 10f,
+                subHeaderMarginTop: 10f,
+                subHeaderMarginBottom: 8f);
             subHeader = headerBlock.SubHeader;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;

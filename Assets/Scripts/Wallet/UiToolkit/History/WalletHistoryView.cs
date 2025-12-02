@@ -31,7 +31,6 @@ namespace Poltergeist.UiToolkit.History
         private ScrollView listView;
         private Label statusLabel;
         private VisualElement content;
-        private HeaderElements header;
         private SubHeaderElements subHeader;
         private Button refreshButton;
         private Label summaryLabel;
@@ -164,8 +163,10 @@ namespace Poltergeist.UiToolkit.History
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
             refreshButton.style.minWidth = 120;
 
-            var headerBlock = WalletUiCommon.BuildHeaderBlock("History", "History", string.Empty, refreshButton);
-            header = headerBlock.Header;
+            var headerBlock = WalletUiCommon.BuildHeaderBlock(
+                subHeaderSubtitle: "History",
+                subHeaderLeft: string.Empty,
+                rightContent: refreshButton);
             subHeader = headerBlock.SubHeader;
             subtitleLabel = subHeader.SubtitleLabel;
             subtitleNetworkLabel = subHeader.NetworkLabel;

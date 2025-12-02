@@ -29,7 +29,6 @@ namespace Poltergeist.UiToolkit.Balances
         private readonly Action onShowSettings;
         private readonly Action onExit;
         private readonly Action<string> onShowToken;
-        private HeaderElements header;
         private SubHeaderElements subHeader;
 
         private Label summaryLabel;
@@ -94,8 +93,10 @@ namespace Poltergeist.UiToolkit.Balances
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
             refreshButton.style.minWidth = 120;
 
-            var headerBlock = WalletUiCommon.BuildHeaderBlock("Balances", "Balances", string.Empty, refreshButton, showHeaderSubtitle: false);
-            header = headerBlock.Header;
+            var headerBlock = WalletUiCommon.BuildHeaderBlock(
+                subHeaderSubtitle: "Balances",
+                subHeaderLeft: string.Empty,
+                rightContent: refreshButton);
             subHeader = headerBlock.SubHeader;
             summaryLabel = subHeader.LeftLabel;
             subtitleLabel = subHeader.SubtitleLabel;

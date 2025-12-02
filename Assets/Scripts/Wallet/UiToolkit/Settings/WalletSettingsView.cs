@@ -27,7 +27,7 @@ namespace Poltergeist.UiToolkit.Settings
     {
         private const string LogPrefix = "[UITK] ";
         private static readonly bool ShowOnlyFirstSettingsField = false; // Show full settings form (set true for debugging layout)
-        private const bool EnableScrollDebugLog = true;
+        private const bool EnableScrollDebugLog = false;
         private const string ScrollLogPrefix = "[UITK][Settings][Scroll] ";
 
         private readonly WalletSettingsPresenter presenter;
@@ -42,7 +42,6 @@ namespace Poltergeist.UiToolkit.Settings
         private Label statusLabel;
         private Label warningLabel;
         private HeaderBlockElements headerBlock;
-        private HeaderElements header;
         private SubHeaderElements subHeader;
         private Label buildInfoLabel;
 
@@ -170,7 +169,7 @@ namespace Poltergeist.UiToolkit.Settings
 
         private void UpdateHeaderTexts(WalletSettingsViewSnapshot snapshot)
         {
-            if (header == null || subHeader == null || snapshot == null)
+            if (subHeader == null || snapshot == null)
             {
                 return;
             }
@@ -187,10 +186,8 @@ namespace Poltergeist.UiToolkit.Settings
                 title = "Wallet Setup (Connection failed)";
             }
 
-            header.SubtitleLabel.text = title;
             subHeader.SubtitleLabel.text = title;
             WalletUiCommon.ApplyNetworkBadge(subHeader.NetworkLabel, snapshot.NexusName, snapshot.NexusKind);
-            WalletUiCommon.ApplyNetworkBadge(header.NetworkLabel, snapshot.NexusName, snapshot.NexusKind);
         }
 
         private void BuildLayout(VisualElement host)
@@ -247,8 +244,14 @@ namespace Poltergeist.UiToolkit.Settings
             };
             WalletUiCommon.ApplyDefaultFont(content);
 
-            headerBlock = WalletUiCommon.BuildHeaderBlock("Settings", "Settings", headerMarginBottom: 8f, subHeaderMarginTop: 6f, subHeaderMarginBottom: 8f, middleContent: buildInfoLabel);
-            header = headerBlock.Header;
+            headerBlock = WalletUiCommon.BuildHeaderBlock(
+                subHeaderSubtitle: "Settings",
+                subHeaderLeft: string.Empty,
+                rightContent: null,
+                middleContent: buildInfoLabel,
+                headerMarginBottom: 8f,
+                subHeaderMarginTop: 6f,
+                subHeaderMarginBottom: 8f);
             subHeader = headerBlock.SubHeader;
             headerBlock.Root.style.flexShrink = 0;
             content.Add(headerBlock.Root);
@@ -468,8 +471,11 @@ namespace Poltergeist.UiToolkit.Settings
             BuildTabsBar();
             tabContent.style.marginTop = 10;
             scroll.Add(tabContent);
-            scroll.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-content-container-geometry", scrollView, root, scrollWrapper));
-            tabContent.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-form-geometry", scrollView, root, scrollWrapper));
+            if (EnableScrollDebugLog)
+            {
+                scroll.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-content-container-geometry", scrollView, root, scrollWrapper));
+                tabContent.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-form-geometry", scrollView, root, scrollWrapper));
+            }
 
             actionsContainer = new VisualElement
             {

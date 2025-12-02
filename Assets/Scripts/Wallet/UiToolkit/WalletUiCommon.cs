@@ -36,7 +36,7 @@ namespace Poltergeist.UiToolkit
 
         private static readonly Dictionary<Label, StatusLabelState> StatusStates = new Dictionary<Label, StatusLabelState>();
 
-        internal static HeaderElements BuildHeader(string subtitleText, VisualElement rightContent = null, bool showSubtitle = false)
+        internal static HeaderElements BuildHeader(VisualElement rightContent = null)
         {
             var header = new VisualElement
             {
@@ -118,12 +118,6 @@ namespace Poltergeist.UiToolkit
 
             titleRow.Add(titleGroup);
 
-            var subtitle = new Label(subtitleText ?? string.Empty);
-            ApplyDefaultFont(subtitle);
-
-            var network = new Label(string.Empty);
-            ApplyDefaultFont(network);
-
             header.Add(titleRow);
 
             if (rightContent != null)
@@ -135,7 +129,7 @@ namespace Poltergeist.UiToolkit
                 header.Add(rightContent);
             }
 
-            return new HeaderElements(header, subtitle, network);
+            return new HeaderElements(header);
         }
 
         internal static SubHeaderElements BuildSubHeader(string subtitleText, string leftText = "")
@@ -340,7 +334,7 @@ namespace Poltergeist.UiToolkit
         }
 
         // Shared header + subheader block so all screens stay consistent; callers can tweak margins for edge cases.
-        internal static HeaderBlockElements BuildHeaderBlock(string headerSubtitle, string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, VisualElement middleContent = null, bool showHeaderSubtitle = false, float headerMarginBottom = 12f, float subHeaderMarginTop = 8f, float subHeaderMarginBottom = 10f)
+        internal static HeaderBlockElements BuildHeaderBlock(string subHeaderSubtitle, string subHeaderLeft = "", VisualElement rightContent = null, VisualElement middleContent = null, float headerMarginBottom = 12f, float subHeaderMarginTop = 8f, float subHeaderMarginBottom = 10f)
         {
             var container = new VisualElement
             {
@@ -353,7 +347,7 @@ namespace Poltergeist.UiToolkit
             };
             ApplyDefaultFont(container);
 
-            var header = BuildHeader(headerSubtitle, rightContent, showHeaderSubtitle);
+            var header = BuildHeader(rightContent);
             header.Root.style.marginBottom = headerMarginBottom;
             header.Root.style.width = new Length(100, LengthUnit.Percent);
             header.Root.style.alignSelf = Align.Stretch;
@@ -1525,16 +1519,12 @@ namespace Poltergeist.UiToolkit
 
     internal sealed class HeaderElements
     {
-        internal HeaderElements(VisualElement root, Label subtitleLabel, Label networkLabel)
+        internal HeaderElements(VisualElement root)
         {
             Root = root;
-            SubtitleLabel = subtitleLabel;
-            NetworkLabel = networkLabel;
         }
 
         internal VisualElement Root { get; }
-        internal Label SubtitleLabel { get; }
-        internal Label NetworkLabel { get; }
     }
 
     internal sealed class SubHeaderElements
