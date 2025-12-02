@@ -172,7 +172,9 @@ namespace Poltergeist.UiToolkit
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
                     justifyContent = Justify.Center,
-                    flexGrow = 1
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    minWidth = 0
                 }
             };
 
@@ -183,7 +185,11 @@ namespace Poltergeist.UiToolkit
                     color = WalletUiTheme.TextPrimary,
                     fontSize = 18,
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    unityTextAlign = TextAnchor.MiddleCenter
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    whiteSpace = WhiteSpace.Normal,
+                    minWidth = 80,
+                    maxWidth = new Length(100, LengthUnit.Percent),
+                    flexShrink = 1
                 }
             };
             ApplyDefaultFont(subtitle);

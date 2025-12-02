@@ -385,7 +385,10 @@ namespace Poltergeist.UiToolkit.Accounts
                     borderRightColor = WalletUiTheme.SecondaryButtonBorder,
                     borderTopColor = WalletUiTheme.SecondaryButtonBorder,
                     borderBottomColor = WalletUiTheme.SecondaryButtonBorder,
-                    minHeight = 26
+                    minHeight = 26,
+                    minWidth = 80,
+                    whiteSpace = WhiteSpace.NoWrap,
+                    flexShrink = 0
                 }
             };
             ApplyDefaultFont(btn);
