@@ -293,7 +293,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 style =
                 {
                     color = isHidden ? WalletUiTheme.TextMuted : WalletUiTheme.TextSecondary,
-                    fontSize = 13,
+                    fontSize = 17,
                     unityTextAlign = TextAnchor.MiddleLeft,
                     whiteSpace = WhiteSpace.Normal,
                     marginTop = 4

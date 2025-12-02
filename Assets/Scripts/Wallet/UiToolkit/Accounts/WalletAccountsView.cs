@@ -319,7 +319,7 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 style =
                 {
-                    fontSize = 14,
+                    fontSize = 17,
                     marginTop = 6,
                     color = WalletUiTheme.TextMuted
                 }
