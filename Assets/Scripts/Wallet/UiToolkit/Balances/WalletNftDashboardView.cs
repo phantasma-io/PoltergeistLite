@@ -1369,13 +1369,13 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var sendResult = await transactionOrchestrator.SendTransactionDraftAsync(draft.Draft, true);
-            if (!string.IsNullOrWhiteSpace(sendResult.error))
+            var transferMessage = WalletUiTransactionResultHelper.CombineWithPendingNotice($"You transferred {draft.Amount} {symbol} NFT(s)!");
+            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, transferMessage);
+
+            if (!string.IsNullOrWhiteSpace(sendResult.error) || sendResult.hash == Hash.Null)
             {
-                SetStatus(sendResult.error);
                 return;
             }
-
-            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, $"You transferred {draft.Amount} {symbol} NFT(s)!");
 
             context.ViewState.NftScrollY = 0f;
             nftPresenter.ClearSelection();
@@ -1424,6 +1424,11 @@ namespace Poltergeist.UiToolkit.Balances
 
             var sendResult = await transactionOrchestrator.SendTransactionDraftAsync(prep.Data, true);
             TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, $"You burned {selectedIds.Count} NFTs!");
+
+            if (!string.IsNullOrWhiteSpace(sendResult.error) || sendResult.hash == Hash.Null)
+            {
+                return;
+            }
 
             context.ViewState.NftScrollY = 0f;
             nftPresenter.ClearSelection();
@@ -1675,8 +1680,11 @@ namespace Poltergeist.UiToolkit.Balances
             return transactionDialogs.StartConfirmationAsync(hash, refreshBalanceAfterConfirmation);
         }
 
-        private void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successMessage)
+        private void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successMessage, string failureMessage = null)
         {
+            WalletUiTransactionResultHelper.ShowAsync(modalHost, () => AccountManager.Instance, hash, txResult, error, successMessage, failureMessage)
+                .Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to show transaction result: {ex}"));
+
             if (!string.IsNullOrWhiteSpace(error))
             {
                 SetStatus(error);

@@ -532,6 +532,7 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             var (hash, txResult, error) = await SendTransactionDraftAsync(plan.Draft, true);
+            ShowTxResultMessage(hash, txResult, error, null, "It was not possible to migrate the account.");
             if (string.IsNullOrEmpty(error) && hash != Hash.Null)
             {
                 accountManager.ReplaceAccountWIF(accountManager.CurrentIndex, wif, accountManager.CurrentPasswordHash, out var deletedDuplicateWallet);
@@ -600,6 +601,8 @@ namespace Poltergeist.UiToolkit.Accounts
             }
 
             var (hash, txResult, error) = await SendTransactionDraftAsync(draft.Draft, true);
+            var nameTxMessage = WalletUiTransactionResultHelper.CombineWithPendingNotice("Name registration sent.");
+            ShowTxResultMessage(hash, txResult, error, nameTxMessage);
             if (string.IsNullOrEmpty(error) && hash != Hash.Null)
             {
                 SetStatus("Name registration sent.");
@@ -1005,6 +1008,23 @@ namespace Poltergeist.UiToolkit.Accounts
         private Task<(Hash hash, TransactionResult txResult, string error)> SendTransactionDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation)
         {
             return transactionOrchestrator.SendTransactionDraftAsync(draft, refreshBalanceAfterConfirmation);
+        }
+
+        private void ShowTxResultMessage(Hash hash, TransactionResult txResult, string error, string successMessage = null, string failureMessage = null)
+        {
+            WalletUiTransactionResultHelper.ShowAsync(modalHost, () => AccountManager.Instance, hash, txResult, error, successMessage, failureMessage)
+                .Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to show transaction result: {ex}"));
+
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                SetStatus(error);
+                return;
+            }
+
+            if (hash != Hash.Null && !string.IsNullOrWhiteSpace(successMessage))
+            {
+                SetStatus(successMessage);
+            }
         }
 
         private async Task<bool> EnsureKcalAvailabilityAsync(AccountManager accountManager)

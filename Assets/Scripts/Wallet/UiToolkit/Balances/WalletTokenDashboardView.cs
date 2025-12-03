@@ -1032,7 +1032,8 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var sendResult = await transactionOrchestrator.SendTransactionDraftAsync(planResult.Draft, true);
-            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, $"You transferred {WalletAmountFormatter.Format(planResult.Amount, Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform), MoneyFormatType.Long)} {symbol}!");
+            var transferMessage = WalletUiTransactionResultHelper.CombineWithPendingNotice($"You transferred {WalletAmountFormatter.Format(planResult.Amount, Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform), MoneyFormatType.Long)} {symbol}!");
+            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, transferMessage);
         }
 
         private async Task StakeAsync()
@@ -1080,7 +1081,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var sendResult = await transactionOrchestrator.SendTransactionDraftAsync(draftResult.Draft, true);
-            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, "Your SOUL tokens were staked!");
+            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, WalletUiTransactionResultHelper.CombineWithPendingNotice("Your SOUL tokens were staked!"));
         }
 
         private async Task UnstakeAsync()
@@ -1139,7 +1140,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var sendResult = await transactionOrchestrator.SendTransactionDraftAsync(draftResult.Draft, true);
-            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, "Your SOUL tokens were unstaked!");
+            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, WalletUiTransactionResultHelper.CombineWithPendingNotice("Your SOUL tokens were unstaked!"));
         }
 
         private async Task ClaimAsync()
@@ -1177,7 +1178,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var sendResult = await transactionOrchestrator.SendTransactionDraftAsync(draftResult.Draft, true);
-            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, "Your KCAL tokens were claimed!");
+            TxResultMessage(sendResult.hash, sendResult.txResult, sendResult.error, WalletUiTransactionResultHelper.CombineWithPendingNotice("Your KCAL tokens were claimed!"));
         }
 
         private async Task BurnAsync()
@@ -1626,8 +1627,11 @@ namespace Poltergeist.UiToolkit.Balances
             return transactionDialogs.StartConfirmationAsync(hash, refreshBalanceAfterConfirmation);
         }
 
-        private void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successMessage)
+        private void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successMessage, string failureMessage = null)
         {
+            WalletUiTransactionResultHelper.ShowAsync(modalHost, () => AccountManager.Instance, hash, txResult, error, successMessage, failureMessage)
+                .Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to show transaction result: {ex}"));
+
             if (!string.IsNullOrWhiteSpace(error))
             {
                 SetStatus(error);
