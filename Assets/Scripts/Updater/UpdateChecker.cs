@@ -13,7 +13,7 @@ public class UpdateChecker : MonoBehaviour
 
     private const string GITHUB_RELEASES_URL = "https://github.com/";
     private static string URL = "";
-    
+
     public static string UPDATE_URL => URL;
 
 

@@ -6,9 +6,10 @@ using UnityEngine;
 public class IntentPluginManager : MonoBehaviour
 {
     public static IntentPluginManager Instance { get; private set; }
+#if UNITY_ANDROID
     [SerializeField] private string PluginName = "com.phantasma.poltergeistmodule.MainActivity";
-    
     private AndroidJavaObject _PluginInstance;
+#endif
 
     private void Awake()
     {
@@ -17,9 +18,9 @@ public class IntentPluginManager : MonoBehaviour
 
     void Start()
     {
-        #if UNITY_ANDROID
+#if UNITY_ANDROID
         InitializePlugin(PluginName);
-        #endif
+#endif
     }
 
     private void InitializePlugin(string pluginName)
@@ -31,10 +32,10 @@ public class IntentPluginManager : MonoBehaviour
             Debug.LogError("Error Loading Plugin..");
         }
 #endif
-        
+
         //_PluginInstance.CallStatic("ReceiveActivity", UnityActivity);
     }
-    
+
     public void CallMethodByName(string msg)
     {
 #if UNITY_ANDROID
