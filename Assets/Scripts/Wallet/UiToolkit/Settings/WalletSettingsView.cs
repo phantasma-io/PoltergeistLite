@@ -380,7 +380,9 @@ namespace Poltergeist.UiToolkit.Settings
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Seed length", mnemonicDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Password mode", passwordModeDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log level", logLevelDropdown));
-            generalSection.Add(WalletUiFormFactory.CreateLabeledRow("UI Theme", uiThemeDropdown));
+            var uiThemeRow = WalletUiFormFactory.CreateLabeledRow("UI Theme", uiThemeDropdown);
+            uiThemeRow.style.display = DisplayStyle.None; // Temporarily hide UI theme selection.
+            generalSection.Add(uiThemeRow);
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log folder path", logFolderPathField, "Leave empty to use default log location"));
 
             endpointsSection = WalletUiFormFactory.CreateFormSection(string.Empty);

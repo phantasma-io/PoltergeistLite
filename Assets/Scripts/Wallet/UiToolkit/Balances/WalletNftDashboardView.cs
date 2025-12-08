@@ -1290,8 +1290,19 @@ namespace Poltergeist.UiToolkit.Balances
             var selectionCount = nftPresenter.State.SelectedCount;
             var hasSelection = selectionCount > 0;
             var platform = accountManager.CurrentPlatform;
-            var devMode = accountManager.Settings?.devMode ?? false;
-            var showSend = platform == PlatformKind.Phantasma && Tokens.GetToken(symbol, platform, out var token) && !string.IsNullOrEmpty(token.Flags) && token.IsTransferable();
+            var settings = accountManager.Settings;
+            var devMode = settings?.devMode ?? false;
+            var nexusKind = settings?.nexusKind ?? NexusKind.Main_Net;
+
+            var showSend = false;
+            if (platform == PlatformKind.Phantasma && Tokens.GetToken(symbol, platform, out var token) && !string.IsNullOrEmpty(token.Flags) && token.IsTransferable())
+            {
+                var allowTransfer = token.IsFungible()
+                    || devMode
+                    || nexusKind == NexusKind.Test_Net
+                    || nexusKind == NexusKind.Dev_Net; // NFT transfers enabled on test/dev nets or dev mode; fungible transfers always allowed.
+                showSend = allowTransfer;
+            }
 
             SetActionButtonState(sendButton, hasSelection && showSend);
             sendButton.style.display = showSend ? DisplayStyle.Flex : DisplayStyle.None;
@@ -1334,6 +1345,7 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            var settings = accountManager.Settings;
             var symbol = string.IsNullOrWhiteSpace(symbolOverride) ? (string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol) : symbolOverride;
             var selectedIds = customIds?.Where(x => !string.IsNullOrWhiteSpace(x)).ToList() ?? nftPresenter.SelectionSnapshot().ToList();
             if (string.IsNullOrWhiteSpace(symbol) || selectedIds.Count == 0)
@@ -1352,6 +1364,18 @@ namespace Poltergeist.UiToolkit.Balances
             if (!transferToken.IsTransferable())
             {
                 await ShowErrorAsync($"Transfers of {symbol} tokens are not allowed.");
+                return;
+            }
+
+            var nexusKind = settings?.nexusKind ?? NexusKind.Main_Net;
+            var allowTransferAction = transferToken.IsFungible()
+                || (settings?.devMode ?? false)
+                || nexusKind == NexusKind.Test_Net
+                || nexusKind == NexusKind.Dev_Net; // NFT transfers enabled on test/dev nets or dev mode; fungible transfers always allowed.
+
+            if (!allowTransferAction)
+            {
+                await ShowErrorAsync($"Transfers of {symbol} tokens are not available on this network.");
                 return;
             }
 

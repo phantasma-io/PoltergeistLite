@@ -528,8 +528,19 @@ namespace Poltergeist.UiToolkit.Balances
         private void UpdateDetailActions(string symbol, bool locked, AccountManager accountManager)
         {
             var platform = accountManager.CurrentPlatform;
-            var devMode = accountManager.Settings?.devMode ?? false;
-            var canSend = !locked && platform == PlatformKind.Phantasma && Tokens.GetToken(symbol, platform, out var tokenInfo) && !string.IsNullOrEmpty(tokenInfo.Flags) && tokenInfo.IsTransferable();
+            var settings = accountManager.Settings;
+            var devMode = settings?.devMode ?? false;
+            var nexusKind = settings?.nexusKind ?? NexusKind.Main_Net;
+
+            var canSend = false;
+            if (!locked && platform == PlatformKind.Phantasma && Tokens.GetToken(symbol, platform, out var tokenInfo) && !string.IsNullOrEmpty(tokenInfo.Flags) && tokenInfo.IsTransferable())
+            {
+                var allowTransfer = tokenInfo.IsFungible()
+                    || devMode
+                    || nexusKind == NexusKind.Test_Net
+                    || nexusKind == NexusKind.Dev_Net; // NFT transfers enabled on test/dev nets or dev mode; fungible transfers always allowed.
+                canSend = allowTransfer;
+            }
 
             SetActionButtonState(detailSendButton, canSend);
             detailSendButton.style.display = canSend ? DisplayStyle.Flex : DisplayStyle.None;
