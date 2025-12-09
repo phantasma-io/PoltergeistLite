@@ -75,6 +75,12 @@ namespace Poltergeist.Wallet
                 return false;
             }
 
+            if (settings.uiScaleMultiplier < 0.1f || settings.uiScaleMultiplier > 4f)
+            {
+                onError?.Invoke("UI scale multiplier must be between 0.1 and 4.");
+                return false;
+            }
+
             if (!string.IsNullOrWhiteSpace(settings.logFolderPath))
             {
                 try

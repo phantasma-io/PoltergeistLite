@@ -301,12 +301,53 @@ namespace Poltergeist.UiToolkit
             panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
             panelSettings.name = "WalletUiToolkitPanelSettings";
             panelSettings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-            // Legacy UI was landscape-first; use a matching reference resolution so sizing lines up.
-            panelSettings.referenceResolution = new Vector2Int(1920, 1080);
+            ApplyPanelScale(panelSettings, AccountManager.Instance?.Settings);
             panelSettings.match = 0.5f;
             panelSettings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             panelSettings.sortingOrder = 2000;
             panelSettings.targetDisplay = 0;
+        }
+
+        internal static void RefreshPanelScale()
+        {
+            var root = instance;
+            if (root == null || root.panelSettings == null)
+            {
+                return;
+            }
+
+            root.ApplyPanelScale(root.panelSettings, AccountManager.Instance?.Settings);
+        }
+
+        private void ApplyPanelScale(PanelSettings target, global::Poltergeist.Settings settings)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            var platform = Application.platform;
+            var baseReference = IsMobilePlatform(platform) ? new Vector2Int(1024, 576) : new Vector2Int(1920, 1080);
+            var multiplier = settings?.uiScaleMultiplier ?? 1f;
+            if (multiplier <= 0f)
+            {
+                multiplier = 1f;
+            }
+
+            target.referenceResolution = ComputeScaledReference(baseReference, multiplier);
+        }
+
+        private static Vector2Int ComputeScaledReference(Vector2Int baseReference, float multiplier)
+        {
+            var safeMultiplier = Mathf.Max(0.1f, multiplier);
+            return new Vector2Int(
+                Mathf.Max(1, Mathf.RoundToInt(baseReference.x / safeMultiplier)),
+                Mathf.Max(1, Mathf.RoundToInt(baseReference.y / safeMultiplier)));
+        }
+
+        private static bool IsMobilePlatform(RuntimePlatform platform)
+        {
+            return platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer;
         }
 
         private void EnsureDocument()

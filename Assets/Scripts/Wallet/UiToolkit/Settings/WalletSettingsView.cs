@@ -64,6 +64,7 @@ namespace Poltergeist.UiToolkit.Settings
         private TextField balanceThresholdField;
         private TextField balancePrecisionField;
         private TextField framerateField;
+        private TextField uiScaleMultiplierField;
         private TextField windowWidthField;
         private TextField windowHeightField;
         private TextField scriptlessGasField;
@@ -436,6 +437,7 @@ namespace Poltergeist.UiToolkit.Settings
 
             performanceSection = WalletUiFormFactory.CreateFormSection(string.Empty);
             framerateField = WalletUiFormFactory.CreateTextField("UI framerate (-1 for default)", string.Empty, value => OnChanged(() => presenter.SetUiFramerate(value)));
+            uiScaleMultiplierField = WalletUiFormFactory.CreateTextField("UI scale multiplier (1 = default)", string.Empty, value => OnChanged(() => presenter.SetUiScaleMultiplier(value)));
             windowWidthField = WalletUiFormFactory.CreateTextField("Initial window width", string.Empty, value => OnChanged(() => presenter.SetInitialWindowWidth(value)));
             windowHeightField = WalletUiFormFactory.CreateTextField("Initial window height", string.Empty, value => OnChanged(() => presenter.SetInitialWindowHeight(value)));
             balanceThresholdField = WalletUiFormFactory.CreateTextField("Balance display threshold", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayThreshold(value)));
@@ -443,6 +445,7 @@ namespace Poltergeist.UiToolkit.Settings
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display threshold", balanceThresholdField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display precision", balancePrecisionField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI framerate (-1 for default)", framerateField));
+            performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI scale multiplier (1 = default)", uiScaleMultiplierField, "Scales UITK UI size on all platforms"));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window width", windowWidthField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window height", windowHeightField));
             AddTabSection("display", "Display", performanceSection);
@@ -768,6 +771,7 @@ namespace Poltergeist.UiToolkit.Settings
             balanceThresholdField.value = snapshot.BalanceDisplayThresholdText ?? string.Empty;
             balancePrecisionField.value = snapshot.BalanceDisplayPrecisionText ?? string.Empty;
             framerateField.value = snapshot.UiFramerateText ?? string.Empty;
+            uiScaleMultiplierField.value = snapshot.UiScaleMultiplierText ?? string.Empty;
             windowWidthField.value = snapshot.InitialWindowWidthText ?? string.Empty;
             windowHeightField.value = snapshot.InitialWindowHeightText ?? string.Empty;
             scriptlessGasField.value = snapshot.ScriptlessMaxGasText ?? string.Empty;
@@ -1002,6 +1006,7 @@ namespace Poltergeist.UiToolkit.Settings
                     am.Settings.settingRequireReconfiguration = false;
                 }
 
+                WalletUiToolkitRoot.RefreshPanelScale();
                 WalletApplicationContext.Instance?.ViewState?.ResetSnapshots();
                 WalletApplicationContext.Instance?.UiSignals?.RaiseSettingsChanged();
                 SetStatus("Settings applied.", intent: WalletUiStatusIntent.TransientLong);

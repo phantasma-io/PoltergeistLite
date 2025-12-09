@@ -230,6 +230,16 @@ namespace Poltergeist.Wallet
             }
         }
 
+        public void SetUiScaleMultiplier(string value)
+        {
+            var settings = GetSettings();
+            var normalized = (value ?? string.Empty).Replace(',', '.');
+            if (float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                settings.uiScaleMultiplier = Mathf.Clamp(parsed, 0.1f, 4f);
+            }
+        }
+
         public void SetInitialWindowWidth(string value)
         {
             var settings = GetSettings();

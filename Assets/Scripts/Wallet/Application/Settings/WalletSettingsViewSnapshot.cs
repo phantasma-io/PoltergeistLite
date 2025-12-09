@@ -28,6 +28,7 @@ namespace Poltergeist.Wallet
             string[] uiThemeDisplayOptions,
             UiThemes[] uiThemes,
             int uiThemeIndex,
+            string uiScaleMultiplierText,
             Settings settings,
             bool hasCustomEndpoints,
             bool hasCustomName,
@@ -59,6 +60,7 @@ namespace Poltergeist.Wallet
             UiThemeDisplayOptions = uiThemeDisplayOptions;
             UiThemes = uiThemes;
             UiThemeIndex = uiThemeIndex;
+            UiScaleMultiplierText = uiScaleMultiplierText;
 
             Currency = settings.currency;
             PhantasmaRpcUrl = settings.phantasmaRPCURL;
@@ -113,6 +115,7 @@ namespace Poltergeist.Wallet
         public string[] UiThemeDisplayOptions { get; }
         public UiThemes[] UiThemes { get; }
         public int UiThemeIndex { get; }
+        public string UiScaleMultiplierText { get; }
 
         public string PhantasmaRpcUrl { get; }
         public string PhantasmaExplorerUrl { get; }
