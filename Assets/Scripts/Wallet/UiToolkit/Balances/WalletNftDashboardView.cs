@@ -26,6 +26,7 @@ namespace Poltergeist.UiToolkit.Balances
     public sealed partial class WalletNftDashboardView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
+        private const float CompactNftWidth = 1100f;
 
         private readonly WalletApplicationContext context;
         private readonly WalletUiModalHost modalHost;
@@ -63,6 +64,13 @@ namespace Poltergeist.UiToolkit.Balances
         private Image tokenIcon;
         private VisualElement heroCard;
         private VisualElement filtersPanel;
+        private VisualElement filtersRow;
+        private VisualElement filtersButtonRow;
+        private VisualElement filtersSelectionGroup;
+        private VisualElement filtersContractGroup;
+        private Button toggleFiltersButton;
+        private bool filtersExpanded = true;
+        private bool filtersExpandedUserOverride;
         private VisualElement selectionActionsCloud;
         private VisualElement paginationRow;
         private VisualElement listContainer;
@@ -249,6 +257,10 @@ namespace Poltergeist.UiToolkit.Balances
             root.style.color = WalletUiTheme.TextPrimary;
             WalletUiCommon.ApplyDefaultFont(root);
             tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
+
+            var compactInitial = WalletUiCommon.IsCompactWidth(root, CompactNftWidth);
+            filtersExpanded = !compactInitial;
+            filtersExpandedUserOverride = false;
 
             var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 
@@ -500,7 +512,12 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(panel);
 
-            var filtersRow = new VisualElement
+            toggleFiltersButton = WalletUiCommon.CreateSecondaryButton("Hide filters", ToggleFiltersVisibility, 14, 30);
+            toggleFiltersButton.style.alignSelf = Align.FlexStart;
+            toggleFiltersButton.style.marginBottom = 6;
+            panel.Add(toggleFiltersButton);
+
+            filtersRow = new VisualElement
             {
                 style =
                 {
@@ -550,7 +567,7 @@ namespace Poltergeist.UiToolkit.Balances
 
             panel.Add(filtersRow);
 
-            var buttonRow = new VisualElement
+            filtersButtonRow = new VisualElement
             {
                 style =
                 {
@@ -561,9 +578,9 @@ namespace Poltergeist.UiToolkit.Balances
                     marginTop = 6
                 }
             };
-            WalletUiCommon.ApplyDefaultFont(buttonRow);
+            WalletUiCommon.ApplyDefaultFont(filtersButtonRow);
 
-            var selectionGroup = new VisualElement
+            filtersSelectionGroup = new VisualElement
             {
                 style =
                 {
@@ -572,7 +589,7 @@ namespace Poltergeist.UiToolkit.Balances
                     alignItems = Align.Center
                 }
             };
-            WalletUiCommon.ApplyDefaultFont(selectionGroup);
+            WalletUiCommon.ApplyDefaultFont(filtersSelectionGroup);
 
             selectAllButton = WalletUiCommon.CreateSecondaryButton("Select filtered", () => RunSafeAsync(SelectFilteredAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Select filtered failed: {ex}")), 14, 32);
             selectAllButton.style.marginRight = 8;
@@ -581,34 +598,37 @@ namespace Poltergeist.UiToolkit.Balances
             clearSelectionButton = WalletUiCommon.CreateSecondaryButton("Clear selection", () => RunSafeAsync(ClearSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Clear selection failed: {ex}")), 14, 32);
             clearSelectionButton.style.marginRight = 8;
 
-            selectionGroup.Add(selectAllButton);
-            selectionGroup.Add(invertSelectionButton);
-            selectionGroup.Add(clearSelectionButton);
+            filtersSelectionGroup.Add(selectAllButton);
+            filtersSelectionGroup.Add(invertSelectionButton);
+            filtersSelectionGroup.Add(clearSelectionButton);
 
-            var contractGroup = new VisualElement
+            filtersContractGroup = new VisualElement
             {
                 style =
                 {
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
-                    justifyContent = Justify.FlexEnd,
-                    flexGrow = 1
+                    justifyContent = Justify.FlexStart,
+                    flexGrow = 0,
+                    flexShrink = 0
                 }
             };
-            WalletUiCommon.ApplyDefaultFont(contractGroup);
+            WalletUiCommon.ApplyDefaultFont(filtersContractGroup);
 
             contractInfoButton = WalletUiCommon.CreateSecondaryButton("Contract info", () => OpenContractInfo(), 14, 32);
-            contractInfoButton.style.marginLeft = 8;
+            contractInfoButton.style.marginLeft = 0;
             contractInfoButton.style.minWidth = 140;
             contractInfoButton.style.whiteSpace = WhiteSpace.NoWrap;
             contractInfoButton.style.flexShrink = 0;
 
-            contractGroup.Add(contractInfoButton);
+            filtersContractGroup.Add(contractInfoButton);
 
-            buttonRow.Add(selectionGroup);
-            buttonRow.Add(contractGroup);
+            filtersButtonRow.Add(filtersSelectionGroup);
+            filtersButtonRow.Add(filtersContractGroup);
 
-            panel.Add(buttonRow);
+            panel.Add(filtersButtonRow);
+            panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyFiltersLayout());
+            UpdateFiltersVisibility(true);
             return panel;
         }
 
@@ -761,7 +781,7 @@ namespace Poltergeist.UiToolkit.Balances
 
                 ShowListMode();
                 UpdateHero(symbol, nftSnapshot);
-                summaryLabel.text = $"{nftSnapshot.TotalCount} item(s) • {nftPresenter.State.SelectedCount} selected";
+                summaryLabel.text = BuildSummaryLine(nftSnapshot.TotalCount, nftPresenter.State.SelectedCount);
                 RenderList(symbol, nftSnapshot, accountManager);
                 UpdateActions(symbol, accountManager);
                 SetStatus(string.Empty);
@@ -785,8 +805,12 @@ namespace Poltergeist.UiToolkit.Balances
         private void UpdateHero(string symbol, WalletNftViewSnapshot snapshot)
         {
             symbolLabel.text = $"{symbol} NFTs";
-            totalCountLabel.text = $"{snapshot.TotalCount} item(s)";
-            selectedCountLabel.text = $"{nftPresenter.State.SelectedCount} selected";
+            var compact = WalletUiCommon.IsCompactWidth(root, CompactNftWidth);
+            totalCountLabel.text = compact
+                ? $"{snapshot.TotalCount}/{nftPresenter.State.SelectedCount}"
+                : $"{snapshot.TotalCount} item(s)";
+            selectedCountLabel.text = compact ? string.Empty : $"{nftPresenter.State.SelectedCount} selected";
+            selectedCountLabel.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
             pageInfoLabel.text = snapshot.PageCount > 0 ? $"Page {snapshot.PageNumber + 1} / {snapshot.PageCount}" : "Page 1 / 1";
             var totalLoaded = nftSource.CurrentNfts?.Count ?? 0;
             filterHintLabel.text = totalLoaded == snapshot.TotalCount
@@ -897,6 +921,8 @@ namespace Poltergeist.UiToolkit.Balances
 
             var direction = (WalletSortDirection)AccountManager.Instance?.Settings?.nftSortDirection;
             sortDirectionButton.text = direction == WalletSortDirection.Descending ? "Desc" : "Asc";
+
+            ApplyFiltersLayout();
         }
 
         private List<string> BuildSortChoices(string symbol, bool isTtrs)
@@ -920,6 +946,94 @@ namespace Poltergeist.UiToolkit.Balances
             var isTtrs = string.Equals(symbol, "TTRS", StringComparison.OrdinalIgnoreCase);
             var idx = isTtrs ? settings.ttrsNftSortMode : settings.nftSortMode;
             return Mathf.Clamp(idx, 0, Math.Max(0, maxChoices - 1));
+        }
+
+        private string BuildSummaryLine(int total, int selected)
+        {
+            return WalletUiCommon.IsCompactWidth(root, CompactNftWidth)
+                ? $"{total}/{selected}"
+                : $"{total} item(s) • {selected} selected";
+        }
+
+        private void ToggleFiltersVisibility()
+        {
+            filtersExpanded = !filtersExpanded;
+            filtersExpandedUserOverride = true;
+            UpdateFiltersVisibility();
+        }
+
+        private void UpdateFiltersVisibility(bool fromLayout = false)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
+            if (!filtersExpandedUserOverride)
+            {
+                filtersExpanded = !compact;
+            }
+
+            var display = filtersExpanded ? DisplayStyle.Flex : DisplayStyle.None;
+            if (filtersRow != null)
+            {
+                filtersRow.style.display = display;
+            }
+
+            if (filtersButtonRow != null)
+            {
+                filtersButtonRow.style.display = display;
+            }
+
+            if (toggleFiltersButton != null)
+            {
+                toggleFiltersButton.text = filtersExpanded ? "Hide filters" : "Show filters";
+            }
+        }
+
+        private void ApplyFiltersLayout()
+        {
+            if (filtersButtonRow == null || filtersSelectionGroup == null || filtersContractGroup == null)
+            {
+                return;
+            }
+
+            var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
+
+            filtersButtonRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+            filtersButtonRow.style.alignItems = compact ? Align.Stretch : Align.Center;
+            filtersButtonRow.style.justifyContent = compact ? Justify.FlexStart : Justify.SpaceBetween;
+
+            filtersSelectionGroup.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+            filtersSelectionGroup.style.justifyContent = Justify.FlexStart;
+
+            filtersContractGroup.style.width = StyleKeyword.Auto;
+            filtersContractGroup.style.justifyContent = Justify.FlexStart;
+            filtersContractGroup.style.marginTop = 0;
+            filtersContractGroup.style.flexGrow = 0;
+
+            if (contractInfoButton != null)
+            {
+                if (compact)
+                {
+                    // On narrow layouts keep the button together with selection controls to avoid clipping.
+                    if (contractInfoButton.parent != filtersSelectionGroup)
+                    {
+                        contractInfoButton.RemoveFromHierarchy();
+                        filtersSelectionGroup.Add(contractInfoButton);
+                    }
+                    contractInfoButton.style.width = new Length(100, LengthUnit.Percent);
+                    contractInfoButton.style.marginLeft = 0;
+                }
+                else
+                {
+                    if (contractInfoButton.parent != filtersContractGroup)
+                    {
+                        contractInfoButton.RemoveFromHierarchy();
+                        filtersContractGroup.Add(contractInfoButton);
+                    }
+                    contractInfoButton.style.width = StyleKeyword.Auto;
+                    contractInfoButton.style.marginLeft = 8;
+                }
+            }
+
+            UpdateFiltersVisibility(true);
         }
 
         private void RenderList(string symbol, WalletNftViewSnapshot snapshot, AccountManager accountManager)
@@ -1768,15 +1882,17 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void ClearUi()
         {
+            var compact = WalletUiCommon.IsCompactWidth(root, CompactNftWidth);
             listView?.Clear();
-            totalCountLabel.text = "0 items";
-            selectedCountLabel.text = "0 selected";
+            totalCountLabel.text = compact ? "0/0" : "0 items";
+            selectedCountLabel.text = compact ? string.Empty : "0 selected";
+            selectedCountLabel.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
             pageInfoLabel.text = "Page 1 / 1";
             filterHintLabel.text = string.Empty;
             tokenIcon.image = null;
             if (summaryLabel != null)
             {
-                summaryLabel.text = string.Empty;
+                summaryLabel.text = BuildSummaryLine(0, 0);
             }
             if (detailTitleLabel != null)
             {

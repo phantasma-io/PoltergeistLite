@@ -140,6 +140,15 @@ namespace Poltergeist.Wallet
             state.UiTheme = value;
         }
 
+        public void SetUiPreviewDeviceIndex(int index)
+        {
+            var settings = GetSettings();
+            var opts = EnsureOptions();
+            var clampedIndex = Mathf.Clamp(index, 0, opts.UiPreviewDevices.Length - 1);
+            var value = opts.UiPreviewDevices[clampedIndex];
+            settings.uiPreviewDevice = value;
+        }
+
         public void SetPhantasmaRpcUrl(string value)
         {
             GetSettings().phantasmaRPCURL = value;

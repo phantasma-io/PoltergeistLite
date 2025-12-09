@@ -52,6 +52,7 @@ namespace Poltergeist.UiToolkit.Settings
         private PopupField<string> passwordModeDropdown;
         private PopupField<string> logLevelDropdown;
         private PopupField<string> uiThemeDropdown;
+        private PopupField<string> previewDeviceDropdown;
         private TextField logFolderPathField;
         private Label defaultEndpointInfoLabel;
         private TextField rpcUrlField;
@@ -438,6 +439,7 @@ namespace Poltergeist.UiToolkit.Settings
             performanceSection = WalletUiFormFactory.CreateFormSection(string.Empty);
             framerateField = WalletUiFormFactory.CreateTextField("UI framerate (-1 for default)", string.Empty, value => OnChanged(() => presenter.SetUiFramerate(value)));
             uiScaleMultiplierField = WalletUiFormFactory.CreateTextField("UI scale multiplier (1 = default)", string.Empty, value => OnChanged(() => presenter.SetUiScaleMultiplier(value)));
+            previewDeviceDropdown = WalletUiFormFactory.CreateDropdown("Preview device (desktop)", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetUiPreviewDeviceIndex(idx), true));
             windowWidthField = WalletUiFormFactory.CreateTextField("Initial window width", string.Empty, value => OnChanged(() => presenter.SetInitialWindowWidth(value)));
             windowHeightField = WalletUiFormFactory.CreateTextField("Initial window height", string.Empty, value => OnChanged(() => presenter.SetInitialWindowHeight(value)));
             balanceThresholdField = WalletUiFormFactory.CreateTextField("Balance display threshold", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayThreshold(value)));
@@ -446,6 +448,7 @@ namespace Poltergeist.UiToolkit.Settings
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display precision", balancePrecisionField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI framerate (-1 for default)", framerateField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI scale multiplier (1 = default)", uiScaleMultiplierField, "Scales UITK UI size on all platforms"));
+            performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Preview device (desktop)", previewDeviceDropdown, "Emulates phone/tablet viewport on desktop only"));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window width", windowWidthField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window height", windowHeightField));
             AddTabSection("display", "Display", performanceSection);
@@ -503,15 +506,16 @@ namespace Poltergeist.UiToolkit.Settings
             var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", () => OnDecodeTransactionAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Decode transaction failed: {ex}")), 14, 32);
             var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", () => OnVerifyProofOfAddressesAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify POA failed: {ex}")), 14, 32);
             var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", () => OnLegacySeedToWifAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Legacy seed conversion failed: {ex}")), 14, 32);
-            devToolsSection = WalletUiCommon.CreateButtonRow(8f, stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
-            actionsContainer.Add(devToolsSection);
+            var devToolsRowLocal = WalletUiCommon.CreateButtonRow(8f, stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
+            devToolsSection = devToolsRowLocal;
+            actionsContainer.Add(devToolsRowLocal);
 
             var clearCacheBtn = WalletUiCommon.CreateSecondaryButton("Clear cache", () => ConfirmDeleteAsync(actions.ClearCacheConfirmation, OnClearCache).Forget(ex => Log.WriteWarning($"{LogPrefix}Clear cache confirm failed: {ex}")), 14, 32);
             var resetNotificationsBtn = WalletUiCommon.CreateSecondaryButton("Reset notifications", OnResetNotifications, 14, 32);
             var resetSettingsBtn = WalletUiCommon.CreateSecondaryButton("Reset settings", () => ConfirmDeleteAsync(actions.ResetSettingsConfirmation, OnResetSettings).Forget(ex => Log.WriteWarning($"{LogPrefix}Reset settings confirm failed: {ex}")), 14, 32);
             deleteEverythingButton = WalletUiCommon.CreateSecondaryButton("Delete everything", () => ConfirmDeleteAsync(actions.DeleteEverythingConfirmation, OnDeleteEverything).Forget(ex => Log.WriteWarning($"{LogPrefix}Delete everything confirm failed: {ex}")), 14, 32);
-            var utilitiesCloud = WalletUiCommon.CreateButtonRow(8f, clearCacheBtn, resetNotificationsBtn, resetSettingsBtn, deleteEverythingButton);
-            actionsContainer.Add(utilitiesCloud);
+            var utilitiesRowLocal = WalletUiCommon.CreateButtonRow(8f, clearCacheBtn, resetNotificationsBtn, resetSettingsBtn, deleteEverythingButton);
+            actionsContainer.Add(utilitiesRowLocal);
 
             ApplyDebugLayout();
         }
@@ -758,6 +762,7 @@ namespace Poltergeist.UiToolkit.Settings
             SetDropdown(passwordModeDropdown, snapshot.PasswordDisplayOptions, snapshot.PasswordModeIndex);
             SetDropdown(logLevelDropdown, snapshot.LogLevelDisplayOptions, snapshot.LogLevelIndex);
             SetDropdown(uiThemeDropdown, snapshot.UiThemeDisplayOptions, snapshot.UiThemeIndex);
+            SetDropdown(previewDeviceDropdown, snapshot.UiPreviewDeviceDisplayOptions, snapshot.UiPreviewDeviceIndex);
             logFolderPathField.value = snapshot.LogFolderPath ?? string.Empty;
 
             rpcUrlField.value = snapshot.PhantasmaRpcUrl ?? string.Empty;
@@ -1412,6 +1417,10 @@ namespace Poltergeist.UiToolkit.Settings
         private void BuildModal(VisualElement parent)
         {
             copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, WalletUiCommon.ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
+        }
+
+        private void ApplyResponsiveLayout()
+        {
         }
 
         private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool showSecondary = true, string primaryText = "Confirm", bool isPassword = false, string initialValue = "", bool multiline = false)

@@ -32,6 +32,9 @@ namespace Poltergeist.Wallet
 
             UiThemes = Enum.GetValues(typeof(UiThemes)).Cast<UiThemes>().ToArray();
             UiThemeDisplayOptions = UiThemes.Select(x => x.ToString()).ToArray();
+
+            UiPreviewDevices = Enum.GetValues(typeof(UiPreviewDevice)).Cast<UiPreviewDevice>().ToArray();
+            UiPreviewDeviceDisplayOptions = UiPreviewDevices.Select(x => x.ToString().Replace('_', ' ')).ToArray();
         }
 
         public string[] CurrencyOptions { get; private set; } = Array.Empty<string>();
@@ -50,6 +53,8 @@ namespace Poltergeist.Wallet
 
         public UiThemes[] UiThemes { get; }
         public string[] UiThemeDisplayOptions { get; }
+        public UiPreviewDevice[] UiPreviewDevices { get; }
+        public string[] UiPreviewDeviceDisplayOptions { get; }
 
         public void RefreshCurrencyOptions()
         {
@@ -84,6 +89,11 @@ namespace Poltergeist.Wallet
         public int GetUiThemeIndex(string uiThemeName)
         {
             return IndexOrZero(UiThemes, uiThemeName, (theme, name) => string.Equals(theme.ToString(), name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public int GetUiPreviewDeviceIndex(UiPreviewDevice device)
+        {
+            return IndexOrZero(UiPreviewDevices, device, (a, b) => a == b);
         }
 
         private static int IndexOrZero<T>(T[] list, T value, Func<T, T, bool> equals)

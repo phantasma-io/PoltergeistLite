@@ -134,6 +134,7 @@ namespace Poltergeist.UiToolkit
 
         internal static SubHeaderElements BuildSubHeader(string subtitleText, string leftText = "")
         {
+            const float CompactWidthThreshold = 1100f;
             var row = new VisualElement
             {
                 style =
@@ -225,6 +226,60 @@ namespace Poltergeist.UiToolkit
             row.Add(leftLabel);
             row.Add(subtitleGroup);
             row.Add(rightSpacer);
+
+            void ApplyLayout(float width)
+            {
+                var compact = !float.IsNaN(width) && width > 0f ? width < CompactWidthThreshold : IsCompactWidth(row, CompactWidthThreshold);
+
+                if (compact)
+                {
+                    row.style.flexDirection = FlexDirection.Column;
+                    row.style.alignItems = Align.Center;
+                    row.style.justifyContent = Justify.Center;
+
+                    leftLabel.style.minWidth = 0;
+                    leftLabel.style.maxWidth = new Length(100, LengthUnit.Percent);
+                    leftLabel.style.marginRight = 0;
+                    leftLabel.style.marginBottom = 4;
+                    leftLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+                    subtitleGroup.style.flexDirection = FlexDirection.Column;
+                    subtitleGroup.style.alignItems = Align.Center;
+                    subtitleGroup.style.justifyContent = Justify.Center;
+
+                    network.style.marginLeft = 0;
+                    network.style.marginTop = 4;
+
+                    rightSpacer.style.display = DisplayStyle.None;
+                }
+                else
+                {
+                    row.style.flexDirection = FlexDirection.Row;
+                    row.style.alignItems = Align.Center;
+                    row.style.justifyContent = Justify.FlexStart;
+
+                    leftLabel.style.minWidth = 220;
+                    leftLabel.style.maxWidth = 360;
+                    leftLabel.style.marginRight = 16;
+                    leftLabel.style.marginBottom = 0;
+                    leftLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+
+                    subtitleGroup.style.flexDirection = FlexDirection.Row;
+                    subtitleGroup.style.alignItems = Align.Center;
+                    subtitleGroup.style.justifyContent = Justify.Center;
+
+                    network.style.marginLeft = 8;
+                    network.style.marginTop = 0;
+
+                    rightSpacer.style.minWidth = leftLabel.style.minWidth;
+                    rightSpacer.style.maxWidth = leftLabel.style.maxWidth;
+                    rightSpacer.style.marginLeft = leftLabel.style.marginRight;
+                    rightSpacer.style.display = DisplayStyle.Flex;
+                }
+            }
+
+            row.RegisterCallback<GeometryChangedEvent>(evt => ApplyLayout(evt.newRect.width));
+            ApplyLayout(row.resolvedStyle.width);
 
             return new SubHeaderElements(row, leftLabel, subtitle, network);
         }
@@ -1382,6 +1437,39 @@ namespace Poltergeist.UiToolkit
             return string.IsNullOrWhiteSpace(platformText)
                 ? $"{label} for {name}"
                 : $"{label} for {name} @ {platformText}";
+        }
+
+        internal static bool IsCompactWidth(VisualElement element, float threshold)
+        {
+            var width = element?.resolvedStyle.width ?? float.NaN;
+            if (!float.IsNaN(width) && width > 0f)
+            {
+                return width < threshold;
+            }
+
+            if (Screen.width > 0f)
+            {
+                return Screen.width < threshold;
+            }
+
+            return false;
+        }
+
+        internal static string AbbreviateMiddle(string value, int head = 4, int tail = 4)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            if (value.Length <= head + tail + 3)
+            {
+                return value;
+            }
+
+            var prefix = value.Substring(0, head);
+            var suffix = value.Substring(value.Length - tail, tail);
+            return $"{prefix}...{suffix}";
         }
 
         internal static VisualElement CreateModalOverlay()
