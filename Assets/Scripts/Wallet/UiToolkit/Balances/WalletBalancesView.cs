@@ -105,6 +105,7 @@ namespace Poltergeist.UiToolkit.Balances
             subtitleNetworkLabel.style.visibility = Visibility.Hidden;
             subtitleNetworkLabel.style.minWidth = 64; // Reserve badge footprint early to avoid subtitle jitter on first layout.
             headerBlock.Root.style.flexShrink = 0;
+            WalletUiCommon.EnableCompactHeaderActionRow(headerBlock, refreshButton);
             content.Add(headerBlock.Root);
 
             headerAddressLabel = new Label(string.Empty)

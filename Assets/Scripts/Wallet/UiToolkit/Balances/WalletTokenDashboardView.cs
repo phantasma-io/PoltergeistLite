@@ -233,6 +233,7 @@ namespace Poltergeist.UiToolkit.Balances
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
             headerBlock.Root.style.flexShrink = 0;
+            WalletUiCommon.EnableCompactHeaderActionRow(headerBlock, refreshButton);
             content.Add(headerBlock.Root);
 
             statusLabel = WalletUiCommon.CreateStatusLabel();

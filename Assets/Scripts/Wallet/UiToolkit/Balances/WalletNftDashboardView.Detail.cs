@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UIElements;
 using PhantasmaPhoenix.RPC.Models;
-using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.NFT.Extensions;
 using Poltergeist.Wallet;
 
@@ -18,6 +17,8 @@ namespace Poltergeist.UiToolkit.Balances
     /// </summary>
     public sealed partial class WalletNftDashboardView
     {
+        private const float CompactDetailWidth = 1300f;
+
         private VisualElement detailContainer;
         private ScrollView detailScroll;
         private Image detailImage;
@@ -49,18 +50,25 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(container);
 
-            detailScroll = new ScrollView(ScrollViewMode.Vertical)
-            {
-                style =
-                {
-                    flexGrow = 1,
-                    paddingLeft = 4,
-                    paddingRight = 4,
-                    paddingBottom = 90f
-                },
-                horizontalScrollerVisibility = ScrollerVisibility.Hidden
-            };
+            var scrollWrapper = WalletUiCommon.BuildScrollContainer(
+                out detailScroll,
+                onScrollChanged: null,
+                shouldBlockWheel: () => modalHost?.Overlay != null && modalHost.Overlay.style.display == DisplayStyle.Flex,
+                paddingLeft: 4f,
+                paddingRight: 4f,
+                paddingTop: 0f,
+                paddingBottom: 100f,
+                marginTop: 0f,
+                marginBottom: 0f,
+                maxWidth: 1680f,
+                alignSelf: Align.Center);
+            detailScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
             WalletUiCommon.ApplyDefaultFont(detailScroll);
+
+            // IMPORTANT: Without following lines mobile view will be broken.
+            var cc = detailScroll.contentContainer;
+            cc.style.flexGrow = 0;
+            cc.style.flexShrink = 0;
 
             var hero = CreateDetailHero();
             detailScroll.Add(hero);
@@ -73,7 +81,7 @@ namespace Poltergeist.UiToolkit.Balances
                     color = WalletUiTheme.TextSecondary,
                     fontSize = 14,
                     unityTextAlign = TextAnchor.UpperLeft,
-                    whiteSpace = WhiteSpace.Normal
+                    whiteSpace = WhiteSpace.Normal,
                 }
             };
             WalletUiCommon.ApplyDefaultFont(detailDescriptionLabel);
@@ -102,8 +110,6 @@ namespace Poltergeist.UiToolkit.Balances
                     flexWrap = Wrap.Wrap,
                     marginTop = 2,
                     marginRight = 2,
-                    minHeight = 0,
-                    minWidth = new Length(100, LengthUnit.Percent)
                 }
             };
             WalletUiCommon.ApplyDefaultFont(detailPropertiesContainer);
@@ -121,7 +127,7 @@ namespace Poltergeist.UiToolkit.Balances
             detailNftList.style.marginTop = 2;
             detailScroll.Add(detailNftContainer);
 
-            container.Add(detailScroll);
+            container.Add(scrollWrapper);
             return container;
         }
 
@@ -132,17 +138,14 @@ namespace Poltergeist.UiToolkit.Balances
                 style =
                 {
                     flexDirection = FlexDirection.Row,
-                    flexWrap = Wrap.Wrap,
-                    alignItems = Align.Stretch,
                     paddingLeft = 14,
                     paddingRight = 14,
                     paddingTop = 12,
-                    paddingBottom = 12,
-                    marginBottom = 12,
-                    overflow = Overflow.Hidden,
-                    width = new Length(100, LengthUnit.Percent)
+                    paddingBottom = 16,
+                    marginBottom = 16,
                 }
             };
+
             WalletUiCommon.ApplyDefaultFont(card);
             WalletUiCommon.ApplyCardStyle(card, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusMedium);
 
@@ -151,15 +154,15 @@ namespace Poltergeist.UiToolkit.Balances
                 scaleMode = ScaleMode.ScaleToFit,
                 style =
                 {
-                    width = 220,
-                    height = 220,
+                    maxHeight = 320,
                     marginRight = 16,
+                    marginBottom = 0,
                     backgroundColor = WalletUiTheme.PanelBackground,
                     borderTopLeftRadius = WalletUiTheme.RadiusMedium,
                     borderTopRightRadius = WalletUiTheme.RadiusMedium,
                     borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
                     borderBottomRightRadius = WalletUiTheme.RadiusMedium,
-                    overflow = Overflow.Hidden,
+                    //overflow = Overflow.Hidden,
                     flexShrink = 0
                 }
             };
@@ -170,11 +173,6 @@ namespace Poltergeist.UiToolkit.Balances
                 style =
                 {
                     flexDirection = FlexDirection.Column,
-                    flexGrow = 1,
-                    flexShrink = 1,
-                    flexBasis = 0,
-                    minHeight = 220,
-                    minWidth = 0
                 }
             };
             WalletUiCommon.ApplyDefaultFont(info);
@@ -230,8 +228,8 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     flexDirection = FlexDirection.Row,
                     flexWrap = Wrap.Wrap,
-                    marginTop = 10,
-                    minWidth = 0
+                    marginTop = 8,
+                    //minWidth = 0
                 }
             };
             WalletUiCommon.ApplyDefaultFont(detailTagContainer);
@@ -268,6 +266,9 @@ namespace Poltergeist.UiToolkit.Balances
 
             info.Add(detailActionsRow);
             card.Add(info);
+
+            card.RegisterCallback<GeometryChangedEvent>(_ => ApplyDetailHeroLayout(card, info, detailActionsRow));
+            ApplyDetailHeroLayout(card, info, detailActionsRow);
 
             return card;
         }
@@ -401,6 +402,76 @@ namespace Poltergeist.UiToolkit.Balances
             if (detailScroll?.verticalScroller != null)
             {
                 detailScroll.verticalScroller.value = 0f;
+            }
+        }
+
+        private void ApplyDetailHeroLayout(VisualElement card, VisualElement info, VisualElement actionsRow)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(card, CompactDetailWidth);
+
+            if (card != null)
+            {
+                card.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                card.style.alignItems = Align.Stretch;
+            }
+
+            if (detailImage != null)
+            {
+                detailImage.style.width = compact ? new Length(100, LengthUnit.Percent) : 220;
+                detailImage.style.height = StyleKeyword.Auto;
+                detailImage.style.minHeight = compact ? StyleKeyword.Null : 200;
+                detailImage.style.maxHeight = compact ? 360 : 320;
+                detailImage.style.maxWidth = StyleKeyword.Null;
+                detailImage.style.marginRight = compact ? 0 : 16;
+                detailImage.style.marginBottom = compact ? 12 : 0;
+                detailImage.style.alignSelf = compact ? Align.Stretch : Align.FlexStart;
+            }
+
+            if (info != null)
+            {
+                info.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                info.style.minHeight = compact ? StyleKeyword.Null : 220;
+                info.style.minWidth = 0;
+                info.style.marginLeft = compact ? 0 : 12;
+                info.style.marginTop = compact ? 4 : 0;
+            }
+
+            if (actionsRow != null)
+            {
+                actionsRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                actionsRow.style.alignItems = compact ? Align.Stretch : Align.Center;
+                actionsRow.style.justifyContent = compact ? Justify.FlexStart : Justify.FlexStart;
+                actionsRow.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                actionsRow.style.marginTop = compact ? 12 : 12;
+            }
+
+            var buttons = new[] { detailSendButton, detailBurnButton, detailExplorerButton };
+            foreach (var btn in buttons)
+            {
+                if (btn == null)
+                {
+                    continue;
+                }
+
+                btn.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                btn.style.alignSelf = compact ? Align.Stretch : Align.Center;
+                btn.style.marginRight = compact ? 0 : 8;
+                btn.style.marginTop = compact ? 6 : 0;
+            }
+
+            if (detailTitleLabel != null)
+            {
+                detailTitleLabel.style.unityTextAlign = compact ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft;
+            }
+
+            if (detailSubtitleLabel != null)
+            {
+                detailSubtitleLabel.style.unityTextAlign = compact ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft;
+            }
+
+            if (detailTagContainer != null)
+            {
+                detailTagContainer.style.justifyContent = compact ? Justify.Center : Justify.FlexStart;
             }
         }
 
@@ -721,7 +792,7 @@ namespace Poltergeist.UiToolkit.Balances
                     paddingRight = 10,
                     paddingTop = 8,
                     paddingBottom = 8,
-                    marginBottom = 8
+                    marginBottom = 8,
                 }
             };
             WalletUiCommon.ApplyDefaultFont(card);
@@ -745,7 +816,7 @@ namespace Poltergeist.UiToolkit.Balances
                 style =
                 {
                     flexDirection = FlexDirection.Column,
-                    flexGrow = 1
+                    flexGrow = 1,
                 }
             };
             WalletUiCommon.ApplyDefaultFont(textBlock);
@@ -807,7 +878,7 @@ namespace Poltergeist.UiToolkit.Balances
                     alignItems = Align.FlexEnd,
                     justifyContent = Justify.Center,
                     marginLeft = 8,
-                    flexShrink = 0
+                    flexShrink = 0,
                 }
             };
             WalletUiCommon.ApplyDefaultFont(actions);
@@ -817,7 +888,46 @@ namespace Poltergeist.UiToolkit.Balances
             actions.Add(viewButton);
 
             card.Add(actions);
+            card.RegisterCallback<GeometryChangedEvent>(_ => ApplyInfusedRowLayout(card, image, textBlock, actions, viewButton));
+            ApplyInfusedRowLayout(card, image, textBlock, actions, viewButton);
             return card;
+        }
+
+        private void ApplyInfusedRowLayout(VisualElement card, Image image, VisualElement textBlock, VisualElement actions, Button viewButton)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(card, CompactDetailWidth);
+
+            if (card != null)
+            {
+                card.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                card.style.alignItems = compact ? Align.Stretch : Align.Center;
+            }
+
+            if (image != null)
+            {
+                image.style.marginRight = compact ? 0 : 10;
+                image.style.marginBottom = compact ? 6 : 0;
+                image.style.alignSelf = compact ? Align.Center : Align.FlexStart;
+            }
+
+            if (textBlock != null)
+            {
+                textBlock.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                textBlock.style.marginBottom = compact ? 6 : 0;
+            }
+
+            if (actions != null)
+            {
+                actions.style.alignItems = compact ? Align.Stretch : Align.FlexEnd;
+                actions.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                actions.style.marginLeft = compact ? 0 : 8;
+            }
+
+            if (viewButton != null)
+            {
+                viewButton.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                viewButton.style.alignSelf = compact ? Align.Stretch : Align.Center;
+            }
         }
 
         private void AddDetailTag(string text)
@@ -871,8 +981,6 @@ namespace Poltergeist.UiToolkit.Balances
                     marginRight = 8,
                     marginBottom = 8,
                     minWidth = 140,
-                    maxWidth = 420,
-                    overflow = Overflow.Hidden
                 }
             };
             WalletUiCommon.ApplyDefaultFont(chip);
@@ -897,8 +1005,7 @@ namespace Poltergeist.UiToolkit.Balances
                     fontSize = 14,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     unityTextAlign = TextAnchor.MiddleLeft,
-                    whiteSpace = WhiteSpace.Normal,
-                    overflow = Overflow.Hidden
+                    whiteSpace = WhiteSpace.Normal
                 }
             };
             WalletUiCommon.ApplyDefaultFont(valueEl);

@@ -173,6 +173,7 @@ namespace Poltergeist.UiToolkit.History
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
             headerBlock.Root.style.flexShrink = 0;
+            WalletUiCommon.EnableCompactHeaderActionRow(headerBlock, refreshButton);
             content.Add(headerBlock.Root);
 
             headerAddressLabel = new Label(string.Empty)

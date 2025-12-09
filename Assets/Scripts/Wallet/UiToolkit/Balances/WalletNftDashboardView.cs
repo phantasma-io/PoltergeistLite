@@ -280,6 +280,7 @@ namespace Poltergeist.UiToolkit.Balances
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
             headerBlock.Root.style.flexShrink = 0;
+            WalletUiCommon.EnableCompactHeaderActionRow(headerBlock, refreshButton);
             content.Add(headerBlock.Root);
 
             statusLabel = WalletUiCommon.CreateStatusLabel();
@@ -996,6 +997,14 @@ namespace Poltergeist.UiToolkit.Balances
 
             var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
 
+            if (filtersRow != null)
+            {
+                filtersRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                filtersRow.style.flexWrap = compact ? Wrap.NoWrap : Wrap.Wrap;
+            }
+
+            ApplyFilterFieldLayout(compact);
+
             filtersButtonRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
             filtersButtonRow.style.alignItems = compact ? Align.Stretch : Align.Center;
             filtersButtonRow.style.justifyContent = compact ? Justify.FlexStart : Justify.SpaceBetween;
@@ -1034,6 +1043,31 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             UpdateFiltersVisibility(true);
+        }
+
+        private void ApplyFilterFieldLayout(bool compact)
+        {
+            var fields = new VisualElement[]
+            {
+                nameFilterField,
+                mintedFilterDropdown,
+                typeFilterDropdown,
+                rarityFilterDropdown,
+                sortModeDropdown,
+                sortDirectionButton
+            };
+
+            foreach (var field in fields)
+            {
+                if (field == null)
+                {
+                    continue;
+                }
+
+                field.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                field.style.marginRight = compact ? 0 : 8;
+                field.style.alignSelf = compact ? Align.Stretch : Align.FlexStart;
+            }
         }
 
         private void RenderList(string symbol, WalletNftViewSnapshot snapshot, AccountManager accountManager)

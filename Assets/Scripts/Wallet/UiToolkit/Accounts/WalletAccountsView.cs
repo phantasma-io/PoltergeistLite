@@ -16,6 +16,7 @@ namespace Poltergeist.UiToolkit.Accounts
     public sealed partial class WalletAccountsView : IWalletAuthUi, IDisposable
     {
         private const string LogPrefix = "[UITK] ";
+        private const float CompactWalletRowWidth = 860f;
 
         private readonly WalletApplicationContext context;
         private readonly WalletAuthService authService;
@@ -354,8 +355,45 @@ namespace Poltergeist.UiToolkit.Accounts
 
             row.Add(text);
             row.Add(openButton);
+            row.RegisterCallback<GeometryChangedEvent>(_ => ApplyWalletRowLayout(row, text, addressLabel, quickActions, openButton));
+            ApplyWalletRowLayout(row, text, addressLabel, quickActions, openButton);
 
             return row;
+        }
+
+        private void ApplyWalletRowLayout(VisualElement row, VisualElement text, Label addressLabel, VisualElement quickActions, Button openButton)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(row, CompactWalletRowWidth);
+            if (row != null)
+            {
+                row.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                row.style.alignItems = compact ? Align.FlexStart : Align.Center;
+                row.style.paddingLeft = compact ? 16 : 22;
+                row.style.paddingRight = compact ? 16 : 22;
+            }
+
+            if (text != null)
+            {
+                text.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                text.style.marginBottom = compact ? 10 : 0;
+            }
+
+            if (addressLabel != null)
+            {
+                addressLabel.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            if (quickActions != null)
+            {
+                quickActions.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            if (openButton != null)
+            {
+                openButton.style.alignSelf = compact ? Align.Stretch : Align.Center;
+                openButton.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                openButton.style.marginTop = compact ? 8 : 0;
+            }
         }
 
         private Button MakePillButton(string text, Action onClick)

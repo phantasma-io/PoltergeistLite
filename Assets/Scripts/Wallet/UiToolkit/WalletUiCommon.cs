@@ -120,16 +120,28 @@ namespace Poltergeist.UiToolkit
 
             header.Add(titleRow);
 
+            VisualElement rightHost = null;
             if (rightContent != null)
             {
-                rightContent.style.position = Position.Absolute;
-                rightContent.style.right = 16;
-                rightContent.style.top = new Length(50, LengthUnit.Percent);
-                rightContent.style.translate = new Translate(new Length(0, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
-                header.Add(rightContent);
+                rightHost = new VisualElement
+                {
+                    style =
+                    {
+                        position = Position.Absolute,
+                        right = 16,
+                        top = new Length(50, LengthUnit.Percent),
+                        translate = new Translate(new Length(0, LengthUnit.Percent), new Length(-50, LengthUnit.Percent)),
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        justifyContent = Justify.Center
+                    }
+                };
+                ApplyDefaultFont(rightHost);
+                rightHost.Add(rightContent);
+                header.Add(rightHost);
             }
 
-            return new HeaderElements(header);
+            return new HeaderElements(header, rightHost);
         }
 
         internal static SubHeaderElements BuildSubHeader(string subtitleText, string leftText = "")
@@ -282,6 +294,150 @@ namespace Poltergeist.UiToolkit
             ApplyLayout(row.resolvedStyle.width);
 
             return new SubHeaderElements(row, leftLabel, subtitle, network);
+        }
+
+        /// <summary>
+        /// Places the header action (e.g., Refresh) next to the network badge on compact widths.
+        /// The action stays in the header on wide layouts and moves to a dedicated row below the subheader on mobile.
+        /// </summary>
+        internal static void EnableCompactHeaderActionRow(HeaderBlockElements headerBlock, VisualElement actionContent, float compactThreshold = 980f)
+        {
+            if (headerBlock?.Root == null || headerBlock.SubHeader?.Root == null || actionContent == null)
+            {
+                return;
+            }
+
+            var headerRoot = headerBlock.Root;
+            var subHeaderRoot = headerBlock.SubHeader.Root;
+            var networkLabel = headerBlock.SubHeader.NetworkLabel;
+
+            var actionDefaultParent = actionContent.parent;
+            var actionDefaultIndex = actionDefaultParent != null ? actionDefaultParent.IndexOf(actionContent) : -1;
+            var networkDefaultParent = networkLabel?.parent;
+            var networkDefaultIndex = networkDefaultParent != null ? networkDefaultParent.IndexOf(networkLabel) : -1;
+
+            var headerRightHost = headerBlock.Header?.RightContentContainer;
+
+            var compactRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.SpaceBetween,
+                    width = new Length(100, LengthUnit.Percent),
+                    marginTop = 2,
+                    marginBottom = 6,
+                    display = DisplayStyle.None
+                }
+            };
+            ApplyDefaultFont(compactRow);
+
+            var badgeSlot = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    minWidth = 0
+                }
+            };
+            ApplyDefaultFont(badgeSlot);
+
+            var actionSlot = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.FlexEnd,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    minWidth = 0
+                }
+            };
+            ApplyDefaultFont(actionSlot);
+
+            compactRow.Add(badgeSlot);
+            compactRow.Add(actionSlot);
+
+            var insertIndex = headerRoot.IndexOf(subHeaderRoot);
+            if (insertIndex >= 0)
+            {
+                headerRoot.Insert(insertIndex + 1, compactRow);
+            }
+            else
+            {
+                headerRoot.Add(compactRow);
+            }
+
+            void MoveChild(VisualElement child, VisualElement target)
+            {
+                if (child == null || target == null || child.parent == target)
+                {
+                    return;
+                }
+
+                child.RemoveFromHierarchy();
+                target.Add(child);
+            }
+
+            void RestoreChild(VisualElement child, VisualElement originalParent, int originalIndex)
+            {
+                if (child == null || originalParent == null)
+                {
+                    return;
+                }
+
+                if (child.parent == originalParent)
+                {
+                    return;
+                }
+
+                child.RemoveFromHierarchy();
+                var safeIndex = originalIndex >= 0 ? Mathf.Clamp(originalIndex, 0, originalParent.childCount) : originalParent.childCount;
+                originalParent.Insert(safeIndex, child);
+            }
+
+            void ApplyLayout(float width)
+            {
+                var compact = IsCompactWidth(headerRoot, compactThreshold);
+                if (compact)
+                {
+                    compactRow.style.display = DisplayStyle.Flex;
+                    if (headerRightHost != null)
+                    {
+                        headerRightHost.style.display = DisplayStyle.None;
+                    }
+
+                    var hasBadge = networkLabel != null && networkLabel.style.visibility != Visibility.Hidden && !string.IsNullOrWhiteSpace(networkLabel.text);
+                    if (hasBadge)
+                    {
+                        MoveChild(networkLabel, badgeSlot);
+                    }
+                    badgeSlot.style.display = hasBadge ? DisplayStyle.Flex : DisplayStyle.None;
+
+                    MoveChild(actionContent, actionSlot);
+                    actionSlot.style.justifyContent = Justify.Center;
+                }
+                else
+                {
+                    compactRow.style.display = DisplayStyle.None;
+                    if (headerRightHost != null)
+                    {
+                        headerRightHost.style.display = DisplayStyle.Flex;
+                    }
+
+                    RestoreChild(networkLabel, networkDefaultParent, networkDefaultIndex);
+                    RestoreChild(actionContent, actionDefaultParent, actionDefaultIndex);
+                }
+            }
+
+            headerRoot.RegisterCallback<GeometryChangedEvent>(evt => ApplyLayout(evt.newRect.width));
+            ApplyLayout(headerRoot.resolvedStyle.width);
         }
 
         // Shared status strip builder to keep status messages visually consistent across screens.
@@ -1613,12 +1769,14 @@ namespace Poltergeist.UiToolkit
 
     internal sealed class HeaderElements
     {
-        internal HeaderElements(VisualElement root)
+        internal HeaderElements(VisualElement root, VisualElement rightContentContainer)
         {
             Root = root;
+            RightContentContainer = rightContentContainer;
         }
 
         internal VisualElement Root { get; }
+        internal VisualElement RightContentContainer { get; }
     }
 
     internal sealed class SubHeaderElements
