@@ -1252,7 +1252,7 @@ namespace Poltergeist.UiToolkit.Balances
         {
             if (!string.IsNullOrWhiteSpace(meta.Name))
             {
-                return meta.Name;
+                return NormalizeNftName(meta.Name);
             }
 
             return $"#{FormatId(tokenId, 6)}";
@@ -1986,6 +1986,65 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             return $"{id.Substring(0, keep)}...{id.Substring(id.Length - keep)}";
+        }
+
+        private string NormalizeNftName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = name.Trim();
+            if (IsLikelyIdentifier(trimmed))
+            {
+                return WalletUiCommon.AbbreviateMiddle(trimmed, 6, 6);
+            }
+
+            return AbbreviateLongWords(trimmed, WalletUiCommon.IsCompactWidth(root, CompactNftWidth));
+        }
+
+        private bool IsLikelyIdentifier(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Length < 20)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < value.Length; i++)
+            {
+                var ch = value[i];
+                if (char.IsWhiteSpace(ch))
+                {
+                    return false;
+                }
+
+                if (!char.IsLetterOrDigit(ch))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private string AbbreviateLongWords(string text, bool compactMode)
+        {
+            if (!compactMode || string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+
+            var parts = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 32)
+                {
+                    parts[i] = WalletUiCommon.AbbreviateMiddle(parts[i], 6, 6);
+                }
+            }
+
+            return string.Join(" ", parts);
         }
 
         private string FormatSortOption(Enum value)

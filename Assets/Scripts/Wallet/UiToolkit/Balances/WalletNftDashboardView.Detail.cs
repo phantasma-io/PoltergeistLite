@@ -361,7 +361,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             var title = !string.IsNullOrWhiteSpace(metadata.Name) ? metadata.Name : token?.GetPropertyValue("Name");
-            detailTitleLabel.text = string.IsNullOrWhiteSpace(title) ? BuildNftTitle(tokenId, metadata) : title;
+            detailTitleLabel.text = string.IsNullOrWhiteSpace(title) ? BuildNftTitle(tokenId, metadata) : NormalizeNftName(title);
             detailSubtitleLabel.text = BuildDetailSubtitle(symbol, tokenId, token, mintDate);
             detailLockLabel.style.display = locked ? DisplayStyle.Flex : DisplayStyle.None;
             summaryLabel.text = $"Inspecting {symbol} NFT";
@@ -438,9 +438,10 @@ namespace Poltergeist.UiToolkit.Balances
 
             if (actionsRow != null)
             {
-                actionsRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                actionsRow.style.flexDirection = FlexDirection.Row;
+                actionsRow.style.flexWrap = Wrap.Wrap;
                 actionsRow.style.alignItems = compact ? Align.Stretch : Align.Center;
-                actionsRow.style.justifyContent = compact ? Justify.FlexStart : Justify.FlexStart;
+                actionsRow.style.justifyContent = compact ? Justify.SpaceBetween : Justify.FlexStart;
                 actionsRow.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
                 actionsRow.style.marginTop = compact ? 12 : 12;
             }
@@ -453,10 +454,11 @@ namespace Poltergeist.UiToolkit.Balances
                     continue;
                 }
 
-                btn.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                btn.style.width = compact ? new Length(48, LengthUnit.Percent) : StyleKeyword.Auto;
                 btn.style.alignSelf = compact ? Align.Stretch : Align.Center;
                 btn.style.marginRight = compact ? 0 : 8;
                 btn.style.marginTop = compact ? 6 : 0;
+                btn.style.marginBottom = compact ? 6 : 0;
             }
 
             if (detailTitleLabel != null)
