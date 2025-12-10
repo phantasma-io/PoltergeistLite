@@ -15,6 +15,7 @@ namespace Poltergeist.UiToolkit.History
     public sealed class WalletHistoryView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
+        private const float CompactHistoryWidth = 1100f;
 
         private readonly WalletApplicationContext context;
         private readonly WalletHistoryPresenter presenter;
@@ -172,6 +173,7 @@ namespace Poltergeist.UiToolkit.History
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
             headerBlock.Root.style.flexShrink = 0;
+            WalletUiCommon.EnableCompactHeaderActionRow(headerBlock, refreshButton);
             content.Add(headerBlock.Root);
 
             headerAddressLabel = new Label(string.Empty)
@@ -378,6 +380,7 @@ namespace Poltergeist.UiToolkit.History
 
         private VisualElement CreateHistoryRow(WalletHistoryItem entry)
         {
+            var fullHash = entry.Hash ?? string.Empty;
             var row = new VisualElement
             {
                 style =
@@ -395,7 +398,7 @@ namespace Poltergeist.UiToolkit.History
             ApplyDefaultFont(row);
             WalletUiCommon.ApplyCardStyle(row, WalletUiTheme.GetCardGradientTexture(), WalletUiTheme.RadiusMedium);
 
-            var hash = new Label(entry.Hash)
+            var hash = new Label(fullHash)
             {
                 style =
                 {
@@ -407,6 +410,7 @@ namespace Poltergeist.UiToolkit.History
                 }
             };
             ApplyDefaultFont(hash);
+            hash.userData = fullHash;
             row.Add(hash);
 
             var date = new Label(entry.Date.ToString("dd.MM.yyyy HH:mm"))
@@ -428,6 +432,9 @@ namespace Poltergeist.UiToolkit.History
             view.style.marginRight = 4;
             view.style.alignSelf = Align.Center;
             row.Add(view);
+
+            ApplyHistoryRowLayout(row, hash, date, view);
+            row.RegisterCallback<GeometryChangedEvent>(_ => ApplyHistoryRowLayout(row, hash, date, view));
 
             return row;
         }
@@ -501,6 +508,64 @@ namespace Poltergeist.UiToolkit.History
             Balances,
             History,
             Account
+        }
+
+        private void ApplyHistoryRowLayout(VisualElement row, Label hash, Label date, Button view)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(root, CompactHistoryWidth);
+            var fullHash = hash?.userData as string ?? hash?.text ?? string.Empty;
+            if (hash != null)
+            {
+                hash.text = compact ? WalletUiCommon.AbbreviateMiddle(fullHash) : fullHash;
+                hash.style.whiteSpace = compact ? WhiteSpace.NoWrap : WhiteSpace.Normal;
+                hash.style.fontSize = compact ? 15 : 16;
+            }
+
+            if (row != null)
+            {
+                row.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                row.style.alignItems = compact ? Align.FlexStart : Align.Center;
+            }
+
+            if (date != null)
+            {
+                date.style.minWidth = compact ? StyleKeyword.Auto : 170;
+                date.style.marginTop = compact ? 2 : 0;
+                date.style.unityTextAlign = TextAnchor.MiddleLeft;
+            }
+
+            if (view != null)
+            {
+                view.style.alignSelf = compact ? Align.Stretch : Align.Center;
+                view.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                view.style.marginTop = compact ? 10 : 0;
+                view.style.marginLeft = compact ? 0 : 12;
+            }
+
+            if (compact)
+            {
+                if (hash != null)
+                {
+                    hash.style.marginBottom = 2;
+                }
+
+                if (date != null)
+                {
+                    date.style.marginBottom = 4;
+                }
+            }
+            else
+            {
+                if (hash != null)
+                {
+                    hash.style.marginBottom = 0;
+                }
+
+                if (date != null)
+                {
+                    date.style.marginBottom = 0;
+                }
+            }
         }
     }
 }

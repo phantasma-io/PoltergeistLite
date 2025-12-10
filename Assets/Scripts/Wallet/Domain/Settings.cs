@@ -40,6 +40,15 @@ namespace Poltergeist
         Phantasia
     }
 
+    public enum UiPreviewDevice
+    {
+        Auto,
+        Pixel_6,
+        IPhone_13,
+        Galaxy_S20,
+        IPad_Mini
+    }
+
     public enum PasswordMode
     {
         Ask_Always,
@@ -97,6 +106,8 @@ namespace Poltergeist
 
         public const string UiThemeNameTag = "ui.theme.name";
         public const string UiFramerateTag = "ui.framerate";
+        public const string UiScaleMultiplierTag = "ui.scale.multiplier";
+        public const string UiPreviewDeviceTag = "ui.preview.device";
         public const string InitialWindowWidthTag = "initial.window.width";
         public const string InitialWindowHeightTag = "initial.window.height";
 
@@ -136,6 +147,8 @@ namespace Poltergeist
         public bool logOverwriteMode;
         public string uiThemeName;
         public int uiFramerate;
+        public float uiScaleMultiplier;
+        public UiPreviewDevice uiPreviewDevice;
         public int initialWindowWidth;
         public int initialWindowHeight;
         public int ttrsNftSortMode;
@@ -168,6 +181,8 @@ namespace Poltergeist
                 "Currency: " + this.currency + "\n" +
                 "UI theme: " + this.uiThemeName + "\n" +
                 "UI framerate: " + this.uiFramerate + "\n" +
+                "UI scale multiplier: " + this.uiScaleMultiplier + "\n" +
+                "UI preview device: " + this.uiPreviewDevice + "\n" +
                 "Log level: " + this.logLevel + "\n" +
                 "Log overwrite: " + this.logOverwriteMode + "\n" +
                 "TTRS NFT sort mode: " + this.ttrsNftSortMode + "\n" +
@@ -256,6 +271,16 @@ namespace Poltergeist
 
             this.uiThemeName = PlayerPrefs.GetString(UiThemeNameTag, UiThemes.Default.ToString());
             this.uiFramerate = PlayerPrefs.GetInt(UiFramerateTag, -1);
+            this.uiScaleMultiplier = PlayerPrefs.GetFloat(UiScaleMultiplierTag, 1f);
+            if (this.uiScaleMultiplier <= 0f)
+            {
+                this.uiScaleMultiplier = 1f;
+            }
+            var previewDevice = PlayerPrefs.GetString(UiPreviewDeviceTag, UiPreviewDevice.Auto.ToString());
+            if (!Enum.TryParse<UiPreviewDevice>(previewDevice, true, out this.uiPreviewDevice))
+            {
+                this.uiPreviewDevice = UiPreviewDevice.Auto;
+            }
             this.initialWindowWidth = PlayerPrefs.GetInt(InitialWindowWidthTag, -1);
             this.initialWindowHeight = PlayerPrefs.GetInt(InitialWindowHeightTag, -1);
 
@@ -450,6 +475,8 @@ namespace Poltergeist
             PlayerPrefs.SetInt(BalanceDisplayPrecisionTag, this.balanceDisplayPrecision);
             PlayerPrefs.SetString(UiThemeNameTag, this.uiThemeName);
             PlayerPrefs.SetInt(UiFramerateTag, this.uiFramerate);
+            PlayerPrefs.SetFloat(UiScaleMultiplierTag, this.uiScaleMultiplier);
+            PlayerPrefs.SetString(UiPreviewDeviceTag, this.uiPreviewDevice.ToString());
             PlayerPrefs.SetInt(InitialWindowWidthTag, this.initialWindowWidth);
             PlayerPrefs.SetInt(InitialWindowHeightTag, this.initialWindowHeight);
             PlayerPrefs.SetString(LogLevelTag, this.logLevel.ToString());

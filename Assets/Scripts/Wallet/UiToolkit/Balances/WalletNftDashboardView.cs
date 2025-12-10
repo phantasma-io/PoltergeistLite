@@ -26,6 +26,7 @@ namespace Poltergeist.UiToolkit.Balances
     public sealed partial class WalletNftDashboardView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
+        private const float CompactNftWidth = 1100f;
 
         private readonly WalletApplicationContext context;
         private readonly WalletUiModalHost modalHost;
@@ -63,6 +64,14 @@ namespace Poltergeist.UiToolkit.Balances
         private Image tokenIcon;
         private VisualElement heroCard;
         private VisualElement filtersPanel;
+        private VisualElement filtersRow;
+        private VisualElement filtersButtonRow;
+        private VisualElement filtersSelectionGroup;
+        private VisualElement filtersContractGroup;
+        private VisualElement filtersButtonSpacer;
+        private Button toggleFiltersButton;
+        private bool filtersExpanded = true;
+        private bool filtersExpandedUserOverride;
         private VisualElement selectionActionsCloud;
         private VisualElement paginationRow;
         private VisualElement listContainer;
@@ -250,6 +259,10 @@ namespace Poltergeist.UiToolkit.Balances
             WalletUiCommon.ApplyDefaultFont(root);
             tabBlockHandler = WalletUiCommon.BlockTabNavigation(root);
 
+            var compactInitial = WalletUiCommon.IsCompactWidth(root, CompactNftWidth);
+            filtersExpanded = !compactInitial;
+            filtersExpandedUserOverride = false;
+
             var content = WalletUiCommon.CreateScreenContent(paddingLeft: 8, paddingRight: 8);
 
             refreshButton = WalletUiCommon.CreateSecondaryButton("Refresh", OnRefreshClicked, 14, 32);
@@ -268,6 +281,7 @@ namespace Poltergeist.UiToolkit.Balances
             subtitleNetworkLabel = subHeader.NetworkLabel;
             summaryLabel = subHeader.LeftLabel;
             headerBlock.Root.style.flexShrink = 0;
+            WalletUiCommon.EnableCompactHeaderActionRow(headerBlock, refreshButton);
             content.Add(headerBlock.Root);
 
             statusLabel = WalletUiCommon.CreateStatusLabel();
@@ -500,7 +514,12 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(panel);
 
-            var filtersRow = new VisualElement
+            toggleFiltersButton = WalletUiCommon.CreateSecondaryButton("Hide filters", ToggleFiltersVisibility, 14, 30);
+            toggleFiltersButton.style.alignSelf = Align.FlexStart;
+            toggleFiltersButton.style.marginBottom = 6;
+            panel.Add(toggleFiltersButton);
+
+            filtersRow = new VisualElement
             {
                 style =
                 {
@@ -515,15 +534,15 @@ namespace Poltergeist.UiToolkit.Balances
             WalletUiCommon.ApplyDefaultFont(filtersRow);
 
             nameFilterField = WalletUiFormFactory.CreateTextField("Name", string.Empty, value => OnFiltersChanged(value, null, null, null));
-            ConfigureFilterField(nameFilterField, 200f);
+            ConfigureFilterField(nameFilterField, 90f);
             filtersRow.Add(nameFilterField);
 
             mintedFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, MintedOptions.Select(x => x.label).ToList(), 0, idx => OnFiltersChanged(null, null, null, MintedOptions[Mathf.Clamp(idx, 0, MintedOptions.Length - 1)].value));
-            ConfigureFilterField(mintedFilterDropdown, 200f);
+            ConfigureFilterField(mintedFilterDropdown, 90f);
             filtersRow.Add(mintedFilterDropdown);
 
             typeFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, new List<string> { "Type: All" }, 0, _ => { });
-            ConfigureFilterField(typeFilterDropdown, 180f);
+            ConfigureFilterField(typeFilterDropdown, 90f);
             typeFilterDropdown.RegisterValueChangedCallback(_ =>
             {
                 var idx = Mathf.Clamp(typeFilterDropdown.index, 0, Enum.GetValues(typeof(ttrsNftType)).Length - 1);
@@ -532,7 +551,7 @@ namespace Poltergeist.UiToolkit.Balances
             filtersRow.Add(typeFilterDropdown);
 
             rarityFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, new List<string> { "Rarity: All" }, 0, _ => { });
-            ConfigureFilterField(rarityFilterDropdown, 180f);
+            ConfigureFilterField(rarityFilterDropdown, 90f);
             rarityFilterDropdown.RegisterValueChangedCallback(_ =>
             {
                 var idx = Mathf.Clamp(rarityFilterDropdown.index, 0, Enum.GetValues(typeof(ttrsNftRarity)).Length - 1);
@@ -541,16 +560,16 @@ namespace Poltergeist.UiToolkit.Balances
             filtersRow.Add(rarityFilterDropdown);
 
             sortModeDropdown = WalletUiFormFactory.CreateDropdown("Sort", new List<string>(), 0, idx => OnSortModeChanged(idx));
-            ConfigureFilterField(sortModeDropdown, 200f, 360f);
+            ConfigureFilterField(sortModeDropdown, 90f);
             filtersRow.Add(sortModeDropdown);
 
             sortDirectionButton = WalletUiCommon.CreateSecondaryButton("Asc", ToggleSortDirection, 14, 34);
-            ConfigureFilterField(sortDirectionButton, 120f, 160f);
+            ConfigureFilterField(sortDirectionButton, 90f);
             filtersRow.Add(sortDirectionButton);
 
             panel.Add(filtersRow);
 
-            var buttonRow = new VisualElement
+            filtersButtonRow = new VisualElement
             {
                 style =
                 {
@@ -561,54 +580,30 @@ namespace Poltergeist.UiToolkit.Balances
                     marginTop = 6
                 }
             };
-            WalletUiCommon.ApplyDefaultFont(buttonRow);
-
-            var selectionGroup = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    flexWrap = Wrap.Wrap,
-                    alignItems = Align.Center
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(selectionGroup);
+            WalletUiCommon.ApplyDefaultFont(filtersButtonRow);
 
             selectAllButton = WalletUiCommon.CreateSecondaryButton("Select filtered", () => RunSafeAsync(SelectFilteredAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Select filtered failed: {ex}")), 14, 32);
+            selectAllButton.style.minWidth = 180;
             selectAllButton.style.marginRight = 8;
             invertSelectionButton = WalletUiCommon.CreateSecondaryButton("Invert selection", () => RunSafeAsync(InvertSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Invert selection failed: {ex}")), 14, 32);
+            invertSelectionButton.style.minWidth = 180;
             invertSelectionButton.style.marginRight = 8;
             clearSelectionButton = WalletUiCommon.CreateSecondaryButton("Clear selection", () => RunSafeAsync(ClearSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Clear selection failed: {ex}")), 14, 32);
-            clearSelectionButton.style.marginRight = 8;
+            clearSelectionButton.style.minWidth = 180;
 
-            selectionGroup.Add(selectAllButton);
-            selectionGroup.Add(invertSelectionButton);
-            selectionGroup.Add(clearSelectionButton);
-
-            var contractGroup = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.FlexEnd,
-                    flexGrow = 1
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(contractGroup);
+            filtersButtonRow.Add(selectAllButton);
+            filtersButtonRow.Add(invertSelectionButton);
+            filtersButtonRow.Add(clearSelectionButton);
 
             contractInfoButton = WalletUiCommon.CreateSecondaryButton("Contract info", () => OpenContractInfo(), 14, 32);
-            contractInfoButton.style.marginLeft = 8;
-            contractInfoButton.style.minWidth = 140;
-            contractInfoButton.style.whiteSpace = WhiteSpace.NoWrap;
-            contractInfoButton.style.flexShrink = 0;
+            contractInfoButton.style.minWidth = 180;
+            filtersButtonSpacer = new HSpacer();
+            filtersButtonRow.Add(filtersButtonSpacer);
+            filtersButtonRow.Add(contractInfoButton);
 
-            contractGroup.Add(contractInfoButton);
-
-            buttonRow.Add(selectionGroup);
-            buttonRow.Add(contractGroup);
-
-            panel.Add(buttonRow);
+            panel.Add(filtersButtonRow);
+            panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyFiltersLayout());
+            UpdateFiltersVisibility(true);
             return panel;
         }
 
@@ -761,7 +756,7 @@ namespace Poltergeist.UiToolkit.Balances
 
                 ShowListMode();
                 UpdateHero(symbol, nftSnapshot);
-                summaryLabel.text = $"{nftSnapshot.TotalCount} item(s) • {nftPresenter.State.SelectedCount} selected";
+                summaryLabel.text = BuildSummaryLine(nftSnapshot.TotalCount, nftPresenter.State.SelectedCount);
                 RenderList(symbol, nftSnapshot, accountManager);
                 UpdateActions(symbol, accountManager);
                 SetStatus(string.Empty);
@@ -785,8 +780,10 @@ namespace Poltergeist.UiToolkit.Balances
         private void UpdateHero(string symbol, WalletNftViewSnapshot snapshot)
         {
             symbolLabel.text = $"{symbol} NFTs";
-            totalCountLabel.text = $"{snapshot.TotalCount} item(s)";
-            selectedCountLabel.text = $"{nftPresenter.State.SelectedCount} selected";
+            totalCountLabel.text = string.Empty;
+            selectedCountLabel.text = string.Empty;
+            totalCountLabel.style.display = DisplayStyle.None;
+            selectedCountLabel.style.display = DisplayStyle.None;
             pageInfoLabel.text = snapshot.PageCount > 0 ? $"Page {snapshot.PageNumber + 1} / {snapshot.PageCount}" : "Page 1 / 1";
             var totalLoaded = nftSource.CurrentNfts?.Count ?? 0;
             filterHintLabel.text = totalLoaded == snapshot.TotalCount
@@ -897,6 +894,8 @@ namespace Poltergeist.UiToolkit.Balances
 
             var direction = (WalletSortDirection)AccountManager.Instance?.Settings?.nftSortDirection;
             sortDirectionButton.text = direction == WalletSortDirection.Descending ? "Desc" : "Asc";
+
+            ApplyFiltersLayout();
         }
 
         private List<string> BuildSortChoices(string symbol, bool isTtrs)
@@ -920,6 +919,131 @@ namespace Poltergeist.UiToolkit.Balances
             var isTtrs = string.Equals(symbol, "TTRS", StringComparison.OrdinalIgnoreCase);
             var idx = isTtrs ? settings.ttrsNftSortMode : settings.nftSortMode;
             return Mathf.Clamp(idx, 0, Math.Max(0, maxChoices - 1));
+        }
+
+        private string BuildSummaryLine(int total, int selected)
+        {
+            return WalletUiCommon.IsCompactWidth(root, CompactNftWidth)
+                ? $"{total} NFTs / {selected} selected"
+                : $"{total} item(s) • {selected} selected";
+        }
+
+        private void ToggleFiltersVisibility()
+        {
+            filtersExpanded = !filtersExpanded;
+            filtersExpandedUserOverride = true;
+            UpdateFiltersVisibility();
+        }
+
+        private void UpdateFiltersVisibility(bool fromLayout = false)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
+            if (!filtersExpandedUserOverride)
+            {
+                filtersExpanded = !compact;
+            }
+
+            var display = filtersExpanded ? DisplayStyle.Flex : DisplayStyle.None;
+            if (filtersRow != null)
+            {
+                filtersRow.style.display = display;
+            }
+
+            if (filtersButtonRow != null)
+            {
+                filtersButtonRow.style.display = display;
+            }
+
+            if (toggleFiltersButton != null)
+            {
+                toggleFiltersButton.text = filtersExpanded ? "Hide filters" : "Show filters";
+            }
+        }
+
+        private void ApplyFiltersLayout()
+        {
+            if (filtersButtonRow == null || filtersSelectionGroup == null || filtersContractGroup == null)
+            {
+                return;
+            }
+
+            var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
+
+            if (filtersRow != null)
+            {
+                filtersRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+                filtersRow.style.flexWrap = compact ? Wrap.NoWrap : Wrap.Wrap;
+            }
+
+            ApplyFilterFieldLayout(compact);
+
+            filtersButtonRow.style.flexDirection = compact ? FlexDirection.Column : FlexDirection.Row;
+            filtersButtonRow.style.alignItems = compact ? Align.Stretch : Align.Center;
+            filtersButtonRow.style.justifyContent = compact ? Justify.FlexStart : Justify.SpaceBetween;
+
+            filtersSelectionGroup.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+            filtersSelectionGroup.style.justifyContent = Justify.FlexStart;
+
+            filtersContractGroup.style.width = StyleKeyword.Auto;
+            filtersContractGroup.style.justifyContent = Justify.FlexStart;
+            filtersContractGroup.style.marginTop = 0;
+            filtersContractGroup.style.flexGrow = 0;
+            if (filtersButtonSpacer != null)
+            {
+                filtersButtonSpacer.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+
+            if (contractInfoButton != null)
+            {
+                if (compact)
+                {
+                    // On narrow layouts keep the button together with selection controls to avoid clipping.
+                    if (contractInfoButton.parent != filtersSelectionGroup)
+                    {
+                        contractInfoButton.RemoveFromHierarchy();
+                        filtersSelectionGroup.Add(contractInfoButton);
+                    }
+                    contractInfoButton.style.width = new Length(100, LengthUnit.Percent);
+                    contractInfoButton.style.marginLeft = 0;
+                }
+                else
+                {
+                    if (contractInfoButton.parent != filtersContractGroup)
+                    {
+                        contractInfoButton.RemoveFromHierarchy();
+                        filtersContractGroup.Add(contractInfoButton);
+                    }
+                    contractInfoButton.style.width = StyleKeyword.Auto;
+                    contractInfoButton.style.marginLeft = 8;
+                }
+            }
+
+            UpdateFiltersVisibility(true);
+        }
+
+        private void ApplyFilterFieldLayout(bool compact)
+        {
+            var fields = new VisualElement[]
+            {
+                nameFilterField,
+                mintedFilterDropdown,
+                typeFilterDropdown,
+                rarityFilterDropdown,
+                sortModeDropdown,
+                sortDirectionButton
+            };
+
+            foreach (var field in fields)
+            {
+                if (field == null)
+                {
+                    continue;
+                }
+
+                field.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                field.style.marginRight = compact ? 0 : 8;
+                field.style.alignSelf = compact ? Align.Stretch : Align.FlexStart;
+            }
         }
 
         private void RenderList(string symbol, WalletNftViewSnapshot snapshot, AccountManager accountManager)
@@ -981,6 +1105,7 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
+                    flexWrap = Wrap.Wrap,
                     paddingLeft = 12,
                     paddingRight = 12,
                     paddingTop = 10,
@@ -1097,14 +1222,35 @@ namespace Poltergeist.UiToolkit.Balances
             actions.Add(viewButton);
 
             card.Add(actions);
+            ApplyNftRowLayout(card, actions, viewButton);
+            card.RegisterCallback<GeometryChangedEvent>(_ => ApplyNftRowLayout(card, actions, viewButton));
             return card;
+        }
+
+        private void ApplyNftRowLayout(VisualElement card, VisualElement actions, Button viewButton)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(card, CompactNftWidth);
+
+            if (actions != null)
+            {
+                actions.style.alignItems = compact ? Align.Stretch : Align.FlexEnd;
+                actions.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                actions.style.marginLeft = compact ? 0 : 10;
+                actions.style.marginTop = compact ? 8 : 0;
+            }
+
+            if (viewButton != null)
+            {
+                viewButton.style.alignSelf = compact ? Align.Stretch : Align.Center;
+                viewButton.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+            }
         }
 
         private string BuildNftTitle(string tokenId, NftMetadata meta)
         {
             if (!string.IsNullOrWhiteSpace(meta.Name))
             {
-                return meta.Name;
+                return NormalizeNftName(meta.Name);
             }
 
             return $"#{FormatId(tokenId, 6)}";
@@ -1769,14 +1915,16 @@ namespace Poltergeist.UiToolkit.Balances
         private void ClearUi()
         {
             listView?.Clear();
-            totalCountLabel.text = "0 items";
-            selectedCountLabel.text = "0 selected";
+            totalCountLabel.text = string.Empty;
+            selectedCountLabel.text = string.Empty;
+            totalCountLabel.style.display = DisplayStyle.None;
+            selectedCountLabel.style.display = DisplayStyle.None;
             pageInfoLabel.text = "Page 1 / 1";
             filterHintLabel.text = string.Empty;
             tokenIcon.image = null;
             if (summaryLabel != null)
             {
-                summaryLabel.text = string.Empty;
+                summaryLabel.text = BuildSummaryLine(0, 0);
             }
             if (detailTitleLabel != null)
             {
@@ -1836,6 +1984,65 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             return $"{id.Substring(0, keep)}...{id.Substring(id.Length - keep)}";
+        }
+
+        private string NormalizeNftName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = name.Trim();
+            if (IsLikelyIdentifier(trimmed))
+            {
+                return WalletUiCommon.AbbreviateMiddle(trimmed, 6, 6);
+            }
+
+            return AbbreviateLongWords(trimmed, WalletUiCommon.IsCompactWidth(root, CompactNftWidth));
+        }
+
+        private bool IsLikelyIdentifier(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Length < 20)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < value.Length; i++)
+            {
+                var ch = value[i];
+                if (char.IsWhiteSpace(ch))
+                {
+                    return false;
+                }
+
+                if (!char.IsLetterOrDigit(ch))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private string AbbreviateLongWords(string text, bool compactMode)
+        {
+            if (!compactMode || string.IsNullOrWhiteSpace(text))
+            {
+                return text;
+            }
+
+            var parts = text.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length > 32)
+                {
+                    parts[i] = WalletUiCommon.AbbreviateMiddle(parts[i], 6, 6);
+                }
+            }
+
+            return string.Join(" ", parts);
         }
 
         private string FormatSortOption(Enum value)

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace Poltergeist.Wallet
 {
@@ -41,6 +42,10 @@ namespace Poltergeist.Wallet
                 options.UiThemeDisplayOptions,
                 options.UiThemes,
                 options.GetUiThemeIndex(settings.uiThemeName),
+                options.UiPreviewDeviceDisplayOptions,
+                options.UiPreviewDevices,
+                options.GetUiPreviewDeviceIndex(settings.uiPreviewDevice),
+                settings.uiScaleMultiplier.ToString(CultureInfo.InvariantCulture),
                 settings,
                 hasCustomEndpoints,
                 hasCustomName,

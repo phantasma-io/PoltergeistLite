@@ -38,6 +38,32 @@ namespace Poltergeist.UiToolkit
         private WalletSettingsView settingsView;
         private UIDocument document;
         private PanelSettings panelSettings;
+        private readonly struct PreviewDeviceProfile
+        {
+            public PreviewDeviceProfile(UiPreviewDevice device, int widthPx, int heightPx, float density)
+            {
+                Device = device;
+                WidthPx = widthPx;
+                HeightPx = heightPx;
+                Density = density;
+            }
+
+            public UiPreviewDevice Device { get; }
+            public int WidthPx { get; }
+            public int HeightPx { get; }
+            public float Density { get; }
+
+            public int LogicalWidth => Mathf.Max(1, Mathf.RoundToInt(WidthPx / Mathf.Max(0.1f, Density)));
+            public int LogicalHeight => Mathf.Max(1, Mathf.RoundToInt(HeightPx / Mathf.Max(0.1f, Density)));
+        }
+
+        private static readonly PreviewDeviceProfile[] PreviewDevices =
+        {
+            new PreviewDeviceProfile(UiPreviewDevice.Pixel_6, 1080, 2400, 3.0f),
+            new PreviewDeviceProfile(UiPreviewDevice.IPhone_13, 1170, 2532, 3.0f),
+            new PreviewDeviceProfile(UiPreviewDevice.Galaxy_S20, 1440, 3200, 3.0f),
+            new PreviewDeviceProfile(UiPreviewDevice.IPad_Mini, 1488, 2266, 2.0f)
+        };
         private VisualElement accountsRoot;
         private VisualElement balancesRoot;
         private VisualElement tokenRoot;
@@ -301,12 +327,107 @@ namespace Poltergeist.UiToolkit
             panelSettings = ScriptableObject.CreateInstance<PanelSettings>();
             panelSettings.name = "WalletUiToolkitPanelSettings";
             panelSettings.scaleMode = PanelScaleMode.ScaleWithScreenSize;
-            // Legacy UI was landscape-first; use a matching reference resolution so sizing lines up.
-            panelSettings.referenceResolution = new Vector2Int(1920, 1080);
+            ApplyPanelScale(panelSettings, AccountManager.Instance?.Settings);
             panelSettings.match = 0.5f;
             panelSettings.screenMatchMode = PanelScreenMatchMode.MatchWidthOrHeight;
             panelSettings.sortingOrder = 2000;
             panelSettings.targetDisplay = 0;
+        }
+
+        internal static void RefreshPanelScale()
+        {
+            var root = instance;
+            if (root == null || root.panelSettings == null)
+            {
+                return;
+            }
+
+            root.ApplyPanelScale(root.panelSettings, AccountManager.Instance?.Settings);
+            root.ApplyPreviewViewport();
+        }
+
+        private void ApplyPanelScale(PanelSettings target, global::Poltergeist.Settings settings)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            var platform = Application.platform;
+            var previewActive = TryGetPreviewProfile(settings, out _) && !IsMobilePlatform(platform);
+            var baseReference = IsMobilePlatform(platform)
+                ? new Vector2Int(1024, 576)
+                // In preview mode keep the mobile baseline so scaling matches phones; only viewport size changes.
+                : (previewActive ? new Vector2Int(1024, 576) : new Vector2Int(1920, 1080));
+            var multiplier = settings?.uiScaleMultiplier ?? 1f;
+            if (multiplier <= 0f)
+            {
+                multiplier = 1f;
+            }
+
+            target.referenceResolution = ComputeScaledReference(baseReference, multiplier);
+        }
+
+        private static Vector2Int ComputeScaledReference(Vector2Int baseReference, float multiplier)
+        {
+            var safeMultiplier = Mathf.Max(0.1f, multiplier);
+            return new Vector2Int(
+                Mathf.Max(1, Mathf.RoundToInt(baseReference.x / safeMultiplier)),
+                Mathf.Max(1, Mathf.RoundToInt(baseReference.y / safeMultiplier)));
+        }
+
+        private static bool IsMobilePlatform(RuntimePlatform platform)
+        {
+            return platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer;
+        }
+
+        private bool TryGetPreviewProfile(global::Poltergeist.Settings settings, out PreviewDeviceProfile profile)
+        {
+            profile = default;
+            if (settings == null || settings.uiPreviewDevice == UiPreviewDevice.Auto)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < PreviewDevices.Length; i++)
+            {
+                if (PreviewDevices[i].Device == settings.uiPreviewDevice)
+                {
+                    profile = PreviewDevices[i];
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void ApplyPreviewViewport()
+        {
+            var rootElement = document?.rootVisualElement;
+            if (rootElement == null)
+            {
+                return;
+            }
+
+            var settings = AccountManager.Instance?.Settings;
+            var previewActive = TryGetPreviewProfile(settings, out var profile) && !IsMobilePlatform(Application.platform);
+            if (!previewActive)
+            {
+                rootElement.style.width = new Length(100, LengthUnit.Percent);
+                rootElement.style.maxWidth = StyleKeyword.Null;
+                rootElement.style.height = new Length(100, LengthUnit.Percent);
+                rootElement.style.maxHeight = StyleKeyword.Null;
+                return;
+            }
+
+            var logicalWidth = profile.LogicalWidth;
+            var logicalHeight = profile.LogicalHeight;
+
+            rootElement.style.width = logicalWidth;
+            rootElement.style.maxWidth = logicalWidth;
+            rootElement.style.height = logicalHeight;
+            rootElement.style.maxHeight = logicalHeight;
+            rootElement.style.alignSelf = Align.Center;
         }
 
         private void EnsureDocument()
@@ -355,6 +476,7 @@ namespace Poltergeist.UiToolkit
             root.style.minWidth = 0;
             root.style.alignItems = Align.Stretch;
             root.style.overflow = Overflow.Hidden;
+            ApplyPreviewViewport();
             WalletUiCommon.ApplyCardStyle(root, WalletUiTheme.GetScreenGradientTexture(), 0f, WalletUiTheme.ScreenBackground, WalletUiTheme.ScreenBackground, WalletUiTheme.ScreenBackground, 0f);
 
             accountsRoot = new VisualElement { style = { flexGrow = 1, display = DisplayStyle.Flex, backgroundColor = Color.clear } };

@@ -140,6 +140,15 @@ namespace Poltergeist.Wallet
             state.UiTheme = value;
         }
 
+        public void SetUiPreviewDeviceIndex(int index)
+        {
+            var settings = GetSettings();
+            var opts = EnsureOptions();
+            var clampedIndex = Mathf.Clamp(index, 0, opts.UiPreviewDevices.Length - 1);
+            var value = opts.UiPreviewDevices[clampedIndex];
+            settings.uiPreviewDevice = value;
+        }
+
         public void SetPhantasmaRpcUrl(string value)
         {
             GetSettings().phantasmaRPCURL = value;
@@ -227,6 +236,16 @@ namespace Poltergeist.Wallet
                         Application.targetFrameRate = settings.uiFramerate;
                     }
                 }
+            }
+        }
+
+        public void SetUiScaleMultiplier(string value)
+        {
+            var settings = GetSettings();
+            var normalized = (value ?? string.Empty).Replace(',', '.');
+            if (float.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed))
+            {
+                settings.uiScaleMultiplier = Mathf.Clamp(parsed, 0.1f, 4f);
             }
         }
 

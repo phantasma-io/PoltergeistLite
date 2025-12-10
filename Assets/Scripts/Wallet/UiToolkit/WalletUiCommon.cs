@@ -120,20 +120,33 @@ namespace Poltergeist.UiToolkit
 
             header.Add(titleRow);
 
+            VisualElement rightHost = null;
             if (rightContent != null)
             {
-                rightContent.style.position = Position.Absolute;
-                rightContent.style.right = 16;
-                rightContent.style.top = new Length(50, LengthUnit.Percent);
-                rightContent.style.translate = new Translate(new Length(0, LengthUnit.Percent), new Length(-50, LengthUnit.Percent));
-                header.Add(rightContent);
+                rightHost = new VisualElement
+                {
+                    style =
+                    {
+                        position = Position.Absolute,
+                        right = 16,
+                        top = new Length(50, LengthUnit.Percent),
+                        translate = new Translate(new Length(0, LengthUnit.Percent), new Length(-50, LengthUnit.Percent)),
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        justifyContent = Justify.Center
+                    }
+                };
+                ApplyDefaultFont(rightHost);
+                rightHost.Add(rightContent);
+                header.Add(rightHost);
             }
 
-            return new HeaderElements(header);
+            return new HeaderElements(header, rightHost);
         }
 
         internal static SubHeaderElements BuildSubHeader(string subtitleText, string leftText = "")
         {
+            const float CompactWidthThreshold = 1100f;
             var row = new VisualElement
             {
                 style =
@@ -226,7 +239,205 @@ namespace Poltergeist.UiToolkit
             row.Add(subtitleGroup);
             row.Add(rightSpacer);
 
+            void ApplyLayout(float width)
+            {
+                var compact = !float.IsNaN(width) && width > 0f ? width < CompactWidthThreshold : IsCompactWidth(row, CompactWidthThreshold);
+
+                if (compact)
+                {
+                    row.style.flexDirection = FlexDirection.Column;
+                    row.style.alignItems = Align.Center;
+                    row.style.justifyContent = Justify.Center;
+
+                    leftLabel.style.minWidth = 0;
+                    leftLabel.style.maxWidth = new Length(100, LengthUnit.Percent);
+                    leftLabel.style.marginRight = 0;
+                    leftLabel.style.marginBottom = 4;
+                    leftLabel.style.unityTextAlign = TextAnchor.MiddleCenter;
+
+                    subtitleGroup.style.flexDirection = FlexDirection.Column;
+                    subtitleGroup.style.alignItems = Align.Center;
+                    subtitleGroup.style.justifyContent = Justify.Center;
+
+                    network.style.marginLeft = 0;
+                    network.style.marginTop = 4;
+
+                    rightSpacer.style.display = DisplayStyle.None;
+                }
+                else
+                {
+                    row.style.flexDirection = FlexDirection.Row;
+                    row.style.alignItems = Align.Center;
+                    row.style.justifyContent = Justify.FlexStart;
+
+                    leftLabel.style.minWidth = 220;
+                    leftLabel.style.maxWidth = 360;
+                    leftLabel.style.marginRight = 16;
+                    leftLabel.style.marginBottom = 0;
+                    leftLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+
+                    subtitleGroup.style.flexDirection = FlexDirection.Row;
+                    subtitleGroup.style.alignItems = Align.Center;
+                    subtitleGroup.style.justifyContent = Justify.Center;
+
+                    network.style.marginLeft = 8;
+                    network.style.marginTop = 0;
+
+                    rightSpacer.style.minWidth = leftLabel.style.minWidth;
+                    rightSpacer.style.maxWidth = leftLabel.style.maxWidth;
+                    rightSpacer.style.marginLeft = leftLabel.style.marginRight;
+                    rightSpacer.style.display = DisplayStyle.Flex;
+                }
+            }
+
+            row.RegisterCallback<GeometryChangedEvent>(evt => ApplyLayout(evt.newRect.width));
+            ApplyLayout(row.resolvedStyle.width);
+
             return new SubHeaderElements(row, leftLabel, subtitle, network);
+        }
+
+        /// <summary>
+        /// Places the header action (e.g., Refresh) next to the network badge on compact widths.
+        /// The action stays in the header on wide layouts and moves to a dedicated row below the subheader on mobile.
+        /// </summary>
+        internal static void EnableCompactHeaderActionRow(HeaderBlockElements headerBlock, VisualElement actionContent, float compactThreshold = 980f)
+        {
+            if (headerBlock?.Root == null || headerBlock.SubHeader?.Root == null || actionContent == null)
+            {
+                return;
+            }
+
+            var headerRoot = headerBlock.Root;
+            var subHeaderRoot = headerBlock.SubHeader.Root;
+            var networkLabel = headerBlock.SubHeader.NetworkLabel;
+
+            var actionDefaultParent = actionContent.parent;
+            var actionDefaultIndex = actionDefaultParent != null ? actionDefaultParent.IndexOf(actionContent) : -1;
+            var networkDefaultParent = networkLabel?.parent;
+            var networkDefaultIndex = networkDefaultParent != null ? networkDefaultParent.IndexOf(networkLabel) : -1;
+
+            var headerRightHost = headerBlock.Header?.RightContentContainer;
+
+            var compactRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.SpaceBetween,
+                    width = new Length(100, LengthUnit.Percent),
+                    marginTop = 2,
+                    marginBottom = 6,
+                    display = DisplayStyle.None
+                }
+            };
+            ApplyDefaultFont(compactRow);
+
+            var badgeSlot = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.Center,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    minWidth = 0
+                }
+            };
+            ApplyDefaultFont(badgeSlot);
+
+            var actionSlot = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.FlexEnd,
+                    flexGrow = 1,
+                    flexShrink = 1,
+                    minWidth = 0
+                }
+            };
+            ApplyDefaultFont(actionSlot);
+
+            compactRow.Add(badgeSlot);
+            compactRow.Add(actionSlot);
+
+            var insertIndex = headerRoot.IndexOf(subHeaderRoot);
+            if (insertIndex >= 0)
+            {
+                headerRoot.Insert(insertIndex + 1, compactRow);
+            }
+            else
+            {
+                headerRoot.Add(compactRow);
+            }
+
+            void MoveChild(VisualElement child, VisualElement target)
+            {
+                if (child == null || target == null || child.parent == target)
+                {
+                    return;
+                }
+
+                child.RemoveFromHierarchy();
+                target.Add(child);
+            }
+
+            void RestoreChild(VisualElement child, VisualElement originalParent, int originalIndex)
+            {
+                if (child == null || originalParent == null)
+                {
+                    return;
+                }
+
+                if (child.parent == originalParent)
+                {
+                    return;
+                }
+
+                child.RemoveFromHierarchy();
+                var safeIndex = originalIndex >= 0 ? Mathf.Clamp(originalIndex, 0, originalParent.childCount) : originalParent.childCount;
+                originalParent.Insert(safeIndex, child);
+            }
+
+            void ApplyLayout(float width)
+            {
+                var compact = IsCompactWidth(headerRoot, compactThreshold);
+                if (compact)
+                {
+                    compactRow.style.display = DisplayStyle.Flex;
+                    if (headerRightHost != null)
+                    {
+                        headerRightHost.style.display = DisplayStyle.None;
+                    }
+
+                    var hasBadge = networkLabel != null && networkLabel.style.visibility != Visibility.Hidden && !string.IsNullOrWhiteSpace(networkLabel.text);
+                    if (hasBadge)
+                    {
+                        MoveChild(networkLabel, badgeSlot);
+                    }
+                    badgeSlot.style.display = hasBadge ? DisplayStyle.Flex : DisplayStyle.None;
+
+                    MoveChild(actionContent, actionSlot);
+                    actionSlot.style.justifyContent = Justify.Center;
+                }
+                else
+                {
+                    compactRow.style.display = DisplayStyle.None;
+                    if (headerRightHost != null)
+                    {
+                        headerRightHost.style.display = DisplayStyle.Flex;
+                    }
+
+                    RestoreChild(networkLabel, networkDefaultParent, networkDefaultIndex);
+                    RestoreChild(actionContent, actionDefaultParent, actionDefaultIndex);
+                }
+            }
+
+            headerRoot.RegisterCallback<GeometryChangedEvent>(evt => ApplyLayout(evt.newRect.width));
+            ApplyLayout(headerRoot.resolvedStyle.width);
         }
 
         // Shared status strip builder to keep status messages visually consistent across screens.
@@ -373,6 +584,8 @@ namespace Poltergeist.UiToolkit
             subHeader.Root.style.alignSelf = Align.Stretch;
             container.Add(subHeader.Root);
 
+            ApplyHeaderSpacing(container, header.Root, subHeader.Root, headerMarginBottom, subHeaderMarginTop, subHeaderMarginBottom);
+
             return new HeaderBlockElements(container, header, subHeader);
         }
 
@@ -472,6 +685,34 @@ namespace Poltergeist.UiToolkit
             return new AccountInfoElements(container, accountLabel, addressLabel, networkLabel);
         }
 
+        private static void ApplyHeaderSpacing(VisualElement host, VisualElement headerRoot, VisualElement subHeaderRoot, float headerMarginBottom, float subHeaderMarginTop, float subHeaderMarginBottom)
+        {
+            const float CompactHeaderThreshold = 980f;
+
+            void Apply()
+            {
+                var compact = IsCompactWidth(host ?? headerRoot, CompactHeaderThreshold);
+                var marginScale = compact ? 0.35f : 1f;
+
+                if (headerRoot != null)
+                {
+                    headerRoot.style.paddingTop = compact ? 3f : 8f;
+                    headerRoot.style.paddingBottom = compact ? 3f : 8f;
+                    headerRoot.style.minHeight = compact ? 52f : 76f;
+                    headerRoot.style.marginBottom = headerMarginBottom * marginScale;
+                }
+
+                if (subHeaderRoot != null)
+                {
+                    subHeaderRoot.style.marginTop = subHeaderMarginTop * marginScale;
+                    subHeaderRoot.style.marginBottom = subHeaderMarginBottom * marginScale;
+                }
+            }
+
+            Apply();
+            host?.RegisterCallback<GeometryChangedEvent>(_ => Apply());
+        }
+
         // Unified footer builder for all screens (nav bars + main footers). Styles live only here.
         internal static VisualElement BuildFooter(out Button[] buttons, params (string text, Action onClick)[] entries)
         {
@@ -508,6 +749,17 @@ namespace Poltergeist.UiToolkit
                 }
             };
             ApplyDefaultFont(bar);
+            void ApplyFooterLayout(VisualElement target)
+            {
+                const float CompactFooterThreshold = 980f;
+                var compact = IsCompactWidth(target, CompactFooterThreshold);
+                var scale = compact ? 0.5f : 1f;
+                target.style.paddingTop = 14f * scale;
+                target.style.paddingBottom = 14f * scale;
+                target.style.marginTop = 14f * scale;
+                target.style.marginBottom = 6f * scale;
+                target.style.minHeight = Mathf.RoundToInt(72f * scale);
+            }
 
             buttons = new Button[entries.Length];
             for (var i = 0; i < entries.Length; i++)
@@ -538,6 +790,8 @@ namespace Poltergeist.UiToolkit
             buttonRow.style.flexWrap = Wrap.Wrap;
 
             bar.Add(buttonRow);
+            ApplyFooterLayout(bar);
+            bar.RegisterCallback<GeometryChangedEvent>(_ => ApplyFooterLayout(bar));
             return bar;
         }
 
@@ -1230,6 +1484,7 @@ namespace Poltergeist.UiToolkit
             label.style.marginLeft = 6;
             label.style.minHeight = 20;
             label.style.minWidth = 64; // Reserve width to avoid layout shifts when the badge text appears.
+            label.style.whiteSpace = WhiteSpace.NoWrap;
         }
 
         /// <summary>
@@ -1384,6 +1639,39 @@ namespace Poltergeist.UiToolkit
                 : $"{label} for {name} @ {platformText}";
         }
 
+        internal static bool IsCompactWidth(VisualElement element, float threshold)
+        {
+            var width = element?.resolvedStyle.width ?? float.NaN;
+            if (!float.IsNaN(width) && width > 0f)
+            {
+                return width < threshold;
+            }
+
+            if (Screen.width > 0f)
+            {
+                return Screen.width < threshold;
+            }
+
+            return false;
+        }
+
+        internal static string AbbreviateMiddle(string value, int head = 4, int tail = 4)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            if (value.Length <= head + tail + 3)
+            {
+                return value;
+            }
+
+            var prefix = value.Substring(0, head);
+            var suffix = value.Substring(value.Length - tail, tail);
+            return $"{prefix}...{suffix}";
+        }
+
         internal static VisualElement CreateModalOverlay()
         {
             var overlay = new VisualElement
@@ -1525,12 +1813,14 @@ namespace Poltergeist.UiToolkit
 
     internal sealed class HeaderElements
     {
-        internal HeaderElements(VisualElement root)
+        internal HeaderElements(VisualElement root, VisualElement rightContentContainer)
         {
             Root = root;
+            RightContentContainer = rightContentContainer;
         }
 
         internal VisualElement Root { get; }
+        internal VisualElement RightContentContainer { get; }
     }
 
     internal sealed class SubHeaderElements
