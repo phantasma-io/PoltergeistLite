@@ -46,7 +46,8 @@ namespace Poltergeist.UiToolkit
                 var path = Path.Combine(dir, file);
                 var minSideRequirement = previewHelper.GetMinSideRequirement(settings);
                 var aspect = previewHelper.GetPreviewAspect(settings);
-                host.StartCoroutine(CaptureScreenshotAsync(minSideRequirement, aspect, path));
+                var targetResolution = previewHelper.GetScreenshotResolution(settings);
+                host.StartCoroutine(CaptureScreenshotAsync(minSideRequirement, aspect, targetResolution, path));
             }
             catch (Exception e)
             {
@@ -54,7 +55,7 @@ namespace Poltergeist.UiToolkit
             }
         }
 
-        private IEnumerator CaptureScreenshotAsync(int minSideRequirement, float targetAspect, string path)
+        private IEnumerator CaptureScreenshotAsync(int minSideRequirement, float targetAspect, Vector2Int targetResolution, string path)
         {
             yield return new WaitForEndOfFrame();
 
@@ -77,13 +78,13 @@ namespace Poltergeist.UiToolkit
                 RenderTexture.active = prev;
                 RenderTexture.ReleaseTemporary(rt);
 
-                tex = PrepareScreenshotTexture(tex, targetAspect, minSideRequirement);
+                tex = PrepareScreenshotTexture(tex, targetAspect, minSideRequirement, targetResolution);
                 var finalWidth = tex.width;
                 var finalHeight = tex.height;
                 var png = tex.EncodeToPNG();
                 UnityEngine.Object.Destroy(tex);
                 File.WriteAllBytes(path, png);
-                Log.Write($"{LogPrefix}Screenshot saved: {path}, final={finalWidth}x{finalHeight}, raw={captureWidth}x{captureHeight}, aspectTarget={targetAspect}, minSide={minSideRequirement}");
+                Log.Write($"{LogPrefix}Screenshot saved: {path}, final={finalWidth}x{finalHeight}, raw={captureWidth}x{captureHeight}, aspectTarget={targetAspect}, minSide={minSideRequirement}, target={targetResolution.x}x{targetResolution.y}");
             }
             catch (Exception e)
             {
@@ -91,18 +92,21 @@ namespace Poltergeist.UiToolkit
             }
         }
 
-        private static Texture2D PrepareScreenshotTexture(Texture2D source, float targetAspect, int minSideRequirement)
+        private static Texture2D PrepareScreenshotTexture(Texture2D source, float targetAspect, int minSideRequirement, Vector2Int targetResolution)
         {
             if (source == null)
             {
                 return source;
             }
 
-            var aspect = targetAspect > 0f ? targetAspect : source.width / (float)source.height;
+            var hasFixedResolution = targetResolution.x > 0 && targetResolution.y > 0;
+            var aspect = hasFixedResolution
+                ? targetResolution.x / (float)targetResolution.y
+                : (targetAspect > 0f ? targetAspect : source.width / (float)source.height);
 
-            var canvasWidth = source.width;
-            var canvasHeight = Mathf.RoundToInt(canvasWidth / aspect);
-            if (canvasHeight < source.height)
+            var canvasWidth = hasFixedResolution ? targetResolution.x : source.width;
+            var canvasHeight = hasFixedResolution ? targetResolution.y : Mathf.RoundToInt(canvasWidth / aspect);
+            if (!hasFixedResolution && canvasHeight < source.height)
             {
                 canvasHeight = source.height;
                 canvasWidth = Mathf.RoundToInt(canvasHeight * aspect);
@@ -111,18 +115,21 @@ namespace Poltergeist.UiToolkit
             canvasWidth = Mathf.Max(canvasWidth, source.width);
             canvasHeight = Mathf.Max(canvasHeight, source.height);
 
-            var minCanvasSide = Mathf.Min(canvasWidth, canvasHeight);
-            var scale = minSideRequirement > 0 ? Mathf.Max(1f, Mathf.Ceil(minSideRequirement / Mathf.Max(1f, minCanvasSide))) : 1f;
-            var targetWidth = Mathf.Max(1, Mathf.RoundToInt(canvasWidth * scale));
-            var targetHeight = Mathf.Max(1, Mathf.RoundToInt(canvasHeight * scale));
+            if (!hasFixedResolution)
+            {
+                var minCanvasSide = Mathf.Min(canvasWidth, canvasHeight);
+                var scale = minSideRequirement > 0 ? Mathf.Max(1f, Mathf.Ceil(minSideRequirement / Mathf.Max(1f, minCanvasSide))) : 1f;
+                canvasWidth = Mathf.Max(1, Mathf.RoundToInt(canvasWidth * scale));
+                canvasHeight = Mathf.Max(1, Mathf.RoundToInt(canvasHeight * scale));
+            }
 
-            var fitScale = Mathf.Min(targetWidth / (float)source.width, targetHeight / (float)source.height);
+            var fitScale = Mathf.Min(canvasWidth / (float)source.width, canvasHeight / (float)source.height);
             var drawWidth = Mathf.RoundToInt(source.width * fitScale);
             var drawHeight = Mathf.RoundToInt(source.height * fitScale);
-            var offsetX = Mathf.RoundToInt((targetWidth - drawWidth) * 0.5f);
-            var offsetY = Mathf.RoundToInt((targetHeight - drawHeight) * 0.5f);
+            var offsetX = Mathf.RoundToInt((canvasWidth - drawWidth) * 0.5f);
+            var offsetY = Mathf.RoundToInt((canvasHeight - drawHeight) * 0.5f);
 
-            var rt = RenderTexture.GetTemporary(targetWidth, targetHeight, 0, RenderTextureFormat.ARGB32);
+            var rt = RenderTexture.GetTemporary(canvasWidth, canvasHeight, 0, RenderTextureFormat.ARGB32);
             var previous = RenderTexture.active;
             try
             {
@@ -130,12 +137,12 @@ namespace Poltergeist.UiToolkit
                 var background = WalletUiTheme.ScreenBackground;
                 GL.Clear(true, true, background);
                 GL.PushMatrix();
-                GL.LoadPixelMatrix(0, targetWidth, targetHeight, 0);
-                Graphics.DrawTexture(new Rect(offsetX, targetHeight - offsetY - drawHeight, drawWidth, drawHeight), source);
+                GL.LoadPixelMatrix(0, canvasWidth, canvasHeight, 0);
+                Graphics.DrawTexture(new Rect(offsetX, canvasHeight - offsetY - drawHeight, drawWidth, drawHeight), source);
                 GL.PopMatrix();
 
-                var result = new Texture2D(targetWidth, targetHeight, source.format, false);
-                result.ReadPixels(new Rect(0, 0, targetWidth, targetHeight), 0, 0);
+                var result = new Texture2D(canvasWidth, canvasHeight, source.format, false);
+                result.ReadPixels(new Rect(0, 0, canvasWidth, canvasHeight), 0, 0);
                 result.Apply(false, false);
                 UnityEngine.Object.Destroy(source);
                 return result;

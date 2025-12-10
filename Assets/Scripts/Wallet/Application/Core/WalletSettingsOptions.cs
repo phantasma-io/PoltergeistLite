@@ -104,6 +104,12 @@ namespace Poltergeist.Wallet
                     return "Tablet 7\" (Play Store)";
                 case UiPreviewDevice.Tablet_10_Inch:
                     return "Tablet 10\" (Play Store)";
+                case UiPreviewDevice.IPhone_6_9:
+                    return "iPhone 6.9\" (App Store)";
+                case UiPreviewDevice.IPhone_4_7:
+                    return "iPhone 4.7\" (App Store)";
+                case UiPreviewDevice.IPad_13:
+                    return "iPad 13\" (App Store)";
                 default:
                     return device.ToString().Replace('_', ' ');
             }

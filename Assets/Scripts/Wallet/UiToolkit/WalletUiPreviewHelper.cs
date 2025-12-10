@@ -9,21 +9,32 @@ namespace Poltergeist.UiToolkit
 
         internal readonly struct PreviewDeviceProfile
         {
-            public PreviewDeviceProfile(UiPreviewDevice device, int widthPx, int heightPx, float density)
+            public PreviewDeviceProfile(
+                UiPreviewDevice device,
+                int widthPx,
+                int heightPx,
+                float density,
+                int screenshotWidthPx = 0,
+                int screenshotHeightPx = 0)
             {
                 Device = device;
                 WidthPx = widthPx;
                 HeightPx = heightPx;
                 Density = density;
+                ScreenshotWidthPx = screenshotWidthPx;
+                ScreenshotHeightPx = screenshotHeightPx;
             }
 
             public UiPreviewDevice Device { get; }
             public int WidthPx { get; }
             public int HeightPx { get; }
             public float Density { get; }
+            public int ScreenshotWidthPx { get; }
+            public int ScreenshotHeightPx { get; }
 
             public int LogicalWidth => Mathf.Max(1, Mathf.RoundToInt(WidthPx / Mathf.Max(0.1f, Density)));
             public int LogicalHeight => Mathf.Max(1, Mathf.RoundToInt(HeightPx / Mathf.Max(0.1f, Density)));
+            public bool HasTargetScreenshotResolution => ScreenshotWidthPx > 0 && ScreenshotHeightPx > 0;
         }
 
         // Play Store tablet screenshots must be 16:9 or 9:16; keep tablet profiles in 9:16 and above platform minima.
@@ -34,7 +45,10 @@ namespace Poltergeist.UiToolkit
             new PreviewDeviceProfile(UiPreviewDevice.Galaxy_S20, 1440, 3200, 3.0f),
             new PreviewDeviceProfile(UiPreviewDevice.IPad_Mini, 1488, 2266, 2.0f),
             new PreviewDeviceProfile(UiPreviewDevice.Tablet_7_Inch, 1080, 1920, 2.0f),
-            new PreviewDeviceProfile(UiPreviewDevice.Tablet_10_Inch, 1440, 2560, 2.0f)
+            new PreviewDeviceProfile(UiPreviewDevice.Tablet_10_Inch, 1440, 2560, 2.0f),
+            new PreviewDeviceProfile(UiPreviewDevice.IPhone_6_9, 1320, 2868, 3.0f, 1320, 2868),
+            new PreviewDeviceProfile(UiPreviewDevice.IPhone_4_7, 750, 1334, 2.0f, 750, 1334),
+            new PreviewDeviceProfile(UiPreviewDevice.IPad_13, 2064, 2752, 2.0f, 2064, 2752)
         };
 
         private Vector2Int? lastPreviewResolution;
@@ -123,6 +137,16 @@ namespace Poltergeist.UiToolkit
             }
 
             return profile.WidthPx / (float)profile.HeightPx;
+        }
+
+        public Vector2Int GetScreenshotResolution(global::Poltergeist.Settings settings)
+        {
+            if (settings == null || !TryGetPreviewProfile(settings, out var profile) || !profile.HasTargetScreenshotResolution)
+            {
+                return Vector2Int.zero;
+            }
+
+            return new Vector2Int(profile.ScreenshotWidthPx, profile.ScreenshotHeightPx);
         }
 
         public bool TryGetPreviewProfile(global::Poltergeist.Settings settings, out PreviewDeviceProfile profile)

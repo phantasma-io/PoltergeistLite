@@ -48,7 +48,10 @@ namespace Poltergeist
         Galaxy_S20,
         IPad_Mini,
         Tablet_7_Inch,
-        Tablet_10_Inch
+        Tablet_10_Inch,
+        IPhone_6_9,
+        IPhone_4_7,
+        IPad_13
     }
 
     public enum PasswordMode
