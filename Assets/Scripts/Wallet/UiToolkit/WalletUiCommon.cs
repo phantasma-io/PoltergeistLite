@@ -584,6 +584,8 @@ namespace Poltergeist.UiToolkit
             subHeader.Root.style.alignSelf = Align.Stretch;
             container.Add(subHeader.Root);
 
+            ApplyHeaderSpacing(container, header.Root, subHeader.Root, headerMarginBottom, subHeaderMarginTop, subHeaderMarginBottom);
+
             return new HeaderBlockElements(container, header, subHeader);
         }
 
@@ -683,6 +685,34 @@ namespace Poltergeist.UiToolkit
             return new AccountInfoElements(container, accountLabel, addressLabel, networkLabel);
         }
 
+        private static void ApplyHeaderSpacing(VisualElement host, VisualElement headerRoot, VisualElement subHeaderRoot, float headerMarginBottom, float subHeaderMarginTop, float subHeaderMarginBottom)
+        {
+            const float CompactHeaderThreshold = 980f;
+
+            void Apply()
+            {
+                var compact = IsCompactWidth(host ?? headerRoot, CompactHeaderThreshold);
+                var marginScale = compact ? 0.35f : 1f;
+
+                if (headerRoot != null)
+                {
+                    headerRoot.style.paddingTop = compact ? 3f : 8f;
+                    headerRoot.style.paddingBottom = compact ? 3f : 8f;
+                    headerRoot.style.minHeight = compact ? 52f : 76f;
+                    headerRoot.style.marginBottom = headerMarginBottom * marginScale;
+                }
+
+                if (subHeaderRoot != null)
+                {
+                    subHeaderRoot.style.marginTop = subHeaderMarginTop * marginScale;
+                    subHeaderRoot.style.marginBottom = subHeaderMarginBottom * marginScale;
+                }
+            }
+
+            Apply();
+            host?.RegisterCallback<GeometryChangedEvent>(_ => Apply());
+        }
+
         // Unified footer builder for all screens (nav bars + main footers). Styles live only here.
         internal static VisualElement BuildFooter(out Button[] buttons, params (string text, Action onClick)[] entries)
         {
@@ -719,6 +749,17 @@ namespace Poltergeist.UiToolkit
                 }
             };
             ApplyDefaultFont(bar);
+            void ApplyFooterLayout(VisualElement target)
+            {
+                const float CompactFooterThreshold = 980f;
+                var compact = IsCompactWidth(target, CompactFooterThreshold);
+                var scale = compact ? 0.5f : 1f;
+                target.style.paddingTop = 14f * scale;
+                target.style.paddingBottom = 14f * scale;
+                target.style.marginTop = 14f * scale;
+                target.style.marginBottom = 6f * scale;
+                target.style.minHeight = Mathf.RoundToInt(72f * scale);
+            }
 
             buttons = new Button[entries.Length];
             for (var i = 0; i < entries.Length; i++)
@@ -749,6 +790,8 @@ namespace Poltergeist.UiToolkit
             buttonRow.style.flexWrap = Wrap.Wrap;
 
             bar.Add(buttonRow);
+            ApplyFooterLayout(bar);
+            bar.RegisterCallback<GeometryChangedEvent>(_ => ApplyFooterLayout(bar));
             return bar;
         }
 

@@ -559,7 +559,7 @@ namespace Poltergeist.UiToolkit.Balances
             filtersRow.Add(rarityFilterDropdown);
 
             sortModeDropdown = WalletUiFormFactory.CreateDropdown("Sort", new List<string>(), 0, idx => OnSortModeChanged(idx));
-            ConfigureFilterField(sortModeDropdown, 200f, 360f);
+            ConfigureFilterField(sortModeDropdown, 200f, 320f);
             filtersRow.Add(sortModeDropdown);
 
             sortDirectionButton = WalletUiCommon.CreateSecondaryButton("Asc", ToggleSortDirection, 14, 34);

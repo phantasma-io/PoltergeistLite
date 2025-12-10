@@ -256,6 +256,7 @@ namespace Poltergeist.UiToolkit.Settings
                 subHeaderMarginBottom: 8f);
             subHeader = headerBlock.SubHeader;
             headerBlock.Root.style.flexShrink = 0;
+            ApplyBuildInfoLayout(content);
             content.Add(headerBlock.Root);
 
             statusLabel = WalletUiCommon.CreateStatusLabel();
@@ -315,7 +316,8 @@ namespace Poltergeist.UiToolkit.Settings
             bodyContainer.Add(scrollWrapper);
             if (actionsContainer != null)
             {
-                actionsContainer.style.marginTop = 12;
+                actionsContainer.style.marginTop = 6;
+                actionsContainer.style.marginBottom = 12;
                 bodyContainer.Add(actionsContainer);
             }
             content.Add(bodyContainer);
@@ -324,6 +326,27 @@ namespace Poltergeist.UiToolkit.Settings
 
             root.Add(content);
             BuildModal(root);
+        }
+
+        private void ApplyBuildInfoLayout(VisualElement host)
+        {
+            if (buildInfoLabel == null)
+            {
+                return;
+            }
+
+            const float CompactWidthThreshold = 980f;
+
+            void Apply()
+            {
+                var compact = WalletUiCommon.IsCompactWidth(host, CompactWidthThreshold);
+                buildInfoLabel.style.marginTop = compact ? 0 : -22;
+                buildInfoLabel.style.marginBottom = compact ? 6 : 12;
+                buildInfoLabel.style.whiteSpace = WhiteSpace.Normal;
+            }
+
+            Apply();
+            host?.RegisterCallback<GeometryChangedEvent>(_ => Apply());
         }
 
         private void BuildForm(ScrollView scroll)
@@ -494,8 +517,8 @@ namespace Poltergeist.UiToolkit.Settings
                     maxWidth = 1680,
                     alignSelf = Align.Center,
                     flexShrink = 0,
-                    marginTop = 8,
-                    marginBottom = 24
+                    marginTop = 6,
+                    marginBottom = 12
                 }
             };
             WalletUiCommon.ApplyDefaultFont(actionsContainer);
@@ -530,6 +553,7 @@ namespace Poltergeist.UiToolkit.Settings
                     color = WalletUiTheme.TextPrimary,
                     unityFontStyleAndWeight = FontStyle.Bold,
                     fontSize = 13,
+                    unityTextAlign = TextAnchor.UpperLeft,
                     marginBottom = 10,
                     marginTop = 4,
                     display = DisplayStyle.None,
@@ -544,7 +568,8 @@ namespace Poltergeist.UiToolkit.Settings
                     borderTopLeftRadius = WalletUiTheme.RadiusSmall,
                     borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
                     borderTopRightRadius = WalletUiTheme.RadiusSmall,
-                    borderBottomRightRadius = WalletUiTheme.RadiusSmall
+                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
+                    flexShrink = 0
                 }
             };
             WalletUiCommon.ApplyDefaultFont(label);
