@@ -581,51 +581,23 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(filtersButtonRow);
 
-            filtersSelectionGroup = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    flexWrap = Wrap.Wrap,
-                    alignItems = Align.Center
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(filtersSelectionGroup);
-
             selectAllButton = WalletUiCommon.CreateSecondaryButton("Select filtered", () => RunSafeAsync(SelectFilteredAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Select filtered failed: {ex}")), 14, 32);
+            selectAllButton.style.minWidth = 180;
             selectAllButton.style.marginRight = 8;
             invertSelectionButton = WalletUiCommon.CreateSecondaryButton("Invert selection", () => RunSafeAsync(InvertSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Invert selection failed: {ex}")), 14, 32);
+            invertSelectionButton.style.minWidth = 180;
             invertSelectionButton.style.marginRight = 8;
             clearSelectionButton = WalletUiCommon.CreateSecondaryButton("Clear selection", () => RunSafeAsync(ClearSelectionAsync).Forget(ex => Log.WriteWarning($"{LogPrefix}Clear selection failed: {ex}")), 14, 32);
-            clearSelectionButton.style.marginRight = 8;
+            clearSelectionButton.style.minWidth = 180;
 
-            filtersSelectionGroup.Add(selectAllButton);
-            filtersSelectionGroup.Add(invertSelectionButton);
-            filtersSelectionGroup.Add(clearSelectionButton);
-
-            filtersContractGroup = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Row,
-                    alignItems = Align.Center,
-                    justifyContent = Justify.FlexStart,
-                    flexGrow = 0,
-                    flexShrink = 0
-                }
-            };
-            WalletUiCommon.ApplyDefaultFont(filtersContractGroup);
+            filtersButtonRow.Add(selectAllButton);
+            filtersButtonRow.Add(invertSelectionButton);
+            filtersButtonRow.Add(clearSelectionButton);
 
             contractInfoButton = WalletUiCommon.CreateSecondaryButton("Contract info", () => OpenContractInfo(), 14, 32);
-            contractInfoButton.style.marginLeft = 0;
-            contractInfoButton.style.minWidth = 140;
-            contractInfoButton.style.whiteSpace = WhiteSpace.NoWrap;
-            contractInfoButton.style.flexShrink = 0;
-
-            filtersContractGroup.Add(contractInfoButton);
-
-            filtersButtonRow.Add(filtersSelectionGroup);
-            filtersButtonRow.Add(filtersContractGroup);
+            contractInfoButton.style.minWidth = 180;
+            filtersButtonRow.Add(new HSpacer());
+            filtersButtonRow.Add(contractInfoButton);
 
             panel.Add(filtersButtonRow);
             panel.RegisterCallback<GeometryChangedEvent>(_ => ApplyFiltersLayout());
