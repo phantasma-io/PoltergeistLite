@@ -34,7 +34,7 @@ namespace Poltergeist.Wallet
             UiThemeDisplayOptions = UiThemes.Select(x => x.ToString()).ToArray();
 
             UiPreviewDevices = Enum.GetValues(typeof(UiPreviewDevice)).Cast<UiPreviewDevice>().ToArray();
-            UiPreviewDeviceDisplayOptions = UiPreviewDevices.Select(x => x.ToString().Replace('_', ' ')).ToArray();
+            UiPreviewDeviceDisplayOptions = UiPreviewDevices.Select(FormatPreviewDevice).ToArray();
         }
 
         public string[] CurrencyOptions { get; private set; } = Array.Empty<string>();
@@ -94,6 +94,19 @@ namespace Poltergeist.Wallet
         public int GetUiPreviewDeviceIndex(UiPreviewDevice device)
         {
             return IndexOrZero(UiPreviewDevices, device, (a, b) => a == b);
+        }
+
+        private static string FormatPreviewDevice(UiPreviewDevice device)
+        {
+            switch (device)
+            {
+                case UiPreviewDevice.Tablet_7_Inch:
+                    return "Tablet 7\" (Play Store)";
+                case UiPreviewDevice.Tablet_10_Inch:
+                    return "Tablet 10\" (Play Store)";
+                default:
+                    return device.ToString().Replace('_', ' ');
+            }
         }
 
         private static int IndexOrZero<T>(T[] list, T value, Func<T, T, bool> equals)
