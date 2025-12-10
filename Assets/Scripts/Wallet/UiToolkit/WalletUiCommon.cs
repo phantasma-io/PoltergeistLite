@@ -1484,6 +1484,7 @@ namespace Poltergeist.UiToolkit
             label.style.marginLeft = 6;
             label.style.minHeight = 20;
             label.style.minWidth = 64; // Reserve width to avoid layout shifts when the badge text appears.
+            label.style.whiteSpace = WhiteSpace.NoWrap;
         }
 
         /// <summary>
