@@ -533,11 +533,11 @@ namespace Poltergeist.UiToolkit.Balances
             WalletUiCommon.ApplyDefaultFont(filtersRow);
 
             nameFilterField = WalletUiFormFactory.CreateTextField("Name", string.Empty, value => OnFiltersChanged(value, null, null, null));
-            ConfigureFilterField(nameFilterField, 200f);
+            ConfigureFilterField(nameFilterField, 180f);
             filtersRow.Add(nameFilterField);
 
             mintedFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, MintedOptions.Select(x => x.label).ToList(), 0, idx => OnFiltersChanged(null, null, null, MintedOptions[Mathf.Clamp(idx, 0, MintedOptions.Length - 1)].value));
-            ConfigureFilterField(mintedFilterDropdown, 200f);
+            ConfigureFilterField(mintedFilterDropdown, 180f);
             filtersRow.Add(mintedFilterDropdown);
 
             typeFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, new List<string> { "Type: All" }, 0, _ => { });
@@ -559,11 +559,11 @@ namespace Poltergeist.UiToolkit.Balances
             filtersRow.Add(rarityFilterDropdown);
 
             sortModeDropdown = WalletUiFormFactory.CreateDropdown("Sort", new List<string>(), 0, idx => OnSortModeChanged(idx));
-            ConfigureFilterField(sortModeDropdown, 200f, 320f);
+            ConfigureFilterField(sortModeDropdown, 180f);
             filtersRow.Add(sortModeDropdown);
 
             sortDirectionButton = WalletUiCommon.CreateSecondaryButton("Asc", ToggleSortDirection, 14, 34);
-            ConfigureFilterField(sortDirectionButton, 120f, 160f);
+            ConfigureFilterField(sortDirectionButton, 180f);
             filtersRow.Add(sortDirectionButton);
 
             panel.Add(filtersRow);
