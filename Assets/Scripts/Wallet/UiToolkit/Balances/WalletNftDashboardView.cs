@@ -68,6 +68,7 @@ namespace Poltergeist.UiToolkit.Balances
         private VisualElement filtersButtonRow;
         private VisualElement filtersSelectionGroup;
         private VisualElement filtersContractGroup;
+        private VisualElement filtersButtonSpacer;
         private Button toggleFiltersButton;
         private bool filtersExpanded = true;
         private bool filtersExpandedUserOverride;
@@ -533,15 +534,15 @@ namespace Poltergeist.UiToolkit.Balances
             WalletUiCommon.ApplyDefaultFont(filtersRow);
 
             nameFilterField = WalletUiFormFactory.CreateTextField("Name", string.Empty, value => OnFiltersChanged(value, null, null, null));
-            ConfigureFilterField(nameFilterField, 180f);
+            ConfigureFilterField(nameFilterField, 90f);
             filtersRow.Add(nameFilterField);
 
             mintedFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, MintedOptions.Select(x => x.label).ToList(), 0, idx => OnFiltersChanged(null, null, null, MintedOptions[Mathf.Clamp(idx, 0, MintedOptions.Length - 1)].value));
-            ConfigureFilterField(mintedFilterDropdown, 180f);
+            ConfigureFilterField(mintedFilterDropdown, 90f);
             filtersRow.Add(mintedFilterDropdown);
 
             typeFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, new List<string> { "Type: All" }, 0, _ => { });
-            ConfigureFilterField(typeFilterDropdown, 180f);
+            ConfigureFilterField(typeFilterDropdown, 90f);
             typeFilterDropdown.RegisterValueChangedCallback(_ =>
             {
                 var idx = Mathf.Clamp(typeFilterDropdown.index, 0, Enum.GetValues(typeof(ttrsNftType)).Length - 1);
@@ -550,7 +551,7 @@ namespace Poltergeist.UiToolkit.Balances
             filtersRow.Add(typeFilterDropdown);
 
             rarityFilterDropdown = WalletUiFormFactory.CreateDropdown(string.Empty, new List<string> { "Rarity: All" }, 0, _ => { });
-            ConfigureFilterField(rarityFilterDropdown, 180f);
+            ConfigureFilterField(rarityFilterDropdown, 90f);
             rarityFilterDropdown.RegisterValueChangedCallback(_ =>
             {
                 var idx = Mathf.Clamp(rarityFilterDropdown.index, 0, Enum.GetValues(typeof(ttrsNftRarity)).Length - 1);
@@ -559,11 +560,11 @@ namespace Poltergeist.UiToolkit.Balances
             filtersRow.Add(rarityFilterDropdown);
 
             sortModeDropdown = WalletUiFormFactory.CreateDropdown("Sort", new List<string>(), 0, idx => OnSortModeChanged(idx));
-            ConfigureFilterField(sortModeDropdown, 180f);
+            ConfigureFilterField(sortModeDropdown, 90f);
             filtersRow.Add(sortModeDropdown);
 
             sortDirectionButton = WalletUiCommon.CreateSecondaryButton("Asc", ToggleSortDirection, 14, 34);
-            ConfigureFilterField(sortDirectionButton, 180f);
+            ConfigureFilterField(sortDirectionButton, 90f);
             filtersRow.Add(sortDirectionButton);
 
             panel.Add(filtersRow);
@@ -596,7 +597,8 @@ namespace Poltergeist.UiToolkit.Balances
 
             contractInfoButton = WalletUiCommon.CreateSecondaryButton("Contract info", () => OpenContractInfo(), 14, 32);
             contractInfoButton.style.minWidth = 180;
-            filtersButtonRow.Add(new HSpacer());
+            filtersButtonSpacer = new HSpacer();
+            filtersButtonRow.Add(filtersButtonSpacer);
             filtersButtonRow.Add(contractInfoButton);
 
             panel.Add(filtersButtonRow);
@@ -986,6 +988,10 @@ namespace Poltergeist.UiToolkit.Balances
             filtersContractGroup.style.justifyContent = Justify.FlexStart;
             filtersContractGroup.style.marginTop = 0;
             filtersContractGroup.style.flexGrow = 0;
+            if (filtersButtonSpacer != null)
+            {
+                filtersButtonSpacer.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+            }
 
             if (contractInfoButton != null)
             {
