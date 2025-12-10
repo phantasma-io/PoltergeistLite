@@ -845,7 +845,7 @@ namespace Poltergeist.UiToolkit.Balances
             totalFiatLabel.text = FormatFiat(totalFiat);
             var isSoulToken = string.Equals(entry.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase);
             var isSoulMaster = WalletUiCommon.IsSoulMaster(accountManager);
-            var showSm = isSoulToken && isSoulMaster;
+            var showSm = isSoulToken && isSoulMaster && !hideName;
             if (soulMasterOverlay != null)
             {
                 soulMasterOverlay.style.display = showSm ? DisplayStyle.Flex : DisplayStyle.None;
