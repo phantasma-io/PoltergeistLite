@@ -778,12 +778,10 @@ namespace Poltergeist.UiToolkit.Balances
         private void UpdateHero(string symbol, WalletNftViewSnapshot snapshot)
         {
             symbolLabel.text = $"{symbol} NFTs";
-            var compact = WalletUiCommon.IsCompactWidth(root, CompactNftWidth);
-            totalCountLabel.text = compact
-                ? $"{snapshot.TotalCount}/{nftPresenter.State.SelectedCount}"
-                : $"{snapshot.TotalCount} item(s)";
-            selectedCountLabel.text = compact ? string.Empty : $"{nftPresenter.State.SelectedCount} selected";
-            selectedCountLabel.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+            totalCountLabel.text = string.Empty;
+            selectedCountLabel.text = string.Empty;
+            totalCountLabel.style.display = DisplayStyle.None;
+            selectedCountLabel.style.display = DisplayStyle.None;
             pageInfoLabel.text = snapshot.PageCount > 0 ? $"Page {snapshot.PageNumber + 1} / {snapshot.PageCount}" : "Page 1 / 1";
             var totalLoaded = nftSource.CurrentNfts?.Count ?? 0;
             filterHintLabel.text = totalLoaded == snapshot.TotalCount
@@ -924,7 +922,7 @@ namespace Poltergeist.UiToolkit.Balances
         private string BuildSummaryLine(int total, int selected)
         {
             return WalletUiCommon.IsCompactWidth(root, CompactNftWidth)
-                ? $"{total}/{selected}"
+                ? $"{total} NFTs / {selected} selected"
                 : $"{total} item(s) • {selected} selected";
         }
 
@@ -1910,11 +1908,11 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void ClearUi()
         {
-            var compact = WalletUiCommon.IsCompactWidth(root, CompactNftWidth);
             listView?.Clear();
-            totalCountLabel.text = compact ? "0/0" : "0 items";
-            selectedCountLabel.text = compact ? string.Empty : "0 selected";
-            selectedCountLabel.style.display = compact ? DisplayStyle.None : DisplayStyle.Flex;
+            totalCountLabel.text = string.Empty;
+            selectedCountLabel.text = string.Empty;
+            totalCountLabel.style.display = DisplayStyle.None;
+            selectedCountLabel.style.display = DisplayStyle.None;
             pageInfoLabel.text = "Page 1 / 1";
             filterHintLabel.text = string.Empty;
             tokenIcon.image = null;
