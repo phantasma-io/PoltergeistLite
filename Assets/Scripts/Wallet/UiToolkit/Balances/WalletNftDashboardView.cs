@@ -1129,6 +1129,7 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     flexDirection = FlexDirection.Row,
                     alignItems = Align.Center,
+                    flexWrap = Wrap.Wrap,
                     paddingLeft = 12,
                     paddingRight = 12,
                     paddingTop = 10,
@@ -1245,7 +1246,28 @@ namespace Poltergeist.UiToolkit.Balances
             actions.Add(viewButton);
 
             card.Add(actions);
+            ApplyNftRowLayout(card, actions, viewButton);
+            card.RegisterCallback<GeometryChangedEvent>(_ => ApplyNftRowLayout(card, actions, viewButton));
             return card;
+        }
+
+        private void ApplyNftRowLayout(VisualElement card, VisualElement actions, Button viewButton)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(card, CompactNftWidth);
+
+            if (actions != null)
+            {
+                actions.style.alignItems = compact ? Align.Stretch : Align.FlexEnd;
+                actions.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                actions.style.marginLeft = compact ? 0 : 10;
+                actions.style.marginTop = compact ? 8 : 0;
+            }
+
+            if (viewButton != null)
+            {
+                viewButton.style.alignSelf = compact ? Align.Stretch : Align.Center;
+                viewButton.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+            }
         }
 
         private string BuildNftTitle(string tokenId, NftMetadata meta)

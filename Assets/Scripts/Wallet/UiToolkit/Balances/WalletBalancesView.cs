@@ -17,6 +17,7 @@ namespace Poltergeist.UiToolkit.Balances
     public sealed class WalletBalancesView : IDisposable
     {
         private const string LogPrefix = "[UITK] ";
+        private const float CompactBalancesWidth = 1100f;
 
         private readonly WalletApplicationContext context;
         private readonly WalletBalancePresenter presenter;
@@ -544,13 +545,13 @@ namespace Poltergeist.UiToolkit.Balances
                 {
                     style =
                     {
-                    flexDirection = FlexDirection.Column,
-                    alignItems = Align.FlexEnd,
-                    justifyContent = Justify.Center,
-                    marginLeft = 10,
-                    marginTop = 4,
-                    flexShrink = 0
-                }
+                        flexDirection = FlexDirection.Column,
+                        alignItems = Align.FlexEnd,
+                        justifyContent = Justify.Center,
+                        marginLeft = 10,
+                        marginTop = 4,
+                        flexShrink = 0
+                    }
                 };
                 var openButton = WalletUiCommon.CreateOutlineButton(entry.Fungible ? "Open Asset" : "Open Asset", () => OpenToken(entry.Symbol), 14, 32);
                 openButton.style.minWidth = 120;
@@ -560,9 +561,38 @@ namespace Poltergeist.UiToolkit.Balances
                 openButton.style.marginRight = 2;
                 actions.Add(openButton);
                 row.Add(actions);
+                ApplyBalanceRowLayout(row, actions, openButton);
+                row.RegisterCallback<GeometryChangedEvent>(_ => ApplyBalanceRowLayout(row, actions, openButton));
             }
 
             return row;
+        }
+
+        private void ApplyBalanceRowLayout(VisualElement row, VisualElement actions, Button openButton)
+        {
+            var compact = WalletUiCommon.IsCompactWidth(row, CompactBalancesWidth);
+
+            if (row != null)
+            {
+                row.style.alignItems = Align.Center;
+                row.style.flexWrap = Wrap.Wrap;
+            }
+
+            if (actions != null)
+            {
+                actions.style.alignItems = compact ? Align.Stretch : Align.FlexEnd;
+                actions.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                actions.style.marginLeft = compact ? 0 : 10;
+                actions.style.marginTop = compact ? 8 : 4;
+            }
+
+            if (openButton != null)
+            {
+                openButton.style.alignSelf = compact ? Align.Stretch : Align.Center;
+                openButton.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                openButton.style.marginLeft = compact ? 0 : 6;
+                openButton.style.marginRight = compact ? 0 : 2;
+            }
         }
 
         private string BuildSecondaryLine(WalletBalanceEntry entry)

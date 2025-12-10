@@ -392,6 +392,7 @@ namespace Poltergeist.UiToolkit.Accounts
             {
                 openButton.style.alignSelf = compact ? Align.Stretch : Align.Center;
                 openButton.style.width = compact ? new Length(100, LengthUnit.Percent) : StyleKeyword.Auto;
+                openButton.style.maxWidth = compact ? StyleKeyword.None : 200;
                 openButton.style.marginTop = compact ? 8 : 0;
             }
         }
