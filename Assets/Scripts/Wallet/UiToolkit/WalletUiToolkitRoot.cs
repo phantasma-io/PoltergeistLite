@@ -1,3 +1,7 @@
+#if UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX
+#define UITK_SCREEN_TOOLS_SUPPORTED
+#endif
+
 using System;
 using UnityEngine;
 using Poltergeist.Wallet;
@@ -39,7 +43,9 @@ namespace Poltergeist.UiToolkit
         private UIDocument document;
         private PanelSettings panelSettings;
         private WalletUiPreviewHelper previewHelper;
+#if UITK_SCREEN_TOOLS_SUPPORTED
         private WalletUiScreenshotHelper screenshotHelper;
+#endif
         private VisualElement accountsRoot;
         private VisualElement balancesRoot;
         private VisualElement tokenRoot;
@@ -87,7 +93,9 @@ namespace Poltergeist.UiToolkit
             DontDestroyOnLoad(gameObject);
             Log.Write($"{LogPrefix}Awake");
             previewHelper = new WalletUiPreviewHelper();
+#if UITK_SCREEN_TOOLS_SUPPORTED
             screenshotHelper = new WalletUiScreenshotHelper(this, () => AccountManager.Instance?.Settings, previewHelper);
+#endif
 
             try
             {
@@ -474,7 +482,9 @@ namespace Poltergeist.UiToolkit
                 return;
             }
 
+#if UITK_SCREEN_TOOLS_SUPPORTED
             screenshotHelper?.HandleHotkey();
+#endif
 
             // Legacy IMGUI polled for pending messages every frame; mirror that cadence but throttle slightly to reduce overhead.
             if (Time.unscaledTime < nextMessageCheckTime)

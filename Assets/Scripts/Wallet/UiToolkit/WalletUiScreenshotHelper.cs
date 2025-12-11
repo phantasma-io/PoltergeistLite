@@ -1,3 +1,7 @@
+#if UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX
+#define UITK_SCREEN_TOOLS_SUPPORTED
+#endif
+
 using System;
 using System.Collections;
 using System.IO;
@@ -6,6 +10,7 @@ using PhantasmaPhoenix.Unity.Core.Logging;
 
 namespace Poltergeist.UiToolkit
 {
+#if UITK_SCREEN_TOOLS_SUPPORTED
     internal sealed class WalletUiScreenshotHelper
     {
         private const string LogPrefix = "[UITK] ";
@@ -154,4 +159,19 @@ namespace Poltergeist.UiToolkit
             }
         }
     }
+#else
+    internal sealed class WalletUiScreenshotHelper
+    {
+        public WalletUiScreenshotHelper(
+            MonoBehaviour host,
+            Func<global::Poltergeist.Settings> settingsProvider,
+            WalletUiPreviewHelper previewHelper)
+        {
+        }
+
+        public void HandleHotkey()
+        {
+        }
+    }
+#endif
 }
