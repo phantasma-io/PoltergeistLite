@@ -156,6 +156,9 @@ namespace Poltergeist
         private DateTime _lastPriceUpdate = DateTime.MinValue;
         private bool tokensReinitInProgress;
         private bool refreshBalancesAfterTokenReload;
+        private bool refreshBalancesAfterTokenReloadForce;
+        private PlatformKind refreshBalancesAfterTokenReloadPlatforms;
+        private Action refreshBalancesAfterTokenReloadCallback;
 
         private void Awake()
         {
@@ -229,6 +232,12 @@ namespace Poltergeist
 
                 // GOATI token price is pegged to 0.1$.
                 SetTokenPrice("GOATI", Convert.ToDecimal(0.1));
+
+                // Prices updated: refresh balances so fiat values appear without manual actions.
+                if (HasSelection)
+                {
+                    RefreshBalances(false);
+                }
             }
             catch (Exception e)
             {
@@ -754,12 +763,22 @@ The Phoenix team", "Notice");
             Status = "ok";
             tokensReinitInProgress = false;
 
+            // Token metadata is ready again; refresh prices so fiat values can be shown promptly.
+            RefreshTokenPrices();
+
             if (refreshBalancesAfterTokenReload)
             {
+                var refreshForce = refreshBalancesAfterTokenReloadForce;
+                var refreshPlatforms = refreshBalancesAfterTokenReloadPlatforms;
+                var refreshCallback = refreshBalancesAfterTokenReloadCallback;
                 refreshBalancesAfterTokenReload = false;
+                refreshBalancesAfterTokenReloadForce = false;
+                refreshBalancesAfterTokenReloadPlatforms = PlatformKind.None;
+                refreshBalancesAfterTokenReloadCallback = null;
+
                 if (HasSelection)
                 {
-                    RefreshBalances(false);
+                    RefreshBalances(refreshForce, refreshPlatforms, refreshCallback);
                 }
             }
         }
@@ -770,9 +789,20 @@ The Phoenix team", "Notice");
             TokensReinit();
         }
 
-        private void ScheduleBalanceRefreshAfterTokens()
+        private void ScheduleBalanceRefreshAfterTokens(bool force = true, PlatformKind platforms = PlatformKind.None, Action callback = null)
         {
             refreshBalancesAfterTokenReload = true;
+            refreshBalancesAfterTokenReloadForce = force || refreshBalancesAfterTokenReloadForce;
+            // If caller specifies a platform set, keep the most recent explicit one; otherwise leave previous value.
+            if (platforms != PlatformKind.None)
+            {
+                refreshBalancesAfterTokenReloadPlatforms = platforms;
+            }
+
+            if (callback != null)
+            {
+                refreshBalancesAfterTokenReloadCallback += callback;
+            }
         }
 
         public void RefreshTokenPrices()
@@ -809,6 +839,8 @@ The Phoenix team", "Notice");
 
             if (possibleNexusChange)
             {
+                // Network switch: reload token list and ensure balances retry once tokens are back.
+                ScheduleBalanceRefreshAfterTokens();
                 TokensReinit();
             }
         }
@@ -1413,6 +1445,21 @@ The Phoenix team", "Notice");
                 if (currentAccount.passwordProtected && string.IsNullOrEmpty(CurrentPasswordHash))
                 {
                     Log.WriteWarning("RefreshBalances: skipped because current account is locked.");
+                    return;
+                }
+
+                // Avoid refreshing while token list is being rebuilt (e.g., after network change); schedule a retry once tokens are ready.
+                // We need token metadata (decimals, flags) to parse balances safely; when tokens are empty or reinit is running, bail out.
+                var tokensReady = Tokens.GetTokens().Length > 0;
+                if (!tokensReady || tokensReinitInProgress)
+                {
+                    ScheduleBalanceRefreshAfterTokens(force, platforms, callback);
+                    if (!tokensReinitInProgress)
+                    {
+                        TokensReinit();
+                    }
+
+                    Log.Write("[Balances] Refresh skipped: tokens not ready, will retry after token reload.");
                     return;
                 }
 
