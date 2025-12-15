@@ -1744,65 +1744,130 @@ The Phoenix team", "Notice");
                     else if (symbol.ToUpper() == "GAME")
                         GameStore.Clear();
                     else
-                        Cache.ClearDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, CurrentState.address);
+                        Cache.ClearDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, CurrentState?.address);
 
                     NftImages.Clear(symbol);
                 }
 
                 var platforms = CurrentAccount.platforms.Split();
 
-                var wif = this.CurrentWif;
-
                 foreach (var platform in platforms)
                 {
-                    // Reinitializing NFT dictionary if needed.
-                    if (_nfts.ContainsKey(platform))
-                        _nfts[platform].Clear();
-
-                    if (Tokens.GetToken(symbol, platform, out var tokenInfo))
+                    var currentState = CurrentState;
+                    if (currentState == null)
                     {
-                        switch (platform)
-                        {
-                            case PlatformKind.Phantasma:
-                                {
-                                    var keys = PhantasmaKeys.FromWIF(wif);
+                        ReportWalletNft(platform, symbol);
+                        continue;
+                    }
 
-                                    Log.Write("Getting NFTs...");
-                                    foreach (var balanceEntry in CurrentState.balances)
+                    var workingNfts = _nfts.ContainsKey(platform) && _nfts[platform] != null
+                        ? new List<TokenDataResult>(_nfts[platform])
+                        : new List<TokenDataResult>();
+                    _nfts[platform] = workingNfts;
+
+                    var workingRoms = _roms.ContainsKey(platform) && _roms[platform] != null
+                        ? new Dictionary<string, IRom>(_roms[platform])
+                        : new Dictionary<string, IRom>();
+                    _roms[platform] = workingRoms;
+
+                    var hasBalanceData = currentState.balances != null;
+                    var balanceEntries = hasBalanceData ? currentState.balances.Where(x => x.Symbol == symbol).ToList() : new List<Balance>();
+                    var targetIds = new HashSet<string>(balanceEntries.SelectMany(x => x.Ids ?? Array.Empty<string>()), StringComparer.OrdinalIgnoreCase);
+
+                    void UpsertNft(TokenDataResult tokenData)
+                    {
+                        if (tokenData == null || string.IsNullOrEmpty(tokenData.Id))
+                        {
+                            return;
+                        }
+
+                        var idx = workingNfts.FindIndex(x => string.Equals(x.Id, tokenData.Id, StringComparison.OrdinalIgnoreCase));
+                        if (idx >= 0)
+                        {
+                            workingNfts[idx] = tokenData;
+                        }
+                        else
+                        {
+                            workingNfts.Add(tokenData);
+                        }
+                    }
+
+                    void UpsertRom(string tokenId, IRom rom)
+                    {
+                        if (string.IsNullOrEmpty(tokenId))
+                        {
+                            return;
+                        }
+
+                        workingRoms[tokenId] = rom;
+                    }
+
+                    try
+                    {
+                        if (Tokens.GetToken(symbol, platform, out var tokenInfo))
+                        {
+                            switch (platform)
+                            {
+                                case PlatformKind.Phantasma:
                                     {
-                                        if (balanceEntry.Symbol == symbol && !tokenInfo.IsFungible())
+                                        if (tokenInfo.IsFungible())
+                                        {
+                                            break;
+                                        }
+
+                                        var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, currentState.address);
+                                        if (cache == null)
+                                        {
+                                            cache = Array.Empty<TokenDataResult>();
+                                        }
+
+                                        Log.Write("Getting NFTs...");
+                                        foreach (var balanceEntry in balanceEntries)
                                         {
                                             nftDescriptionsAreFullyLoaded = false;
+                                            var loadedTokenCounter = 0;
+                                            var ids = balanceEntry.Ids ?? Array.Empty<string>();
 
-                                            // Initializing NFT dictionary if needed.
-                                            if (!_nfts.ContainsKey(platform))
+                                            foreach (var id in ids)
                                             {
-                                                _nfts.Add(platform, new List<TokenDataResult>());
-                                                _roms.Add(platform, new());
-                                            }
-
-                                            var cache = Cache.GetTokenCache("tokens-" + symbol.ToLower(), Cache.FileType.JSON, 0, CurrentState.address);
-                                            if (cache == null)
-                                            {
-                                                cache = new TokenDataResult[] { };
-                                            }
-
-                                            int loadedTokenCounter = 0;
-
-                                            foreach (var id in balanceEntry.Ids)
-                                            {
-                                                TokenDataResult tokenData = Cache.FindTokenData(cache, id);
+                                                var tokenData = Cache.FindTokenData(cache, id);
 
                                                 if (tokenData != null)
                                                 {
-                                                    var tokenId = tokenData.Id;
-
                                                     loadedTokenCounter++;
 
-                                                    if (!_nfts[platform].Exists(x => x.Id == tokenId))
+                                                    var rom = tokenData.ParseRom(symbol);
+                                                    UpsertRom(tokenData.Id, rom);
+                                                    var (hasError, error) = rom.HasParsingError();
+                                                    if (rom.IsEmpty())
                                                     {
-                                                        var rom = tokenData.ParseRom(symbol);
-                                                        _roms[platform][tokenId] = rom;
+                                                        Log.Write($"ROM is null or empty");
+                                                    }
+                                                    else if (hasError)
+                                                    {
+                                                        Log.Write(error);
+                                                    }
+
+                                                    UpsertNft(tokenData);
+
+                                                    NftImages.DownloadImageAsync(symbol, tokenData.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
+                                                }
+                                                else if (symbol == "TTRS")
+                                                {
+                                                    loadedTokenCounter++;
+
+                                                    var tokenData2 = workingNfts.FirstOrDefault(x => string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase)) ?? new TokenDataResult { Id = id };
+                                                    UpsertNft(tokenData2);
+                                                }
+                                                else
+                                                {
+                                                    try
+                                                    {
+                                                        var tokenData2 = await AsyncPhantasma.FromApi<TokenDataResult>(
+                                                            (onSuccess, onError) => phantasmaApi.GetNFT(symbol, id, true, onSuccess, onError),
+                                                            CancellationToken.None);
+                                                        var rom = tokenData2.ParseRom(symbol);
+                                                        UpsertRom(id, rom);
                                                         var (hasError, error) = rom.HasParsingError();
                                                         if (rom.IsEmpty())
                                                         {
@@ -1813,91 +1878,36 @@ The Phoenix team", "Notice");
                                                             Log.Write(error);
                                                         }
 
-                                                        _nfts[platform].Add(tokenData);
-
-                                                        NftImages.DownloadImageAsync(symbol, tokenData.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
-                                                    }
-
-                                                    if (loadedTokenCounter == balanceEntry.Ids.Length)
-                                                    {
-                                                        Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
-
-                                                        if (symbol != "TTRS")
-                                                        {
-                                                            nftDescriptionsAreFullyLoaded = true;
-                                                        }
-                                                    }
-
-                                                    if (loadedTokenCounter > 0)
-                                                    {
-                                                        ReportWalletNft(platform, symbol);
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    if (symbol == "TTRS")
-                                                    {
-                                                        var tokenData2 = new TokenDataResult();
-                                                        tokenData2.Id = id;
-                                                        _nfts[platform].Add(tokenData2);
+                                                        NftImages.DownloadImageAsync(symbol, tokenData2.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
 
                                                         loadedTokenCounter++;
 
-                                                        if (loadedTokenCounter > 0)
-                                                        {
-                                                            ReportWalletNft(platform, symbol);
-                                                        }
+                                                        UpsertNft(tokenData2);
+                                                        cache = cache.Where(x => !string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase)).Append(tokenData2).ToArray();
                                                     }
-                                                    else
+                                                    catch (PhantasmaRequestException ex)
                                                     {
-                                                        try
-                                                        {
-                                                            var tokenData2 = await AsyncPhantasma.FromApi<TokenDataResult>(
-                                                                (onSuccess, onError) => phantasmaApi.GetNFT(symbol, id, true, onSuccess, onError),
-                                                                CancellationToken.None);
-                                                            var rom = tokenData2.ParseRom(symbol);
-                                                            _roms[platform][id] = rom;
-                                                            var (hasError, error) = rom.HasParsingError();
-                                                            if (rom.IsEmpty())
-                                                            {
-                                                                Log.Write($"ROM is null or empty");
-                                                            }
-                                                            else if (hasError)
-                                                            {
-                                                                Log.Write(error);
-                                                            }
-
-                                                            NftImages.DownloadImageAsync(symbol, tokenData2.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
-
-                                                            loadedTokenCounter++;
-
-                                                            _nfts[platform].Add(tokenData2);
-                                                            cache = cache.Append(tokenData2).ToArray();
-
-                                                            if (loadedTokenCounter == balanceEntry.Ids.Length)
-                                                            {
-                                                                Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, CurrentState.address);
-                                                            }
-
-                                                            if (loadedTokenCounter > 0)
-                                                            {
-                                                                ReportWalletNft(platform, symbol);
-                                                            }
-                                                        }
-                                                        catch (PhantasmaRequestException ex)
-                                                        {
-                                                            loadedTokenCounter++;
-                                                            Log.Write($"NFT loading error for {symbol}/{id}: {ex.Message}");
-                                                        }
+                                                        loadedTokenCounter++;
+                                                        Log.Write($"NFT loading error for {symbol}/{id}: {ex.Message}");
                                                     }
                                                 }
                                             }
 
-                                            if (balanceEntry.Ids.Length > 0)
+                                            if (ids.Length > 0 && loadedTokenCounter == ids.Length)
+                                            {
+                                                Cache.SaveTokenDatas("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cache, currentState.address);
+
+                                                if (symbol != "TTRS")
+                                                {
+                                                    nftDescriptionsAreFullyLoaded = true;
+                                                }
+                                            }
+
+                                            if (ids.Length > 0)
                                             {
                                                 if (symbol == "TTRS")
                                                 {
-                                                    await TtrsStore.LoadStoreNftAsync(balanceEntry.Ids, (item) =>
+                                                    await TtrsStore.LoadStoreNftAsync(ids, (item) =>
                                                         {
                                                             NftImages.DownloadImageAsync(symbol, item.item_info.image_url, item.id, CancellationToken.None).Forget(LogTaskException);
                                                         }, CancellationToken.None);
@@ -1906,7 +1916,7 @@ The Phoenix team", "Notice");
                                                 }
                                                 else if (symbol == "GAME")
                                                 {
-                                                    await GameStore.LoadStoreNftAsync(balanceEntry.Ids, (item) =>
+                                                    await GameStore.LoadStoreNftAsync(ids, (item) =>
                                                         {
                                                             NftImages.DownloadImageAsync(symbol, item.parsed_rom.img_url, item.ID, CancellationToken.None).Forget(LogTaskException);
                                                         }, CancellationToken.None);
@@ -1916,16 +1926,25 @@ The Phoenix team", "Notice");
                                             }
                                         }
                                     }
-                                }
-                                break;
+                                    break;
 
-                            default:
-                                ReportWalletNft(platform, symbol);
-                                break;
+                                default:
+                                    break;
+                            }
                         }
                     }
-                    else
+                    finally
                     {
+                        if (hasBalanceData)
+                        {
+                            workingNfts.RemoveAll(x => x == null || string.IsNullOrEmpty(x.Id) || !targetIds.Contains(x.Id));
+                            var staleRomIds = workingRoms.Keys.Where(id => !targetIds.Contains(id)).ToList();
+                            foreach (var stale in staleRomIds)
+                            {
+                                workingRoms.Remove(stale);
+                            }
+                        }
+
                         ReportWalletNft(platform, symbol);
                     }
                 }
