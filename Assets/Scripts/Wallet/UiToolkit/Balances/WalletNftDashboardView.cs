@@ -185,7 +185,7 @@ namespace Poltergeist.UiToolkit.Balances
 
         public void OnAccountsReady()
         {
-            if (!string.IsNullOrWhiteSpace(currentSymbol) && refreshPhase == NftRefreshPhase.Idle && !nftSource.IsRefreshing)
+            if (!string.IsNullOrWhiteSpace(currentSymbol) && refreshPhase == NftRefreshPhase.Idle && !nftSource.IsRefreshingForSymbol(currentSymbol))
             {
                 StartRefreshSequence(currentSymbol, includeWarmup: true);
             }
@@ -253,6 +253,11 @@ namespace Poltergeist.UiToolkit.Balances
 
             if (!string.Equals(symbol, refreshSymbol, StringComparison.OrdinalIgnoreCase))
             {
+                if (refreshPhase != NftRefreshPhase.Idle && !string.IsNullOrWhiteSpace(refreshSymbol) && !nftSource.IsRefreshingForSymbol(refreshSymbol))
+                {
+                    TryKickoffRefresh();
+                }
+
                 return;
             }
 
@@ -292,7 +297,7 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            if (nftSource.IsRefreshing)
+            if (nftSource.IsRefreshingForSymbol(refreshSymbol))
             {
                 return; // Wait for the current refresh to finish; OnNftsUpdated will retry.
             }
@@ -776,6 +781,10 @@ namespace Poltergeist.UiToolkit.Balances
 
                 var nftSnapshot = context.ViewState.GetNftSnapshot(symbol, s => nftPresenter.BuildSnapshot(s));
                 UpdateFiltersUi(symbol);
+                if (nftSnapshot != null)
+                {
+                    UpdateHero(symbol, nftSnapshot);
+                }
                 if (nftSnapshot == null)
                 {
                     SetStatus("No NFTs to show.");
@@ -785,7 +794,7 @@ namespace Poltergeist.UiToolkit.Balances
 
                 if (nftSnapshot.IsRefreshing && (nftSnapshot.FilteredTokens == null || nftSnapshot.FilteredTokens.Count == 0))
                 {
-                    SetStatus("Fetching NFTs...");
+                    SetStatus($"Fetching {symbol} NFTs...");
                     ClearUi();
                     return;
                 }
@@ -800,8 +809,9 @@ namespace Poltergeist.UiToolkit.Balances
                 subtitleLabel.text = WalletUiCommon.BuildContextSubtitle("NFTs", accountManager.CurrentAccount.name, accountManager.CurrentPlatform);
                 WalletUiCommon.ApplyNetworkBadge(subtitleNetworkLabel, settings.nexusName, settings.nexusKind);
 
-                var refreshing = nftSnapshot.IsRefreshing || isRefreshing || nftSource.IsRefreshing || refreshPhase != NftRefreshPhase.Idle;
-                nftPresenter.PruneSelection(nftSource.CurrentNfts?.Select(x => x.Id));
+                var refreshing = nftSnapshot.IsRefreshing || isRefreshing || nftSource.IsRefreshingForSymbol(symbol) || refreshPhase != NftRefreshPhase.Idle;
+                var currentNfts = nftSource.GetNfts(symbol);
+                nftPresenter.PruneSelection(currentNfts?.Select(x => x.Id));
                 nftPresenter.State.ApplyPagination(nftSnapshot.TotalCount, nftSnapshot.PageCount, nftSnapshot.PageNumber);
 
                 if (context.ViewState.HasNftInspect)
@@ -844,7 +854,7 @@ namespace Poltergeist.UiToolkit.Balances
             totalCountLabel.style.display = DisplayStyle.None;
             selectedCountLabel.style.display = DisplayStyle.None;
             pageInfoLabel.text = snapshot.PageCount > 0 ? $"Page {snapshot.PageNumber + 1} / {snapshot.PageCount}" : "Page 1 / 1";
-            var totalLoaded = nftSource.CurrentNfts?.Count ?? 0;
+            var totalLoaded = nftSource.GetNfts(symbol)?.Count ?? 0;
             filterHintLabel.text = totalLoaded == snapshot.TotalCount
                 ? "No filters applied"
                 : $"Filtered: {snapshot.TotalCount} of {totalLoaded}";
@@ -1681,7 +1691,7 @@ namespace Poltergeist.UiToolkit.Balances
             else
             {
                 nftPresenter.ClearSelection();
-                nftPresenter.Select(nftSource.CurrentNfts?.Select(x => x.Id));
+                nftPresenter.Select(nftSource.GetNfts(symbol)?.Select(x => x.Id));
             }
 
             context.ViewState.MarkNftDirty(symbol);
@@ -1700,7 +1710,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
             else
             {
-                nftPresenter.InvertSelection(nftSource.CurrentNfts?.Select(x => x.Id));
+                nftPresenter.InvertSelection(nftSource.GetNfts(symbol)?.Select(x => x.Id));
             }
 
             context.ViewState.MarkNftDirty(symbol);

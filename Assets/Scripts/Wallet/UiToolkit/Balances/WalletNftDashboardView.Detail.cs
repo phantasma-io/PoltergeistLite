@@ -351,7 +351,7 @@ namespace Poltergeist.UiToolkit.Balances
                 // ROM timestamps are often the only reliable mint date for legacy metadata.
                 if (mintDate == DateTime.MinValue)
                 {
-                    var rom = nftSource.GetNftRom(tokenId);
+                    var rom = nftSource.GetNftRom(symbol, tokenId);
                     mintDate = rom?.GetDate() ?? DateTime.MinValue;
                 }
             }
@@ -1019,21 +1019,20 @@ namespace Poltergeist.UiToolkit.Balances
 
         private bool TryFindNft(string symbol, string tokenId, out TokenDataResult token)
         {
-            _ = symbol;
             token = null;
             if (string.IsNullOrWhiteSpace(tokenId))
             {
                 return false;
             }
 
-            var current = nftSource.CurrentNfts?.FirstOrDefault(x => string.Equals(x.Id, tokenId, StringComparison.OrdinalIgnoreCase));
+            var current = nftSource.GetNfts(symbol)?.FirstOrDefault(x => string.Equals(x.Id, tokenId, StringComparison.OrdinalIgnoreCase));
             if (current != null && !string.IsNullOrEmpty(current.Id))
             {
                 token = current;
                 return true;
             }
 
-            var fallback = nftSource.GetNft(tokenId);
+            var fallback = nftSource.GetNft(symbol, tokenId);
             if (fallback != null && !string.IsNullOrEmpty(fallback.Id))
             {
                 token = fallback;

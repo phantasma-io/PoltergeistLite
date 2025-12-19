@@ -2117,7 +2117,7 @@ namespace Poltergeist
                                     {
                                         // If no filter is applied, select button selects all items.
                                         nftViewPresenter.ClearSelection();
-                                        nftViewPresenter.Select(accountManager.CurrentNfts?.Select(x => x.Id));
+                                        nftViewPresenter.Select(accountManager.GetNfts(TransferSymbol)?.Select(x => x.Id));
                                     }
                                     MarkNftDirty(TransferSymbol);
                                 });
@@ -2135,7 +2135,7 @@ namespace Poltergeist
                                     else
                                     {
                                         // If no filter is applied, invert button processes all items.
-                                        nftViewPresenter.InvertSelection(accountManager.CurrentNfts?.Select(x => x.Id));
+                                        nftViewPresenter.InvertSelection(accountManager.GetNfts(TransferSymbol)?.Select(x => x.Id));
                                     }
                                     MarkNftDirty(TransferSymbol);
                                 });
@@ -2997,8 +2997,8 @@ namespace Poltergeist
             }
             else
             {
-                var item = accountManager.GetNft(entryId);
-                var rom = accountManager.GetNftRom(entryId);
+                var item = accountManager.GetNft(TransferSymbol, entryId);
+                var rom = accountManager.GetNftRom(TransferSymbol, entryId);
 
                 imageUrl = item.GetPropertyValue("ImageURL");
 
@@ -4185,10 +4185,13 @@ namespace Poltergeist
                     TxResultMessage(hash, txResult, error, $"You transferred {planResult.Amount} {symbol}!\n\nThe transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
 
                     // Removing sent NFTs from current NFT list.
-                    var nfts = accountManager.CurrentNfts;
-                    foreach (var nft in selectedIds)
+                    var nfts = accountManager.GetNfts(symbol);
+                    if (nfts != null)
                     {
-                        nfts.Remove(nfts.Find(x => x.Id == nft));
+                        foreach (var nft in selectedIds)
+                        {
+                            nfts.Remove(nfts.Find(x => x.Id == nft));
+                        }
                     }
 
                     // Returning to NFT's first screen.

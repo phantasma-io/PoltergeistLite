@@ -25,9 +25,19 @@ namespace Poltergeist.Wallet
 
         public bool IsRefreshing => Account?.NftsRefreshing ?? true;
 
+        public bool IsRefreshingForSymbol(string symbol)
+        {
+            return Account?.IsNftRefreshing(symbol) ?? true;
+        }
+
         public int RpcAvailablePhantasma => Account?.rpcAvailablePhantasma ?? 0;
 
         public IReadOnlyList<TokenDataResult> CurrentNfts => Account?.CurrentNfts;
+
+        public IReadOnlyList<TokenDataResult> GetNfts(string symbol)
+        {
+            return Account?.GetNfts(symbol);
+        }
 
         public void SortTtrsNfts(string symbol)
         {
@@ -39,9 +49,19 @@ namespace Poltergeist.Wallet
             return Account != null ? Account.GetNft(id) : default;
         }
 
+        public TokenDataResult GetNft(string symbol, string id)
+        {
+            return Account != null ? Account.GetNft(symbol, id) : default;
+        }
+
         public IRom GetNftRom(string id)
         {
             return Account?.GetNftRom(id);
+        }
+
+        public IRom GetNftRom(string symbol, string id)
+        {
+            return Account?.GetNftRom(symbol, id);
         }
 
         public bool TryGetMetadata(string symbol, string tokenId, out NftMetadata metadata)
