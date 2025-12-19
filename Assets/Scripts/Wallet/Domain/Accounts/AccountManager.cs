@@ -58,6 +58,47 @@ namespace Poltergeist
         private Dictionary<PlatformKind, HistoryEntry[]> _history = new Dictionary<PlatformKind, HistoryEntry[]>();
         public Dictionary<PlatformKind, RefreshStatus> _refreshStatus = new Dictionary<PlatformKind, RefreshStatus>();
 
+        // Bumps whenever the selected account changes; guards async responses against stale sessions.
+        private readonly object _accountSessionLock = new object();
+        private long _accountSessionId;
+        private CancellationTokenSource _accountSessionCts = new CancellationTokenSource();
+
+        private readonly struct AccountSession
+        {
+            public AccountSession(long id, int accountIndex, string phaAddress, string neoAddress, string ethAddress, CancellationToken token)
+            {
+                Id = id;
+                AccountIndex = accountIndex;
+                PhaAddress = phaAddress;
+                NeoAddress = neoAddress;
+                EthAddress = ethAddress;
+                Token = token;
+            }
+
+            public long Id { get; }
+            public int AccountIndex { get; }
+            public string PhaAddress { get; }
+            public string NeoAddress { get; }
+            public string EthAddress { get; }
+            public CancellationToken Token { get; }
+
+            public string GetAddress(PlatformKind platform)
+            {
+                switch (platform)
+                {
+                    case PlatformKind.Phantasma:
+                        return PhaAddress;
+                    case PlatformKind.Neo:
+                        return NeoAddress;
+                    case PlatformKind.Ethereum:
+                    case PlatformKind.BSC:
+                        return EthAddress;
+                    default:
+                        return null;
+                }
+            }
+        }
+
         public event Action<PlatformKind> BalancesRefreshStarted;
         public event Action<PlatformKind> BalancesUpdated;
         public event Action<PlatformKind, string> NftsUpdated;
@@ -132,6 +173,77 @@ namespace Poltergeist
                         BalanceError = message
                     };
                 }
+            }
+        }
+
+        private void SetBalanceError(PlatformKind platform, string message, AccountSession session)
+        {
+            if (!IsSessionCurrent(session))
+            {
+                return;
+            }
+
+            SetBalanceError(platform, message);
+        }
+
+        private void AdvanceAccountSession()
+        {
+            lock (_accountSessionLock)
+            {
+                _accountSessionId++;
+                _accountSessionCts.Cancel();
+                // Keep old CTS undisposed; in-flight tasks may still register callbacks.
+                _accountSessionCts = new CancellationTokenSource();
+            }
+        }
+
+        private AccountSession CaptureAccountSession()
+        {
+            lock (_accountSessionLock)
+            {
+                var accountIndex = _selectedAccountIndex;
+                string phaAddress = null;
+                string neoAddress = null;
+                string ethAddress = null;
+                if (Accounts != null && accountIndex >= 0 && accountIndex < Accounts.Count)
+                {
+                    var account = Accounts[accountIndex];
+                    phaAddress = account.phaAddress;
+                    neoAddress = account.neoAddress;
+                    ethAddress = account.ethAddress;
+                }
+
+                return new AccountSession(_accountSessionId, accountIndex, phaAddress, neoAddress, ethAddress, _accountSessionCts.Token);
+            }
+        }
+
+        private bool IsSessionCurrent(AccountSession session)
+        {
+            lock (_accountSessionLock)
+            {
+                return session.Id == _accountSessionId;
+            }
+        }
+
+        private bool IsSessionCurrent(AccountSession session, PlatformKind platform, string address)
+        {
+            lock (_accountSessionLock)
+            {
+                if (session.Id != _accountSessionId)
+                {
+                    return false;
+                }
+
+                if (!string.IsNullOrEmpty(address))
+                {
+                    var expected = session.GetAddress(platform);
+                    if (string.IsNullOrEmpty(expected) || !string.Equals(expected, address, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
             }
         }
 
@@ -1144,6 +1256,11 @@ The Phoenix team", "Notice");
 
         public void SelectAccount(int index)
         {
+            if (_selectedAccountIndex != index)
+            {
+                AdvanceAccountSession();
+            }
+
             _selectedAccountIndex = index;
             CurrentPasswordHash = "";
 
@@ -1213,6 +1330,8 @@ The Phoenix team", "Notice");
 
             CurrentPlatform = platforms.FirstOrDefault();
             _states.Clear();
+            _nfts.Clear();
+            _roms.Clear();
             _history.Clear(); // Drop cached history so a newly selected wallet never shows transactions from a previous session.
             _refreshStatus.Clear(); // Reset refresh flags/errors to avoid carrying over stale state between wallets.
 
@@ -1222,6 +1341,11 @@ The Phoenix team", "Notice");
 
         public void UnselectAcount()
         {
+            if (_selectedAccountIndex != -1)
+            {
+                AdvanceAccountSession();
+            }
+
             _selectedAccountIndex = -1;
 
             // revoke all dapps connected to this account via Phantasma Link
@@ -1246,10 +1370,15 @@ The Phoenix team", "Notice");
             _refreshStatus.Clear();
         }
 
-        private void ReportWalletBalance(PlatformKind platform, AccountState state)
+        private void ReportWalletBalance(PlatformKind platform, AccountState state, AccountSession session)
         {
             try
             {
+                if (!IsSessionCurrent(session, platform, state?.address))
+                {
+                    return;
+                }
+
                 RefreshStatus refreshStatus;
                 lock (_refreshStatus)
                 {
@@ -1294,8 +1423,13 @@ The Phoenix team", "Notice");
             catch (Exception) { } // This fixes crash when user leaves account fast without waiting for balances to load
         }
 
-        private void ReportWalletNft(PlatformKind platform, string symbol)
+        private void ReportWalletNft(PlatformKind platform, string symbol, AccountSession session)
         {
+            if (!IsSessionCurrent(session))
+            {
+                return;
+            }
+
             lock (_refreshStatus)
             {
                 if (_refreshStatus.ContainsKey(platform))
@@ -1320,10 +1454,15 @@ The Phoenix team", "Notice");
             }
         }
 
-        private void ReportWalletHistory(PlatformKind platform, List<HistoryEntry> history)
+        private void ReportWalletHistory(PlatformKind platform, List<HistoryEntry> history, AccountSession session)
         {
             try
             {
+                if (!IsSessionCurrent(session))
+                {
+                    return;
+                }
+
                 lock (_refreshStatus)
                 {
                     if (!_refreshStatus.TryGetValue(platform, out var refreshStatus))
@@ -1463,6 +1602,7 @@ The Phoenix team", "Notice");
                     return;
                 }
 
+                var session = CaptureAccountSession();
                 List<PlatformKind> platformsList;
                 if (platforms == PlatformKind.None)
                     platformsList = currentAccount.platforms.Split();
@@ -1513,7 +1653,12 @@ The Phoenix team", "Notice");
                 {
                     var acc = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.AccountResult>(
                         (onSuccess, onError) => phantasmaApi.GetAccount(keys.Address.Text, onSuccess, onError),
-                        CancellationToken.None);
+                        session.Token);
+
+                    if (!IsSessionCurrent(session, PlatformKind.Phantasma, acc?.Address))
+                    {
+                        return;
+                    }
 
                     var balanceMap = new Dictionary<string, Balance>();
                     HashSet<string> missingTokens = null;
@@ -1636,8 +1781,8 @@ The Phoenix team", "Notice");
                     state.archives = acc.Storage.Archives;
                     state.avatarData = acc.Storage.Avatar;
 
-                    ReportWalletBalance(PlatformKind.Phantasma, state);
-                    SetBalanceError(PlatformKind.Phantasma, null);
+                    ReportWalletBalance(PlatformKind.Phantasma, state, session);
+                    SetBalanceError(PlatformKind.Phantasma, null, session);
 
                     if (missingTokens != null && missingTokens.Count > 0)
                     {
@@ -1645,6 +1790,10 @@ The Phoenix team", "Notice");
                         ScheduleBalanceRefreshAfterTokens();
                         TokensReinit();
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
                 }
                 catch (PhantasmaRequestException ex)
                 {
@@ -1655,20 +1804,20 @@ The Phoenix team", "Notice");
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
                     }
 
-                    SetBalanceError(PlatformKind.Phantasma, $"Phantasma request failed: {ex.Message}");
-                    ReportWalletBalance(PlatformKind.Phantasma, null);
+                    SetBalanceError(PlatformKind.Phantasma, $"Phantasma request failed: {ex.Message}", session);
+                    ReportWalletBalance(PlatformKind.Phantasma, null, session);
                 }
                 catch (FormatException ex)
                 {
                     Log.WriteWarning($"RefreshBalances[PHA] parse error: {ex.Message}");
-                    SetBalanceError(PlatformKind.Phantasma, $"Error while parsing balances: {ex.Message}");
-                    ReportWalletBalance(PlatformKind.Phantasma, null);
+                    SetBalanceError(PlatformKind.Phantasma, $"Error while parsing balances: {ex.Message}", session);
+                    ReportWalletBalance(PlatformKind.Phantasma, null, session);
                 }
                 catch (Exception ex)
                 {
                     Log.WriteWarning($"RefreshBalances[PHA] unexpected error: {ex}");
-                    SetBalanceError(PlatformKind.Phantasma, $"Error while fetching balances: {ex.Message}");
-                    ReportWalletBalance(PlatformKind.Phantasma, null);
+                    SetBalanceError(PlatformKind.Phantasma, $"Error while fetching balances: {ex.Message}", session);
+                    ReportWalletBalance(PlatformKind.Phantasma, null, session);
                 }
             }
 
@@ -1711,6 +1860,8 @@ The Phoenix team", "Notice");
             async Task ExecuteAsync()
             {
                 var now = DateTime.UtcNow;
+                var session = CaptureAccountSession();
+                var cacheAddress = CurrentState?.address;
 
                 lock (_refreshStatus)
                 {
@@ -1744,7 +1895,7 @@ The Phoenix team", "Notice");
                     else if (symbol.ToUpper() == "GAME")
                         GameStore.Clear();
                     else
-                        Cache.ClearDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, CurrentState?.address);
+                        Cache.ClearDataNode("tokens-" + symbol.ToLower(), Cache.FileType.JSON, cacheAddress);
 
                     NftImages.Clear(symbol);
                 }
@@ -1753,22 +1904,25 @@ The Phoenix team", "Notice");
 
                 foreach (var platform in platforms)
                 {
+                    if (!IsSessionCurrent(session))
+                    {
+                        return;
+                    }
+
                     var currentState = CurrentState;
                     if (currentState == null)
                     {
-                        ReportWalletNft(platform, symbol);
+                        ReportWalletNft(platform, symbol, session);
                         continue;
                     }
 
                     var workingNfts = _nfts.ContainsKey(platform) && _nfts[platform] != null
                         ? new List<TokenDataResult>(_nfts[platform])
                         : new List<TokenDataResult>();
-                    _nfts[platform] = workingNfts;
 
                     var workingRoms = _roms.ContainsKey(platform) && _roms[platform] != null
                         ? new Dictionary<string, IRom>(_roms[platform])
                         : new Dictionary<string, IRom>();
-                    _roms[platform] = workingRoms;
 
                     var hasBalanceData = currentState.balances != null;
                     var balanceEntries = hasBalanceData ? currentState.balances.Where(x => x.Symbol == symbol).ToList() : new List<Balance>();
@@ -1850,7 +2004,7 @@ The Phoenix team", "Notice");
 
                                                     UpsertNft(tokenData);
 
-                                                    NftImages.DownloadImageAsync(symbol, tokenData.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
+                                                    NftImages.DownloadImageAsync(symbol, tokenData.GetPropertyValue("ImageURL"), id, session.Token).Forget(LogTaskException);
                                                 }
                                                 else if (symbol == "TTRS")
                                                 {
@@ -1865,7 +2019,11 @@ The Phoenix team", "Notice");
                                                     {
                                                         var tokenData2 = await AsyncPhantasma.FromApi<TokenDataResult>(
                                                             (onSuccess, onError) => phantasmaApi.GetNFT(symbol, id, true, onSuccess, onError),
-                                                            CancellationToken.None);
+                                                            session.Token);
+                                                        if (!IsSessionCurrent(session))
+                                                        {
+                                                            return;
+                                                        }
                                                         var rom = tokenData2.ParseRom(symbol);
                                                         UpsertRom(id, rom);
                                                         var (hasError, error) = rom.HasParsingError();
@@ -1878,7 +2036,7 @@ The Phoenix team", "Notice");
                                                             Log.Write(error);
                                                         }
 
-                                                        NftImages.DownloadImageAsync(symbol, tokenData2.GetPropertyValue("ImageURL"), id, CancellationToken.None).Forget(LogTaskException);
+                                                        NftImages.DownloadImageAsync(symbol, tokenData2.GetPropertyValue("ImageURL"), id, session.Token).Forget(LogTaskException);
 
                                                         loadedTokenCounter++;
 
@@ -1909,8 +2067,12 @@ The Phoenix team", "Notice");
                                                 {
                                                     await TtrsStore.LoadStoreNftAsync(ids, (item) =>
                                                         {
-                                                            NftImages.DownloadImageAsync(symbol, item.item_info.image_url, item.id, CancellationToken.None).Forget(LogTaskException);
-                                                        }, CancellationToken.None);
+                                                            NftImages.DownloadImageAsync(symbol, item.item_info.image_url, item.id, session.Token).Forget(LogTaskException);
+                                                        }, session.Token);
+                                                    if (!IsSessionCurrent(session))
+                                                    {
+                                                        return;
+                                                    }
 
                                                     nftDescriptionsAreFullyLoaded = true;
                                                 }
@@ -1918,8 +2080,12 @@ The Phoenix team", "Notice");
                                                 {
                                                     await GameStore.LoadStoreNftAsync(ids, (item) =>
                                                         {
-                                                            NftImages.DownloadImageAsync(symbol, item.parsed_rom.img_url, item.ID, CancellationToken.None).Forget(LogTaskException);
-                                                        }, CancellationToken.None);
+                                                            NftImages.DownloadImageAsync(symbol, item.parsed_rom.img_url, item.ID, session.Token).Forget(LogTaskException);
+                                                        }, session.Token);
+                                                    if (!IsSessionCurrent(session))
+                                                    {
+                                                        return;
+                                                    }
 
                                                     nftDescriptionsAreFullyLoaded = true;
                                                 }
@@ -1935,17 +2101,22 @@ The Phoenix team", "Notice");
                     }
                     finally
                     {
-                        if (hasBalanceData)
+                        if (IsSessionCurrent(session))
                         {
-                            workingNfts.RemoveAll(x => x == null || string.IsNullOrEmpty(x.Id) || !targetIds.Contains(x.Id));
-                            var staleRomIds = workingRoms.Keys.Where(id => !targetIds.Contains(id)).ToList();
-                            foreach (var stale in staleRomIds)
+                            if (hasBalanceData)
                             {
-                                workingRoms.Remove(stale);
+                                workingNfts.RemoveAll(x => x == null || string.IsNullOrEmpty(x.Id) || !targetIds.Contains(x.Id));
+                                var staleRomIds = workingRoms.Keys.Where(id => !targetIds.Contains(id)).ToList();
+                                foreach (var stale in staleRomIds)
+                                {
+                                    workingRoms.Remove(stale);
+                                }
                             }
-                        }
 
-                        ReportWalletNft(platform, symbol);
+                            _nfts[platform] = workingNfts;
+                            _roms[platform] = workingRoms;
+                            ReportWalletNft(platform, symbol, session);
+                        }
                     }
                 }
             }
@@ -1970,6 +2141,7 @@ The Phoenix team", "Notice");
                     return;
                 }
 
+                var session = CaptureAccountSession();
                 var accountName = string.IsNullOrEmpty(currentAccount.name) ? "(unknown)" : currentAccount.name;
                 Log.Write($"[History] RefreshHistory start force={force} currentAccount={accountName} currentPlatform={CurrentPlatform} platformsArg={platforms}");
                 List<PlatformKind> platformsList;
@@ -2018,8 +2190,13 @@ The Phoenix team", "Notice");
                 {
                     var result = await AsyncPhantasma.FromApi<AccountTransactionsResult, uint, uint>(
                         (onSuccess, onError) => phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, onSuccess, onError),
-                        CancellationToken.None);
+                        session.Token);
                     var (transactions, _, _) = result;
+
+                    if (!IsSessionCurrent(session))
+                    {
+                        return;
+                    }
 
                     var history = new List<HistoryEntry>();
 
@@ -2035,7 +2212,11 @@ The Phoenix team", "Notice");
 
                     var platformsLabel = string.Join(",", platformsList);
                     Log.Write($"[History] RefreshHistory success txCount={history.Count} platforms={platformsLabel}");
-                    ReportWalletHistory(PlatformKind.Phantasma, history);
+                    ReportWalletHistory(PlatformKind.Phantasma, history, session);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
                 }
                 catch (PhantasmaRequestException ex)
                 {
@@ -2044,13 +2225,13 @@ The Phoenix team", "Notice");
                         ChangeFaultyRPCURL(PlatformKind.Phantasma);
                     }
                     Log.WriteWarning($"[History] RefreshHistory failed (SDK) {ex.ErrorType}: {ex.Message}");
-                    ReportWalletHistory(PlatformKind.Phantasma, null);
+                    ReportWalletHistory(PlatformKind.Phantasma, null, session);
                 }
                 catch (Exception ex)
                 {
                     // Ensure UI does not stay stuck in a perpetual refresh state on unexpected failures.
                     Log.WriteWarning($"RefreshHistory[PHA] unexpected error: {ex}");
-                    ReportWalletHistory(PlatformKind.Phantasma, null);
+                    ReportWalletHistory(PlatformKind.Phantasma, null, session);
                 }
             }
 
