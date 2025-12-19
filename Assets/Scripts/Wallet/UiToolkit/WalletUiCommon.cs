@@ -1742,6 +1742,26 @@ namespace Poltergeist.UiToolkit
             return $"{prefix}...{suffix}";
         }
 
+        internal static string AbbreviateEnd(string value, int maxLength)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            if (maxLength <= 0 || value.Length <= maxLength)
+            {
+                return value;
+            }
+
+            if (maxLength <= 3)
+            {
+                return "...";
+            }
+
+            return value.Substring(0, maxLength - 3) + "...";
+        }
+
         internal static VisualElement CreateModalOverlay()
         {
             var overlay = new VisualElement

@@ -1,4 +1,5 @@
 using Poltergeist;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -37,6 +38,38 @@ public class ResourceManager : MonoBehaviour
         _symbols.Clear();
     }
 
+    private static Texture TryLoadTokenTexture(string basePath, string symbol)
+    {
+        if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(symbol))
+        {
+            return null;
+        }
+
+        var texture = Resources.Load<Texture>($"{basePath}{symbol}");
+        if (texture != null)
+        {
+            return texture;
+        }
+
+        var upper = symbol.ToUpperInvariant();
+        if (!string.Equals(upper, symbol, StringComparison.Ordinal))
+        {
+            texture = Resources.Load<Texture>($"{basePath}{upper}");
+            if (texture != null)
+            {
+                return texture;
+            }
+        }
+
+        var lower = symbol.ToLowerInvariant();
+        if (!string.Equals(lower, symbol, StringComparison.Ordinal) && !string.Equals(lower, upper, StringComparison.Ordinal))
+        {
+            texture = Resources.Load<Texture>($"{basePath}{lower}");
+        }
+
+        return texture;
+    }
+
     //https://github.com/CityOfZion/neon-wallet/tree/dev/app/assets/nep5/png
     public Texture GetToken(string symbol, PlatformKind platform)
     {
@@ -54,10 +87,10 @@ public class ResourceManager : MonoBehaviour
         }
 
         var themeName = AccountManager.Instance.Settings.uiThemeName;
-        var texture = Resources.Load<Texture>($"LegacyUI/Skins/{themeName}/Tokens/" + symbol);
-
-        if (texture == null)
-            texture = Resources.Load<Texture>("Common/Tokens/" + symbol);
+        // Fallback sequence handles case-sensitive file systems and icons stored outside the Tokens folder.
+        var texture = TryLoadTokenTexture($"LegacyUI/Skins/{themeName}/Tokens/", symbol)
+            ?? TryLoadTokenTexture("Common/Tokens/", symbol)
+            ?? TryLoadTokenTexture("Common/", symbol);
 
         if (texture == null)
         {

@@ -1434,14 +1434,27 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var imageUrl = ResolveNftImageUrl(symbol, token);
-            if (string.IsNullOrWhiteSpace(imageUrl))
+            var imageSource = ResolveNftImageSource(symbol, token, out var inline);
+            if (string.IsNullOrWhiteSpace(imageSource))
             {
                 target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
                 return;
             }
 
-            var cached = NftImages.GetImage(imageUrl);
+            if (inline)
+            {
+                if (NftImages.TryCacheInlineImage(symbol, imageSource, token.Id, out var inlineTexture))
+                {
+                    target.image = inlineTexture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
+                }
+                else
+                {
+                    target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+                }
+                return;
+            }
+
+            var cached = NftImages.GetImage(imageSource);
             if (!string.IsNullOrEmpty(cached.Url))
             {
                 target.image = cached.Texture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
@@ -1451,8 +1464,8 @@ namespace Poltergeist.UiToolkit.Balances
             target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
             RunSafeAsync(async () =>
             {
-                await NftImages.DownloadImageAsync(symbol, imageUrl, token.Id, CancellationToken.None);
-                var loaded = NftImages.GetImage(imageUrl);
+                await NftImages.DownloadImageAsync(symbol, imageSource, token.Id, CancellationToken.None);
+                var loaded = NftImages.GetImage(imageSource);
                 if (!string.IsNullOrEmpty(loaded.Url) && target != null)
                 {
                     target.image = loaded.Texture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
@@ -1460,8 +1473,9 @@ namespace Poltergeist.UiToolkit.Balances
             }).Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to load NFT image: {ex}"));
         }
 
-        private string ResolveNftImageUrl(string symbol, TokenDataResult token)
+        private string ResolveNftImageSource(string symbol, TokenDataResult token, out bool inline)
         {
+            inline = false;
             if (token == null)
             {
                 return string.Empty;
@@ -1484,7 +1498,16 @@ namespace Poltergeist.UiToolkit.Balances
                 }
             }
 
-            return token.GetPropertyValue("ImageURL");
+            var imageUrl = token.GetPropertyValue("ImageURL")
+                ?? token.GetPropertyValue("Image")
+                ?? token.GetPropertyValue("image_url");
+            if (!string.IsNullOrWhiteSpace(imageUrl))
+            {
+                inline = imageUrl.TrimStart().StartsWith("data:", StringComparison.OrdinalIgnoreCase);
+                return imageUrl;
+            }
+
+            return string.Empty;
         }
 
         private void OpenNftDetails(string symbol, string tokenId, bool locked, bool resetTrail)

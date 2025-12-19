@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 using System.Linq;
@@ -11,6 +12,15 @@ using Poltergeist.Wallet;
 // Storing NFT images.
 public static class NftImages
 {
+    private const int MaxInlineImageBytes = 2 * 1024 * 1024; // Guardrails for inline/base64 images.
+    private const int MaxInlineImageDimension = 2048;
+    private static readonly HashSet<string> AllowedInlineMimeTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/png",
+        "image/jpeg",
+        "image/jpg"
+    };
+
     public static void Clear(string symbol = "")
     {
         if (string.IsNullOrEmpty(symbol))
@@ -52,6 +62,82 @@ public static class NftImages
             return new Image();
 
         return Images.Contains(Url) ? (Image)Images[Url] : new Image();
+    }
+
+    public static bool TryCacheInlineImage(string symbol, string source, string nftId, out Texture2D texture)
+    {
+        texture = null;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return false;
+        }
+
+        if (CheckIfImageLoaded(source))
+        {
+            texture = GetImage(source).Texture;
+            return texture != null;
+        }
+
+        if (!TryGetInlineImageBytes(source, out var bytes) || bytes.Length == 0)
+        {
+            return false;
+        }
+
+        if (bytes.Length > MaxInlineImageBytes)
+        {
+            Log.WriteWarning($"NFT inline image skipped for {symbol}:{nftId} (size {bytes.Length} bytes).");
+            return false;
+        }
+
+        try
+        {
+            var inlineTexture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!ImageConversion.LoadImage(inlineTexture, bytes, false))
+            {
+                UnityEngine.Object.Destroy(inlineTexture);
+                return false;
+            }
+
+            if (inlineTexture.width <= 0 || inlineTexture.height <= 0 ||
+                inlineTexture.width > MaxInlineImageDimension || inlineTexture.height > MaxInlineImageDimension)
+            {
+                UnityEngine.Object.Destroy(inlineTexture);
+                return false;
+            }
+
+            if (!ValidateLoadedTexture(ref inlineTexture, readLockedImages: true))
+            {
+                UnityEngine.Object.Destroy(inlineTexture);
+                return false;
+            }
+
+            inlineTexture.wrapMode = TextureWrapMode.Clamp;
+            inlineTexture.filterMode = FilterMode.Bilinear;
+            texture = inlineTexture;
+
+            var image = new Image
+            {
+                Url = source,
+                Texture = inlineTexture,
+                Symbol = symbol?.ToLowerInvariant() ?? string.Empty,
+                NftId = nftId ?? string.Empty
+            };
+
+            lock (Images)
+            {
+                if (!CheckIfImageLoaded(image.Url))
+                {
+                    Images.Add(image.Url, image);
+                }
+            }
+
+            return true;
+        }
+        catch (Exception e)
+        {
+            Log.WriteWarning($"NFT inline image decode failed for {symbol}:{nftId}: {e.Message}");
+            return false;
+        }
     }
 
     private static int imagesLoadedSimultaneously = 0;
@@ -254,6 +340,68 @@ public static class NftImages
         finally
         {
             imagesLoadedSimultaneously--;
+        }
+    }
+
+    private static bool TryGetInlineImageBytes(string source, out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return false;
+        }
+
+        var trimmed = source.Trim();
+        if (trimmed.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            var commaIndex = trimmed.IndexOf(',');
+            if (commaIndex <= 0 || commaIndex == trimmed.Length - 1)
+            {
+                return false;
+            }
+
+            var headerPart = trimmed.Substring(5, commaIndex - 5);
+            var dataPart = trimmed.Substring(commaIndex + 1);
+            var headerPieces = headerPart.Split(';');
+            if (headerPieces.Length < 2)
+            {
+                return false;
+            }
+
+            var mimeType = headerPieces[0].Trim();
+            if (!AllowedInlineMimeTypes.Contains(mimeType))
+            {
+                return false;
+            }
+
+            var encoding = headerPieces[headerPieces.Length - 1].Trim();
+            if (!encoding.Equals("base64", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return TryDecodeBase64(dataPart, out bytes);
+        }
+
+        return false;
+    }
+
+    private static bool TryDecodeBase64(string value, out byte[] bytes)
+    {
+        bytes = Array.Empty<byte>();
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        try
+        {
+            bytes = Convert.FromBase64String(value);
+            return bytes.Length > 0;
+        }
+        catch (FormatException)
+        {
+            return false;
         }
     }
 

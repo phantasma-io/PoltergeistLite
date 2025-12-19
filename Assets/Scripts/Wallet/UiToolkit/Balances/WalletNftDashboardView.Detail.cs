@@ -18,6 +18,10 @@ namespace Poltergeist.UiToolkit.Balances
     public sealed partial class WalletNftDashboardView
     {
         private const float CompactDetailWidth = 1300f;
+        private const int AttributeMonolithicMax = 56;
+        private const int AttributeMonolithicCompactMax = 36;
+        private const int AttributeTextMax = 140;
+        private const int AttributeTextCompactMax = 90;
 
         private VisualElement detailContainer;
         private ScrollView detailScroll;
@@ -508,7 +512,7 @@ namespace Poltergeist.UiToolkit.Balances
             detailPropertiesContainer.Clear();
             var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            void AddProp(string label, string value, string copyValue = null, string copyTooltip = null)
+            void AddProp(string label, string value, string copyValue = null, string copyTooltip = null, string valueTooltip = null)
             {
                 if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(value))
                 {
@@ -520,11 +524,12 @@ namespace Poltergeist.UiToolkit.Balances
                     return;
                 }
 
-                detailPropertiesContainer.Add(CreateInfoChip(label, value, copyValue, copyTooltip));
+                detailPropertiesContainer.Add(CreateInfoChip(label, value, copyValue, copyTooltip, valueTooltip));
                 added.Add(label);
             }
 
-            AddProp("Token ID", tokenId, tokenId, "Copy token ID");
+            var tokenIdDisplay = FormatAttributeValue(tokenId, out var tokenIdTruncated);
+            AddProp("Token ID", tokenIdDisplay, tokenId, "Copy token ID", tokenIdTruncated ? tokenId : null);
             AddProp("Symbol", symbol);
             if (!string.IsNullOrWhiteSpace(token?.Mint) && !string.Equals(token.Mint, "0", StringComparison.OrdinalIgnoreCase))
             {
@@ -553,12 +558,12 @@ namespace Poltergeist.UiToolkit.Balances
 
             if (!string.IsNullOrWhiteSpace(token?.OwnerAddress))
             {
-                AddProp("Owner", FormatId(token.OwnerAddress, 8), token.OwnerAddress, "Copy owner address");
+                AddProp("Owner", FormatId(token.OwnerAddress, 8), token.OwnerAddress, "Copy owner address", token.OwnerAddress);
             }
 
             if (!string.IsNullOrWhiteSpace(token?.CreatorAddress))
             {
-                AddProp("Creator", FormatId(token.CreatorAddress, 8), token.CreatorAddress, "Copy creator address");
+                AddProp("Creator", FormatId(token.CreatorAddress, 8), token.CreatorAddress, "Copy creator address", token.CreatorAddress);
             }
 
             if (!string.IsNullOrWhiteSpace(token?.Series))
@@ -577,7 +582,9 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 foreach (var property in token.Properties)
                 {
-                    AddProp(property.Key?.Replace("_", " "), property.Value);
+                    var label = property.Key?.Replace("_", " ");
+                    var formatted = FormatAttributeValue(property.Value, out var truncated);
+                    AddProp(label, formatted, valueTooltip: truncated ? property.Value : null);
                 }
             }
 
@@ -969,7 +976,7 @@ namespace Poltergeist.UiToolkit.Balances
             return tag;
         }
 
-        private VisualElement CreateInfoChip(string label, string value, string copyValue = null, string copyTooltip = null)
+        private VisualElement CreateInfoChip(string label, string value, string copyValue = null, string copyTooltip = null, string valueTooltip = null)
         {
             var chip = new VisualElement
             {
@@ -1032,10 +1039,48 @@ namespace Poltergeist.UiToolkit.Balances
                 }
             };
             WalletUiCommon.ApplyDefaultFont(valueEl);
+            if (!string.IsNullOrWhiteSpace(valueTooltip))
+            {
+                valueEl.tooltip = valueTooltip;
+            }
 
             chip.Add(headerRow);
             chip.Add(valueEl);
             return chip;
+        }
+
+        private string FormatAttributeValue(string value, out bool truncated)
+        {
+            truncated = false;
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = value.Trim();
+            var compact = WalletUiCommon.IsCompactWidth(detailScroll, CompactDetailWidth);
+            var monolithicMax = compact ? AttributeMonolithicCompactMax : AttributeMonolithicMax;
+            var textMax = compact ? AttributeTextCompactMax : AttributeTextMax;
+            var hasWhitespace = trimmed.Any(char.IsWhiteSpace);
+
+            // Monolithic strings (no whitespace) must be shortened in the middle to avoid blowing up the layout.
+            if (!hasWhitespace && trimmed.Length > monolithicMax)
+            {
+                truncated = true;
+                var head = Math.Max(8, monolithicMax / 2 - 2);
+                var tail = Math.Max(8, monolithicMax - head - 3);
+                var abbreviated = WalletUiCommon.AbbreviateMiddle(trimmed, head, tail);
+                return $"{abbreviated} (len {trimmed.Length})";
+            }
+
+            if (hasWhitespace && trimmed.Length > textMax)
+            {
+                truncated = true;
+                var abbreviated = WalletUiCommon.AbbreviateEnd(trimmed, textMax);
+                return $"{abbreviated} (len {trimmed.Length})";
+            }
+
+            return trimmed;
         }
 
         private void CopyToClipboard(string value)
