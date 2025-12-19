@@ -25,6 +25,8 @@ namespace Poltergeist.UiToolkit
     {
         private const string AppTitle = "Poltergeist Lite";
         private static readonly Color SoftOutlineWhite = WalletUiTheme.Hex("#dfe3f0");
+        // Lazily loaded UI icons kept in Resources to share across dashboards without hard dependencies.
+        private static Texture2D copyIcon;
         internal const float StatusAutoHideSeconds = 3f;
         internal const float StatusAutoHideLongSeconds = 5f;
 
@@ -35,6 +37,7 @@ namespace Poltergeist.UiToolkit
         }
 
         private static readonly Dictionary<Label, StatusLabelState> StatusStates = new Dictionary<Label, StatusLabelState>();
+        internal static Texture2D CopyIcon => copyIcon ??= Resources.Load<Texture2D>("Common/Icons/copy");
 
         internal static HeaderElements BuildHeader(VisualElement rightContent = null)
         {
@@ -1175,6 +1178,73 @@ namespace Poltergeist.UiToolkit
             btn.style.unityTextAlign = TextAnchor.MiddleCenter;
             MakeButtonNonNavigable(btn);
             btn.clicked += () => onClick?.Invoke();
+            return btn;
+        }
+
+        /// <summary>
+        /// Small icon-only button for compact copy/utility actions in dashboards.
+        /// </summary>
+        internal static Button CreateIconButton(Texture2D icon, Action onClick, int size = 28, int iconSize = 14, string tooltip = null)
+        {
+            var btn = new Button
+            {
+                style =
+                {
+                    width = size,
+                    height = size,
+                    minWidth = size,
+                    minHeight = size,
+                    paddingLeft = 0,
+                    paddingRight = 0,
+                    paddingTop = 0,
+                    paddingBottom = 0,
+                    backgroundColor = WalletUiTheme.SecondaryButton,
+                    borderTopLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderTopRightRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusSmall,
+                    borderBottomRightRadius = WalletUiTheme.RadiusSmall,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderRightColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderTopColor = WalletUiTheme.SecondaryButtonBorder,
+                    borderBottomColor = WalletUiTheme.SecondaryButtonBorder,
+                    justifyContent = Justify.Center,
+                    alignItems = Align.Center
+                }
+            };
+            ApplyDefaultFont(btn);
+            MakeButtonNonNavigable(btn);
+            btn.tooltip = tooltip ?? string.Empty;
+            btn.clicked += () => onClick?.Invoke();
+
+            if (icon == null)
+            {
+                btn.text = "Copy";
+                btn.style.color = WalletUiTheme.TextPrimary;
+                btn.style.fontSize = 12;
+                btn.style.unityFontStyleAndWeight = FontStyle.Bold;
+                btn.style.paddingLeft = 8;
+                btn.style.paddingRight = 8;
+            }
+            else
+            {
+                var image = new Image
+                {
+                    image = icon,
+                    tintColor = WalletUiTheme.TextPrimary,
+                    scaleMode = ScaleMode.ScaleToFit,
+                    style =
+                    {
+                        width = iconSize,
+                        height = iconSize
+                    }
+                };
+                btn.Add(image);
+            }
+
             return btn;
         }
 

@@ -508,7 +508,7 @@ namespace Poltergeist.UiToolkit.Balances
             detailPropertiesContainer.Clear();
             var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            void AddProp(string label, string value)
+            void AddProp(string label, string value, string copyValue = null, string copyTooltip = null)
             {
                 if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(value))
                 {
@@ -520,11 +520,11 @@ namespace Poltergeist.UiToolkit.Balances
                     return;
                 }
 
-                detailPropertiesContainer.Add(CreateInfoChip(label, value));
+                detailPropertiesContainer.Add(CreateInfoChip(label, value, copyValue, copyTooltip));
                 added.Add(label);
             }
 
-            AddProp("Token ID", tokenId);
+            AddProp("Token ID", tokenId, tokenId, "Copy token ID");
             AddProp("Symbol", symbol);
             if (!string.IsNullOrWhiteSpace(token?.Mint) && !string.Equals(token.Mint, "0", StringComparison.OrdinalIgnoreCase))
             {
@@ -553,12 +553,12 @@ namespace Poltergeist.UiToolkit.Balances
 
             if (!string.IsNullOrWhiteSpace(token?.OwnerAddress))
             {
-                AddProp("Owner", FormatId(token.OwnerAddress, 8));
+                AddProp("Owner", FormatId(token.OwnerAddress, 8), token.OwnerAddress, "Copy owner address");
             }
 
             if (!string.IsNullOrWhiteSpace(token?.CreatorAddress))
             {
-                AddProp("Creator", FormatId(token.CreatorAddress, 8));
+                AddProp("Creator", FormatId(token.CreatorAddress, 8), token.CreatorAddress, "Copy creator address");
             }
 
             if (!string.IsNullOrWhiteSpace(token?.Series))
@@ -969,7 +969,7 @@ namespace Poltergeist.UiToolkit.Balances
             return tag;
         }
 
-        private VisualElement CreateInfoChip(string label, string value)
+        private VisualElement CreateInfoChip(string label, string value, string copyValue = null, string copyTooltip = null)
         {
             var chip = new VisualElement
             {
@@ -999,6 +999,27 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(labelEl);
 
+            var headerRow = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    justifyContent = Justify.SpaceBetween
+                }
+            };
+            WalletUiCommon.ApplyDefaultFont(headerRow);
+            labelEl.style.flexGrow = 1;
+            headerRow.Add(labelEl);
+
+            if (!string.IsNullOrWhiteSpace(copyValue))
+            {
+                var copyButton = WalletUiCommon.CreateIconButton(WalletUiCommon.CopyIcon, () => CopyToClipboard(copyValue), 26, 12, copyTooltip ?? "Copy");
+                copyButton.style.marginLeft = 6;
+                copyButton.style.flexShrink = 0;
+                headerRow.Add(copyButton);
+            }
+
             var valueEl = new Label(value)
             {
                 style =
@@ -1012,9 +1033,19 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(valueEl);
 
-            chip.Add(labelEl);
+            chip.Add(headerRow);
             chip.Add(valueEl);
             return chip;
+        }
+
+        private void CopyToClipboard(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return;
+            }
+
+            GUIUtility.systemCopyBuffer = value;
         }
 
         private bool TryFindNft(string symbol, string tokenId, out TokenDataResult token)
