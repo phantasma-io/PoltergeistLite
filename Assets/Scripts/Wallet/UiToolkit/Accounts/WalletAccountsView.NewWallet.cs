@@ -183,6 +183,10 @@ namespace Poltergeist.UiToolkit.Accounts
                 {
                     flexDirection = FlexDirection.Row,
                     justifyContent = Justify.FlexEnd,
+                    alignItems = Align.Center,
+                    flexWrap = Wrap.Wrap,
+                    alignSelf = Align.Stretch,
+                    width = new Length(100, LengthUnit.Percent),
                     marginTop = 4
                 }
             };
@@ -193,14 +197,14 @@ namespace Poltergeist.UiToolkit.Accounts
                 backupStatusLabel.text = text ?? string.Empty;
             }
 
-            var copyBtn = WalletUiCommon.CreateSecondaryButton("Copy to clipboard", () =>
+            var copyBtn = WalletUiCommon.CreateSecondaryButton("Copy", () =>
             {
                 GUIUtility.systemCopyBuffer = newWalletSeedPhrase;
                 SetStatus("Seed phrase copied to the clipboard.");
                 SetBackupStatus("Seed phrase copied to the clipboard.");
                 Log.Write($"{LogPrefix}Seed phrase copied to clipboard (new wallet).");
             }, 16, 36);
-            copyBtn.style.minWidth = 170;
+            copyBtn.style.minWidth = 120;
             actions.Add(copyBtn);
 
             var continueBtn = WalletUiCommon.CreateOutlineButton("Continue", () =>
