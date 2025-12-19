@@ -74,6 +74,10 @@ namespace Poltergeist.UiToolkit.Balances
         private bool filtersExpandedUserOverride;
         private VisualElement selectionActionsCloud;
         private VisualElement paginationRow;
+        private Button firstPageButton;
+        private Button prevPageButton;
+        private Button nextPageButton;
+        private Button lastPageButton;
         private VisualElement listContainer;
         private Button refreshButton;
         private Button sendButton;
@@ -714,15 +718,15 @@ namespace Poltergeist.UiToolkit.Balances
             };
             WalletUiCommon.ApplyDefaultFont(row);
 
-            var firstBtn = WalletUiCommon.CreateSecondaryButton("<<", () => OnPageChanged(PageChange.First), 14, 32);
-            var prevBtn = WalletUiCommon.CreateSecondaryButton("<", () => OnPageChanged(PageChange.Previous), 14, 32);
-            var nextBtn = WalletUiCommon.CreateSecondaryButton(">", () => OnPageChanged(PageChange.Next), 14, 32);
-            var lastBtn = WalletUiCommon.CreateSecondaryButton(">>", () => OnPageChanged(PageChange.Last), 14, 32);
+            firstPageButton = WalletUiCommon.CreateSecondaryButton("<<", () => OnPageChanged(PageChange.First), 14, 32);
+            prevPageButton = WalletUiCommon.CreateSecondaryButton("<", () => OnPageChanged(PageChange.Previous), 14, 32);
+            nextPageButton = WalletUiCommon.CreateSecondaryButton(">", () => OnPageChanged(PageChange.Next), 14, 32);
+            lastPageButton = WalletUiCommon.CreateSecondaryButton(">>", () => OnPageChanged(PageChange.Last), 14, 32);
 
-            row.Add(firstBtn);
-            row.Add(prevBtn);
-            row.Add(nextBtn);
-            row.Add(lastBtn);
+            row.Add(firstPageButton);
+            row.Add(prevPageButton);
+            row.Add(nextPageButton);
+            row.Add(lastPageButton);
 
             return row;
         }
@@ -784,6 +788,7 @@ namespace Poltergeist.UiToolkit.Balances
                 if (nftSnapshot != null)
                 {
                     UpdateHero(symbol, nftSnapshot);
+                    UpdatePaginationButtons(nftSnapshot);
                 }
                 if (nftSnapshot == null)
                 {
@@ -871,6 +876,24 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 tokenIcon.style.display = DisplayStyle.None;
             }
+        }
+
+        private void UpdatePaginationButtons(WalletNftViewSnapshot snapshot)
+        {
+            if (firstPageButton == null && prevPageButton == null && nextPageButton == null && lastPageButton == null)
+            {
+                return;
+            }
+
+            // Disable pagination arrows when navigation is impossible (single page or already at edges).
+            var hasPages = snapshot != null && snapshot.PageCount > 0;
+            var canGoBack = hasPages && snapshot.PageNumber > 0;
+            var canGoForward = hasPages && snapshot.PageNumber < snapshot.PageCount - 1;
+
+            WalletUiCommon.SetButtonEnabledVisual(firstPageButton, canGoBack, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+            WalletUiCommon.SetButtonEnabledVisual(prevPageButton, canGoBack, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+            WalletUiCommon.SetButtonEnabledVisual(nextPageButton, canGoForward, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+            WalletUiCommon.SetButtonEnabledVisual(lastPageButton, canGoForward, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
         }
 
         private void UpdateSupply(string symbol)
@@ -1989,6 +2012,7 @@ namespace Poltergeist.UiToolkit.Balances
             selectedCountLabel.style.display = DisplayStyle.None;
             pageInfoLabel.text = "Page 1 / 1";
             filterHintLabel.text = string.Empty;
+            UpdatePaginationButtons(null);
             tokenIcon.image = null;
             if (summaryLabel != null)
             {
