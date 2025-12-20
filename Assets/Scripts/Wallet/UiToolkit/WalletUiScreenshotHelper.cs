@@ -1,0 +1,177 @@
+#if UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX
+#define UITK_SCREEN_TOOLS_SUPPORTED
+#endif
+
+using System;
+using System.Collections;
+using System.IO;
+using UnityEngine;
+using PhantasmaPhoenix.Unity.Core.Logging;
+
+namespace Poltergeist.UiToolkit
+{
+#if UITK_SCREEN_TOOLS_SUPPORTED
+    internal sealed class WalletUiScreenshotHelper
+    {
+        private const string LogPrefix = "[UITK] ";
+        private readonly MonoBehaviour host;
+        private readonly Func<global::Poltergeist.Settings> settingsProvider;
+        private readonly WalletUiPreviewHelper previewHelper;
+
+        public WalletUiScreenshotHelper(
+            MonoBehaviour host,
+            Func<global::Poltergeist.Settings> settingsProvider,
+            WalletUiPreviewHelper previewHelper)
+        {
+            this.host = host ?? throw new ArgumentNullException(nameof(host));
+            this.settingsProvider = settingsProvider ?? throw new ArgumentNullException(nameof(settingsProvider));
+            this.previewHelper = previewHelper ?? throw new ArgumentNullException(nameof(previewHelper));
+        }
+
+        public void HandleHotkey()
+        {
+            var settings = settingsProvider();
+            if (settings == null || !settings.devMode)
+            {
+                return;
+            }
+
+            var ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+            var shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (!ctrl || !shift || !Input.GetKeyDown(KeyCode.S))
+            {
+                return;
+            }
+
+            try
+            {
+                var dir = Path.Combine(Application.persistentDataPath, "screenshots");
+                Directory.CreateDirectory(dir);
+                var file = $"uitk-shot-{DateTime.Now:yyyyMMdd-HHmmss}.png";
+                var path = Path.Combine(dir, file);
+                var minSideRequirement = previewHelper.GetMinSideRequirement(settings);
+                var aspect = previewHelper.GetPreviewAspect(settings);
+                var targetResolution = previewHelper.GetScreenshotResolution(settings);
+                host.StartCoroutine(CaptureScreenshotAsync(minSideRequirement, aspect, targetResolution, path));
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}Screenshot failed: {e}");
+            }
+        }
+
+        private IEnumerator CaptureScreenshotAsync(int minSideRequirement, float targetAspect, Vector2Int targetResolution, string path)
+        {
+            yield return new WaitForEndOfFrame();
+
+            var captureWidth = Screen.width;
+            var captureHeight = Screen.height;
+            if (captureWidth <= 0 || captureHeight <= 0)
+            {
+                yield break;
+            }
+
+            try
+            {
+                var rt = RenderTexture.GetTemporary(captureWidth, captureHeight, 24, RenderTextureFormat.ARGB32);
+                ScreenCapture.CaptureScreenshotIntoRenderTexture(rt);
+                var prev = RenderTexture.active;
+                RenderTexture.active = rt;
+                var tex = new Texture2D(captureWidth, captureHeight, TextureFormat.RGBA32, false);
+                tex.ReadPixels(new Rect(0, 0, captureWidth, captureHeight), 0, 0);
+                tex.Apply(false, false);
+                RenderTexture.active = prev;
+                RenderTexture.ReleaseTemporary(rt);
+
+                tex = PrepareScreenshotTexture(tex, targetAspect, minSideRequirement, targetResolution);
+                var finalWidth = tex.width;
+                var finalHeight = tex.height;
+                var png = tex.EncodeToPNG();
+                UnityEngine.Object.Destroy(tex);
+                File.WriteAllBytes(path, png);
+                Log.Write($"{LogPrefix}Screenshot saved: {path}, final={finalWidth}x{finalHeight}, raw={captureWidth}x{captureHeight}, aspectTarget={targetAspect}, minSide={minSideRequirement}, target={targetResolution.x}x{targetResolution.y}");
+            }
+            catch (Exception e)
+            {
+                Log.WriteWarning($"{LogPrefix}Screenshot capture failed: {e}");
+            }
+        }
+
+        private static Texture2D PrepareScreenshotTexture(Texture2D source, float targetAspect, int minSideRequirement, Vector2Int targetResolution)
+        {
+            if (source == null)
+            {
+                return source;
+            }
+
+            var hasFixedResolution = targetResolution.x > 0 && targetResolution.y > 0;
+            var aspect = hasFixedResolution
+                ? targetResolution.x / (float)targetResolution.y
+                : (targetAspect > 0f ? targetAspect : source.width / (float)source.height);
+
+            var canvasWidth = hasFixedResolution ? targetResolution.x : source.width;
+            var canvasHeight = hasFixedResolution ? targetResolution.y : Mathf.RoundToInt(canvasWidth / aspect);
+            if (!hasFixedResolution && canvasHeight < source.height)
+            {
+                canvasHeight = source.height;
+                canvasWidth = Mathf.RoundToInt(canvasHeight * aspect);
+            }
+
+            canvasWidth = Mathf.Max(canvasWidth, source.width);
+            canvasHeight = Mathf.Max(canvasHeight, source.height);
+
+            if (!hasFixedResolution)
+            {
+                var minCanvasSide = Mathf.Min(canvasWidth, canvasHeight);
+                var scale = minSideRequirement > 0 ? Mathf.Max(1f, Mathf.Ceil(minSideRequirement / Mathf.Max(1f, minCanvasSide))) : 1f;
+                canvasWidth = Mathf.Max(1, Mathf.RoundToInt(canvasWidth * scale));
+                canvasHeight = Mathf.Max(1, Mathf.RoundToInt(canvasHeight * scale));
+            }
+
+            var fitScale = Mathf.Min(canvasWidth / (float)source.width, canvasHeight / (float)source.height);
+            var drawWidth = Mathf.RoundToInt(source.width * fitScale);
+            var drawHeight = Mathf.RoundToInt(source.height * fitScale);
+            var offsetX = Mathf.RoundToInt((canvasWidth - drawWidth) * 0.5f);
+            var offsetY = Mathf.RoundToInt((canvasHeight - drawHeight) * 0.5f);
+
+            var rt = RenderTexture.GetTemporary(canvasWidth, canvasHeight, 0, RenderTextureFormat.ARGB32);
+            var previous = RenderTexture.active;
+            try
+            {
+                RenderTexture.active = rt;
+                var background = WalletUiTheme.ScreenBackground;
+                GL.Clear(true, true, background);
+                GL.PushMatrix();
+                GL.LoadPixelMatrix(0, canvasWidth, canvasHeight, 0);
+                Graphics.DrawTexture(new Rect(offsetX, canvasHeight - offsetY - drawHeight, drawWidth, drawHeight), source);
+                GL.PopMatrix();
+
+                var result = new Texture2D(canvasWidth, canvasHeight, source.format, false);
+                result.ReadPixels(new Rect(0, 0, canvasWidth, canvasHeight), 0, 0);
+                result.Apply(false, false);
+                UnityEngine.Object.Destroy(source);
+                return result;
+            }
+            finally
+            {
+                RenderTexture.active = previous;
+                RenderTexture.ReleaseTemporary(rt);
+            }
+        }
+    }
+#else
+    internal sealed class WalletUiScreenshotHelper
+    {
+        public WalletUiScreenshotHelper(
+            MonoBehaviour host,
+            Func<global::Poltergeist.Settings> settingsProvider,
+            WalletUiPreviewHelper previewHelper)
+        {
+        }
+
+        public void HandleHotkey()
+        {
+        }
+    }
+#endif
+}

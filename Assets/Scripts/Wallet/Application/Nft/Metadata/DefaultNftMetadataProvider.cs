@@ -33,7 +33,7 @@ namespace Poltergeist.Wallet
 
             try
             {
-                var rom = account.GetNftRom(tokenId);
+                var rom = account.GetNftRom(symbol, tokenId);
                 if (rom == null || rom.IsEmpty())
                 {
                     return false;

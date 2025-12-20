@@ -1,3 +1,7 @@
+#if UNITY_STANDALONE_WIN || UNITY_STANDALONE_LINUX || UNITY_EDITOR_WIN || UNITY_EDITOR_LINUX
+#define UITK_DESKTOP_PREVIEW_SUPPORTED
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -52,7 +56,9 @@ namespace Poltergeist.UiToolkit.Settings
         private PopupField<string> passwordModeDropdown;
         private PopupField<string> logLevelDropdown;
         private PopupField<string> uiThemeDropdown;
+#if UITK_DESKTOP_PREVIEW_SUPPORTED
         private PopupField<string> previewDeviceDropdown;
+#endif
         private TextField logFolderPathField;
         private Label defaultEndpointInfoLabel;
         private TextField rpcUrlField;
@@ -462,7 +468,9 @@ namespace Poltergeist.UiToolkit.Settings
             performanceSection = WalletUiFormFactory.CreateFormSection(string.Empty);
             framerateField = WalletUiFormFactory.CreateTextField("UI framerate (-1 for default)", string.Empty, value => OnChanged(() => presenter.SetUiFramerate(value)));
             uiScaleMultiplierField = WalletUiFormFactory.CreateTextField("UI scale multiplier (1 = default)", string.Empty, value => OnChanged(() => presenter.SetUiScaleMultiplier(value)));
+#if UITK_DESKTOP_PREVIEW_SUPPORTED
             previewDeviceDropdown = WalletUiFormFactory.CreateDropdown("Preview device (desktop)", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetUiPreviewDeviceIndex(idx), true));
+#endif
             windowWidthField = WalletUiFormFactory.CreateTextField("Initial window width", string.Empty, value => OnChanged(() => presenter.SetInitialWindowWidth(value)));
             windowHeightField = WalletUiFormFactory.CreateTextField("Initial window height", string.Empty, value => OnChanged(() => presenter.SetInitialWindowHeight(value)));
             balanceThresholdField = WalletUiFormFactory.CreateTextField("Balance display threshold", string.Empty, value => OnChanged(() => presenter.SetBalanceDisplayThreshold(value)));
@@ -471,7 +479,9 @@ namespace Poltergeist.UiToolkit.Settings
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Balance display precision", balancePrecisionField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI framerate (-1 for default)", framerateField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("UI scale multiplier (1 = default)", uiScaleMultiplierField, "Scales UITK UI size on all platforms"));
+#if UITK_DESKTOP_PREVIEW_SUPPORTED
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Preview device (desktop)", previewDeviceDropdown, "Emulates phone/tablet viewport on desktop only"));
+#endif
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window width", windowWidthField));
             performanceSection.Add(WalletUiFormFactory.CreateLabeledRow("Initial window height", windowHeightField));
             AddTabSection("display", "Display", performanceSection);
@@ -787,7 +797,9 @@ namespace Poltergeist.UiToolkit.Settings
             SetDropdown(passwordModeDropdown, snapshot.PasswordDisplayOptions, snapshot.PasswordModeIndex);
             SetDropdown(logLevelDropdown, snapshot.LogLevelDisplayOptions, snapshot.LogLevelIndex);
             SetDropdown(uiThemeDropdown, snapshot.UiThemeDisplayOptions, snapshot.UiThemeIndex);
+#if UITK_DESKTOP_PREVIEW_SUPPORTED
             SetDropdown(previewDeviceDropdown, snapshot.UiPreviewDeviceDisplayOptions, snapshot.UiPreviewDeviceIndex);
+#endif
             logFolderPathField.value = snapshot.LogFolderPath ?? string.Empty;
 
             rpcUrlField.value = snapshot.PhantasmaRpcUrl ?? string.Empty;

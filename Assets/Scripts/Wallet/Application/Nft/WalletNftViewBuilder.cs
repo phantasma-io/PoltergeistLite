@@ -31,8 +31,8 @@ namespace Poltergeist.Wallet
 
             pageSize = Math.Max(1, pageSize);
 
-            var nfts = source.CurrentNfts;
-            var isRefreshing = source.IsRefreshing;
+            var nfts = source.GetNfts(symbol);
+            var isRefreshing = source.IsRefreshingForSymbol(symbol);
 
             if (nfts == null)
             {
@@ -44,7 +44,7 @@ namespace Poltergeist.Wallet
             }
 
             source.SortTtrsNfts(symbol);
-            nfts = source.CurrentNfts ?? nfts;
+            nfts = source.GetNfts(symbol) ?? nfts;
 
             var filtered = new List<TokenDataResult>();
 

@@ -122,7 +122,7 @@ namespace Poltergeist
             {
                 var accountManager = AccountManager.Instance;
                 var viewState = gui.nftViewPresenter.State;
-                var nfts = accountManager.CurrentNfts;
+                var nfts = accountManager.GetNfts(gui.TransferSymbol);
 
                 if (nftSnapshot.IsRefreshing)
                 {
@@ -190,9 +190,9 @@ namespace Poltergeist
 
                 var selectionSnapshot = gui.nftViewPresenter.SelectionSnapshot();
                 var selectionSet = new HashSet<string>(selectionSnapshot);
-                var orderedSelection = accountManager.CurrentNfts == null
+                var orderedSelection = accountManager.GetNfts(gui.TransferSymbol) == null
                     ? selectionSnapshot.ToList()
-                    : accountManager.CurrentNfts.Where(x => selectionSet.Contains(x.Id)).Select(x => x.Id).ToList();
+                    : accountManager.GetNfts(gui.TransferSymbol).Where(x => selectionSet.Contains(x.Id)).Select(x => x.Id).ToList();
                 gui.nftViewPresenter.PruneSelection(orderedSelection);
 
                 var transferScroll = new Vector2(0, gui.viewState.NftTransferScrollY);

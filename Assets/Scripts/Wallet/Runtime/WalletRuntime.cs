@@ -114,7 +114,7 @@ namespace Poltergeist.Wallet
                 return;
             }
 
-            Application.logMessageReceived += OnUnityLogMessageReceived;
+            // Use only the threaded callback; it receives main-thread logs too and avoids duplicate events.
             Application.logMessageReceivedThreaded += OnUnityLogMessageReceived;
             _unityLogHooked = true;
         }
@@ -123,6 +123,12 @@ namespace Poltergeist.Wallet
         {
             try
             {
+                // Prevent re-logging messages that originate from Log.Write (it already writes to the file).
+                if (Log.IsWriting)
+                {
+                    return;
+                }
+
                 const string prefix = "[Unity]";
                 switch (type)
                 {

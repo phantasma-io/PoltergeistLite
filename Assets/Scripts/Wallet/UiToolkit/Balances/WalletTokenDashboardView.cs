@@ -1019,7 +1019,7 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var amount = await PromptAmountAsync(symbol, availability.Data1, availability.Data2);
+            var amount = await PromptAmountAsync(symbol, availability.Data1, availability.Data2, initialValue: "0");
             if (amount <= 0)
             {
                 return;
@@ -1056,7 +1056,19 @@ namespace Poltergeist.UiToolkit.Balances
             var soulDecimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
             var minStake = WalletAmountParser.FromDecimal(0.1m, soulDecimals);
             var maxStake = entry.Available;
-            var amount = await PromptAmountAsync(symbol, minStake, maxStake, BuildStakeCaption(entry, soulDecimals));
+            var oneSoul = WalletAmountParser.FromDecimal(1m, soulDecimals);
+            var defaultStakeText = "0";
+            if (maxStake > oneSoul)
+            {
+                var defaultStake = maxStake - oneSoul;
+                if (defaultStake < minStake)
+                {
+                    defaultStake = minStake;
+                }
+                var displayPrecision = accountManager.Settings?.balanceDisplayPrecision ?? 4;
+                defaultStakeText = WalletAmountFormatter.Format(defaultStake, soulDecimals, displayPrecision);
+            }
+            var amount = await PromptAmountAsync(symbol, minStake, maxStake, BuildStakeCaption(entry, soulDecimals), defaultStakeText);
             if (amount <= 0)
             {
                 return;
@@ -1109,7 +1121,7 @@ namespace Poltergeist.UiToolkit.Balances
 
             var soulDecimals = Tokens.GetTokenDecimals(DomainSettings.StakingTokenSymbol, accountManager.CurrentPlatform);
             var minUnstake = WalletAmountParser.FromDecimal(0.1m, soulDecimals);
-            var amount = await PromptAmountAsync(DomainSettings.StakingTokenSymbol, minUnstake, entry.Staked);
+            var amount = await PromptAmountAsync(DomainSettings.StakingTokenSymbol, minUnstake, entry.Staked, initialValue: "0");
             if (amount <= 0)
             {
                 return;
@@ -1190,7 +1202,7 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var amount = await PromptAmountAsync(entry.Symbol, WalletAmountParser.FromDecimal(0.1m, entry.Decimals), entry.Available);
+            var amount = await PromptAmountAsync(entry.Symbol, WalletAmountParser.FromDecimal(0.1m, entry.Decimals), entry.Available, initialValue: "0");
             if (amount <= 0)
             {
                 return;
@@ -1317,7 +1329,7 @@ namespace Poltergeist.UiToolkit.Balances
             return string.Empty;
         }
 
-        private async Task<BigInteger> PromptAmountAsync(string symbol, BigInteger minAmount, BigInteger maxAmount, string captionOverride = null)
+        private async Task<BigInteger> PromptAmountAsync(string symbol, BigInteger minAmount, BigInteger maxAmount, string captionOverride = null, string initialValue = null)
         {
             var accountManager = AccountManager.Instance;
             if (accountManager == null)
@@ -1332,6 +1344,7 @@ namespace Poltergeist.UiToolkit.Balances
                 ? $"Amount between {WalletAmountFormatter.Format(minAmount, decimals, displayPrecision)} and {WalletAmountFormatter.Format(maxAmount, decimals, displayPrecision)} {symbol}"
                 : captionOverride;
             var maxText = WalletAmountFormatter.Format(maxAmount, decimals, displayPrecision);
+            var defaultValueText = initialValue ?? maxText;
             var (amountResult, amountInput) = await WalletUiModalHelper.ShowAmountInputDialogAsync(
                 modalHost,
                 $"Amount of {symbol}",
@@ -1344,7 +1357,7 @@ namespace Poltergeist.UiToolkit.Balances
                 },
                 confirmLabel: "Continue",
                 cancelLabel: "Cancel",
-                initialValue: WalletAmountFormatter.Format(maxAmount, decimals, displayPrecision));
+                initialValue: defaultValueText);
 
             if (amountResult != PromptResult.Success)
             {

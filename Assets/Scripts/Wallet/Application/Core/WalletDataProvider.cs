@@ -92,9 +92,9 @@ namespace Poltergeist.Wallet
             }
 
             var accountName = accountManager.HasSelection ? accountManager.CurrentAccount.name : string.Empty;
-            var isRefreshing = accountManager.NftsRefreshing;
+            var isRefreshing = accountManager.IsNftRefreshing(symbol);
             var state = accountManager.CurrentState;
-            var nfts = accountManager.CurrentNfts;
+            var nfts = accountManager.GetNfts(symbol);
 
             if (nfts == null || state == null)
             {
@@ -126,8 +126,8 @@ namespace Poltergeist.Wallet
                     return new WalletNftItem(x.Id, name, desc, image);
                 }
 
-                var token = accountManager.GetNft(x.Id);
-                var rom = accountManager.GetNftRom(x.Id);
+                var token = accountManager.GetNft(symbol, x.Id);
+                var rom = accountManager.GetNftRom(symbol, x.Id);
                 var date = rom?.GetDate();
 
                 var nftName = token?.GetPropertyValue("Name") ?? string.Empty;
