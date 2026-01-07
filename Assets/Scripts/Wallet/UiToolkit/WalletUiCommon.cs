@@ -1848,7 +1848,22 @@ namespace Poltergeist.UiToolkit
             s.borderBottomLeftRadius = WalletUiTheme.RadiusSmall;
             s.borderBottomRightRadius = WalletUiTheme.RadiusSmall;
             field.multiline = multiline;
+            if (!multiline)
+            {
+                // Clip long single-line input text so it does not paint over adjacent buttons (e.g., Paste).
+                s.overflow = Overflow.Hidden;
+            }
             ApplyDefaultFont(field);
+            var input = field.Q<VisualElement>("unity-text-input");
+            if (input != null)
+            {
+                input.style.minWidth = 0;
+                if (!multiline)
+                {
+                    input.style.whiteSpace = WhiteSpace.NoWrap;
+                    input.style.overflow = Overflow.Hidden;
+                }
+            }
         }
 
         internal static Color GetNetworkColor(NexusKind kind)
