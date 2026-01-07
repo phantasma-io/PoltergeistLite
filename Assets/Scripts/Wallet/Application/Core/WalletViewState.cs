@@ -41,6 +41,8 @@ namespace Poltergeist.Wallet
         public float NftScrollY { get; set; }
         public float NftTransferScrollY { get; set; }
         public string TokenDashboardSymbol { get; set; }
+        // Debug-only flag: keeps NFT dashboard in a special mode that does not require a selected wallet.
+        public bool IsDebugNftActive { get; set; }
         public IReadOnlyCollection<string> SelectedAccounts => selectedAccounts;
         public int SelectedAccountCount => selectedAccounts.Count;
         public IReadOnlyList<WalletNftInspectEntry> NftInspectTrail => nftInspectTrail;
@@ -204,6 +206,8 @@ namespace Poltergeist.Wallet
         public void ClearNftInspectTrail()
         {
             nftInspectTrail.Clear();
+            // Reset debug mode when the inspect trail is cleared.
+            IsDebugNftActive = false;
         }
     }
 }

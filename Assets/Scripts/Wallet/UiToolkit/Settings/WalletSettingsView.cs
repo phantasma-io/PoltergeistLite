@@ -39,6 +39,7 @@ namespace Poltergeist.UiToolkit.Settings
         private readonly WalletSettingsViewState viewState;
         private readonly Action onReady;
         private readonly Action onExit;
+        private readonly Func<string, string, Task<ValidationResult>> onOpenDebugNft;
         private EventCallback<KeyDownEvent> tabBlockHandler;
 
         private VisualElement root;
@@ -95,6 +96,7 @@ namespace Poltergeist.UiToolkit.Settings
         private Button deleteEverythingButton;
         private Button stakingInfoButton;
         private Button addressInfoButton;
+        private Button debugNftButton;
         private VisualElement tabsBar;
         private VisualElement tabContent;
         private readonly Dictionary<string, VisualElement> tabs = new Dictionary<string, VisualElement>();
@@ -122,13 +124,14 @@ namespace Poltergeist.UiToolkit.Settings
 
         private bool isPopulating;
 
-        public WalletSettingsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onReady, Action onExit)
+        public WalletSettingsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onReady, Action onExit, Func<string, string, Task<ValidationResult>> onOpenDebugNft = null)
         {
             presenter = context.SettingsPresenter ?? throw new ArgumentNullException(nameof(context.SettingsPresenter));
             actions = context.SettingsActions ?? throw new ArgumentNullException(nameof(context.SettingsActions));
             viewState = presenter.State ?? new WalletSettingsViewState();
             this.onReady = onReady;
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
+            this.onOpenDebugNft = onOpenDebugNft;
             this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
 
             BuildLayout(host ?? throw new ArgumentNullException(nameof(host)));
@@ -535,11 +538,12 @@ namespace Poltergeist.UiToolkit.Settings
 
             stakingInfoButton = WalletUiCommon.CreateSecondaryButton("Staking info", OnStakingInfo, 14, 32);
             addressInfoButton = WalletUiCommon.CreateSecondaryButton("Address info", () => OnAddressInfoAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Address info failed: {ex}")), 14, 32);
+            debugNftButton = WalletUiCommon.CreateSecondaryButton("View NFT", () => OnOpenDebugNftAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Debug NFT open failed: {ex}")), 14, 32);
             var describeScriptBtn = WalletUiCommon.CreateSecondaryButton("Describe script", () => OnDescribeScriptAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Describe script failed: {ex}")), 14, 32);
             var decodeTxBtn = WalletUiCommon.CreateSecondaryButton("Decode tx", () => OnDecodeTransactionAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Decode transaction failed: {ex}")), 14, 32);
             var verifyPoaBtn = WalletUiCommon.CreateSecondaryButton("Verify POA", () => OnVerifyProofOfAddressesAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify POA failed: {ex}")), 14, 32);
             var legacySeedBtn = WalletUiCommon.CreateSecondaryButton("Old seed to WIF", () => OnLegacySeedToWifAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Legacy seed conversion failed: {ex}")), 14, 32);
-            var devToolsRowLocal = WalletUiCommon.CreateButtonRow(8f, stakingInfoButton, addressInfoButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
+            var devToolsRowLocal = WalletUiCommon.CreateButtonRow(8f, stakingInfoButton, addressInfoButton, debugNftButton, describeScriptBtn, decodeTxBtn, verifyPoaBtn, legacySeedBtn);
             devToolsSection = devToolsRowLocal;
             actionsContainer.Add(devToolsRowLocal);
 
@@ -1352,6 +1356,52 @@ namespace Poltergeist.UiToolkit.Settings
 
             ShowCopyPanel("Account information", infoText, infoText, "Info copied to clipboard.");
             SetStatus("Address info fetched.", intent: WalletUiStatusIntent.TransientLong);
+        }
+
+        private async Task OnOpenDebugNftAsync()
+        {
+            if (onOpenDebugNft == null)
+            {
+                SetStatus("Debug NFT viewer is not available.", true);
+                return;
+            }
+
+            var symbolPrompt = await ShowModalAsync("View NFT", "Enter NFT symbol", 1, 32, allowEmpty: false, hasInput: true, isPassword: false, multiline: false);
+            if (symbolPrompt.result != PromptResult.Success)
+            {
+                return;
+            }
+
+            var symbol = symbolPrompt.input?.Trim();
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                SetStatus("NFT symbol is required.", true);
+                return;
+            }
+
+            var idPrompt = await ShowModalAsync("View NFT", "Enter NFT token id", 1, 128, allowEmpty: false, hasInput: true, isPassword: false, multiline: false);
+            if (idPrompt.result != PromptResult.Success)
+            {
+                return;
+            }
+
+            var tokenId = idPrompt.input?.Trim();
+            if (string.IsNullOrWhiteSpace(tokenId))
+            {
+                SetStatus("NFT token id is required.", true);
+                return;
+            }
+
+            SetStatus("Loading NFT...");
+            var result = await onOpenDebugNft(symbol, tokenId);
+            if (!result.Success)
+            {
+                SetStatus(result.Error, true);
+                await ShowInfoAsync("Debug NFT failed", result.Error);
+                return;
+            }
+
+            SetStatus(string.IsNullOrWhiteSpace(result.Message) ? "Debug NFT opened." : result.Message, intent: WalletUiStatusIntent.TransientLong);
         }
 
         private async Task ConfirmDeleteAsync(string message, Action onConfirm)

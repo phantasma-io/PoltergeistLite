@@ -173,6 +173,8 @@ namespace Poltergeist.UiToolkit.Balances
                 currentSymbol = string.Empty;
                 context.ViewState.TokenDashboardSymbol = string.Empty;
                 context.ViewState.TransferSymbol = string.Empty;
+                // Normal navigation: drop debug mode when leaving the debug NFT view.
+                context.ViewState.IsDebugNftActive = false;
                 RefreshView();
                 return;
             }
@@ -180,6 +182,8 @@ namespace Poltergeist.UiToolkit.Balances
             currentSymbol = symbol;
             context.ViewState.TokenDashboardSymbol = symbol;
             context.ViewState.TransferSymbol = symbol;
+            // Normal navigation: drop debug mode when switching to a regular collection.
+            context.ViewState.IsDebugNftActive = false;
 
             PrepareStateForSymbol(symbol);
             StartRefreshSequence(symbol, includeWarmup: true);
@@ -187,9 +191,44 @@ namespace Poltergeist.UiToolkit.Balances
             RefreshView();
         }
 
+        public void ShowDebugNft(string symbol, string tokenId)
+        {
+            if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(tokenId))
+            {
+                SetStatus("NFT identifier is required.");
+                return;
+            }
+
+            symbol = symbol.Trim();
+            tokenId = tokenId.Trim();
+
+            currentSymbol = symbol;
+            context.ViewState.TokenDashboardSymbol = symbol;
+            context.ViewState.TransferSymbol = symbol;
+            PrepareStateForSymbol(symbol);
+            // Debug mode allows rendering without a selected wallet; detail actions remain locked.
+            context.ViewState.IsDebugNftActive = true;
+
+            var current = context.ViewState.PeekNftInspect();
+            if (!current.HasValue
+                || !string.Equals(current.Value.Symbol, symbol, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(current.Value.TokenId, tokenId, StringComparison.OrdinalIgnoreCase))
+            {
+                // Push a locked inspect entry so Send/Burn remain disabled in detail view.
+                context.ViewState.PushNftInspect(new WalletNftInspectEntry(symbol, tokenId, locked: true));
+            }
+            RefreshView();
+        }
+
         public void OnAccountsReady()
         {
-            if (!string.IsNullOrWhiteSpace(currentSymbol) && refreshPhase == NftRefreshPhase.Idle && !nftSource.IsRefreshingForSymbol(currentSymbol))
+            var accountManager = AccountManager.Instance;
+            var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
+            var hasWalletSelection = accountManager != null && accountManager.HasSelection;
+            // Debug view without a selected wallet would trigger a refresh that never completes.
+            var skipAutoRefresh = isDebugView && !hasWalletSelection;
+
+            if (!skipAutoRefresh && !string.IsNullOrWhiteSpace(currentSymbol) && refreshPhase == NftRefreshPhase.Idle && !nftSource.IsRefreshingForSymbol(currentSymbol))
             {
                 StartRefreshSequence(currentSymbol, includeWarmup: true);
             }
@@ -399,7 +438,15 @@ namespace Poltergeist.UiToolkit.Balances
             detailContainer.style.display = DisplayStyle.None;
             content.Add(detailContainer);
 
-            var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), HandleBackNavigation);
+            var footer = WalletUiCommon.BuildWalletNavBar(
+                out navBalances,
+                out navHistory,
+                out navAccount,
+                out navExit,
+                () => { ExitDebugView(); onShowBalances?.Invoke(); },
+                () => { ExitDebugView(); onShowHistory?.Invoke(); },
+                () => { ExitDebugView(); onShowAccount?.Invoke(); },
+                HandleBackNavigation);
             if (navExit != null)
             {
                 navExit.text = "Back";
@@ -761,22 +808,24 @@ namespace Poltergeist.UiToolkit.Balances
                 }
 
                 context.ViewState.TransferSymbol = symbol;
+                // Debug view can render without a selected/locked wallet; normal view requires it.
+                var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
 
-                if (!accountManager.HasSelection)
+                if (!accountManager.HasSelection && !isDebugView)
                 {
                     SetStatus("Select a wallet first.");
                     ClearUi();
                     return;
                 }
 
-                if (accountManager.CurrentAccount.passwordProtected && string.IsNullOrEmpty(accountManager.CurrentPasswordHash))
+                if (accountManager.CurrentAccount.passwordProtected && string.IsNullOrEmpty(accountManager.CurrentPasswordHash) && !isDebugView)
                 {
                     SetStatus("Wallet is locked. Open it from the wallet list.");
                     ClearUi();
                     return;
                 }
 
-                if (accountManager.CurrentState == null)
+                if (accountManager.CurrentState == null && !isDebugView)
                 {
                     SetStatus("Account state is unavailable.");
                     ClearUi();
@@ -1551,6 +1600,20 @@ namespace Poltergeist.UiToolkit.Balances
         {
             var selectionCount = nftPresenter.State.SelectedCount;
             var hasSelection = selectionCount > 0;
+            var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
+            if (isDebugView)
+            {
+                // Debug view is read-only: hide Send/Burn to avoid accidental actions.
+                SetActionButtonState(sendButton, false);
+                sendButton.style.display = DisplayStyle.None;
+                SetActionButtonState(burnButton, false);
+                burnButton.style.display = DisplayStyle.None;
+                SetActionButtonState(clearSelectionButton, hasSelection);
+                SetActionButtonState(selectAllButton, true);
+                SetActionButtonState(invertSelectionButton, true);
+                return;
+            }
+
             var platform = accountManager.CurrentPlatform;
             var settings = accountManager.Settings;
             var devMode = settings?.devMode ?? false;
@@ -1997,7 +2060,17 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            ExitDebugView();
             onShowBalances?.Invoke();
+        }
+
+        private void ExitDebugView()
+        {
+            if (context.ViewState?.IsDebugNftActive ?? false)
+            {
+                // Leaving the NFT screen should reset debug-only behavior.
+                context.ViewState.IsDebugNftActive = false;
+            }
         }
 
         private void ShowListMode()

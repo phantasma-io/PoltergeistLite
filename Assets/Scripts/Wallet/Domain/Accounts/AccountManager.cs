@@ -3056,6 +3056,92 @@ The Phoenix team", "Notice");
             return null;
         }
 
+        public async Task<ValidationResult<TokenDataResult>> LoadDebugNftAsync(string symbol, string tokenId, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(tokenId))
+            {
+                return ValidationResult<TokenDataResult>.Fail("NFT symbol and token id are required.");
+            }
+
+            if (phantasmaApi == null)
+            {
+                return ValidationResult<TokenDataResult>.Fail("RPC client is not ready.");
+            }
+
+            tokenId = tokenId.Trim();
+
+            var normalizedSymbol = NormalizeNftSymbol(symbol);
+            if (string.IsNullOrEmpty(normalizedSymbol))
+            {
+                return ValidationResult<TokenDataResult>.Fail("NFT symbol is invalid.");
+            }
+
+            TokenDataResult tokenData;
+            try
+            {
+                tokenData = await AsyncPhantasma.FromApi<TokenDataResult>(
+                    (onSuccess, onError) => phantasmaApi.GetNFT(normalizedSymbol, tokenId, true, onSuccess, onError),
+                    cancellationToken);
+            }
+            catch (PhantasmaRequestException ex)
+            {
+                Log.WriteWarning($"[NFT][Debug] GetNFT failed for {normalizedSymbol}:{tokenId}: {ex.Message}");
+                return ValidationResult<TokenDataResult>.Fail($"Failed to load NFT: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Log.WriteWarning($"[NFT][Debug] GetNFT failed for {normalizedSymbol}:{tokenId}: {ex}");
+                return ValidationResult<TokenDataResult>.Fail("Failed to load NFT.");
+            }
+
+            if (tokenData == null || string.IsNullOrWhiteSpace(tokenData.Id))
+            {
+                return ValidationResult<TokenDataResult>.Fail("NFT not found.");
+            }
+
+            IRom rom = null;
+            try
+            {
+                rom = tokenData.ParseRom(normalizedSymbol);
+            }
+            catch (Exception ex)
+            {
+                Log.WriteWarning($"[NFT][Debug] Failed to parse ROM for {normalizedSymbol}:{tokenId}: {ex.Message}");
+            }
+
+            var key = (CurrentPlatform, normalizedSymbol);
+            lock (_nftCacheLock)
+            {
+                var workingNfts = _nfts.TryGetValue(key, out var cachedNfts) && cachedNfts != null
+                    ? new List<TokenDataResult>(cachedNfts)
+                    : new List<TokenDataResult>();
+
+                var idx = workingNfts.FindIndex(x => string.Equals(x.Id, tokenData.Id, StringComparison.OrdinalIgnoreCase));
+                if (idx >= 0)
+                {
+                    workingNfts[idx] = tokenData;
+                }
+                else
+                {
+                    workingNfts.Add(tokenData);
+                }
+
+                _nfts[key] = workingNfts;
+
+                if (rom != null && !rom.IsEmpty())
+                {
+                    var workingRoms = _roms.TryGetValue(key, out var cachedRoms) && cachedRoms != null
+                        ? new Dictionary<string, IRom>(cachedRoms)
+                        : new Dictionary<string, IRom>();
+                    workingRoms[tokenData.Id] = rom;
+                    _roms[key] = workingRoms;
+                }
+            }
+
+            NftsUpdated?.Invoke(CurrentPlatform, normalizedSymbol);
+            return ValidationResult<TokenDataResult>.Ok(tokenData);
+        }
+
         public void GetPhantasmaAddressInfo(string addressString, Account? account, Action<string, string> callback)
         {
             byte[] scriptUnclaimed;
