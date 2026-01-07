@@ -98,6 +98,10 @@ namespace Poltergeist.UiToolkit.Balances
         private Button contractInfoButton;
         private string currentSymbol;
         private readonly Dictionary<Button, bool> actionEnableCache = new Dictionary<Button, bool>();
+        // Refresh sequencing for the current NFT symbol.
+        // InitialPass (warmup) = non-forced refresh used when opening a collection to show cached data quickly
+        // and fill missing details without clearing caches; ForcePass = explicit refresh (manual/queued) that
+        // runs after warmup or balance updates to ensure the latest ids and metadata are loaded.
         private enum NftRefreshPhase
         {
             Idle,
@@ -105,10 +109,23 @@ namespace Poltergeist.UiToolkit.Balances
             ForcePass
         }
 
+        // Current refresh phase for the symbol we are actively refreshing (used to prevent overlapping refreshes).
         private NftRefreshPhase refreshPhase = NftRefreshPhase.Idle;
+        // Symbol currently being refreshed; prevents cross-symbol refresh overlap and drives retry scheduling.
         private string refreshSymbol;
+        // UI-level latch: used to disable the Refresh button and show the status label while a refresh sequence is in flight.
         private bool isRefreshing;
+        // Queued follow-up refresh when another refresh is requested while one is already running.
+        // This ensures manual clicks or balance-triggered refreshes are not lost; it triggers exactly one extra ForcePass.
         private bool pendingForceRefresh;
+        // Manual refresh requires balances first (NFT ids live in balances), then a follow-up NFT refresh.
+        // This flag signals that we are waiting for BalancesUpdated to run the NFT refresh for the same symbol.
+        private bool pendingBalanceRefresh;
+        // Symbol to refresh once balances update; cached because currentSymbol can change while balances are loading.
+        private string pendingBalanceRefreshSymbol;
+        // Platform filter for BalancesUpdated; when set, ignore updates from other platforms.
+        private PlatformKind pendingBalanceRefreshPlatform = PlatformKind.None;
+        // Status text used during refresh sequences.
         private const string RefreshStatusMessage = "Refreshing NFTs...";
 
         private static readonly (nftMinted value, string label)[] MintedOptions =
@@ -259,15 +276,21 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            // Refresh sequence overview:
+            // - InitialPass (warmup) uses force=false to keep cached data and quickly populate the UI.
+            // - ForcePass is an explicit refresh (manual or queued) that should run after warmup/balance updates.
             // Avoid stacking duplicate requests for the same symbol.
             if (refreshPhase != NftRefreshPhase.Idle && string.Equals(refreshSymbol, symbol, StringComparison.OrdinalIgnoreCase))
             {
-                pendingForceRefresh |= !includeWarmup; // manual refresh while warmup is running => still want force pass.
+                // Queue a follow-up refresh when a new request arrives during an in-flight pass.
+                // includeWarmup=false -> manual/forced refresh; includeWarmup=true -> we still want a force pass after warmup.
+                pendingForceRefresh |= !includeWarmup;
                 return;
             }
 
             refreshSymbol = symbol;
             refreshPhase = includeWarmup ? NftRefreshPhase.InitialPass : NftRefreshPhase.ForcePass;
+            // When opening a collection (warmup), arm a follow-up ForcePass to ensure fresh data after the initial pass.
             pendingForceRefresh = includeWarmup ? true : false;
 
             UpdateRefreshingState(true);
@@ -280,6 +303,7 @@ namespace Poltergeist.UiToolkit.Balances
             uiSignals.NftsUpdated += OnNftsUpdated;
             uiSignals.NftsRefreshStarted += OnNftsRefreshStarted;
             uiSignals.SettingsChanged += OnSettingsChanged;
+            uiSignals.BalancesUpdated += OnBalancesUpdated;
         }
 
         private void Unsubscribe()
@@ -287,6 +311,7 @@ namespace Poltergeist.UiToolkit.Balances
             uiSignals.NftsUpdated -= OnNftsUpdated;
             uiSignals.NftsRefreshStarted -= OnNftsRefreshStarted;
             uiSignals.SettingsChanged -= OnSettingsChanged;
+            uiSignals.BalancesUpdated -= OnBalancesUpdated;
         }
 
         private void OnNftsUpdated(PlatformKind platform, string symbol)
@@ -294,8 +319,10 @@ namespace Poltergeist.UiToolkit.Balances
             context.ViewState.MarkNftDirty(symbol);
             RefreshView();
 
+            // NftsUpdated fires for any symbol; only the active refreshSymbol drives the refresh sequence state machine.
             if (!string.Equals(symbol, refreshSymbol, StringComparison.OrdinalIgnoreCase))
             {
+                // If our target symbol is waiting for a refresh and is no longer refreshing, kick it off now.
                 if (refreshPhase != NftRefreshPhase.Idle && !string.IsNullOrWhiteSpace(refreshSymbol) && !nftSource.IsRefreshingForSymbol(refreshSymbol))
                 {
                     TryKickoffRefresh();
@@ -304,14 +331,17 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            if (refreshPhase == NftRefreshPhase.InitialPass && pendingForceRefresh)
+            if (pendingForceRefresh)
             {
+                // A refresh was requested while another pass was already running.
+                // Honor it regardless of the current phase (warmup or force) so queued refreshes always run.
                 refreshPhase = NftRefreshPhase.ForcePass;
                 pendingForceRefresh = false;
                 TryKickoffRefresh();
                 return;
             }
 
+            // No queued refreshes remain; clear the state and re-enable the UI.
             refreshPhase = NftRefreshPhase.Idle;
             refreshSymbol = null;
             pendingForceRefresh = false;
@@ -326,6 +356,36 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 UpdateRefreshingState(true);
             }
+        }
+
+        private void OnBalancesUpdated(PlatformKind platform)
+        {
+            if (!pendingBalanceRefresh)
+            {
+                return;
+            }
+
+            var symbol = pendingBalanceRefreshSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                pendingBalanceRefresh = false;
+                pendingBalanceRefreshPlatform = PlatformKind.None;
+                return;
+            }
+
+            // Ignore balance updates from other platforms; we only want the refresh we asked for.
+            if (pendingBalanceRefreshPlatform != PlatformKind.None && pendingBalanceRefreshPlatform != platform)
+            {
+                return;
+            }
+
+            // Clear pending state before starting the follow-up refresh to avoid re-entrancy issues.
+            pendingBalanceRefresh = false;
+            pendingBalanceRefreshSymbol = null;
+            pendingBalanceRefreshPlatform = PlatformKind.None;
+
+            // NFT IDs come from balances; refresh NFTs again after balances update so new mints appear.
+            StartRefreshSequence(symbol, includeWarmup: false);
         }
 
         private void OnSettingsChanged()
@@ -345,6 +405,7 @@ namespace Poltergeist.UiToolkit.Balances
                 return; // Wait for the current refresh to finish; OnNftsUpdated will retry.
             }
 
+            // ForcePass bypasses caches; InitialPass is a warmup that can use cached data.
             var force = refreshPhase == NftRefreshPhase.ForcePass;
             nftPresenter.Refresh(refreshSymbol, force);
             context.ViewState.MarkNftDirty(refreshSymbol);
@@ -1651,7 +1712,41 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            StartRefreshSequence(currentSymbol, includeWarmup: false);
+            var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                SetStatus("Pick an NFT collection from Balances to open its dashboard.");
+                return;
+            }
+
+            // Manual refresh is two-step:
+            // 1) Refresh NFTs immediately (uses current balance ids).
+            // 2) Refresh balances to fetch new ids, then queue a follow-up NFT refresh in OnBalancesUpdated.
+            StartRefreshSequence(symbol, includeWarmup: false);
+
+            var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
+            if (isDebugView)
+            {
+                return;
+            }
+
+            if (!am.HasSelection)
+            {
+                return;
+            }
+
+            if (am.CurrentAccount.passwordProtected && string.IsNullOrEmpty(am.CurrentPasswordHash))
+            {
+                return;
+            }
+
+            pendingBalanceRefresh = true;
+            // Snapshot symbol/platform so a later balance update refreshes the intended collection.
+            pendingBalanceRefreshSymbol = symbol;
+            pendingBalanceRefreshPlatform = am.CurrentPlatform != PlatformKind.None ? am.CurrentPlatform : PlatformKind.Phantasma;
+
+            // Manual refresh should also update balances so new NFT ids (recent mints) are pulled into the list.
+            am.RefreshBalances(true, pendingBalanceRefreshPlatform);
         }
 
         private Task SendAsync()
