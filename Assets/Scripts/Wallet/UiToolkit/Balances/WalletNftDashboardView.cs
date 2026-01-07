@@ -468,8 +468,11 @@ namespace Poltergeist.UiToolkit.Balances
             heroCard.style.marginTop = 12;
             listContainer.Add(heroCard);
 
-            filtersPanel = BuildFiltersPanel();
-            listContainer.Add(filtersPanel);
+            if (!ShouldHideFilters())
+            {
+                filtersPanel = BuildFiltersPanel();
+                listContainer.Add(filtersPanel);
+            }
 
             var listWrapper = WalletUiCommon.BuildScrollContainer(
                 out listView,
@@ -1050,6 +1053,11 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void UpdateFiltersUi(string symbol)
         {
+            if (ShouldHideFilters() || filtersPanel == null)
+            {
+                return;
+            }
+
             var state = nftPresenter.State;
 
             nameFilterField?.SetValueWithoutNotify(state.FilterName ?? string.Empty);
@@ -1137,8 +1145,28 @@ namespace Poltergeist.UiToolkit.Balances
             UpdateFiltersVisibility();
         }
 
+        private bool ShouldHideFilters()
+        {
+            // Hide the filters section on device builds to free space for the list.
+            var platform = Application.platform;
+            return platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer;
+        }
+
         private void UpdateFiltersVisibility(bool fromLayout = false)
         {
+            if (filtersPanel == null)
+            {
+                return;
+            }
+
+            if (ShouldHideFilters())
+            {
+                filtersPanel.style.display = DisplayStyle.None;
+                return;
+            }
+
+            filtersPanel.style.display = DisplayStyle.Flex;
+
             var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
             if (!filtersExpandedUserOverride)
             {
