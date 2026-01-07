@@ -163,9 +163,36 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                SetStatus("Pick an asset from Balances to open its dashboard.");
+                return;
+            }
+
+            // Asset header summary (supply/flags/name) comes from token metadata, not balances.
+            // Request a token list reload so the header reflects the latest supply data on manual refresh.
+            RequestTokenMetadataRefresh(symbol);
+
             balancePresenter.Refresh(false);
             context.ViewState.MarkBalancesDirty();
             RefreshView();
+        }
+
+        private void RequestTokenMetadataRefresh(string symbol)
+        {
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                return;
+            }
+
+            var platform = accountManager.CurrentPlatform;
+            if (platform != PlatformKind.Phantasma)
+            {
+                return; // Token metadata is sourced from Phantasma; other platforms do not use this list.
+            }
+            accountManager.RequestTokensReload();
         }
 
         private void Subscribe()

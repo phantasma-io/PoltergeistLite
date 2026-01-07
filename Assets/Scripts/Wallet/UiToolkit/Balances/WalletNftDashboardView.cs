@@ -1719,6 +1719,10 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            // NFT header summary (supply/flags) comes from token metadata, not balances.
+            // Refresh token metadata on manual refresh so the header reflects updated supply.
+            RequestTokenMetadataRefresh(symbol);
+
             // Manual refresh is two-step:
             // 1) Refresh NFTs immediately (uses current balance ids).
             // 2) Refresh balances to fetch new ids, then queue a follow-up NFT refresh in OnBalancesUpdated.
@@ -1747,6 +1751,21 @@ namespace Poltergeist.UiToolkit.Balances
 
             // Manual refresh should also update balances so new NFT ids (recent mints) are pulled into the list.
             am.RefreshBalances(true, pendingBalanceRefreshPlatform);
+        }
+
+        private void RequestTokenMetadataRefresh(string symbol)
+        {
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                return;
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return; // Token metadata is sourced from Phantasma; other platforms do not use this list.
+            }
+            accountManager.RequestTokensReload();
         }
 
         private Task SendAsync()
