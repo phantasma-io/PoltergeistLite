@@ -800,9 +800,13 @@ namespace Poltergeist.UiToolkit
 
         internal static VisualElement BuildMainFooter(Action onNewWallet, Action onManageWallets, Action onSettings)
         {
+            var platform = Application.platform;
+            var newWalletLabel = platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer
+                ? "New"
+                : "New wallet";
             return BuildFooter(
                 out _,
-                ("New wallet", onNewWallet),
+                (newWalletLabel, onNewWallet),
                 ("Manage", onManageWallets),
                 ("Settings", onSettings)
             );

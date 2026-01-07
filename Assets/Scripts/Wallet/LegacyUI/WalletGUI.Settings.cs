@@ -661,9 +661,9 @@ namespace Poltergeist
             }
 
 #if UNITY_STANDALONE_WIN || UNITY_EDITOR_WIN || UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
-            string[] settingsMenu = new string[] { "Display settings", "Open log location", "Cancel", "Confirm" };
+            string[] settingsMenu = new string[] { "View", "Open log location", "Cancel", "Confirm" };
 #else
-            string[] settingsMenu = new string[] { "Display settings", "Show log location", "Cancel", "Confirm" };
+            string[] settingsMenu = new string[] { "View", "Show log location", "Cancel", "Confirm" };
 #endif
             int posY;
             DoButtonGrid<int>(false, settingsMenu.Length, (VerticalLayout) ? 0 : Units(2), 0, out posY, (index) =>

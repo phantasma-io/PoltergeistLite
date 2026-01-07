@@ -786,7 +786,7 @@ namespace Poltergeist.UiToolkit.Settings
         {
             return WalletUiCommon.BuildFooter(
                 out _,
-                ("Display settings", OnCopyDisplaySettings),
+                ("View", OnCopyDisplaySettings),
                 ("Log folder", OnShowLogLocation),
                 ("Revert", OnCancelChanges),
                 ("Apply", OnApplySettings)
