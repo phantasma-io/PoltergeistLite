@@ -1229,7 +1229,10 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var amount = await PromptAmountAsync(entry.Symbol, WalletAmountParser.FromDecimal(0.1m, entry.Decimals), entry.Available, initialValue: "0");
+            var minBurn = entry.Decimals == 0
+                ? BigInteger.One
+                : WalletAmountParser.FromDecimal(0.1m, entry.Decimals);
+            var amount = await PromptAmountAsync(entry.Symbol, minBurn, entry.Available, initialValue: "0");
             if (amount <= 0)
             {
                 return;

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using Poltergeist;
@@ -36,8 +37,17 @@ namespace Poltergeist.Wallet
                 return ValidationResult<BigInteger>.Fail($"Cannot load token decimals for {symbol}. {e.Message}");
             }
 
-            if (!WalletAmountParser.TryParse(input, decimals, out var amount))
+            var trimmedInput = input?.Trim() ?? string.Empty;
+            if (!WalletAmountParser.TryParse(trimmedInput, decimals, out var amount))
             {
+                var numberFormat = CultureInfo.CurrentCulture.NumberFormat;
+                if (decimals == 0 && !string.IsNullOrEmpty(numberFormat.NumberDecimalSeparator)
+                    && trimmedInput.Contains(numberFormat.NumberDecimalSeparator))
+                {
+                    // Provide a clearer error when a decimal separator is used for whole-number tokens.
+                    return ValidationResult<BigInteger>.Fail($"Only whole {symbol} amounts are allowed.");
+                }
+
                 return ValidationResult<BigInteger>.Fail($"Invalid {symbol} amount.");
             }
 
