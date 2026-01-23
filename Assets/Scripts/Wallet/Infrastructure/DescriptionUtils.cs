@@ -712,6 +712,61 @@ namespace Poltergeist
             }
         }
 
+        private static string FormatCarbonInstanceId(ulong instanceId)
+        {
+            return ShortenTokenId(instanceId.ToString());
+        }
+
+        private static string FormatCarbonInstanceId(VmDynamicVariable instanceId)
+        {
+            return ShortenTokenId(VmDynamicVariableToString(instanceId));
+        }
+
+        private static void ResolveTokenByCarbonId(ulong tokenId, out string symbol, out uint decimals)
+        {
+            var token = Tokens.GetTokenByCarbonId(tokenId, PlatformKind.Phantasma);
+            if (string.IsNullOrWhiteSpace(token.Symbol))
+            {
+                throw new TokenMappingException($"Cannot load token symbol for carbon ID {tokenId}");
+            }
+
+            symbol = token.Symbol;
+            decimals = token.Decimals;
+        }
+
+        private static string FormatMarketPrice(IntX price, ulong quoteTokenId, out string quoteSymbol)
+        {
+            ResolveTokenByCarbonId(quoteTokenId, out quoteSymbol, out var decimals);
+            return WalletAmountFormatter.Format((BigInteger)price, decimals);
+        }
+
+        private static string FormatMarketPrice(IntX price, string quoteSymbol, out string resolvedSymbol)
+        {
+            resolvedSymbol = string.IsNullOrWhiteSpace(quoteSymbol) ? "UNKNOWN" : quoteSymbol;
+            if (!string.IsNullOrWhiteSpace(quoteSymbol) && Tokens.GetToken(quoteSymbol, PlatformKind.Phantasma, out var token))
+            {
+                if (!string.IsNullOrWhiteSpace(token.Symbol))
+                {
+                    resolvedSymbol = token.Symbol;
+                }
+                return WalletAmountFormatter.Format((BigInteger)price, token.Decimals);
+            }
+
+            return price.ToString();
+        }
+
+        private static string FormatMarketEndDate(long endDate)
+        {
+            if (endDate <= 0)
+            {
+                return "unknown";
+            }
+
+            // Carbon dates are int64 seconds; clamp to Timestamp range to avoid overflow.
+            var clamped = endDate > uint.MaxValue ? uint.MaxValue : (uint)endDate;
+            return new Timestamp(clamped).ToString();
+        }
+
         public static void FromTxMsgCall(TxMsgCall call, ref StringBuilder sb)
         {
             switch ((ModuleId)call.moduleId)
@@ -785,8 +840,112 @@ namespace Poltergeist
                         }
                         break;
                     }
+                case ModuleId.Market:
+                    {
+                        if (call.args == null || call.args.Length == 0)
+                        {
+                            sb.AppendLine($"Market module: {(MarketContract_Methods)call.methodId}");
+                            break;
+                        }
+
+                        // If decoding fails, fall back to a generic label; token mapping errors should surface.
+                        try
+                        {
+                            switch ((MarketContract_Methods)call.methodId)
+                            {
+                                case MarketContract_Methods.SellToken:
+                                    {
+                                        var args = CarbonBlob.New<MarketSellTokenArgs>(call.args);
+                                        ResolveTokenByCarbonId(args.tokenId, out var tokenSymbol, out _);
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        var price = FormatMarketPrice(args.price, args.quoteTokenId, out var quoteSymbol);
+                                        var untilDate = FormatMarketEndDate(args.endDate);
+                                        sb.AppendLine($"\u2605 Sell {tokenSymbol} NFT #{instanceId} for {price} {quoteSymbol}, offer valid until {untilDate}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.SellTokenById:
+                                    {
+                                        var args = CarbonBlob.New<MarketSellTokenByIdArgs>(call.args);
+                                        var tokenSymbol = string.IsNullOrWhiteSpace(args.symbol.data) ? "Unknown token" : args.symbol.data;
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        var price = FormatMarketPrice(args.price, args.quoteSymbol.data, out var quoteSymbol);
+                                        var untilDate = FormatMarketEndDate(args.endDate);
+                                        sb.AppendLine($"\u2605 Sell {tokenSymbol} NFT #{instanceId} for {price} {quoteSymbol}, offer valid until {untilDate}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.CancelSale:
+                                    {
+                                        var args = CarbonBlob.New<MarketCancelSaleArgs>(call.args);
+                                        ResolveTokenByCarbonId(args.tokenId, out var tokenSymbol, out _);
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        sb.AppendLine($"\u2605 Cancel sale of {tokenSymbol} NFT #{instanceId}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.CancelSaleById:
+                                    {
+                                        var args = CarbonBlob.New<MarketCancelSaleByIdArgs>(call.args);
+                                        var tokenSymbol = string.IsNullOrWhiteSpace(args.symbol.data) ? "Unknown token" : args.symbol.data;
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        sb.AppendLine($"\u2605 Cancel sale of {tokenSymbol} NFT #{instanceId}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.BuyToken:
+                                    {
+                                        var args = CarbonBlob.New<MarketBuyTokenArgs>(call.args);
+                                        ResolveTokenByCarbonId(args.tokenId, out var tokenSymbol, out _);
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        sb.AppendLine($"\u2605 Buy {tokenSymbol} NFT #{instanceId}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.BuyTokenById:
+                                    {
+                                        var args = CarbonBlob.New<MarketBuyTokenByIdArgs>(call.args);
+                                        var tokenSymbol = string.IsNullOrWhiteSpace(args.symbol.data) ? "Unknown token" : args.symbol.data;
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        sb.AppendLine($"\u2605 Buy {tokenSymbol} NFT #{instanceId}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.GetTokenListingCount:
+                                    {
+                                        var args = CarbonBlob.New<MarketGetTokenListingCountArgs>(call.args);
+                                        ResolveTokenByCarbonId(args.tokenId, out var tokenSymbol, out _);
+                                        sb.AppendLine($"Market module: Listing count for {tokenSymbol}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.GetTokenListingInfo:
+                                    {
+                                        var args = CarbonBlob.New<MarketGetTokenListingInfoArgs>(call.args);
+                                        ResolveTokenByCarbonId(args.tokenId, out var tokenSymbol, out _);
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        sb.AppendLine($"Market module: Listing info for {tokenSymbol} NFT #{instanceId}.");
+                                        break;
+                                    }
+                                case MarketContract_Methods.GetTokenListingInfoById:
+                                    {
+                                        var args = CarbonBlob.New<MarketGetTokenListingInfoByIdArgs>(call.args);
+                                        var tokenSymbol = string.IsNullOrWhiteSpace(args.symbol.data) ? "Unknown token" : args.symbol.data;
+                                        var instanceId = FormatCarbonInstanceId(args.instanceId);
+                                        sb.AppendLine($"Market module: Listing info for {tokenSymbol} NFT #{instanceId}.");
+                                        break;
+                                    }
+                                default:
+                                    sb.AppendLine($"Market module: {(MarketContract_Methods)call.methodId}");
+                                    break;
+                            }
+                        }
+                        catch (TokenMappingException)
+                        {
+                            throw;
+                        }
+                        catch
+                        {
+                            sb.AppendLine($"Market module: {(MarketContract_Methods)call.methodId}");
+                        }
+
+                        break;
+                    }
                 default:
-                    sb.AppendLine($"Unknown module {call.moduleId} call");
+                    sb.AppendLine($"Call to unknown module {call.moduleId}");
                     break;
             }
         }
