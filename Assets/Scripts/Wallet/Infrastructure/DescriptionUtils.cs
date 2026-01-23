@@ -115,7 +115,12 @@ namespace Poltergeist
             {
                 var contractStruct = await AsyncPhantasma.FromApi(
                     (Action<PhantasmaPhoenix.RPC.Models.ContractResult> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
-                        accountManager.phantasmaApi.GetContract(contract, onSuccess, onError),
+                        accountManager.phantasmaApi.GetContract(
+                            contract,
+                            onSuccess,
+                            onError,
+                            timeout: WebClient.DefaultTimeout,
+                            retries: NetworkRetryPolicy.Retries),
                     cancellationToken);
 
                 Log.Write($"Registering {contractStruct.Methods.Length} methods for {contract}");

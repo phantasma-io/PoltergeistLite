@@ -175,7 +175,12 @@ public static class GameStore
 
         try
         {
-            var response = await WebClientAsync.GetAsync<GameNftApiResponse>(url + idList, 0, cancellationToken);
+            var response = await WebClientAsync.GetAsync<GameNftApiResponse>(
+                url + idList,
+                0,
+                NetworkRetryPolicy.Retries,
+                NetworkRetryPolicy.RetryDelay,
+                cancellationToken);
 
             LoadStoreNftFromApiResponse(response, onItemLoadedCallback);
 

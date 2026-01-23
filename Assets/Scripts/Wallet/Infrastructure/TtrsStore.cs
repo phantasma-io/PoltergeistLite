@@ -148,7 +148,12 @@ public static class TtrsStore
 
         try
         {
-            var response = await WebClientAsync.PostAsync<Dictionary<string, Nft>>(url, "{\"ids\":[" + idList + "]}", cancellationToken);
+            var response = await WebClientAsync.PostAsync<Dictionary<string, Nft>>(
+                url,
+                "{\"ids\":[" + idList + "]}",
+                NetworkRetryPolicy.Retries,
+                NetworkRetryPolicy.RetryDelay,
+                cancellationToken);
             if (response != null)
             {
                 LoadStoreNftFromApiResponse(response, onItemLoadedCallback);

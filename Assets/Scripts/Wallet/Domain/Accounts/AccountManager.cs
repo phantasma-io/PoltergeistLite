@@ -544,7 +544,12 @@ namespace Poltergeist
             var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, tokens.Where(x => Tokens.HasCGSymbol(x)).Select(x => Tokens.GetCGSymbol(x)).Distinct().ToList()) + "&vs_currencies=" + currency;
             try
             {
-                var response = await WebClientAsync.GetAsync<Dictionary<string, Dictionary<string, decimal>>>(url, WebClient.DefaultTimeout, cancellationToken);
+                var response = await WebClientAsync.GetAsync<Dictionary<string, Dictionary<string, decimal>>>(
+                    url,
+                    WebClient.DefaultTimeout,
+                    NetworkRetryPolicy.Retries,
+                    NetworkRetryPolicy.RetryDelay,
+                    cancellationToken);
                 foreach (var token in tokens)
                 {
                     var cgSymbol = Tokens.GetCGSymbol(token);
@@ -654,7 +659,12 @@ namespace Poltergeist
 
                 try
                 {
-                    var response = await WebClientAsync.GetAsync<JToken>(url, WebClient.DefaultTimeout, CancellationToken.None);
+                    var response = await WebClientAsync.GetAsync<JToken>(
+                        url,
+                        WebClient.DefaultTimeout,
+                        NetworkRetryPolicy.Retries,
+                        NetworkRetryPolicy.RetryDelay,
+                        CancellationToken.None);
                     if (response != null)
                     {
                         rpcNumberPhantasma = response.Count();
@@ -712,18 +722,38 @@ namespace Poltergeist
 
         private async Task BenchmarkRpcAsync(string rpcUrl)
         {
+            // Benchmark should include retry delays so slow/flaky endpoints score worse.
+            var startedAt = DateTime.UtcNow;
+            var remainingRetries = NetworkRetryPolicy.Retries;
+
             try
             {
-                var responseTime = await AsyncPhantasma.FromApi<TimeSpan>(
-                    (onSuccess, onError) => WebClient.Ping(rpcUrl, onError, onSuccess),
-                    CancellationToken.None);
-
-                lock (rpcResponseTimesPhantasma)
+                while (true)
                 {
-                    rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, false, responseTime));
-                }
+                    try
+                    {
+                        await AsyncPhantasma.FromApi<TimeSpan>(
+                            (onSuccess, onError) => WebClient.Ping(rpcUrl, onError, onSuccess),
+                            CancellationToken.None);
 
-                Interlocked.Increment(ref rpcAvailablePhantasma);
+                        var totalTime = DateTime.UtcNow - startedAt;
+                        lock (rpcResponseTimesPhantasma)
+                        {
+                            rpcResponseTimesPhantasma.Add(new RpcBenchmarkData(rpcUrl, false, totalTime));
+                        }
+
+                        Interlocked.Increment(ref rpcAvailablePhantasma);
+                        break;
+                    }
+                    catch (PhantasmaRequestException ex) when (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR && remainingRetries > 0)
+                    {
+                        remainingRetries--;
+                        if (NetworkRetryPolicy.RetryDelay > TimeSpan.Zero)
+                        {
+                            await Task.Delay(NetworkRetryPolicy.RetryDelay);
+                        }
+                    }
+                }
             }
             catch (PhantasmaRequestException ex)
             {
@@ -1040,7 +1070,7 @@ The Phoenix team", "Notice");
                 try
                 {
                     return await AsyncPhantasma.FromApi<TokenResult[]>(
-                        (onSuccess, onError) => phantasmaApi.GetTokens(onSuccess, onError, 10, 5),
+                        (onSuccess, onError) => phantasmaApi.GetTokens(onSuccess, onError, 10, NetworkRetryPolicy.Retries),
                         cancellationToken);
                 }
                 catch (PhantasmaRequestException ex)
@@ -1247,7 +1277,17 @@ The Phoenix team", "Notice");
                             {
                                 var result = await AsyncPhantasma.FromApi(
                                     (Action<string, string> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
-                                        phantasmaApi.SignAndSendTransaction(PhantasmaKeys.FromWIF(CurrentWif), Settings.nexusName, script, chain, payload, onSuccess, onError, customSignFunction),
+                                        phantasmaApi.SignAndSendTransaction(
+                                            PhantasmaKeys.FromWIF(CurrentWif),
+                                            Settings.nexusName,
+                                            script,
+                                            chain,
+                                            payload,
+                                            onSuccess,
+                                            onError,
+                                            customSignFunction,
+                                            timeout: WebClient.DefaultTimeout,
+                                            retries: NetworkRetryPolicy.Retries),
                                     CancellationToken.None);
 
                                 var hashText = result.Item1;
@@ -1312,7 +1352,13 @@ The Phoenix team", "Notice");
                             {
                                 var result = await AsyncPhantasma.FromApi(
                                     (Action<string, string> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
-                                        phantasmaApi.SignAndSendCarbonTransaction(PhantasmaKeys.FromWIF(CurrentWif), tx, onSuccess, onError),
+                                        phantasmaApi.SignAndSendCarbonTransaction(
+                                            PhantasmaKeys.FromWIF(CurrentWif),
+                                            tx,
+                                            onSuccess,
+                                            onError,
+                                            timeout: WebClient.DefaultTimeout,
+                                            retries: NetworkRetryPolicy.Retries),
                                     CancellationToken.None);
 
                                 var hashText = result.Item1;
@@ -1376,7 +1422,13 @@ The Phoenix team", "Notice");
                             try
                             {
                                 var result = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.ScriptResult>(
-                                    (onSuccess, onError) => phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), onSuccess, onError),
+                                    (onSuccess, onError) => phantasmaApi.InvokeRawScript(
+                                        chain,
+                                        Base16.Encode(script),
+                                        onSuccess,
+                                        onError,
+                                        timeout: WebClient.DefaultTimeout,
+                                        retries: NetworkRetryPolicy.Retries),
                                     CancellationToken.None);
 
                                 Log.Write("InvokeScript result: " + result.Result, Log.Level.Debug1);
@@ -1412,7 +1464,13 @@ The Phoenix team", "Notice");
                 try
                 {
                     var result = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.ScriptResult>(
-                        (onSuccess, onError) => phantasmaApi.InvokeRawScript(chain, Base16.Encode(script), onSuccess, onError),
+                        (onSuccess, onError) => phantasmaApi.InvokeRawScript(
+                            chain,
+                            Base16.Encode(script),
+                            onSuccess,
+                            onError,
+                            timeout: WebClient.DefaultTimeout,
+                            retries: NetworkRetryPolicy.Retries),
                         CancellationToken.None);
                     Log.Write("InvokeScriptPhantasma result: " + result.Result, Log.Level.Debug1);
                     callback(Base16.Decode(result.Result), null);
@@ -1744,7 +1802,12 @@ The Phoenix team", "Notice");
                         try
                         {
                             var txResult = await AsyncPhantasma.FromApi<TransactionResult>(
-                                (onSuccess, onError) => phantasmaApi.GetTransaction(transactionHash, onSuccess, onError),
+                                (onSuccess, onError) => phantasmaApi.GetTransaction(
+                                    transactionHash,
+                                    onSuccess,
+                                    onError,
+                                    timeout: WebClient.DefaultTimeout,
+                                    retries: NetworkRetryPolicy.Retries),
                                 CancellationToken.None);
 
                             if (txResult.State == ExecutionState.Running)
@@ -1890,7 +1953,12 @@ The Phoenix team", "Notice");
                 try
                 {
                     var acc = await AsyncPhantasma.FromApi<PhantasmaPhoenix.RPC.Models.AccountResult>(
-                        (onSuccess, onError) => phantasmaApi.GetAccount(keys.Address.Text, onSuccess, onError),
+                        (onSuccess, onError) => phantasmaApi.GetAccount(
+                            keys.Address.Text,
+                            onSuccess,
+                            onError,
+                            timeout: WebClient.DefaultTimeout,
+                            retries: NetworkRetryPolicy.Retries),
                         session.Token);
 
                     if (!IsSessionCurrent(session, PlatformKind.Phantasma, acc?.Address))
@@ -2306,7 +2374,14 @@ The Phoenix team", "Notice");
                                                         }
 
                                                         var tokenData2 = await AsyncPhantasma.FromApi<TokenDataResult>(
-                                                            (onSuccess, onError) => phantasmaApi.GetNFT(symbol, id, true, onSuccess, onError),
+                                                            (onSuccess, onError) => phantasmaApi.GetNFT(
+                                                                symbol,
+                                                                id,
+                                                                true,
+                                                                onSuccess,
+                                                                onError,
+                                                                timeout: WebClient.DefaultTimeout,
+                                                                retries: NetworkRetryPolicy.Retries),
                                                             session.Token);
                                                         if (!IsNftRequestCurrent(session, platform, normalizedSymbol, nftSessionId))
                                                         {
@@ -2489,7 +2564,14 @@ The Phoenix team", "Notice");
                 try
                 {
                     var result = await AsyncPhantasma.FromApi<AccountTransactionsResult, uint, uint>(
-                        (onSuccess, onError) => phantasmaApi.GetAddressTransactions(keys.Address.Text, 1, 20, onSuccess, onError),
+                        (onSuccess, onError) => phantasmaApi.GetAddressTransactions(
+                            keys.Address.Text,
+                            1,
+                            20,
+                            onSuccess,
+                            onError,
+                            timeout: WebClient.DefaultTimeout,
+                            retries: NetworkRetryPolicy.Retries),
                         session.Token);
                     var (transactions, _, _) = result;
 
@@ -2754,7 +2836,12 @@ The Phoenix team", "Notice");
                 try
                 {
                     var address = await AsyncPhantasma.FromApi<string>(
-                        (onSuccess, onError) => phantasmaApi.LookUpName(name, onSuccess, onError),
+                        (onSuccess, onError) => phantasmaApi.LookUpName(
+                            name,
+                            onSuccess,
+                            onError,
+                            timeout: WebClient.DefaultTimeout,
+                            retries: NetworkRetryPolicy.Retries),
                         CancellationToken.None);
                     callback(address);
                 }
@@ -3080,7 +3167,14 @@ The Phoenix team", "Notice");
             try
             {
                 tokenData = await AsyncPhantasma.FromApi<TokenDataResult>(
-                    (onSuccess, onError) => phantasmaApi.GetNFT(normalizedSymbol, tokenId, true, onSuccess, onError),
+                    (onSuccess, onError) => phantasmaApi.GetNFT(
+                        normalizedSymbol,
+                        tokenId,
+                        true,
+                        onSuccess,
+                        onError,
+                        timeout: WebClient.DefaultTimeout,
+                        retries: NetworkRetryPolicy.Retries),
                     cancellationToken);
             }
             catch (PhantasmaRequestException ex)
