@@ -288,9 +288,10 @@ namespace Poltergeist.UiToolkit
             var tcs = new TaskCompletionSource<(PromptResult result, string address)>(TaskCreationOptions.RunContinuationsAsynchronously);
             var accountManager = AccountManager.Instance;
             var currentAddress = accountManager != null ? accountManager.CurrentAccount.phaAddress?.Trim() : null;
-            // Only keep unique, valid Phantasma addresses to avoid noisy or unusable entries in the picker.
+            // Only keep unique, valid Phantasma addresses and skip hidden wallets to avoid unsafe recipients.
             var validAccounts = new List<Account>();
             var seenAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var hiddenSet = new HashSet<string>(accountManager?.HiddenPhantasmaAddresses ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
             if (accounts != null)
             {
                 foreach (var acc in accounts)
@@ -299,6 +300,7 @@ namespace Poltergeist.UiToolkit
                     if (string.IsNullOrWhiteSpace(address) ||
                         !Address.IsValidAddress(address) ||
                         string.Equals(address, currentAddress, StringComparison.OrdinalIgnoreCase) ||
+                        hiddenSet.Contains(address) ||
                         !seenAddresses.Add(address))
                     {
                         continue;
