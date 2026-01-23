@@ -982,7 +982,7 @@ namespace Poltergeist.UiToolkit.Balances
                 claimButton.style.display = DisplayStyle.None;
             }
 
-            var burnEligible = devMode && isPhantasma && entry.Burnable && isFungible && entry.Available > BigInteger.Zero;
+            var burnEligible = isPhantasma && entry.Burnable && isFungible && entry.Available > BigInteger.Zero;
             SetActionButtonState(burnButton, burnEligible);
             burnButton.style.display = burnEligible ? DisplayStyle.Flex : DisplayStyle.None;
 

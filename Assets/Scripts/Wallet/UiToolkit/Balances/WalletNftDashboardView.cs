@@ -1721,10 +1721,10 @@ namespace Poltergeist.UiToolkit.Balances
             SetActionButtonState(sendButton, hasSelection && showSend);
             sendButton.style.display = showSend ? DisplayStyle.Flex : DisplayStyle.None;
 
-            // Keep NFT burn strictly behind dev mode: visible in dev mode, enabled only when Phantasma + selection.
-            var canBurn = devMode && platform == PlatformKind.Phantasma && hasSelection;
+            // NFT burn is available on Phantasma; enable only when selection is present.
+            var canBurn = platform == PlatformKind.Phantasma && hasSelection;
             SetActionButtonState(burnButton, canBurn);
-            burnButton.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+            burnButton.style.display = platform == PlatformKind.Phantasma ? DisplayStyle.Flex : DisplayStyle.None;
 
             SetActionButtonState(clearSelectionButton, hasSelection);
             SetActionButtonState(selectAllButton, true);
@@ -1884,9 +1884,9 @@ namespace Poltergeist.UiToolkit.Balances
         private async Task BurnAsync(string symbolOverride, IReadOnlyCollection<string> customIds)
         {
             var settings = AccountManager.Instance?.Settings;
-            if (settings == null || !settings.devMode)
+            if (settings == null)
             {
-                SetStatus("Burn is available only in developer mode.");
+                SetStatus("Account is not ready.");
                 return;
             }
 
