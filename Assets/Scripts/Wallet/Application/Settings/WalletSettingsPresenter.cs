@@ -282,9 +282,9 @@ namespace Poltergeist.Wallet
             GetSettings().showUnstableTools = value;
         }
 
-        public void SetPreferScriptlessTxes(bool value)
+        public void SetUseVmTransactions(bool value)
         {
-            GetSettings().preferScriptlessTxes = value;
+            GetSettings().useVmTransactions = value;
         }
 
         public void SetScriptlessMaxGas(string value)

@@ -79,7 +79,7 @@ namespace Poltergeist.UiToolkit.Settings
         private TextField scriptlessDataField;
         private Toggle devModeToggle;
         private Toggle devNoValidationToggle;
-        private Toggle preferScriptlessToggle;
+        private Toggle useVmTransactionsToggle;
         private Toggle logOverwriteToggle;
         private Toggle showUnstableToolsToggle;
         private VisualElement devToolsSection;
@@ -89,7 +89,7 @@ namespace Poltergeist.UiToolkit.Settings
         private VisualElement poaUrlRow;
         private VisualElement nexusNameRow;
         private VisualElement devNoValidationRow;
-        private VisualElement preferScriptlessRow;
+        private VisualElement useVmTransactionsRow;
         private VisualElement showUnstableToolsRow;
         private VisualElement scriptlessGasRow;
         private VisualElement scriptlessDataRow;
@@ -493,7 +493,7 @@ namespace Poltergeist.UiToolkit.Settings
             logOverwriteToggle = WalletUiFormFactory.CreateToggle("Log overwrite mode", false, value => OnChanged(() => presenter.SetLogOverwriteMode(value)));
             devModeToggle = WalletUiFormFactory.CreateToggle("Developer mode", false, value => OnChanged(() => presenter.SetDevMode(value), true));
             devNoValidationToggle = WalletUiFormFactory.CreateToggle("Developer mode (no validation)", false, value => OnChanged(() => presenter.SetDevModeNoValidation(value)));
-            preferScriptlessToggle = WalletUiFormFactory.CreateToggle("Prefer scriptless transactions", false, value => OnChanged(() => presenter.SetPreferScriptlessTxes(value)));
+            useVmTransactionsToggle = WalletUiFormFactory.CreateToggle("Use VM transactions", false, value => OnChanged(() => presenter.SetUseVmTransactions(value)));
             showUnstableToolsToggle = WalletUiFormFactory.CreateToggle(
                 "Show unstable tools",
                 false,
@@ -505,10 +505,10 @@ namespace Poltergeist.UiToolkit.Settings
             advancedSection.Add(WalletUiFormFactory.CreateLabeledRow(string.Empty, logOverwriteToggle));
             advancedSection.Add(WalletUiFormFactory.CreateLabeledRow(string.Empty, devModeToggle));
             devNoValidationRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, devNoValidationToggle);
-            preferScriptlessRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, preferScriptlessToggle);
+            useVmTransactionsRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, useVmTransactionsToggle);
             showUnstableToolsRow = WalletUiFormFactory.CreateLabeledRow(string.Empty, showUnstableToolsToggle);
             advancedSection.Add(devNoValidationRow);
-            advancedSection.Add(preferScriptlessRow);
+            advancedSection.Add(useVmTransactionsRow);
             advancedSection.Add(showUnstableToolsRow);
             AddTabSection("advanced", "Advanced", advancedSection);
 
@@ -826,7 +826,7 @@ namespace Poltergeist.UiToolkit.Settings
             logOverwriteToggle.value = snapshot.LogOverwriteMode;
             devModeToggle.value = snapshot.DevMode;
             devNoValidationToggle.value = snapshot.DevModeNoValidation;
-            preferScriptlessToggle.value = snapshot.PreferScriptlessTxes;
+            useVmTransactionsToggle.value = snapshot.UseVmTransactions;
             showUnstableToolsToggle.value = snapshot.ShowUnstableTools;
 
             if (!ShowOnlyFirstSettingsField)
@@ -902,9 +902,9 @@ namespace Poltergeist.UiToolkit.Settings
                 devNoValidationRow.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            if (preferScriptlessRow != null)
+            if (useVmTransactionsRow != null)
             {
-                preferScriptlessRow.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+                useVmTransactionsRow.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
             if (showUnstableToolsRow != null)

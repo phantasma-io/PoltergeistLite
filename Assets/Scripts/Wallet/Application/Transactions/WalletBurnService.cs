@@ -113,7 +113,7 @@ namespace Poltergeist.Wallet
             var decimals = Tokens.GetTokenDecimals(symbol, accountManager.CurrentPlatform);
             var target = Address.Parse(state.address);
 
-            if (accountManager.Settings.preferScriptlessTxes)
+            if (!accountManager.Settings.useVmTransactions)
             {
                 return BuildScriptlessFungibleBurnDraft(symbol, burnAmount, target, accountManager, decimals);
             }
@@ -194,7 +194,7 @@ namespace Poltergeist.Wallet
             var target = Address.Parse(state.address);
             var message = $"Are you sure you want to burn (destroy) {ids.Count} {symbol} NFTs?";
 
-            if (accountManager.Settings.preferScriptlessTxes)
+            if (!accountManager.Settings.useVmTransactions)
             {
                 var scriptlessDraft = BuildScriptlessNftBurnDraft(symbol, ids, target, accountManager);
                 if (!scriptlessDraft.Success)
