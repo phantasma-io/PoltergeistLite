@@ -98,6 +98,10 @@ namespace Poltergeist.UiToolkit.Balances
         private Button contractInfoButton;
         private string currentSymbol;
         private readonly Dictionary<Button, bool> actionEnableCache = new Dictionary<Button, bool>();
+        // Refresh sequencing for the current NFT symbol.
+        // InitialPass (warmup) = non-forced refresh used when opening a collection to show cached data quickly
+        // and fill missing details without clearing caches; ForcePass = explicit refresh (manual/queued) that
+        // runs after warmup or balance updates to ensure the latest ids and metadata are loaded.
         private enum NftRefreshPhase
         {
             Idle,
@@ -105,10 +109,23 @@ namespace Poltergeist.UiToolkit.Balances
             ForcePass
         }
 
+        // Current refresh phase for the symbol we are actively refreshing (used to prevent overlapping refreshes).
         private NftRefreshPhase refreshPhase = NftRefreshPhase.Idle;
+        // Symbol currently being refreshed; prevents cross-symbol refresh overlap and drives retry scheduling.
         private string refreshSymbol;
+        // UI-level latch: used to disable the Refresh button and show the status label while a refresh sequence is in flight.
         private bool isRefreshing;
+        // Queued follow-up refresh when another refresh is requested while one is already running.
+        // This ensures manual clicks or balance-triggered refreshes are not lost; it triggers exactly one extra ForcePass.
         private bool pendingForceRefresh;
+        // Manual refresh requires balances first (NFT ids live in balances), then a follow-up NFT refresh.
+        // This flag signals that we are waiting for BalancesUpdated to run the NFT refresh for the same symbol.
+        private bool pendingBalanceRefresh;
+        // Symbol to refresh once balances update; cached because currentSymbol can change while balances are loading.
+        private string pendingBalanceRefreshSymbol;
+        // Platform filter for BalancesUpdated; when set, ignore updates from other platforms.
+        private PlatformKind pendingBalanceRefreshPlatform = PlatformKind.None;
+        // Status text used during refresh sequences.
         private const string RefreshStatusMessage = "Refreshing NFTs...";
 
         private static readonly (nftMinted value, string label)[] MintedOptions =
@@ -173,6 +190,8 @@ namespace Poltergeist.UiToolkit.Balances
                 currentSymbol = string.Empty;
                 context.ViewState.TokenDashboardSymbol = string.Empty;
                 context.ViewState.TransferSymbol = string.Empty;
+                // Normal navigation: drop debug mode when leaving the debug NFT view.
+                context.ViewState.IsDebugNftActive = false;
                 RefreshView();
                 return;
             }
@@ -180,6 +199,8 @@ namespace Poltergeist.UiToolkit.Balances
             currentSymbol = symbol;
             context.ViewState.TokenDashboardSymbol = symbol;
             context.ViewState.TransferSymbol = symbol;
+            // Normal navigation: drop debug mode when switching to a regular collection.
+            context.ViewState.IsDebugNftActive = false;
 
             PrepareStateForSymbol(symbol);
             StartRefreshSequence(symbol, includeWarmup: true);
@@ -187,9 +208,44 @@ namespace Poltergeist.UiToolkit.Balances
             RefreshView();
         }
 
+        public void ShowDebugNft(string symbol, string tokenId)
+        {
+            if (string.IsNullOrWhiteSpace(symbol) || string.IsNullOrWhiteSpace(tokenId))
+            {
+                SetStatus("NFT identifier is required.");
+                return;
+            }
+
+            symbol = symbol.Trim();
+            tokenId = tokenId.Trim();
+
+            currentSymbol = symbol;
+            context.ViewState.TokenDashboardSymbol = symbol;
+            context.ViewState.TransferSymbol = symbol;
+            PrepareStateForSymbol(symbol);
+            // Debug mode allows rendering without a selected wallet; detail actions remain locked.
+            context.ViewState.IsDebugNftActive = true;
+
+            var current = context.ViewState.PeekNftInspect();
+            if (!current.HasValue
+                || !string.Equals(current.Value.Symbol, symbol, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(current.Value.TokenId, tokenId, StringComparison.OrdinalIgnoreCase))
+            {
+                // Push a locked inspect entry so Send/Burn remain disabled in detail view.
+                context.ViewState.PushNftInspect(new WalletNftInspectEntry(symbol, tokenId, locked: true));
+            }
+            RefreshView();
+        }
+
         public void OnAccountsReady()
         {
-            if (!string.IsNullOrWhiteSpace(currentSymbol) && refreshPhase == NftRefreshPhase.Idle && !nftSource.IsRefreshingForSymbol(currentSymbol))
+            var accountManager = AccountManager.Instance;
+            var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
+            var hasWalletSelection = accountManager != null && accountManager.HasSelection;
+            // Debug view without a selected wallet would trigger a refresh that never completes.
+            var skipAutoRefresh = isDebugView && !hasWalletSelection;
+
+            if (!skipAutoRefresh && !string.IsNullOrWhiteSpace(currentSymbol) && refreshPhase == NftRefreshPhase.Idle && !nftSource.IsRefreshingForSymbol(currentSymbol))
             {
                 StartRefreshSequence(currentSymbol, includeWarmup: true);
             }
@@ -220,15 +276,21 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            // Refresh sequence overview:
+            // - InitialPass (warmup) uses force=false to keep cached data and quickly populate the UI.
+            // - ForcePass is an explicit refresh (manual or queued) that should run after warmup/balance updates.
             // Avoid stacking duplicate requests for the same symbol.
             if (refreshPhase != NftRefreshPhase.Idle && string.Equals(refreshSymbol, symbol, StringComparison.OrdinalIgnoreCase))
             {
-                pendingForceRefresh |= !includeWarmup; // manual refresh while warmup is running => still want force pass.
+                // Queue a follow-up refresh when a new request arrives during an in-flight pass.
+                // includeWarmup=false -> manual/forced refresh; includeWarmup=true -> we still want a force pass after warmup.
+                pendingForceRefresh |= !includeWarmup;
                 return;
             }
 
             refreshSymbol = symbol;
             refreshPhase = includeWarmup ? NftRefreshPhase.InitialPass : NftRefreshPhase.ForcePass;
+            // When opening a collection (warmup), arm a follow-up ForcePass to ensure fresh data after the initial pass.
             pendingForceRefresh = includeWarmup ? true : false;
 
             UpdateRefreshingState(true);
@@ -241,6 +303,7 @@ namespace Poltergeist.UiToolkit.Balances
             uiSignals.NftsUpdated += OnNftsUpdated;
             uiSignals.NftsRefreshStarted += OnNftsRefreshStarted;
             uiSignals.SettingsChanged += OnSettingsChanged;
+            uiSignals.BalancesUpdated += OnBalancesUpdated;
         }
 
         private void Unsubscribe()
@@ -248,6 +311,7 @@ namespace Poltergeist.UiToolkit.Balances
             uiSignals.NftsUpdated -= OnNftsUpdated;
             uiSignals.NftsRefreshStarted -= OnNftsRefreshStarted;
             uiSignals.SettingsChanged -= OnSettingsChanged;
+            uiSignals.BalancesUpdated -= OnBalancesUpdated;
         }
 
         private void OnNftsUpdated(PlatformKind platform, string symbol)
@@ -255,8 +319,10 @@ namespace Poltergeist.UiToolkit.Balances
             context.ViewState.MarkNftDirty(symbol);
             RefreshView();
 
+            // NftsUpdated fires for any symbol; only the active refreshSymbol drives the refresh sequence state machine.
             if (!string.Equals(symbol, refreshSymbol, StringComparison.OrdinalIgnoreCase))
             {
+                // If our target symbol is waiting for a refresh and is no longer refreshing, kick it off now.
                 if (refreshPhase != NftRefreshPhase.Idle && !string.IsNullOrWhiteSpace(refreshSymbol) && !nftSource.IsRefreshingForSymbol(refreshSymbol))
                 {
                     TryKickoffRefresh();
@@ -265,14 +331,17 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            if (refreshPhase == NftRefreshPhase.InitialPass && pendingForceRefresh)
+            if (pendingForceRefresh)
             {
+                // A refresh was requested while another pass was already running.
+                // Honor it regardless of the current phase (warmup or force) so queued refreshes always run.
                 refreshPhase = NftRefreshPhase.ForcePass;
                 pendingForceRefresh = false;
                 TryKickoffRefresh();
                 return;
             }
 
+            // No queued refreshes remain; clear the state and re-enable the UI.
             refreshPhase = NftRefreshPhase.Idle;
             refreshSymbol = null;
             pendingForceRefresh = false;
@@ -287,6 +356,36 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 UpdateRefreshingState(true);
             }
+        }
+
+        private void OnBalancesUpdated(PlatformKind platform)
+        {
+            if (!pendingBalanceRefresh)
+            {
+                return;
+            }
+
+            var symbol = pendingBalanceRefreshSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                pendingBalanceRefresh = false;
+                pendingBalanceRefreshPlatform = PlatformKind.None;
+                return;
+            }
+
+            // Ignore balance updates from other platforms; we only want the refresh we asked for.
+            if (pendingBalanceRefreshPlatform != PlatformKind.None && pendingBalanceRefreshPlatform != platform)
+            {
+                return;
+            }
+
+            // Clear pending state before starting the follow-up refresh to avoid re-entrancy issues.
+            pendingBalanceRefresh = false;
+            pendingBalanceRefreshSymbol = null;
+            pendingBalanceRefreshPlatform = PlatformKind.None;
+
+            // NFT IDs come from balances; refresh NFTs again after balances update so new mints appear.
+            StartRefreshSequence(symbol, includeWarmup: false);
         }
 
         private void OnSettingsChanged()
@@ -306,6 +405,7 @@ namespace Poltergeist.UiToolkit.Balances
                 return; // Wait for the current refresh to finish; OnNftsUpdated will retry.
             }
 
+            // ForcePass bypasses caches; InitialPass is a warmup that can use cached data.
             var force = refreshPhase == NftRefreshPhase.ForcePass;
             nftPresenter.Refresh(refreshSymbol, force);
             context.ViewState.MarkNftDirty(refreshSymbol);
@@ -368,8 +468,11 @@ namespace Poltergeist.UiToolkit.Balances
             heroCard.style.marginTop = 12;
             listContainer.Add(heroCard);
 
-            filtersPanel = BuildFiltersPanel();
-            listContainer.Add(filtersPanel);
+            if (!ShouldHideFilters())
+            {
+                filtersPanel = BuildFiltersPanel();
+                listContainer.Add(filtersPanel);
+            }
 
             var listWrapper = WalletUiCommon.BuildScrollContainer(
                 out listView,
@@ -399,7 +502,15 @@ namespace Poltergeist.UiToolkit.Balances
             detailContainer.style.display = DisplayStyle.None;
             content.Add(detailContainer);
 
-            var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), HandleBackNavigation);
+            var footer = WalletUiCommon.BuildWalletNavBar(
+                out navBalances,
+                out navHistory,
+                out navAccount,
+                out navExit,
+                () => { ExitDebugView(); onShowBalances?.Invoke(); },
+                () => { ExitDebugView(); onShowHistory?.Invoke(); },
+                () => { ExitDebugView(); onShowAccount?.Invoke(); },
+                HandleBackNavigation);
             if (navExit != null)
             {
                 navExit.text = "Back";
@@ -761,22 +872,24 @@ namespace Poltergeist.UiToolkit.Balances
                 }
 
                 context.ViewState.TransferSymbol = symbol;
+                // Debug view can render without a selected/locked wallet; normal view requires it.
+                var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
 
-                if (!accountManager.HasSelection)
+                if (!accountManager.HasSelection && !isDebugView)
                 {
                     SetStatus("Select a wallet first.");
                     ClearUi();
                     return;
                 }
 
-                if (accountManager.CurrentAccount.passwordProtected && string.IsNullOrEmpty(accountManager.CurrentPasswordHash))
+                if (accountManager.CurrentAccount.passwordProtected && string.IsNullOrEmpty(accountManager.CurrentPasswordHash) && !isDebugView)
                 {
                     SetStatus("Wallet is locked. Open it from the wallet list.");
                     ClearUi();
                     return;
                 }
 
-                if (accountManager.CurrentState == null)
+                if (accountManager.CurrentState == null && !isDebugView)
                 {
                     SetStatus("Account state is unavailable.");
                     ClearUi();
@@ -940,6 +1053,11 @@ namespace Poltergeist.UiToolkit.Balances
 
         private void UpdateFiltersUi(string symbol)
         {
+            if (ShouldHideFilters() || filtersPanel == null)
+            {
+                return;
+            }
+
             var state = nftPresenter.State;
 
             nameFilterField?.SetValueWithoutNotify(state.FilterName ?? string.Empty);
@@ -1027,8 +1145,28 @@ namespace Poltergeist.UiToolkit.Balances
             UpdateFiltersVisibility();
         }
 
+        private bool ShouldHideFilters()
+        {
+            // Hide the filters section on device builds to free space for the list.
+            var platform = Application.platform;
+            return platform == RuntimePlatform.Android || platform == RuntimePlatform.IPhonePlayer;
+        }
+
         private void UpdateFiltersVisibility(bool fromLayout = false)
         {
+            if (filtersPanel == null)
+            {
+                return;
+            }
+
+            if (ShouldHideFilters())
+            {
+                filtersPanel.style.display = DisplayStyle.None;
+                return;
+            }
+
+            filtersPanel.style.display = DisplayStyle.Flex;
+
             var compact = WalletUiCommon.IsCompactWidth(filtersPanel ?? root, CompactNftWidth);
             if (!filtersExpandedUserOverride)
             {
@@ -1551,6 +1689,20 @@ namespace Poltergeist.UiToolkit.Balances
         {
             var selectionCount = nftPresenter.State.SelectedCount;
             var hasSelection = selectionCount > 0;
+            var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
+            if (isDebugView)
+            {
+                // Debug view is read-only: hide Send/Burn to avoid accidental actions.
+                SetActionButtonState(sendButton, false);
+                sendButton.style.display = DisplayStyle.None;
+                SetActionButtonState(burnButton, false);
+                burnButton.style.display = DisplayStyle.None;
+                SetActionButtonState(clearSelectionButton, hasSelection);
+                SetActionButtonState(selectAllButton, true);
+                SetActionButtonState(invertSelectionButton, true);
+                return;
+            }
+
             var platform = accountManager.CurrentPlatform;
             var settings = accountManager.Settings;
             var devMode = settings?.devMode ?? false;
@@ -1569,10 +1721,10 @@ namespace Poltergeist.UiToolkit.Balances
             SetActionButtonState(sendButton, hasSelection && showSend);
             sendButton.style.display = showSend ? DisplayStyle.Flex : DisplayStyle.None;
 
-            // Keep NFT burn strictly behind dev mode: visible in dev mode, enabled only when Phantasma + selection.
-            var canBurn = devMode && platform == PlatformKind.Phantasma && hasSelection;
+            // NFT burn is available on Phantasma; enable only when selection is present.
+            var canBurn = platform == PlatformKind.Phantasma && hasSelection;
             SetActionButtonState(burnButton, canBurn);
-            burnButton.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+            burnButton.style.display = platform == PlatformKind.Phantasma ? DisplayStyle.Flex : DisplayStyle.None;
 
             SetActionButtonState(clearSelectionButton, hasSelection);
             SetActionButtonState(selectAllButton, true);
@@ -1588,7 +1740,60 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            StartRefreshSequence(currentSymbol, includeWarmup: false);
+            var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                SetStatus("Pick an NFT collection from Balances to open its dashboard.");
+                return;
+            }
+
+            // NFT header summary (supply/flags) comes from token metadata, not balances.
+            // Refresh token metadata on manual refresh so the header reflects updated supply.
+            RequestTokenMetadataRefresh(symbol);
+
+            // Manual refresh is two-step:
+            // 1) Refresh NFTs immediately (uses current balance ids).
+            // 2) Refresh balances to fetch new ids, then queue a follow-up NFT refresh in OnBalancesUpdated.
+            StartRefreshSequence(symbol, includeWarmup: false);
+
+            var isDebugView = context.ViewState?.IsDebugNftActive ?? false;
+            if (isDebugView)
+            {
+                return;
+            }
+
+            if (!am.HasSelection)
+            {
+                return;
+            }
+
+            if (am.CurrentAccount.passwordProtected && string.IsNullOrEmpty(am.CurrentPasswordHash))
+            {
+                return;
+            }
+
+            pendingBalanceRefresh = true;
+            // Snapshot symbol/platform so a later balance update refreshes the intended collection.
+            pendingBalanceRefreshSymbol = symbol;
+            pendingBalanceRefreshPlatform = am.CurrentPlatform != PlatformKind.None ? am.CurrentPlatform : PlatformKind.Phantasma;
+
+            // Manual refresh should also update balances so new NFT ids (recent mints) are pulled into the list.
+            am.RefreshBalances(true, pendingBalanceRefreshPlatform);
+        }
+
+        private void RequestTokenMetadataRefresh(string symbol)
+        {
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                return;
+            }
+
+            if (accountManager.CurrentPlatform != PlatformKind.Phantasma)
+            {
+                return; // Token metadata is sourced from Phantasma; other platforms do not use this list.
+            }
+            accountManager.RequestTokensReload();
         }
 
         private Task SendAsync()
@@ -1679,9 +1884,9 @@ namespace Poltergeist.UiToolkit.Balances
         private async Task BurnAsync(string symbolOverride, IReadOnlyCollection<string> customIds)
         {
             var settings = AccountManager.Instance?.Settings;
-            if (settings == null || !settings.devMode)
+            if (settings == null)
             {
-                SetStatus("Burn is available only in developer mode.");
+                SetStatus("Account is not ready.");
                 return;
             }
 
@@ -1997,7 +2202,17 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            ExitDebugView();
             onShowBalances?.Invoke();
+        }
+
+        private void ExitDebugView()
+        {
+            if (context.ViewState?.IsDebugNftActive ?? false)
+            {
+                // Leaving the NFT screen should reset debug-only behavior.
+                context.ViewState.IsDebugNftActive = false;
+            }
         }
 
         private void ShowListMode()

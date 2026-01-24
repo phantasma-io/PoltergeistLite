@@ -163,9 +163,36 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
+            var symbol = string.IsNullOrWhiteSpace(currentSymbol) ? context.ViewState.TokenDashboardSymbol : currentSymbol;
+            if (string.IsNullOrWhiteSpace(symbol))
+            {
+                SetStatus("Pick an asset from Balances to open its dashboard.");
+                return;
+            }
+
+            // Asset header summary (supply/flags/name) comes from token metadata, not balances.
+            // Request a token list reload so the header reflects the latest supply data on manual refresh.
+            RequestTokenMetadataRefresh(symbol);
+
             balancePresenter.Refresh(false);
             context.ViewState.MarkBalancesDirty();
             RefreshView();
+        }
+
+        private void RequestTokenMetadataRefresh(string symbol)
+        {
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                return;
+            }
+
+            var platform = accountManager.CurrentPlatform;
+            if (platform != PlatformKind.Phantasma)
+            {
+                return; // Token metadata is sourced from Phantasma; other platforms do not use this list.
+            }
+            accountManager.RequestTokensReload();
         }
 
         private void Subscribe()
@@ -955,7 +982,7 @@ namespace Poltergeist.UiToolkit.Balances
                 claimButton.style.display = DisplayStyle.None;
             }
 
-            var burnEligible = devMode && isPhantasma && entry.Burnable && isFungible && entry.Available > BigInteger.Zero;
+            var burnEligible = isPhantasma && entry.Burnable && isFungible && entry.Available > BigInteger.Zero;
             SetActionButtonState(burnButton, burnEligible);
             burnButton.style.display = burnEligible ? DisplayStyle.Flex : DisplayStyle.None;
 
@@ -1202,7 +1229,10 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            var amount = await PromptAmountAsync(entry.Symbol, WalletAmountParser.FromDecimal(0.1m, entry.Decimals), entry.Available, initialValue: "0");
+            var minBurn = entry.Decimals == 0
+                ? BigInteger.One
+                : WalletAmountParser.FromDecimal(0.1m, entry.Decimals);
+            var amount = await PromptAmountAsync(entry.Symbol, minBurn, entry.Available, initialValue: "0");
             if (amount <= 0)
             {
                 return;

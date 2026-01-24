@@ -625,9 +625,9 @@ namespace Poltergeist.UiToolkit.Balances
             SetActionButtonState(detailSendButton, canSend);
             detailSendButton.style.display = canSend ? DisplayStyle.Flex : DisplayStyle.None;
 
-            var canBurn = !locked && devMode && platform == PlatformKind.Phantasma;
+            var canBurn = !locked && platform == PlatformKind.Phantasma;
             SetActionButtonState(detailBurnButton, canBurn);
-            detailBurnButton.style.display = devMode ? DisplayStyle.Flex : DisplayStyle.None;
+            detailBurnButton.style.display = platform == PlatformKind.Phantasma ? DisplayStyle.Flex : DisplayStyle.None;
 
             var inspectEntry = context.ViewState.PeekNftInspect();
             var hasId = inspectEntry.HasValue && !string.IsNullOrWhiteSpace(inspectEntry.Value.TokenId);

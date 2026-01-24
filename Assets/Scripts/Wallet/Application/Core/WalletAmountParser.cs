@@ -20,7 +20,15 @@ namespace Poltergeist.Wallet
                 return false;
             }
 
-            var trimmed = input.Trim().Replace(" ", string.Empty).Replace("_", string.Empty);
+            var trimmed = input.Trim();
+            if (decimals == 0)
+            {
+                // Whole-number tokens should use the current culture's grouping rules and reject decimal separators.
+                return TryParseWholeNumber(trimmed, CultureInfo.CurrentCulture.NumberFormat, out value);
+            }
+
+            // For fractional tokens, keep the existing permissive parsing (strip spaces/underscores).
+            trimmed = trimmed.Replace(" ", string.Empty).Replace("_", string.Empty);
 
             var lastDot = trimmed.LastIndexOf('.');
             var lastComma = trimmed.LastIndexOf(',');
@@ -99,6 +107,27 @@ namespace Poltergeist.Wallet
             }
 
             return true;
+        }
+
+        private static bool TryParseWholeNumber(string input, NumberFormatInfo format, out BigInteger value)
+        {
+            value = BigInteger.Zero;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return false;
+            }
+
+            var numberFormat = format ?? CultureInfo.InvariantCulture.NumberFormat;
+            var decimalSeparator = numberFormat.NumberDecimalSeparator ?? string.Empty;
+            if (!string.IsNullOrEmpty(decimalSeparator) && input.Contains(decimalSeparator))
+            {
+                // Decimal separators are not allowed when token decimals are zero.
+                return false;
+            }
+
+            // Allow thousands separators according to the current culture settings.
+            return BigInteger.TryParse(input, NumberStyles.Integer | NumberStyles.AllowThousands, numberFormat, out value);
         }
 
         public static BigInteger Parse(string input, uint decimals)

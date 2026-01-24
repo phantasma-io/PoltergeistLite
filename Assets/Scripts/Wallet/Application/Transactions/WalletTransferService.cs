@@ -79,12 +79,12 @@ namespace Poltergeist.Wallet
             var gasPrice = accountManager.Settings.feePrice;
             var gasLimit = accountManager.Settings.feeLimit;
 
-            if (accountManager.Settings.preferScriptlessTxes)
+            if (!accountManager.Settings.useVmTransactions)
             {
                 if (bigIntAmount < 0 || bigIntAmount > ulong.MaxValue)
                 {
                     Log.WriteWarning($"Scriptless transfer blocked for {symbol}: amount {bigIntAmount} exceeds UInt64 range.");
-                    return WalletTransactionDraftResult.Fail("Scriptless transactions currently can't transfer this amount. Please switch to Standard transactions in Settings and try again.");
+                    return WalletTransactionDraftResult.Fail("Scriptless transactions can't transfer this amount. Enable VM transactions in Developer settings and try again.");
                 }
 
                 try
@@ -116,33 +116,31 @@ namespace Poltergeist.Wallet
                     return WalletTransactionDraftResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
                 }
             }
-            else
+
+            try
             {
-                try
+                var sb = new ScriptBuilder();
+                sb.AllowGas(source, Address.Null, gasPrice, gasLimit);
+
+                if (symbol == "KCAL" && amount == availableBalance)
                 {
-                    var sb = new ScriptBuilder();
-                    sb.AllowGas(source, Address.Null, gasPrice, gasLimit);
-
-                    if (symbol == "KCAL" && amount == availableBalance)
-                    {
-                        sb.TransferBalance(symbol, source, destination);
-                    }
-                    else
-                    {
-                        sb.TransferTokens(symbol, source, destination, bigIntAmount);
-                    }
-
-                    sb.SpendGas(source);
-                    var script = sb.EndScript();
-
-                    var description = BuildDescription(symbol, amount, decimals, destination);
-                    var plan = WalletTransactionDraft.ForSingleScript(description, script, chain, gasPrice, gasLimit, ProofOfWork.None);
-                    return WalletTransactionDraftResult.CreateSuccess(plan, bigIntAmount);
+                    sb.TransferBalance(symbol, source, destination);
                 }
-                catch (Exception e)
+                else
                 {
-                    return WalletTransactionDraftResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
+                    sb.TransferTokens(symbol, source, destination, bigIntAmount);
                 }
+
+                sb.SpendGas(source);
+                var script = sb.EndScript();
+
+                var description = BuildDescription(symbol, amount, decimals, destination);
+                var plan = WalletTransactionDraft.ForSingleScript(description, script, chain, gasPrice, gasLimit, ProofOfWork.None);
+                return WalletTransactionDraftResult.CreateSuccess(plan, bigIntAmount);
+            }
+            catch (Exception e)
+            {
+                return WalletTransactionDraftResult.Fail($"Something went wrong while building transaction.\n{e.Message}");
             }
         }
 

@@ -152,6 +152,34 @@ public static class Tokens
 
         throw new System.Exception($"Cannot load token carbon ID for {symbol}");
     }
+    public static TokenResult GetTokenByCarbonId(ulong carbonId, PlatformKind platform)
+    {
+        // Carbon IDs are required for supported tokens; missing mapping indicates corrupted data.
+        if (platform != PlatformKind.Phantasma)
+        {
+            throw new TokenMappingException($"Cannot load token for carbon ID {carbonId} on platform {platform}");
+        }
+
+        if (SupportedTokens == null || SupportedTokens.Count == 0)
+        {
+            throw new TokenMappingException($"Cannot load token for carbon ID {carbonId} (token list is empty)");
+        }
+
+        foreach (var entry in SupportedTokens)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.CarbonId))
+            {
+                continue;
+            }
+
+            if (ulong.TryParse(entry.CarbonId, out var parsed) && parsed == carbonId)
+            {
+                return entry;
+            }
+        }
+
+        throw new TokenMappingException($"Cannot load token for carbon ID {carbonId}");
+    }
     public static string GetTokenHash(string symbol, PlatformKind platform)
     {
         /*var token = GetToken(symbol, platform);

@@ -131,7 +131,7 @@ namespace Poltergeist
         public const string DevNoValidationModeTag = "developer.no.validation.mode";
         public const string ShowUnstableToolsTag = "unstable.tools.visible";
         public const string LastShownInformationScreenTag = "last.shown.information.screen";
-        public const string PreferScriptlessTxesTag = "prefer.scriptless.txes";
+        public const string UseVmTransactionsTag = "use.vm.transactions";
         public const string ScriptlessMaxGasTag = "scriptless.max.gas";
         public const string ScriptlessMaxDataTag = "scriptless.max.data";
         public const string BalanceDisplayThresholdTag = "balance.display.threshold";
@@ -166,7 +166,7 @@ namespace Poltergeist
         public bool devMode_NoValidation;
         public bool showUnstableTools;
         public int lastShownInformationScreen;
-        public bool preferScriptlessTxes;
+        public bool useVmTransactions;
         public BigInteger scriptlessMaxGas;
         public BigInteger scriptlessMaxData;
         public decimal balanceDisplayThreshold;
@@ -198,7 +198,7 @@ namespace Poltergeist
                 "Developer mode: " + this.devMode + "\n" +
                 "Developer mode (no validation): " + this.devMode_NoValidation + "\n" +
                 "Show unstable tools: " + this.showUnstableTools + "\n" +
-                "Prefer scriptless txes: " + this.preferScriptlessTxes + "\n" +
+                "Use VM transactions: " + this.useVmTransactions + "\n" +
                 "Scriptless max gas: " + this.scriptlessMaxGas + "\n" +
                 "Scriptless max data: " + this.scriptlessMaxData + "\n" +
                 "Balance min: " + this.balanceDisplayThreshold + "\n" +
@@ -318,7 +318,7 @@ namespace Poltergeist
 
             this.lastShownInformationScreen = PlayerPrefs.GetInt(LastShownInformationScreenTag, 0);
 
-            this.preferScriptlessTxes = PlayerPrefs.GetInt(PreferScriptlessTxesTag, 0) != 0;
+            this.useVmTransactions = PlayerPrefs.GetInt(UseVmTransactionsTag, 0) != 0;
 
             var defaultMaxGas = 10000000;
             if (!BigInteger.TryParse(PlayerPrefs.GetString(ScriptlessMaxGasTag, defaultMaxGas.ToString()), out scriptlessMaxGas))
@@ -493,7 +493,7 @@ namespace Poltergeist
             PlayerPrefs.SetInt(DevNoValidationModeTag, this.devMode_NoValidation ? 1 : 0);
             PlayerPrefs.SetInt(ShowUnstableToolsTag, this.showUnstableTools ? 1 : 0);
 
-            PlayerPrefs.SetInt(PreferScriptlessTxesTag, this.preferScriptlessTxes ? 1 : 0);
+            PlayerPrefs.SetInt(UseVmTransactionsTag, this.useVmTransactions ? 1 : 0);
             PlayerPrefs.SetString(ScriptlessMaxGasTag, this.scriptlessMaxGas.ToString());
             PlayerPrefs.SetString(ScriptlessMaxDataTag, this.scriptlessMaxData.ToString());
             PlayerPrefs.Save();

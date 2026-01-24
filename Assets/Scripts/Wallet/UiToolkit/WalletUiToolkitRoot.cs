@@ -401,7 +401,7 @@ namespace Poltergeist.UiToolkit
             nftView = new WalletNftDashboardView(nftRoot, context, modalHost, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, accountsView);
             historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             accountView = new WalletAccountView(accountRoot, context, modalHost, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
-            settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets);
+            settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets, OpenDebugNftAsync);
             EnsureUiBridgeRegistered();
 
             root.Add(accountsRoot);
@@ -746,6 +746,49 @@ namespace Poltergeist.UiToolkit
             Log.Write($"{LogPrefix}ShowToken done. symbol={symbol} fungible={isFungible} tokenVisible={tokenRoot?.style.display} nftVisible={nftRoot?.style.display}");
         }
 
+        private void ShowNftDashboard()
+        {
+            EnsureUiBridgeRegistered();
+            if (accountsRoot != null)
+            {
+                accountsRoot.style.display = DisplayStyle.None;
+            }
+
+            if (balancesRoot != null)
+            {
+                balancesRoot.style.display = DisplayStyle.None;
+            }
+
+            if (tokenRoot != null)
+            {
+                tokenRoot.style.display = DisplayStyle.None;
+            }
+
+            if (nftRoot != null)
+            {
+                nftRoot.style.display = DisplayStyle.Flex;
+            }
+
+            if (historyRoot != null)
+            {
+                historyRoot.style.display = DisplayStyle.None;
+            }
+
+            if (accountRoot != null)
+            {
+                accountRoot.style.display = DisplayStyle.None;
+            }
+
+            if (settingsRoot != null)
+            {
+                settingsRoot.style.display = DisplayStyle.None;
+            }
+
+            nftView?.MarkAsActive();
+            nftView?.OnAccountsReady();
+            Log.Write($"{LogPrefix}ShowNftDashboard done. nftVisible={nftRoot?.style.display}");
+        }
+
         private bool IsFungibleSymbol(string symbol)
         {
             try
@@ -767,6 +810,38 @@ namespace Poltergeist.UiToolkit
                 Log.WriteWarning($"{LogPrefix}Failed to detect asset type for {symbol}: {e}");
                 return true;
             }
+        }
+
+        private async Task<ValidationResult> OpenDebugNftAsync(string symbol, string tokenId)
+        {
+            var accountManager = AccountManager.Instance;
+            if (accountManager == null)
+            {
+                return ValidationResult.Fail("Account manager is not available.");
+            }
+
+            // Debug NFT loading is RPC-only, so it can run without selecting/unlocking a wallet.
+            if (accountManager.CurrentPlatform == PlatformKind.None)
+            {
+                // Ensure a deterministic platform key for NFT cache/ROM lookups.
+                accountManager.CurrentPlatform = PlatformKind.Phantasma;
+            }
+
+            var result = await accountManager.LoadDebugNftAsync(symbol, tokenId);
+            if (!result.Success)
+            {
+                return ValidationResult.Fail(result.Error);
+            }
+
+            var viewState = WalletApplicationContext.Instance?.ViewState;
+            if (viewState != null)
+            {
+                // Keep the NFT dashboard in debug mode so it can render without a wallet selection.
+                viewState.IsDebugNftActive = true;
+            }
+            ShowNftDashboard();
+            nftView?.ShowDebugNft(symbol, tokenId);
+            return ValidationResult.Ok("Debug NFT opened.");
         }
 
         private void ShowHistory()
