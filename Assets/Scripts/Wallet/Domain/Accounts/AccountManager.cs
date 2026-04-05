@@ -1072,7 +1072,7 @@ The Phoenix team", "Notice");
                 try
                 {
                     return await AsyncPhantasma.FromApi<TokenResult[]>(
-                        (onSuccess, onError) => phantasmaApi.GetTokens(onSuccess, onError, 10, NetworkRetryPolicy.Retries),
+                        (onSuccess, onError) => phantasmaApi.GetTokens(true, onSuccess, onError, 10, NetworkRetryPolicy.Retries),
                         cancellationToken);
                 }
                 catch (PhantasmaRequestException ex)
@@ -1223,7 +1223,7 @@ The Phoenix team", "Notice");
                 return;
             }
 
-            StartCoroutine(phantasmaApi.GetTokens((tokens) =>
+            StartCoroutine(phantasmaApi.GetTokens(true, (tokens) =>
             {
                 PrepareTokens(tokens);
                 var tokenBytes = Serialization.Serialize(tokens);
