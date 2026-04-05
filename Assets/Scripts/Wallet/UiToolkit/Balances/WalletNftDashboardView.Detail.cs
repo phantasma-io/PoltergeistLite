@@ -663,7 +663,9 @@ namespace Poltergeist.UiToolkit.Balances
                     ? "Open Video"
                     : media.Kind == NftMediaKind.Audio
                         ? "Open Audio"
-                        : "Open Media";
+                        : media.Kind == NftMediaKind.Image
+                            ? "Open Image"
+                            : "Open Media";
                 detailMediaButton.style.display = canOpenMedia ? DisplayStyle.Flex : DisplayStyle.None;
                 detailMediaButton.SetEnabled(canOpenMedia);
                 SetActionButtonState(detailMediaButton, canOpenMedia);

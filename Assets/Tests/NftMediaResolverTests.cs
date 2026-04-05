@@ -70,6 +70,16 @@ namespace Phantasma.Tests
         }
 
         [Test]
+        public void ResolveSource_MapsLegacyIpfsVidToGatewayUrl()
+        {
+            var media = ResolveSource("ipfs-vid://QmLegacyVideoCid");
+
+            Assert.AreEqual("Video", GetEnumName(media, "Kind"));
+            Assert.AreEqual("https://gateway.ipfs.io/ipfs/QmLegacyVideoCid", GetStringProperty(media, "OpenUrl"));
+            Assert.IsTrue(GetBoolProperty(media, "CanOpenExternally"));
+        }
+
+        [Test]
         public void ResolveSource_RecognizesInlineImages()
         {
             var media = ResolveSource("data:image/png;base64,AAAA");
@@ -78,6 +88,17 @@ namespace Phantasma.Tests
             Assert.IsTrue(GetBoolProperty(media, "IsInlineImage"));
             Assert.AreEqual(string.Empty, GetStringProperty(media, "OpenUrl"));
             Assert.IsFalse(GetBoolProperty(media, "CanOpenExternally"));
+        }
+
+        [Test]
+        public void ResolveSource_AllowsExternalImages()
+        {
+            var media = ResolveSource("ipfs://bafybeigposter/poster.png", "Image");
+
+            Assert.AreEqual("Image", GetEnumName(media, "Kind"));
+            Assert.AreEqual("https://gateway.ipfs.io/ipfs/bafybeigposter/poster.png", GetStringProperty(media, "OpenUrl"));
+            Assert.IsTrue(GetBoolProperty(media, "CanOpenExternally"));
+            Assert.IsFalse(GetBoolProperty(media, "IsInlineImage"));
         }
 
         [Test]

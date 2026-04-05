@@ -15,7 +15,7 @@ namespace Poltergeist.Wallet
     /// <summary>
     /// Normalized NFT media reference for UITK.
     /// It separates the raw metadata value from the externally openable URL so views do not need
-    /// to understand custom schemes such as ipfs-video://.
+    /// to understand custom schemes such as ipfs-video:// or ipfs-vid://.
     /// </summary>
     public readonly struct NftMediaReference
     {
@@ -32,7 +32,9 @@ namespace Poltergeist.Wallet
         public string OpenUrl { get; }
         public bool IsInlineImage { get; }
 
-        public bool CanOpenExternally => (Kind == NftMediaKind.Video || Kind == NftMediaKind.Audio) && !string.IsNullOrWhiteSpace(OpenUrl);
+        // Any resolved http/https media can be opened externally, except inline data images that intentionally
+        // stay inside the wallet process and do not expose a browser-openable URL.
+        public bool CanOpenExternally => !IsInlineImage && Kind != NftMediaKind.None && !string.IsNullOrWhiteSpace(OpenUrl);
     }
 
     public static class NftMediaResolver
@@ -189,7 +191,8 @@ namespace Poltergeist.Wallet
                 return NftMediaKind.None;
             }
 
-            if (source.StartsWith("ipfs-video://", StringComparison.OrdinalIgnoreCase))
+            if (source.StartsWith("ipfs-video://", StringComparison.OrdinalIgnoreCase)
+                || source.StartsWith("ipfs-vid://", StringComparison.OrdinalIgnoreCase))
             {
                 return NftMediaKind.Video;
             }
@@ -256,6 +259,12 @@ namespace Poltergeist.Wallet
             if (trimmed.StartsWith("ipfs-video://", StringComparison.OrdinalIgnoreCase))
             {
                 return ToIpfsGatewayUrl(trimmed.Substring("ipfs-video://".Length));
+            }
+
+            // Blood Rune Cards use the ipfs-vid:// scheme in VideoURL metadata.
+            if (trimmed.StartsWith("ipfs-vid://", StringComparison.OrdinalIgnoreCase))
+            {
+                return ToIpfsGatewayUrl(trimmed.Substring("ipfs-vid://".Length));
             }
 
             if (trimmed.StartsWith("ipfs-audio://", StringComparison.OrdinalIgnoreCase))
