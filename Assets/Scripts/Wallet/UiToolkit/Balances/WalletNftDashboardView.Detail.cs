@@ -35,6 +35,7 @@ namespace Poltergeist.UiToolkit.Balances
         private Button detailSendButton;
         private Button detailBurnButton;
         private Button detailExplorerButton;
+        private Button detailMediaButton;
         private Label detailDescriptionLabel;
         private VisualElement detailPropertiesContainer;
         private VisualElement detailFungibleContainer;
@@ -264,9 +265,14 @@ namespace Poltergeist.UiToolkit.Balances
             detailExplorerButton.style.minWidth = 120;
             detailExplorerButton.style.marginRight = 8;
 
+            detailMediaButton = WalletUiCommon.CreateSecondaryButton("Open media", OpenCurrentNftMedia, 16, 44);
+            detailMediaButton.style.minWidth = 140;
+            detailMediaButton.style.marginRight = 8;
+
             detailActionsRow.Add(detailSendButton);
             detailActionsRow.Add(detailBurnButton);
             detailActionsRow.Add(detailExplorerButton);
+            detailActionsRow.Add(detailMediaButton);
 
             info.Add(detailActionsRow);
             card.Add(info);
@@ -397,10 +403,20 @@ namespace Poltergeist.UiToolkit.Balances
                 AddDetailTag($"Series {token.Series}");
             }
 
+            var media = NftMediaResolver.Resolve(symbol, token);
+            if (media.Kind == NftMediaKind.Video)
+            {
+                AddDetailTag("Video");
+            }
+            else if (media.Kind == NftMediaKind.Audio)
+            {
+                AddDetailTag("Audio");
+            }
+
             SetNftImageAsync(detailImage, symbol, token);
             RenderDetailDescription(metadata, token);
             RenderDetailProperties(symbol, tokenId, token, metadata, mintDate, locked);
-            UpdateDetailActions(symbol, locked, accountManager);
+            UpdateDetailActions(symbol, token, locked, accountManager);
             RenderFungibleInfusions(token, accountManager);
             RenderInfusedNfts(token, accountManager);
             if (detailScroll?.verticalScroller != null)
@@ -450,7 +466,7 @@ namespace Poltergeist.UiToolkit.Balances
                 actionsRow.style.marginTop = compact ? 12 : 12;
             }
 
-            var buttons = new[] { detailSendButton, detailBurnButton, detailExplorerButton };
+            var buttons = new[] { detailSendButton, detailBurnButton, detailExplorerButton, detailMediaButton };
             foreach (var btn in buttons)
             {
                 if (btn == null)
@@ -605,7 +621,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
         }
 
-        private void UpdateDetailActions(string symbol, bool locked, AccountManager accountManager)
+        private void UpdateDetailActions(string symbol, TokenDataResult token, bool locked, AccountManager accountManager)
         {
             var platform = accountManager.CurrentPlatform;
             var settings = accountManager.Settings;
@@ -637,6 +653,20 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 detailExplorerButton.style.display = hasExplorerSetting ? DisplayStyle.Flex : DisplayStyle.None;
                 detailExplorerButton.SetEnabled(hasExplorer);
+            }
+
+            var media = NftMediaResolver.Resolve(symbol, token);
+            var canOpenMedia = media.CanOpenExternally;
+            if (detailMediaButton != null)
+            {
+                detailMediaButton.text = media.Kind == NftMediaKind.Video
+                    ? "Open Video"
+                    : media.Kind == NftMediaKind.Audio
+                        ? "Open Audio"
+                        : "Open Media";
+                detailMediaButton.style.display = canOpenMedia ? DisplayStyle.Flex : DisplayStyle.None;
+                detailMediaButton.SetEnabled(canOpenMedia);
+                SetActionButtonState(detailMediaButton, canOpenMedia);
             }
         }
 
@@ -1151,6 +1181,25 @@ namespace Poltergeist.UiToolkit.Balances
             }
 
             OpenNftExplorer(inspectEntry.Value.Symbol, inspectEntry.Value.TokenId);
+        }
+
+        private void OpenCurrentNftMedia()
+        {
+            var inspectEntry = context.ViewState.PeekNftInspect();
+            if (inspectEntry == null)
+            {
+                return;
+            }
+
+            TryFindNft(inspectEntry.Value.Symbol, inspectEntry.Value.TokenId, out var token);
+            var media = NftMediaResolver.Resolve(inspectEntry.Value.Symbol, token);
+            if (!media.CanOpenExternally)
+            {
+                SetStatus("No external media URL available for this NFT.");
+                return;
+            }
+
+            Application.OpenURL(media.OpenUrl);
         }
     }
 }

@@ -1566,86 +1566,66 @@ namespace Poltergeist.UiToolkit.Balances
                 return;
             }
 
-            if (token == null)
+            var media = NftMediaResolver.ResolvePreview(symbol, token);
+            var placeholder = GetNftMediaPlaceholder(media.Kind);
+
+            if (token == null || media.Kind == NftMediaKind.None)
             {
-                target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+                target.image = placeholder;
                 return;
             }
 
-            var imageSource = ResolveNftImageSource(symbol, token, out var inline);
-            if (string.IsNullOrWhiteSpace(imageSource))
+            // Videos and audio stay external in UITK for now.
+            // We show a deterministic placeholder instead of attempting to decode arbitrary media content in-process.
+            if (media.Kind != NftMediaKind.Image)
             {
-                target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+                target.image = placeholder;
                 return;
             }
 
-            if (inline)
+            if (media.IsInlineImage)
             {
-                if (NftImages.TryCacheInlineImage(symbol, imageSource, token.Id, out var inlineTexture))
+                if (NftImages.TryCacheInlineImage(symbol, media.Source, token.Id, out var inlineTexture))
                 {
-                    target.image = inlineTexture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
+                    target.image = inlineTexture ?? placeholder;
                 }
                 else
                 {
-                    target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+                    target.image = placeholder;
                 }
                 return;
             }
 
-            var cached = NftImages.GetImage(imageSource);
+            var cached = NftImages.GetImage(media.Source);
             if (!string.IsNullOrEmpty(cached.Url))
             {
-                target.image = cached.Texture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
+                target.image = cached.Texture ?? placeholder;
                 return;
             }
 
-            target.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+            target.image = placeholder;
             RunSafeAsync(async () =>
             {
-                await NftImages.DownloadImageAsync(symbol, imageSource, token.Id, CancellationToken.None);
-                var loaded = NftImages.GetImage(imageSource);
+                await NftImages.DownloadImageAsync(symbol, media.Source, token.Id, CancellationToken.None);
+                var loaded = NftImages.GetImage(media.Source);
                 if (!string.IsNullOrEmpty(loaded.Url) && target != null)
                 {
-                    target.image = loaded.Texture ?? ResourceManager.Instance?.NftPhotoPlaceholder;
+                    target.image = loaded.Texture ?? placeholder;
                 }
             }).Forget(ex => Log.WriteWarning($"{LogPrefix}Failed to load NFT image: {ex}"));
         }
 
-        private string ResolveNftImageSource(string symbol, TokenDataResult token, out bool inline)
+        private Texture GetNftMediaPlaceholder(NftMediaKind kind)
         {
-            inline = false;
-            if (token == null)
+            switch (kind)
             {
-                return string.Empty;
+                case NftMediaKind.Video:
+                    return ResourceManager.Instance?.NftVideoPlaceholder;
+                case NftMediaKind.Audio:
+                    return ResourceManager.Instance?.NftAudioPlaceholder;
+                default:
+                    return ResourceManager.Instance?.NftPhotoPlaceholder;
             }
-
-            if (string.Equals(symbol, "TTRS", StringComparison.OrdinalIgnoreCase))
-            {
-                var item = global::TtrsStore.GetNft(token.Id);
-                if (!string.IsNullOrWhiteSpace(item.img))
-                {
-                    return item.img;
-                }
-            }
-            else if (string.Equals(symbol, "GAME", StringComparison.OrdinalIgnoreCase))
-            {
-                var item = global::GameStore.GetNft(token.Id);
-                if (!string.IsNullOrWhiteSpace(item.ID) && !string.IsNullOrWhiteSpace(item.parsed_rom.img_url))
-                {
-                    return item.parsed_rom.img_url;
-                }
-            }
-
-            var imageUrl = token.GetPropertyValue("ImageURL")
-                ?? token.GetPropertyValue("Image")
-                ?? token.GetPropertyValue("image_url");
-            if (!string.IsNullOrWhiteSpace(imageUrl))
-            {
-                inline = imageUrl.TrimStart().StartsWith("data:", StringComparison.OrdinalIgnoreCase);
-                return imageUrl;
-            }
-
-            return string.Empty;
         }
 
         private void OpenNftDetails(string symbol, string tokenId, bool locked, bool resetTrail)
