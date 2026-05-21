@@ -32,28 +32,40 @@ namespace Poltergeist.Wallet
             value = (decimal)quotient;
             if (remainder != 0)
             {
-                var fraction = (decimal)remainder / (decimal)scale;
-                decimal candidate;
                 try
                 {
+                    // High-decimal tokens can have a scale (10^decimals) that does not fit in decimal even when the
+                    // final human-readable amount itself would. Guard the intermediate conversion and let callers
+                    // decide whether they want to fall back to an approximate display-only path.
+                    var fraction = (decimal)remainder / (decimal)scale;
+                    decimal candidate;
                     candidate = value + fraction;
+
+                    if (candidate == decimal.MaxValue || candidate == decimal.MinValue)
+                    {
+                        value = 0;
+                        return false;
+                    }
+
+                    value = candidate;
                 }
                 catch (OverflowException)
                 {
                     value = 0;
                     return false;
                 }
-
-                if (candidate == decimal.MaxValue || candidate == decimal.MinValue)
-                {
-                    value = 0;
-                    return false;
-                }
-
-                value = candidate;
             }
 
             return true;
+        }
+
+        public static bool TryToApproxDecimal(BigInteger raw, uint decimals, int precision, out decimal value)
+        {
+            // For fiat estimates we only need a stable approximation, not the full token precision. Reuse the
+            // string formatter, which already handles arbitrarily large BigInteger values without going through
+            // a decimal scale such as 10^64.
+            var formatted = Format(raw, decimals, precision);
+            return decimal.TryParse(formatted, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
         }
 
         public static string Format(BigInteger raw, uint decimals, MoneyFormatType formatType = MoneyFormatType.Standard)

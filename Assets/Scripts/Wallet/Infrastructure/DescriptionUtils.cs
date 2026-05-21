@@ -727,6 +727,11 @@ namespace Poltergeist
             return ShortenTokenId(VmDynamicVariableToString(instanceId));
         }
 
+        private static string FormatCarbonAddress(Bytes32 address)
+        {
+            return Address.FromBytes(address.bytes).ToString();
+        }
+
         private static void ResolveTokenByCarbonId(ulong tokenId, out string symbol, out uint decimals)
         {
             var token = Tokens.GetTokenByCarbonId(tokenId, PlatformKind.Phantasma);
@@ -739,10 +744,35 @@ namespace Poltergeist
             decimals = token.Decimals;
         }
 
+        private static string FormatCarbonAmount(BigInteger amount, ulong tokenId, out string symbol)
+        {
+            ResolveTokenByCarbonId(tokenId, out symbol, out var decimals);
+            return WalletAmountFormatter.Format(amount, decimals, MoneyFormatType.Long);
+        }
+
+        private static void AppendCarbonFungibleTransfer(StringBuilder sb, ulong tokenId, BigInteger amount, Bytes32 from, Bytes32 to)
+        {
+            var formattedAmount = FormatCarbonAmount(amount, tokenId, out var symbol);
+            sb.AppendLine($"\u2605 Transfer {formattedAmount} {symbol}");
+            sb.AppendLine($"From: {FormatCarbonAddress(from)}");
+            sb.AppendLine($"To: {FormatCarbonAddress(to)}");
+        }
+
+        private static void AppendCarbonNonFungibleTransfer(StringBuilder sb, ulong tokenId, IEnumerable<ulong> instanceIds, Bytes32 from, Bytes32 to)
+        {
+            ResolveTokenByCarbonId(tokenId, out var symbol, out _);
+            var ids = (instanceIds ?? Array.Empty<ulong>()).Select(FormatCarbonInstanceId).ToArray();
+            var noun = ids.Length == 1 ? "NFT" : "NFTs";
+            var idText = ids.Length == 0 ? "unknown" : string.Join(", #", ids);
+            sb.AppendLine($"\u2605 Transfer {symbol} {noun} #{idText}");
+            sb.AppendLine($"From: {FormatCarbonAddress(from)}");
+            sb.AppendLine($"To: {FormatCarbonAddress(to)}");
+        }
+
         private static string FormatMarketPrice(IntX price, ulong quoteTokenId, out string quoteSymbol)
         {
             ResolveTokenByCarbonId(quoteTokenId, out quoteSymbol, out var decimals);
-            return WalletAmountFormatter.Format((BigInteger)price, decimals);
+            return WalletAmountFormatter.Format((BigInteger)price, decimals, MoneyFormatType.Long);
         }
 
         private static string FormatMarketPrice(IntX price, string quoteSymbol, out string resolvedSymbol)
@@ -754,7 +784,7 @@ namespace Poltergeist
                 {
                     resolvedSymbol = token.Symbol;
                 }
-                return WalletAmountFormatter.Format((BigInteger)price, token.Decimals);
+                return WalletAmountFormatter.Format((BigInteger)price, token.Decimals, MoneyFormatType.Long);
             }
 
             return price.ToString();
@@ -835,8 +865,16 @@ namespace Poltergeist
                                 }
                             case TokenContract_Methods.TransferFungible:
                                 {
-                                    var transfer = CarbonBlob.New<TxMsgTransferFungible>(call.args);
-                                    sb.AppendLine("Token module: TransferFungible: tokenId: " + transfer.tokenId + " amount: " + transfer.amount);
+                                    // Contract-call TransferFungible args are not the same shape as a top-level
+                                    // TxMsgTransferFungible.
+                                    var transfer = CarbonBlob.New<TransferFungibleArgs>(call.args);
+                                    AppendCarbonFungibleTransfer(sb, transfer.tokenId, (BigInteger)transfer.amount, transfer.from, transfer.to);
+                                    break;
+                                }
+                            case TokenContract_Methods.TransferNonFungible:
+                                {
+                                    var transfer = CarbonBlob.New<TransferNonFungibleArgs>(call.args);
+                                    AppendCarbonNonFungibleTransfer(sb, transfer.tokenId, transfer.instanceIds, transfer.from, transfer.to);
                                     break;
                                 }
                             default:
@@ -983,10 +1021,10 @@ namespace Poltergeist
                 case TxTypes.MintFungible:
                     {
                         var mint = (TxMsgMintFungible)txMsg.msg;
+                        var formattedAmount = FormatCarbonAmount((BigInteger)mint.amount, mint.tokenId, out var symbol);
 
-                        sb.AppendLine($"\u2605 Fungible token mint");
+                        sb.AppendLine($"\u2605 Mint {formattedAmount} {symbol}");
                         sb.AppendLine($"To address: {Address.FromBytes(mint.to.bytes)}");
-                        sb.AppendLine($"Amount: {mint.amount}");
                         break;
                     }
                 case TxTypes.Phantasma:
@@ -996,7 +1034,14 @@ namespace Poltergeist
                     break;
                 case TxTypes.TransferFungible:
                     {
-                        sb.AppendLine("Token module: TransferFungible");
+                        var transfer = (TxMsgTransferFungible)txMsg.msg;
+                        AppendCarbonFungibleTransfer(sb, transfer.tokenId, (BigInteger)transfer.amount, txMsg.gasFrom, transfer.to);
+                        break;
+                    }
+                case TxTypes.TransferFungible_GasPayer:
+                    {
+                        var transfer = (TxMsgTransferFungible_GasPayer)txMsg.msg;
+                        AppendCarbonFungibleTransfer(sb, transfer.tokenId, (BigInteger)transfer.amount, transfer.from, transfer.to);
                         break;
                     }
                 case TxTypes.MintNonFungible:
@@ -1007,7 +1052,6 @@ namespace Poltergeist
                         sb.AppendLine($"To address: {Address.FromBytes(mint.to.bytes)}");
                         break;
                     }
-                case TxTypes.TransferFungible_GasPayer:
                 case TxTypes.TransferNonFungible_Single:
                 case TxTypes.TransferNonFungible_Single_GasPayer:
                 case TxTypes.TransferNonFungible_Multi:

@@ -4,6 +4,7 @@
         "PhantasmaPhoenix.Core.dll",
         "PhantasmaPhoenix.Cryptography.dll",
         "PhantasmaPhoenix.InteropChains.Legacy.dll",
+        "PhantasmaPhoenix.Protocol.Carbon.dll",
         "PhantasmaPhoenix.Protocol.dll",
         "PhantasmaPhoenix.VM.dll"
     ],

@@ -520,22 +520,24 @@ namespace Poltergeist
 
         public string GetTokenWorth(string symbol, BigInteger amount, uint decimals)
         {
-            if (!WalletAmountFormatter.TryToDecimal(amount, decimals, out var decimalAmount))
+            bool hasLocalCurrency = !string.IsNullOrEmpty(CurrentTokenCurrency) && _currencyMap.ContainsKey(CurrentTokenCurrency);
+            if (!_tokenPrices.ContainsKey(symbol) || !hasLocalCurrency)
             {
                 return null;
             }
 
-            bool hasLocalCurrency = !string.IsNullOrEmpty(CurrentTokenCurrency) && _currencyMap.ContainsKey(CurrentTokenCurrency);
-            if (_tokenPrices.ContainsKey(symbol) && hasLocalCurrency)
-            {
-                var price = _tokenPrices[symbol] * decimalAmount;
-                var ch = _currencyMap[CurrentTokenCurrency];
-                return $"{WalletAmountFormatter.Format(price, MoneyFormatType.Short)} {ch}";
-            }
-            else
+            // First try the exact conversion. If the token uses an extreme decimals value (for example 64), the
+            // exact decimal path can reject it because decimal cannot represent the intermediate 10^decimals scale.
+            // In that case we degrade to a bounded approximation that is sufficient for a short fiat estimate.
+            if (!WalletAmountFormatter.TryToDecimal(amount, decimals, out var decimalAmount) &&
+                !WalletAmountFormatter.TryToApproxDecimal(amount, decimals, 18, out decimalAmount))
             {
                 return null;
             }
+
+            var price = _tokenPrices[symbol] * decimalAmount;
+            var ch = _currencyMap[CurrentTokenCurrency];
+            return $"{WalletAmountFormatter.Format(price, MoneyFormatType.Short)} {ch}";
         }
 
         private async Task FetchTokenPricesAsync(IEnumerable<TokenResult> tokens, string currency, CancellationToken cancellationToken)
@@ -1070,7 +1072,7 @@ The Phoenix team", "Notice");
                 try
                 {
                     return await AsyncPhantasma.FromApi<TokenResult[]>(
-                        (onSuccess, onError) => phantasmaApi.GetTokens(onSuccess, onError, 10, NetworkRetryPolicy.Retries),
+                        (onSuccess, onError) => phantasmaApi.GetTokens(true, onSuccess, onError, 10, NetworkRetryPolicy.Retries),
                         cancellationToken);
                 }
                 catch (PhantasmaRequestException ex)
@@ -1221,7 +1223,7 @@ The Phoenix team", "Notice");
                 return;
             }
 
-            StartCoroutine(phantasmaApi.GetTokens((tokens) =>
+            StartCoroutine(phantasmaApi.GetTokens(true, (tokens) =>
             {
                 PrepareTokens(tokens);
                 var tokenBytes = Serialization.Serialize(tokens);
