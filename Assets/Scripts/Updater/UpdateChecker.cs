@@ -1,7 +1,7 @@
 using System.Collections;
 using System.Text.RegularExpressions;
 using PhantasmaPhoenix.Unity.Core.Logging;
-using Poltergeist;
+using Poltergeist.Wallet;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -60,12 +60,9 @@ public class UpdateChecker : MonoBehaviour
 
                     if (latestVer > currentVer)
                     {
-                        WalletGUI.Instance.ShowUpdateModal("Update Available",
-                            $"A new version {latestVersionNoPrefix} of the wallet is available (you have {currentVersion}). Please update the wallet.\n\n\n" +
-                            $"{URL}", () =>
-                            {
-                                Log.Write("Close");
-                            });
+                        var message =
+                            $"A new version {latestVersionNoPrefix} of the wallet is available (you have {currentVersion}). Please update the wallet.\n\n{URL}";
+                        ShowUpdatePromptAsync(message).Forget(e => Log.WriteWarning($"Update prompt failed: {e}"));
                     }
                 }
                 else
@@ -73,6 +70,22 @@ public class UpdateChecker : MonoBehaviour
                     Log.WriteWarning("Could not find version information.");
                 }
             }
+        }
+    }
+
+    private static async System.Threading.Tasks.Task ShowUpdatePromptAsync(string message)
+    {
+        var ui = WalletUiBridge.Current;
+        if (ui == null)
+        {
+            WalletApplicationContext.Instance.Messages.Push(message, "Update Available", MessageKind.Default);
+            return;
+        }
+
+        var open = await ui.ConfirmAsync("Update Available", message, "Open", "Later");
+        if (open)
+        {
+            Application.OpenURL(UPDATE_URL);
         }
     }
 }

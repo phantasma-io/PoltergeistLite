@@ -4,7 +4,7 @@ using PhantasmaPhoenix.Protocol;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Event hub for UI layers (IMGUI/UITK) to react to wallet data updates.
+    /// Event hub for UI layers to react to wallet data updates.
     /// </summary>
     public sealed class WalletUiSignals
     {

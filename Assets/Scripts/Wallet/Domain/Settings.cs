@@ -34,12 +34,6 @@ namespace Poltergeist
         Local_Net
     }
 
-    public enum UiThemes
-    {
-        Default,
-        Phantasia
-    }
-
     public enum UiPreviewDevice
     {
         Auto,
@@ -109,7 +103,6 @@ namespace Poltergeist
         public const string LogLevelTag = "log.level";
         public const string LogOverwriteModeTag = "log.overwrite.mode";
 
-        public const string UiThemeNameTag = "ui.theme.name";
         public const string UiFramerateTag = "ui.framerate";
         public const string UiScaleMultiplierTag = "ui.scale.multiplier";
         public const string UiPreviewDeviceTag = "ui.preview.device";
@@ -150,7 +143,6 @@ namespace Poltergeist
         public NexusKind nexusKind;
         public Log.Level logLevel;
         public bool logOverwriteMode;
-        public string uiThemeName;
         public int uiFramerate;
         public float uiScaleMultiplier;
         public UiPreviewDevice uiPreviewDevice;
@@ -184,7 +176,6 @@ namespace Poltergeist
                 "Fee limit: " + this.feeLimit + "\n" +
                 "Nexus name: " + this.nexusName + "\n" +
                 "Currency: " + this.currency + "\n" +
-                "UI theme: " + this.uiThemeName + "\n" +
                 "UI framerate: " + this.uiFramerate + "\n" +
                 "UI scale multiplier: " + this.uiScaleMultiplier + "\n" +
                 "UI preview device: " + this.uiPreviewDevice + "\n" +
@@ -274,7 +265,6 @@ namespace Poltergeist
                 this.feeLimit = defaultGasLimit;
             }
 
-            this.uiThemeName = PlayerPrefs.GetString(UiThemeNameTag, UiThemes.Default.ToString());
             this.uiFramerate = PlayerPrefs.GetInt(UiFramerateTag, -1);
             this.uiScaleMultiplier = PlayerPrefs.GetFloat(UiScaleMultiplierTag, 1f);
             if (this.uiScaleMultiplier <= 0f)
@@ -478,7 +468,6 @@ namespace Poltergeist
             PlayerPrefs.SetString(CurrencyTag, this.currency);
             PlayerPrefs.SetString(BalanceDisplayThresholdTag, this.balanceDisplayThreshold.ToString(CultureInfo.InvariantCulture));
             PlayerPrefs.SetInt(BalanceDisplayPrecisionTag, this.balanceDisplayPrecision);
-            PlayerPrefs.SetString(UiThemeNameTag, this.uiThemeName);
             PlayerPrefs.SetInt(UiFramerateTag, this.uiFramerate);
             PlayerPrefs.SetFloat(UiScaleMultiplierTag, this.uiScaleMultiplier);
             PlayerPrefs.SetString(UiPreviewDeviceTag, this.uiPreviewDevice.ToString());

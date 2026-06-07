@@ -23,7 +23,6 @@ namespace Poltergeist.UiToolkit.Balances
         private readonly WalletBalancePresenter presenter;
         private readonly WalletBalanceViewState viewState;
         private readonly WalletUiSignals uiSignals;
-        private readonly Action onReady;
         private readonly Action onShowBalances;
         private readonly Action onShowHistory;
         private readonly Action onShowAccount;
@@ -47,13 +46,12 @@ namespace Poltergeist.UiToolkit.Balances
         private Button navExit;
         private EventCallback<KeyDownEvent> tabBlockHandler;
 
-        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onReady, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit, Action<string> onShowToken)
+        public WalletBalancesView(VisualElement host, WalletApplicationContext context, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit, Action<string> onShowToken)
         {
             this.context = context ?? throw new ArgumentNullException(nameof(context));
             presenter = context.BalancePresenter ?? throw new ArgumentNullException(nameof(context.BalancePresenter));
             viewState = presenter.State ?? throw new ArgumentNullException(nameof(presenter.State));
             uiSignals = context.UiSignals ?? throw new ArgumentNullException(nameof(context.UiSignals));
-            this.onReady = onReady;
             this.onShowBalances = onShowBalances ?? throw new ArgumentNullException(nameof(onShowBalances));
             this.onShowHistory = onShowHistory ?? throw new ArgumentNullException(nameof(onShowHistory));
             this.onShowAccount = onShowAccount ?? throw new ArgumentNullException(nameof(onShowAccount));
@@ -373,7 +371,6 @@ namespace Poltergeist.UiToolkit.Balances
 
             readyNotified = true;
             Log.Write($"{LogPrefix}Balances view ready ({reason}).");
-            onReady?.Invoke();
         }
 
         public void ForceRefresh()

@@ -184,7 +184,7 @@ namespace Poltergeist.UiToolkit.Accounts
             root.Clear();
             // Layout hygiene (keep this to avoid regressions):
             // - minHeight=0 + flexBasis=0 + overflow hidden on wrappers/scroll prevents the list from pushing the footer off-screen.
-            // - Keep content centered to mirror the legacy layout proportions.
+            // - Keep content centered across desktop and mobile preview sizes.
             WalletUiCommon.ConfigureScreenRoot(root);
             root.style.position = Position.Relative;
             root.style.paddingLeft = 16;

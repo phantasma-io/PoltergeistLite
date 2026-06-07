@@ -13,7 +13,6 @@ namespace Poltergeist.Wallet
         public MnemonicPhraseLength MnemonicLength;
         public PasswordMode PasswordMode;
         public Log.Level LogLevel;
-        public UiThemes UiTheme;
         public float ScrollY;
     }
 }

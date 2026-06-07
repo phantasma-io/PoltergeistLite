@@ -4,7 +4,7 @@ namespace Poltergeist.UiToolkit
 {
     /// <summary>
     /// Centralized palette and sizing values for the new UITK wallet UI.
-    /// Mirrors the legacy IMGUI look so screens stay consistent while we migrate.
+    /// Centralized visual tokens for runtime UI Toolkit screens.
     /// </summary>
     internal static class WalletUiTheme
     {

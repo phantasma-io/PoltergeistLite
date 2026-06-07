@@ -13,7 +13,6 @@ namespace Poltergeist.UiToolkit.Accounts
 {
     /// <summary>
     /// Handles wallet import flows (seed/private key) from the main accounts screen.
-    /// Mirrors legacy behavior while using UITK modals.
     /// </summary>
     public sealed partial class WalletAccountsView
     {

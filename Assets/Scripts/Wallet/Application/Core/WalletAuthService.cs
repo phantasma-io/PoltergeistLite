@@ -95,7 +95,7 @@ namespace Poltergeist.Wallet
 
         public async void RequestPassword(string description, PlatformKind platform, bool forcePasswordPrompt, bool allowMasterPasswordPrompt, IWalletAuthUi ui, Action<PromptResult> callback, bool ignoreStoredPassword = false)
         {
-            // Legacy callback shim: kept to avoid touching legacy callers while the UI migrates to async.
+            // Callback shim for flows that still expose completion through callbacks.
             PromptResult result;
             try
             {

@@ -39,7 +39,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 return;
             }
 
-            // Mirrors the legacy flow: warn user, generate phrase, force backup, then derive requested wallets.
+            // Warn user, generate phrase, force backup, then derive requested wallets.
             const string attentionMessage = "For your own safety, write down generated seed words on a piece of paper and store it safely and hidden.\n\nThese words serve as a back-up of your wallet.\n\nWithout a backup, it is impossible to recover your private key,\nand any funds in the account will be lost if something happens to this device.";
             var attention = await ShowModalAsync("Attention!", attentionMessage, 0, 0, isError: false, showInput: false, isPassword: false, primaryLabel: "Confirm", secondaryLabel: "Cancel");
             if (attention.result != PromptResult.Success)

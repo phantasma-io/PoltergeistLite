@@ -37,7 +37,7 @@ namespace Poltergeist.Wallet
             _ui = ui ?? throw new ArgumentNullException(nameof(ui));
         }
 
-        // Legacy shim for callback-based callers while migration to Task completes.
+        // Callback shim for callers that still expose completion through callbacks.
         public void SendTransactionDraft(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation, Action<Hash, TransactionResult, string> callback)
         {
             async void ExecuteAsync()

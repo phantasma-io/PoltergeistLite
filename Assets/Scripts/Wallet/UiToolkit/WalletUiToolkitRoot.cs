@@ -16,7 +16,6 @@ using UnityEngine.EventSystems;
 using PhantasmaPhoenix.Core;
 using PhantasmaPhoenix.Protocol;
 using System.Linq;
-using UnityEngine.SceneManagement;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,7 +75,7 @@ namespace Poltergeist.UiToolkit
             var root = new GameObject("WalletUiToolkitRoot");
             DontDestroyOnLoad(root);
             instance = root.AddComponent<WalletUiToolkitRoot>();
-            Log.Write($"{LogPrefix}Bootstrap complete, root created (UITK forced on, legacy UI will be disabled).");
+            Log.Write($"{LogPrefix}Bootstrap complete, root created.");
         }
 
         private void Awake()
@@ -102,7 +101,6 @@ namespace Poltergeist.UiToolkit
                 EnsureAccountManagerHost();
                 EnsureCacheReady();
                 EnsureEventSystem();
-                DisableLegacyUi("UITK bootstrap");
                 EnsurePanelSettings();
                 EnsureDocument();
                 if (!InitializeViewsSafe())
@@ -143,9 +141,7 @@ namespace Poltergeist.UiToolkit
 
             Log.Write($"{LogPrefix}OnEnable");
             Application.logMessageReceived += OnLogMessageReceived;
-            SceneManager.sceneLoaded += OnSceneLoaded;
             WalletApplicationContext.Instance?.UiSignals?.EnsureSubscribed();
-            TryDisableLegacyUi("UITK root enabled");
         }
 
         private void OnDestroy()
@@ -157,7 +153,6 @@ namespace Poltergeist.UiToolkit
 
             Log.Write($"{LogPrefix}OnDestroy");
             Application.logMessageReceived -= OnLogMessageReceived;
-            SceneManager.sceneLoaded -= OnSceneLoaded;
             previewHelper?.RestorePreviewWindowSize();
             accountsView?.Dispose();
             balancesView?.Dispose();
@@ -396,12 +391,12 @@ namespace Poltergeist.UiToolkit
             Log.Write($"{LogPrefix}WalletLink UI bridge registered for UITK.");
 
             accountsView = new WalletAccountsView(accountsRoot, context, modalHost, ShowBalances, ShowSettings);
-            balancesView = new WalletBalancesView(balancesRoot, context, DisableLegacyUi, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, ShowToken);
+            balancesView = new WalletBalancesView(balancesRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, ShowToken);
             tokenView = new WalletTokenDashboardView(tokenRoot, context, modalHost, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, accountsView);
             nftView = new WalletNftDashboardView(nftRoot, context, modalHost, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets, accountsView);
             historyView = new WalletHistoryView(historyRoot, context, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
             accountView = new WalletAccountView(accountRoot, context, modalHost, accountsView, ShowBalances, ShowHistory, ShowAccount, ShowSettings, ExitToWallets);
-            settingsView = new WalletSettingsView(settingsRoot, context, modalHost, DisableLegacyUi, ExitToWallets, OpenDebugNftAsync);
+            settingsView = new WalletSettingsView(settingsRoot, context, modalHost, ExitToWallets, OpenDebugNftAsync);
             EnsureUiBridgeRegistered();
 
             root.Add(accountsRoot);
@@ -415,56 +410,6 @@ namespace Poltergeist.UiToolkit
             modalHost.BringToFront(root);
 
             Log.Write($"{LogPrefix}Views initialized (accounts + balances + token + nft + history + account + settings).");
-        }
-
-        private void DisableLegacyUi()
-        {
-            TryDisableLegacyUi("UITK view ready");
-        }
-
-        private void DisableLegacyUi(string reason)
-        {
-            TryDisableLegacyUi(reason);
-        }
-
-        private void TryDisableLegacyUi(string reason)
-        {
-            var legacy = UnityEngine.Object.FindObjectsByType<WalletGUI>(FindObjectsSortMode.None);
-            if (legacy == null || legacy.Length == 0)
-            {
-                Debug.Log($"{LogPrefix}No legacy WalletGUI instances found to disable ({reason}).");
-                return;
-            }
-
-            foreach (var gui in legacy)
-            {
-                var go = gui.gameObject;
-                var accountManager = go.GetComponentInChildren<AccountManager>(true);
-                gui.enabled = false; // disable legacy visuals/logic
-
-                if (accountManager != null)
-                {
-                    if (!accountManager.enabled)
-                    {
-                        accountManager.enabled = true;
-                    }
-
-                    if (!go.activeSelf)
-                    {
-                        go.SetActive(true);
-                    }
-
-                    Log.Write($"{LogPrefix}Disabled WalletGUI component; AccountManager kept active (found in hierarchy). reason={reason}");
-                }
-                else
-                {
-                    // If no AccountManager on this GO, we can safely deactivate it.
-                    go.SetActive(false);
-                    Log.Write($"{LogPrefix}Disabled legacy WalletGUI GameObject (no AccountManager). reason={reason}");
-                }
-            }
-
-            Debug.Log($"{LogPrefix}Legacy UI processed ({legacy.Length} instance(s)); reason: {reason}");
         }
 
         private void OnLogMessageReceived(string condition, string stackTrace, LogType type)
@@ -486,7 +431,7 @@ namespace Poltergeist.UiToolkit
             screenshotHelper?.HandleHotkey();
 #endif
 
-            // Legacy IMGUI polled for pending messages every frame; mirror that cadence but throttle slightly to reduce overhead.
+            // Poll pending messages on a short interval to keep modal traffic responsive without doing work every frame.
             if (Time.unscaledTime < nextMessageCheckTime)
             {
                 return;
@@ -503,7 +448,7 @@ namespace Poltergeist.UiToolkit
                 return;
             }
 
-            // Surface RPC connectivity failures first, matching legacy behavior.
+            // Surface RPC connectivity failures first.
             var accountManager = AccountManager.Instance;
             var settings = accountManager?.Settings;
 
@@ -972,11 +917,6 @@ namespace Poltergeist.UiToolkit
             settingsView?.OnAccountsReady();
             settingsView?.MarkAsActive();
             Log.Write($"{LogPrefix}ShowSettings done. settingsVisible={settingsRoot?.style.display}");
-        }
-
-        private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-        {
-            TryDisableLegacyUi($"Scene loaded ({scene.name}, {mode})");
         }
 
         private static bool ShouldForceSettings(AccountManager accountManager)

@@ -10,26 +10,6 @@ namespace Poltergeist.Wallet
         Success
     }
 
-    public enum GUIState
-    {
-        Loading,
-        Wallets,
-        Balances,
-        Nft,
-        NftView,
-        NftTransferList,
-        History,
-        Account,
-        Sending,
-        Confirming,
-        WalletsManagement,
-        Settings,
-        ScanQR,
-        Backup,
-        Exit,
-        Fatal
-    }
-
     public enum PromptResult
     {
         Waiting,
@@ -38,14 +18,6 @@ namespace Poltergeist.Wallet
         Custom_1,
         Custom_2,
         Custom_3
-    }
-
-    public enum ModalState
-    {
-        None,
-        Message,
-        Input,
-        Password,
     }
 
     public enum TtrsNftSortMode

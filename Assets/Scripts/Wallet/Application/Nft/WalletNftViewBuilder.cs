@@ -8,7 +8,7 @@ using Poltergeist.Wallet;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Builds filtered/paged NFT view snapshots reused by both legacy and new UI layers.
+    /// Builds filtered/paged NFT view snapshots for wallet UI layers.
     /// </summary>
     public sealed class WalletNftViewBuilder
     {

@@ -3,7 +3,7 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Aggregates UI-agnostic runtime state used by both legacy and modern UI layers.
+    /// Aggregates UI-agnostic runtime state used by wallet UI layers and services.
     /// </summary>
     public sealed class WalletApplicationContext
     {
@@ -13,9 +13,7 @@ namespace Poltergeist.Wallet
 
         private WalletApplicationContext()
         {
-            Navigation = new WalletNavigation();
             Messages = new WalletMessageQueue();
-            Modals = new WalletModalContext();
             Data = new WalletDataProvider(() => AccountManager.Instance);
             AccountHintsService = new WalletAccountHintsService(() => AccountManager.Instance);
             ViewState = new WalletViewState();
@@ -58,11 +56,7 @@ namespace Poltergeist.Wallet
             }
         }
 
-        public WalletNavigation Navigation { get; }
-
         public WalletMessageQueue Messages { get; }
-
-        public WalletModalContext Modals { get; }
 
         public WalletDataProvider Data { get; }
 

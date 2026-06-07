@@ -25,7 +25,7 @@ namespace Poltergeist.UiToolkit.Settings
 {
     /// <summary>
     /// Settings screen for UITK, composed with shared form builders to keep UI consistent.
-    /// Mirrors LegacyUI settings behavior with confirmations and dev tools.
+    /// Settings screen for runtime UI Toolkit flows, including confirmations and dev tools.
     /// </summary>
     public sealed class WalletSettingsView : IDisposable
     {
@@ -37,7 +37,6 @@ namespace Poltergeist.UiToolkit.Settings
         private readonly WalletSettingsPresenter presenter;
         private readonly WalletSettingsActions actions;
         private readonly WalletSettingsViewState viewState;
-        private readonly Action onReady;
         private readonly Action onExit;
         private readonly Func<string, string, Task<ValidationResult>> onOpenDebugNft;
         private EventCallback<KeyDownEvent> tabBlockHandler;
@@ -56,7 +55,6 @@ namespace Poltergeist.UiToolkit.Settings
         private PopupField<string> mnemonicDropdown;
         private PopupField<string> passwordModeDropdown;
         private PopupField<string> logLevelDropdown;
-        private PopupField<string> uiThemeDropdown;
 #if UITK_DESKTOP_PREVIEW_SUPPORTED
         private PopupField<string> previewDeviceDropdown;
 #endif
@@ -124,12 +122,11 @@ namespace Poltergeist.UiToolkit.Settings
 
         private bool isPopulating;
 
-        public WalletSettingsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onReady, Action onExit, Func<string, string, Task<ValidationResult>> onOpenDebugNft = null)
+        public WalletSettingsView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, Action onExit, Func<string, string, Task<ValidationResult>> onOpenDebugNft = null)
         {
             presenter = context.SettingsPresenter ?? throw new ArgumentNullException(nameof(context.SettingsPresenter));
             actions = context.SettingsActions ?? throw new ArgumentNullException(nameof(context.SettingsActions));
             viewState = presenter.State ?? new WalletSettingsViewState();
-            this.onReady = onReady;
             this.onExit = onExit ?? throw new ArgumentNullException(nameof(onExit));
             this.onOpenDebugNft = onOpenDebugNft;
             this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
@@ -148,7 +145,6 @@ namespace Poltergeist.UiToolkit.Settings
         public void OnAccountsReady()
         {
             Refresh();
-            onReady?.Invoke();
         }
 
         public void MarkAsActive()
@@ -407,16 +403,12 @@ namespace Poltergeist.UiToolkit.Settings
             mnemonicDropdown = WalletUiFormFactory.CreateDropdown("Seed length", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetMnemonicIndex(idx)));
             passwordModeDropdown = WalletUiFormFactory.CreateDropdown("Password mode", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetPasswordModeIndex(idx)));
             logLevelDropdown = WalletUiFormFactory.CreateDropdown("Log level", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetLogLevelIndex(idx)));
-            uiThemeDropdown = WalletUiFormFactory.CreateDropdown("UI Theme", Array.Empty<string>(), 0, idx => OnChanged(() => presenter.SetUiThemeIndex(idx), true));
             logFolderPathField = WalletUiFormFactory.CreateTextField("Log folder path (optional)", string.Empty, value => OnChanged(() => presenter.SetLogFolderPath(value)));
 
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Currency", currencyDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Seed length", mnemonicDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Password mode", passwordModeDropdown));
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log level", logLevelDropdown));
-            var uiThemeRow = WalletUiFormFactory.CreateLabeledRow("UI Theme", uiThemeDropdown);
-            uiThemeRow.style.display = DisplayStyle.None; // Temporarily hide UI theme selection.
-            generalSection.Add(uiThemeRow);
             generalSection.Add(WalletUiFormFactory.CreateLabeledRow("Log folder path", logFolderPathField, "Leave empty to use default log location"));
 
             endpointsSection = WalletUiFormFactory.CreateFormSection(string.Empty);
@@ -800,7 +792,6 @@ namespace Poltergeist.UiToolkit.Settings
             SetDropdown(mnemonicDropdown, snapshot.MnemonicDisplayOptions, snapshot.MnemonicIndex);
             SetDropdown(passwordModeDropdown, snapshot.PasswordDisplayOptions, snapshot.PasswordModeIndex);
             SetDropdown(logLevelDropdown, snapshot.LogLevelDisplayOptions, snapshot.LogLevelIndex);
-            SetDropdown(uiThemeDropdown, snapshot.UiThemeDisplayOptions, snapshot.UiThemeIndex);
 #if UITK_DESKTOP_PREVIEW_SUPPORTED
             SetDropdown(previewDeviceDropdown, snapshot.UiPreviewDeviceDisplayOptions, snapshot.UiPreviewDeviceIndex);
 #endif

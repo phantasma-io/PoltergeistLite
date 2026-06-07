@@ -6,12 +6,13 @@ using PhantasmaPhoenix.RPC.Models;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// UI-agnostic bridge that allows services (e.g. WalletLink) to request user interaction without hard-coding legacy IMGUI.
+    /// UI-agnostic bridge that allows services (e.g. WalletLink) to request user interaction.
     /// A concrete UI layer must register an implementation at startup.
     /// </summary>
     public interface IWalletUiBridge
     {
         void PostToMainThread(Action action);
+        Task<bool> ConfirmAsync(string title, string text, string confirmLabel = "Yes", string cancelLabel = "No");
         Task<bool> PromptAsync(string text);
         Task<(Hash hash, TransactionResult txResult, string error)> SendTransactionDraftAsync(WalletTransactionDraft draft, bool refreshBalanceAfterConfirmation = true);
         void TxResultMessage(Hash hash, TransactionResult txResult, string error, string successCustomMessage = null, string failureCustomMessage = null);

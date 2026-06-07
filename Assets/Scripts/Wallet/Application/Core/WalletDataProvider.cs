@@ -7,7 +7,7 @@ using Poltergeist;
 namespace Poltergeist.Wallet
 {
     /// <summary>
-    /// Provides UI-agnostic snapshots of wallet data for both legacy and new UI layers.
+    /// Provides UI-agnostic snapshots of wallet data.
     /// </summary>
     public sealed class WalletDataProvider
     {

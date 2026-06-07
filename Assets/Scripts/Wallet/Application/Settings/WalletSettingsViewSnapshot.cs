@@ -25,9 +25,6 @@ namespace Poltergeist.Wallet
             string[] logLevelDisplayOptions,
             Log.Level[] logLevels,
             int logLevelIndex,
-            string[] uiThemeDisplayOptions,
-            UiThemes[] uiThemes,
-            int uiThemeIndex,
             string[] uiPreviewDeviceDisplayOptions,
             UiPreviewDevice[] uiPreviewDevices,
             int uiPreviewDeviceIndex,
@@ -60,9 +57,6 @@ namespace Poltergeist.Wallet
             LogOverwriteMode = settings.logOverwriteMode;
             LogFolderPath = settings.logFolderPath ?? string.Empty;
 
-            UiThemeDisplayOptions = uiThemeDisplayOptions;
-            UiThemes = uiThemes;
-            UiThemeIndex = uiThemeIndex;
             UiPreviewDeviceDisplayOptions = uiPreviewDeviceDisplayOptions;
             UiPreviewDevices = uiPreviewDevices;
             UiPreviewDeviceIndex = uiPreviewDeviceIndex;
@@ -118,9 +112,6 @@ namespace Poltergeist.Wallet
         public bool LogOverwriteMode { get; }
         public string LogFolderPath { get; }
 
-        public string[] UiThemeDisplayOptions { get; }
-        public UiThemes[] UiThemes { get; }
-        public int UiThemeIndex { get; }
         public string[] UiPreviewDeviceDisplayOptions { get; }
         public UiPreviewDevice[] UiPreviewDevices { get; }
         public int UiPreviewDeviceIndex { get; }

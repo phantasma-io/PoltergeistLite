@@ -54,7 +54,6 @@ namespace Poltergeist.Wallet
             state.MnemonicLength = snapshot.MnemonicOptions.Length > 0 ? snapshot.MnemonicOptions[snapshot.MnemonicIndex] : state.MnemonicLength;
             state.PasswordMode = snapshot.PasswordModes.Length > 0 ? snapshot.PasswordModes[snapshot.PasswordModeIndex] : state.PasswordMode;
             state.LogLevel = snapshot.LogLevels.Length > 0 ? snapshot.LogLevels[snapshot.LogLevelIndex] : state.LogLevel;
-            state.UiTheme = snapshot.UiThemes.Length > 0 ? snapshot.UiThemes[snapshot.UiThemeIndex] : state.UiTheme;
             state.ScrollY = 0f;
         }
 
@@ -128,16 +127,6 @@ namespace Poltergeist.Wallet
             var value = opts.LogLevels[clampedIndex];
             settings.logLevel = value;
             state.LogLevel = value;
-        }
-
-        public void SetUiThemeIndex(int index)
-        {
-            var settings = GetSettings();
-            var opts = EnsureOptions();
-            var clampedIndex = Mathf.Clamp(index, 0, opts.UiThemes.Length - 1);
-            var value = opts.UiThemes[clampedIndex];
-            settings.uiThemeName = value.ToString();
-            state.UiTheme = value;
         }
 
         public void SetUiPreviewDeviceIndex(int index)
@@ -335,7 +324,6 @@ namespace Poltergeist.Wallet
             state.MnemonicLength = snapshot.MnemonicOptions.Length > 0 ? snapshot.MnemonicOptions[snapshot.MnemonicIndex] : state.MnemonicLength;
             state.PasswordMode = snapshot.PasswordModes.Length > 0 ? snapshot.PasswordModes[snapshot.PasswordModeIndex] : state.PasswordMode;
             state.LogLevel = snapshot.LogLevels.Length > 0 ? snapshot.LogLevels[snapshot.LogLevelIndex] : state.LogLevel;
-            state.UiTheme = snapshot.UiThemes.Length > 0 ? snapshot.UiThemes[snapshot.UiThemeIndex] : state.UiTheme;
         }
     }
 }

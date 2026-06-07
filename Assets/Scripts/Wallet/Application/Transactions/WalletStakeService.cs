@@ -14,7 +14,7 @@ namespace Poltergeist.Wallet
     public sealed class WalletStakeService
     {
         private readonly Func<AccountManager> _accountProvider;
-        // TEMP: shortened cooldown for testing; legacy behavior was 86400 (24h).
+        // TEMP: shortened cooldown for testing; production cooldown is 86400 (24h).
         private const uint UnstakeCooldownSeconds = 60;
 
         public WalletStakeService(Func<AccountManager> accountProvider)

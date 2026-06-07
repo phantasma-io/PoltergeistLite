@@ -30,9 +30,6 @@ namespace Poltergeist.Wallet
             LogLevels = Enum.GetValues(typeof(Log.Level)).Cast<Log.Level>().ToArray();
             LogLevelDisplayOptions = LogLevels.Select(x => x.ToString()).ToArray();
 
-            UiThemes = Enum.GetValues(typeof(UiThemes)).Cast<UiThemes>().ToArray();
-            UiThemeDisplayOptions = UiThemes.Select(x => x.ToString()).ToArray();
-
             UiPreviewDevices = Enum.GetValues(typeof(UiPreviewDevice)).Cast<UiPreviewDevice>().ToArray();
             UiPreviewDeviceDisplayOptions = UiPreviewDevices.Select(FormatPreviewDevice).ToArray();
         }
@@ -51,8 +48,6 @@ namespace Poltergeist.Wallet
         public Log.Level[] LogLevels { get; }
         public string[] LogLevelDisplayOptions { get; }
 
-        public UiThemes[] UiThemes { get; }
-        public string[] UiThemeDisplayOptions { get; }
         public UiPreviewDevice[] UiPreviewDevices { get; }
         public string[] UiPreviewDeviceDisplayOptions { get; }
 
@@ -84,11 +79,6 @@ namespace Poltergeist.Wallet
         public int GetLogLevelIndex(Log.Level value)
         {
             return IndexOrZero(LogLevels, value, (a, b) => a == b);
-        }
-
-        public int GetUiThemeIndex(string uiThemeName)
-        {
-            return IndexOrZero(UiThemes, uiThemeName, (theme, name) => string.Equals(theme.ToString(), name, StringComparison.OrdinalIgnoreCase));
         }
 
         public int GetUiPreviewDeviceIndex(UiPreviewDevice device)
@@ -133,22 +123,5 @@ namespace Poltergeist.Wallet
             return 0;
         }
 
-        private static int IndexOrZero<T>(T[] list, string value, Func<T, string, bool> equals)
-        {
-            if (list == null || list.Length == 0)
-            {
-                return 0;
-            }
-
-            for (int i = 0; i < list.Length; i++)
-            {
-                if (equals(list[i], value))
-                {
-                    return i;
-                }
-            }
-
-            return 0;
-        }
     }
 }

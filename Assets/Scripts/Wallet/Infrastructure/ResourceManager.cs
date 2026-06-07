@@ -1,7 +1,6 @@
-using Poltergeist;
 using System;
-using System.Collections;
 using System.Collections.Generic;
+using Poltergeist;
 using UnityEngine;
 
 public class ResourceManager : MonoBehaviour
@@ -14,7 +13,6 @@ public class ResourceManager : MonoBehaviour
     }
 
     public Texture WalletLogo { get; private set; }
-    public Texture MasterLogo { get; private set; }
     public Texture Dropshadow { get; private set; }
     public Texture NftAudioPlaceholder { get; private set; }
     public Texture NftPhotoPlaceholder { get; private set; }
@@ -22,9 +20,7 @@ public class ResourceManager : MonoBehaviour
 
     void Start()
     {
-        var themeName = AccountManager.Instance.Settings.uiThemeName;
         WalletLogo = GetToken("soul", PlatformKind.Phantasma);
-        MasterLogo = Resources.Load<Texture>($"LegacyUI/Skins/{themeName}/soul_master");
         Dropshadow = Resources.Load<Texture>("Common/dropshadow");
         NftAudioPlaceholder = Resources.Load<Texture>("Common/nft_audio_placeholder");
         NftPhotoPlaceholder = Resources.Load<Texture>("Common/nft_photo_placeholder");
@@ -86,10 +82,8 @@ public class ResourceManager : MonoBehaviour
             return rpcTexture;
         }
 
-        var themeName = AccountManager.Instance.Settings.uiThemeName;
         // Fallback sequence handles case-sensitive file systems and icons stored outside the Tokens folder.
-        var texture = TryLoadTokenTexture($"LegacyUI/Skins/{themeName}/Tokens/", symbol)
-            ?? TryLoadTokenTexture("Common/Tokens/", symbol)
+        var texture = TryLoadTokenTexture("Common/Tokens/", symbol)
             ?? TryLoadTokenTexture("Common/", symbol);
 
         if (texture == null)

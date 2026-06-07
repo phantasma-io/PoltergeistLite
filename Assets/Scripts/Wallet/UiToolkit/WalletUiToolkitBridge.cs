@@ -9,7 +9,7 @@ using Poltergeist.Wallet;
 namespace Poltergeist.UiToolkit
 {
     /// <summary>
-    /// UITK implementation of IWalletUiBridge so WalletLink can request user interaction without legacy UI.
+    /// UITK implementation of IWalletUiBridge so WalletLink can request user interaction.
     /// </summary>
     internal sealed class WalletUiToolkitBridge : IWalletUiBridge, IDisposable
     {
@@ -42,8 +42,18 @@ namespace Poltergeist.UiToolkit
 
         public async Task<bool> PromptAsync(string text)
         {
+            return await ConfirmAsync("Phantasma Link", text ?? string.Empty, "Yes", "No");
+        }
+
+        public async Task<bool> ConfirmAsync(string title, string text, string confirmLabel = "Yes", string cancelLabel = "No")
+        {
             AppFocus.Instance?.StartFocus();
-            var result = await WalletUiModalHelper.ShowConfirmAsync(modalHost, "Phantasma Link", text ?? string.Empty, "Yes", "No");
+            var result = await WalletUiModalHelper.ShowConfirmAsync(
+                modalHost,
+                string.IsNullOrWhiteSpace(title) ? "Confirmation" : title,
+                text ?? string.Empty,
+                string.IsNullOrWhiteSpace(confirmLabel) ? "Yes" : confirmLabel,
+                string.IsNullOrWhiteSpace(cancelLabel) ? "No" : cancelLabel);
             return result == PromptResult.Success;
         }
 
