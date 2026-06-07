@@ -47,6 +47,16 @@ namespace Phantasma.Tests
             TokensType.GetMethod("AddToken", BindingFlags.Public | BindingFlags.Static).Invoke(null, new[] { token });
         }
 
+        // Sets (or clears with null) the static DescriptionUtils.MissingCarbonTokenLoader hook so
+        // tests can simulate a lazy single-token fetch without a live RPC or AccountManager.
+        private static void SetMissingCarbonTokenLoader(Func<ulong, CancellationToken, Task<bool>> loader)
+        {
+            Assert.NotNull(DescriptionUtilsType, "Failed to resolve Poltergeist.DescriptionUtils from Assembly-CSharp.");
+            var field = DescriptionUtilsType.GetField("MissingCarbonTokenLoader", BindingFlags.Public | BindingFlags.Static);
+            Assert.NotNull(field, "Failed to find DescriptionUtils.MissingCarbonTokenLoader.");
+            field.SetValue(null, loader);
+        }
+
         [SetUp]
         public void SetUp()
         {
@@ -54,11 +64,15 @@ namespace Phantasma.Tests
             AddToken("KCAL", 10, 1);
             AddToken("SOUL", 8, 2);
             AddToken("GHOST", 0, 11, "Transferable, Burnable");
+            // Default to no lazy loader so seeded-token tests exercise the direct path.
+            SetMissingCarbonTokenLoader(null);
         }
 
         [TearDown]
         public void TearDown()
         {
+            // Avoid leaking the hook into other tests.
+            SetMissingCarbonTokenLoader(null);
             ResetTokens();
         }
 
@@ -139,6 +153,113 @@ namespace Phantasma.Tests
             Assert.That(description, Does.Not.Contain("SOUL"));
             Assert.That(description, Does.Not.Contain("tokenId:"));
             Assert.That(description, Does.Not.Contain("amount: 1234567890"));
+        }
+
+        [Test]
+        public async Task GetCarbonDescriptionAsync_LazilyLoadsMissingTokenByCarbonId()
+        {
+            /*
+             * A token referenced by its Carbon id may not be in the loaded token list yet (for
+             * example a token created after the wallet last loaded its full token list). The
+             * description layer must lazily load just that token via MissingCarbonTokenLoader and
+             * still produce a description, instead of hard-failing the signing prompt.
+             */
+            const ulong missingCarbonId = 105;
+            var loaderCalls = 0;
+
+            SetMissingCarbonTokenLoader((carbonId, cancellationToken) =>
+            {
+                loaderCalls++;
+                // Simulate a successful single-token fetch by adding the token to the list.
+                if (carbonId == missingCarbonId)
+                {
+                    AddToken("ALIEN", 18, missingCarbonId, "Transferable, Burnable, Fungible, Divisible, Finite");
+                    return Task.FromResult(true);
+                }
+
+                return Task.FromResult(false);
+            });
+
+            var alienTransfer = CarbonBlob.Serialize(new TransferFungibleArgs
+            {
+                to = Bytes32From(97),
+                from = Bytes32From(65),
+                tokenId = missingCarbonId,
+                amount = new IntX(1234567890)
+            });
+
+            var tx = new TxMsg
+            {
+                type = TxTypes.Call,
+                expiry = 0,
+                maxGas = 1000,
+                maxData = 0,
+                gasFrom = Bytes32From(129),
+                payload = new SmallString("test"),
+                msg = new TxMsgCall
+                {
+                    moduleId = (uint)ModuleId.Token,
+                    methodId = (uint)TokenContract_Methods.TransferFungible,
+                    args = alienTransfer
+                }
+            };
+
+            var (description, error) = await GetCarbonDescriptionAsync(tx);
+
+            Assert.IsNull(error);
+            Assert.AreEqual(1, loaderCalls, "Loader should be invoked exactly once for the missing token.");
+            Assert.That(description, Does.Contain("ALIEN"));
+            Assert.That(description, Does.Contain("★ Transfer"));
+        }
+
+        [Test]
+        public void GetCarbonDescriptionAsync_SurfacesMappingErrorWhenLazyLoadFails()
+        {
+            /*
+             * When the missing token cannot be lazily loaded (genuinely unknown id or fetch
+             * failure), the original token mapping error must still surface rather than being
+             * silently swallowed, so the user is never shown a misleading partial description.
+             */
+            const ulong missingCarbonId = 105;
+            var loaderCalls = 0;
+
+            SetMissingCarbonTokenLoader((carbonId, cancellationToken) =>
+            {
+                loaderCalls++;
+                return Task.FromResult(false);
+            });
+
+            var alienTransfer = CarbonBlob.Serialize(new TransferFungibleArgs
+            {
+                to = Bytes32From(97),
+                from = Bytes32From(65),
+                tokenId = missingCarbonId,
+                amount = new IntX(1234567890)
+            });
+
+            var tx = new TxMsg
+            {
+                type = TxTypes.Call,
+                expiry = 0,
+                maxGas = 1000,
+                maxData = 0,
+                gasFrom = Bytes32From(129),
+                payload = new SmallString("test"),
+                msg = new TxMsgCall
+                {
+                    moduleId = (uint)ModuleId.Token,
+                    methodId = (uint)TokenContract_Methods.TransferFungible,
+                    args = alienTransfer
+                }
+            };
+
+            // Type is resolved by name because the test assembly does not reference Assembly-CSharp.
+            var exception = Assert.CatchAsync(async () => await GetCarbonDescriptionAsync(tx));
+            Assert.AreEqual("TokenMappingException", exception.GetType().Name);
+            Assert.AreEqual(1, loaderCalls, "Loader should be attempted exactly once.");
+
+            var carbonIdValue = exception.GetType().GetProperty("CarbonId").GetValue(exception);
+            Assert.AreEqual((ulong)missingCarbonId, carbonIdValue);
         }
     }
 }

@@ -152,17 +152,17 @@ public static class Tokens
 
         throw new System.Exception($"Cannot load token carbon ID for {symbol}");
     }
-    public static TokenResult GetTokenByCarbonId(ulong carbonId, PlatformKind platform)
+    // Non-throwing lookup of a supported token by its Carbon id. Returns false when no
+    // loaded token carries that Carbon id. Shared by GetTokenByCarbonId and by the lazy
+    // single-token re-fetch path (to check whether a fetch is still needed) so the parse
+    // loop is not duplicated.
+    public static bool TryGetTokenByCarbonId(ulong carbonId, out TokenResult token)
     {
-        // Carbon IDs are required for supported tokens; missing mapping indicates corrupted data.
-        if (platform != PlatformKind.Phantasma)
-        {
-            throw new TokenMappingException($"Cannot load token for carbon ID {carbonId} on platform {platform}");
-        }
+        token = null;
 
         if (SupportedTokens == null || SupportedTokens.Count == 0)
         {
-            throw new TokenMappingException($"Cannot load token for carbon ID {carbonId} (token list is empty)");
+            return false;
         }
 
         foreach (var entry in SupportedTokens)
@@ -174,11 +174,39 @@ public static class Tokens
 
             if (ulong.TryParse(entry.CarbonId, out var parsed) && parsed == carbonId)
             {
-                return entry;
+                token = entry;
+                return true;
             }
         }
 
-        throw new TokenMappingException($"Cannot load token for carbon ID {carbonId}");
+        return false;
+    }
+
+    public static TokenResult GetTokenByCarbonId(ulong carbonId, PlatformKind platform)
+    {
+        // Carbon IDs are required for supported tokens; missing mapping indicates corrupted data.
+        if (platform != PlatformKind.Phantasma)
+        {
+            // Not tied to an individually fetchable Phantasma token id, so not re-fetchable.
+            throw new TokenMappingException($"Cannot load token for carbon ID {carbonId} on platform {platform}");
+        }
+
+        if (SupportedTokens == null || SupportedTokens.Count == 0)
+        {
+            // Carry the carbon id so callers can still attempt a targeted lazy fetch even
+            // when the full token list failed to load.
+            throw new TokenMappingException($"Cannot load token for carbon ID {carbonId} (token list is empty)", carbonId);
+        }
+
+        if (TryGetTokenByCarbonId(carbonId, out var token))
+        {
+            return token;
+        }
+
+        // Token id is valid but not in the currently loaded list (e.g. a token created after
+        // the last token-list load); carry the carbon id so callers can lazily re-fetch just
+        // this one token and retry instead of hard-failing.
+        throw new TokenMappingException($"Cannot load token for carbon ID {carbonId}", carbonId);
     }
     public static string GetTokenHash(string symbol, PlatformKind platform)
     {

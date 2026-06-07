@@ -1002,10 +1002,61 @@ namespace Poltergeist
             return;
         }
 
-        public static Task<(string Description, string Error)> GetCarbonDescriptionAsync(TxMsg txMsg, bool devMode, CancellationToken cancellationToken = default)
+        // Hook used to lazily load a single Carbon token by its id when description parsing
+        // references a token that is not in the in-memory token list yet (e.g. a token created
+        // after the wallet last loaded its full token list). Wired by AccountManager at startup;
+        // tests can substitute a fake. Returns true if the token became available afterwards.
+        // When unset or returning false, the original token mapping error surfaces (previous
+        // behaviour), so genuinely unknown token ids still fail loudly.
+        public static Func<ulong, CancellationToken, Task<bool>> MissingCarbonTokenLoader;
+
+        public static async Task<(string Description, string Error)> GetCarbonDescriptionAsync(TxMsg txMsg, bool devMode, CancellationToken cancellationToken = default)
         {
             var sb = new StringBuilder();
 
+            // Carbon ids we already tried to lazily load. Each distinct id is attempted at most
+            // once, so a token that still cannot be resolved after a fetch surfaces the error
+            // instead of looping; this also bounds the retry loop.
+            var attemptedCarbonIds = new HashSet<ulong>();
+
+            while (true)
+            {
+                sb.Clear();
+                try
+                {
+                    BuildCarbonDescription(txMsg, sb);
+                    break;
+                }
+                catch (TokenMappingException ex) when (ex.CarbonId.HasValue && !attemptedCarbonIds.Contains(ex.CarbonId.Value) && MissingCarbonTokenLoader != null)
+                {
+                    // A referenced Carbon token id is missing from the loaded token list. Try a
+                    // one-off lazy fetch of just that token by carbon id, then rebuild, instead
+                    // of hard-failing the whole signing prompt.
+                    var carbonId = ex.CarbonId.Value;
+                    attemptedCarbonIds.Add(carbonId);
+
+                    var loaded = await MissingCarbonTokenLoader(carbonId, cancellationToken);
+                    if (!loaded)
+                    {
+                        throw; // genuinely unknown token id -> surface the original mapping error
+                    }
+                    // Token is now available; loop and rebuild the description.
+                }
+            }
+
+            if (sb.Length > 0)
+            {
+                return (sb.ToString(), null);
+            }
+
+            return (null, "Unknown transaction content.");
+        }
+
+        // Builds the human-readable Carbon transaction description into sb. Throws
+        // TokenMappingException (carrying the carbon id) when a referenced token id cannot be
+        // resolved; GetCarbonDescriptionAsync turns that into a lazy token fetch + retry.
+        private static void BuildCarbonDescription(TxMsg txMsg, StringBuilder sb)
+        {
             switch (txMsg.type)
             {
                 case TxTypes.Call:
@@ -1067,14 +1118,6 @@ namespace Poltergeist
                     sb.AppendLine($"Unknown call: {txMsg.type}");
                     break;
             }
-
-
-            if (sb.Length > 0)
-            {
-                return Task.FromResult<(string, string)>((sb.ToString(), null));
-            }
-
-            return Task.FromResult<(string, string)>((null, "Unknown transaction content."));
         }
     }
 }

@@ -496,6 +496,11 @@ namespace Poltergeist
             Instance = this;
             Settings = WalletRuntime.GetSettings();
 
+            // Let Carbon description parsing lazily pull in a single token by carbon id when it
+            // references a token created after the last full token-list load, instead of
+            // hard-failing the WalletLink signing prompt.
+            DescriptionUtils.MissingCarbonTokenLoader = TryLoadMissingTokenByCarbonIdAsync;
+
             Status = "Initializing wallet...";
 
             _currencyMap["AUD"] = "A$";
@@ -1093,6 +1098,62 @@ The Phoenix team", "Notice");
                     return Array.Empty<TokenResult>();
                 }
             }
+        }
+
+        // Lazily fetches a single token by its Carbon id and adds it to the in-memory token list.
+        // Used when Carbon description parsing references a token created after the wallet last
+        // loaded its full token list (e.g. a brand-new marketplace listing currency), so a single
+        // new token does not hard-block the WalletLink signing prompt. Returns true once the token
+        // is available; false leaves the original token mapping error to surface.
+        public async Task<bool> TryLoadMissingTokenByCarbonIdAsync(ulong carbonId, CancellationToken cancellationToken)
+        {
+            // Another path may have already loaded it (e.g. a concurrent token reinit).
+            lock (Tokens.__lockObj)
+            {
+                if (Tokens.TryGetTokenByCarbonId(carbonId, out _))
+                {
+                    return true;
+                }
+            }
+
+            if (phantasmaApi == null)
+            {
+                return false;
+            }
+
+            TokenResult token;
+            try
+            {
+                // An empty symbol selects the token by its Carbon id (see PhantasmaAPI.GetToken).
+                token = await AsyncPhantasma.FromApi<TokenResult>(
+                    (onSuccess, onError) => phantasmaApi.GetToken("", true, carbonId, onSuccess, onError, WebClient.DefaultTimeout, NetworkRetryPolicy.Retries),
+                    cancellationToken);
+            }
+            catch (PhantasmaRequestException ex)
+            {
+                Log.WriteWarning($"Lazy token fetch by carbon id {carbonId} failed: {ex.Message}");
+                return false;
+            }
+
+            // Guard against a node returning an unexpected or mismatched token.
+            if (token == null || string.IsNullOrWhiteSpace(token.CarbonId) ||
+                !ulong.TryParse(token.CarbonId, out var parsed) || parsed != carbonId)
+            {
+                return false;
+            }
+
+            lock (Tokens.__lockObj)
+            {
+                // Re-check after the await in case the token was added meanwhile, to avoid a duplicate.
+                if (Tokens.TryGetTokenByCarbonId(carbonId, out _))
+                {
+                    return true;
+                }
+
+                Tokens.AddToken(token);
+            }
+
+            return true;
         }
 
         private void TokensReinit()
