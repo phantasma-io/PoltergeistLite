@@ -13,7 +13,10 @@ namespace Poltergeist.UiToolkit
         private static Texture2D cachedPanelGradient;
         private static Texture2D cachedCardGradient;
 
-        public static Font DefaultFont => cachedFont ??= Resources.GetBuiltinResource<Font>("Arial.ttf");
+        // Unity 6000.4 removed the built-in "Arial.ttf"; "LegacyRuntime.ttf" is its official
+        // replacement name. Requesting Arial throws ArgumentException and aborts the whole
+        // UITK view initialization (blank wallet screen in the editor).
+        public static Font DefaultFont => cachedFont ??= Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
         // Base surfaces
         // Keep hues (purple top, carrot bottom) but bias distribution toward purple.
