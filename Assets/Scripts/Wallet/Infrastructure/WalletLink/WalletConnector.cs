@@ -810,6 +810,22 @@ namespace Poltergeist
             }
         }
 
+        void IWalletLinkV5Ops.ConfirmPairing(LinkPairingParams pairing, Action<bool> done)
+        {
+            RunOnUi(() =>
+            {
+                async Task AskPairingAsync()
+                {
+                    var name = string.IsNullOrEmpty(pairing.DappName) ? pairing.Topic : pairing.DappName;
+                    var consent = await PromptAsync($"Pair with dApp \"{name}\"?\n\nIt will be able to send requests to this wallet via deep links.");
+                    AppFocus.Instance.EndFocus();
+                    done(consent);
+                }
+
+                AskPairingAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
+            });
+        }
+
         void IWalletLinkV5Ops.InvokeScript(string chain, byte[] script, Action<LinkInvokeResult> done)
         {
             InvokeScript(chain, script, 0, (results, error) =>
