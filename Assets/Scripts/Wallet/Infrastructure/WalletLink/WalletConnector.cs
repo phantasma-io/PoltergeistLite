@@ -20,7 +20,7 @@ using Poltergeist.Wallet;
 
 namespace Poltergeist
 {
-    public class WalletConnector : WalletLink
+    public class WalletConnector : WalletLink, IWalletLinkV5Ops
     {
         private IWalletUiBridge Ui => WalletUiBridge.Current;
 
@@ -729,5 +729,128 @@ namespace Poltergeist
             });
 
         }
+
+        #region IWalletLinkV5Ops
+        // The clean v5 surface. Each method reuses the SAME internal consent/account/sign/broadcast
+        // logic the legacy dispatcher uses (the legacy protected methods above), and translates the
+        // legacy-shaped (value, errorString) results into the structured v5 contract. The legacy
+        // error strings are this wallet's own internal detail and are mapped here, so nothing
+        // legacy ever reaches the v5 protocol (WalletLinkV5). Explicit interface implementation so
+        // the v5 surface never collides with the base protected methods of the same name.
+
+        WalletStatus IWalletLinkV5Ops.Status => Status;
+
+        void IWalletLinkV5Ops.Connect(string dappName, string sessionToken, Action<LinkConnectResult> done)
+        {
+            // The internal ops still speak the legacy contract version (they guard on it and shape
+            // the account export by it); the v5 protocol version was already validated upstream.
+            Authorize(dappName, sessionToken, LinkProtocol, (authorized, authError) =>
+            {
+                if (!authorized)
+                {
+                    done(LinkConnectResult.Fail(MapWalletFailure(authError), authError));
+                    return;
+                }
+
+                GetAccount("phantasma", LinkProtocol, (account, accountError) =>
+                {
+                    if (accountError != null)
+                    {
+                        done(LinkConnectResult.Fail(MapWalletFailure(accountError), accountError));
+                        return;
+                    }
+
+                    GetWalletVersion(version =>
+                        done(LinkConnectResult.Ok(ToLinkAccount(account), Name, version, Nexus)));
+                });
+            });
+        }
+
+        void IWalletLinkV5Ops.GetAccount(Action<LinkAccountResult> done)
+        {
+            GetAccount("phantasma", LinkProtocol, (account, error) =>
+            {
+                if (error != null)
+                {
+                    done(LinkAccountResult.Fail(MapWalletFailure(error), error));
+                    return;
+                }
+                done(LinkAccountResult.Ok(ToLinkAccount(account)));
+            });
+        }
+
+        void IWalletLinkV5Ops.GetChains(Action<LinkChains> done)
+            => GetNexus(nexus => done(new LinkChains { Nexus = nexus }));
+
+        void IWalletLinkV5Ops.GetWalletInfo(Action<LinkWalletInfo> done)
+            => GetWalletVersion(version =>
+                GetPeer(rpc => done(new LinkWalletInfo { Name = Name, Version = version, Rpc = rpc })));
+
+        void IWalletLinkV5Ops.SendTransaction(byte[] serializedTx, LinkTxFormat format, SignatureKind kind, ProofOfWork pow, Action<LinkSendResult> done)
+        {
+            switch (format)
+            {
+                case LinkTxFormat.Carbon:
+                    // Reuse the existing Carbon broadcast path verbatim (no duplicated logic).
+                    SignCarbonTransactionAndBroadcast(serializedTx, (hash, error) =>
+                    {
+                        if (hash == Hash.Null)
+                        {
+                            done(LinkSendResult.Fail(MapWalletFailure(error), error));
+                            return;
+                        }
+                        done(LinkSendResult.Ok(hash));
+                    });
+                    break;
+
+                default:
+                    // "script" format is a follow-up; not advertised in the capability handshake.
+                    done(LinkSendResult.Fail(LinkFailure.InvalidTransaction, "Transaction format 'script' is not yet supported by this wallet"));
+                    break;
+            }
+        }
+
+        void IWalletLinkV5Ops.InvokeScript(string chain, byte[] script, Action<LinkInvokeResult> done)
+        {
+            InvokeScript(chain, script, 0, (results, error) =>
+            {
+                if (results == null)
+                {
+                    done(LinkInvokeResult.Fail(MapWalletFailure(error), error));
+                    return;
+                }
+                done(LinkInvokeResult.Ok(results));
+            });
+        }
+
+        // Map this wallet's own internal error strings (from the legacy protected ops) to a
+        // structured v5 failure. Confined to the wallet; the v5 protocol never sees these strings.
+        private static LinkFailure MapWalletFailure(string error)
+        {
+            if (string.IsNullOrEmpty(error)) return LinkFailure.Internal;
+            if (error == "rejected" || error == "user rejected") return LinkFailure.UserRejected;
+            if (error == "not logged in") return LinkFailure.NotLoggedIn;
+            if (error == "description parsing error") return LinkFailure.InvalidTransaction;
+            return LinkFailure.Internal;
+        }
+
+        private static LinkAccount ToLinkAccount(Account account)
+        {
+            var balances = account.balances ?? Array.Empty<Balance>();
+            return new LinkAccount
+            {
+                Address = account.address ?? "",
+                Name = account.name ?? "",
+                Avatar = account.avatar ?? "",
+                Balances = balances.Select(b => new LinkBalance
+                {
+                    Symbol = b.symbol ?? "",
+                    Value = b.value ?? "",
+                    Decimals = (int)b.decimals,
+                    Ids = b.ids ?? Array.Empty<string>(),
+                }).ToArray(),
+            };
+        }
+        #endregion
     }
 }

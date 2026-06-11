@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using PhantasmaPhoenix.Link;
+using PhantasmaPhoenix.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using PhantasmaPhoenix.Unity.Core.Logging;
@@ -20,7 +21,12 @@ namespace Poltergeist
             Instance = this;
             PhantasmaLink = new WalletConnector();
 
-            server = new LinkServer(PhantasmaLink);
+            // Serve the v5 protocol (new generation) on /phantasma/v5 alongside the legacy
+            // string protocol on /phantasma. WalletConnector implements the clean IWalletLinkV5Ops
+            // for the v5 dispatcher while remaining a WalletLink for the legacy one; both reuse the
+            // same internal wallet logic. Sessions persist via PlayerPrefs (spec §7 resume).
+            var walletLinkV5 = new WalletLinkV5(PhantasmaLink, new PlayerPrefsLinkSessionStore());
+            server = new LinkServer(PhantasmaLink, walletLinkV5);
 
             // redirect UI callbacks to Unity
             server.OnUI = action => PostToUi(action);
