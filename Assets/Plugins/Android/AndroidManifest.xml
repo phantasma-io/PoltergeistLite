@@ -23,6 +23,17 @@
                 <category android:name="android.intent.category.BROWSABLE"/>
                 <data android:scheme="phantasma"/>
             </intent-filter>
+            <!-- Phantasma Link v5 universal links (spec §19): the domain-verified primary
+                 channel (a sym pairing key may only ride a verified link, never the raw
+                 scheme). Verification needs assetlinks.json live on link.phantasma.info;
+                 until then this filter stays pending and the scheme path above keeps
+                 working. Only /v5 paths are claimed. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="link.phantasma.info" android:pathPrefix="/v5"/>
+            </intent-filter>
             <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
         </activity>
     </application>
