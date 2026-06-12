@@ -13,7 +13,7 @@ OcclusionCullingSettings:
 --- !u!104 &2
 RenderSettings:
   m_ObjectHideFlags: 0
-  serializedVersion: 9
+  serializedVersion: 10
   m_Fog: 0
   m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   m_FogMode: 3
@@ -38,13 +38,12 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &4
 LightmapSettings:
   m_ObjectHideFlags: 0
-  serializedVersion: 12
-  m_GIWorkflowMode: 1
+  serializedVersion: 13
+  m_BakeOnSceneLoad: 0
   m_GISettings:
     serializedVersion: 2
     m_BounceScale: 1
@@ -67,9 +66,6 @@ LightmapSettings:
     m_LightmapParameters: {fileID: 0}
     m_LightmapsBakeMode: 1
     m_TextureCompression: 0
-    m_FinalGather: 0
-    m_FinalGatherFiltering: 1
-    m_FinalGatherRayCount: 256
     m_ReflectionCompression: 2
     m_MixedBakeMode: 1
     m_BakeBackend: 0
@@ -217,13 +213,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 511433235}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &600298856
 GameObject:
@@ -236,8 +232,6 @@ GameObject:
   - component: {fileID: 600298858}
   - component: {fileID: 600298857}
   - component: {fileID: 600298859}
-  - component: {fileID: 600298860}
-  - component: {fileID: 600298861}
   - component: {fileID: 600298862}
   - component: {fileID: 600298863}
   - component: {fileID: 600298864}
@@ -263,9 +257,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   AccountsAreReadyToBeUsed: 0
   CurrentPasswordHash: 
+  ReportGetPeersFailure: 0
+  ReportAllRpcsUnavailabe: 0
   rpcAvailablePhantasma: 0
-  rpcAvailableNeo: 0
-  rpcAvailableBsc: 0
   accountBalanceNotLoaded: 1
   accountHistoryNotLoaded: 1
 --- !u!4 &600298858
@@ -275,13 +269,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 600298856}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &600298859
 MonoBehaviour:
@@ -293,30 +287,6 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c3888775ddb3311469f638ce8e71e995, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &600298860
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 600298856}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 40c4859f04599c6499475a555c8070a0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &600298861
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 600298856}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a994afdea6aef284fb5ac9f2a7cf1543, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!114 &600298862
@@ -368,6 +338,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 20d4aa1ca1bcd47ccb9527b384dbb25c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  githubOwner: phantasma-io
+  githubRepo: PoltergeistLite
+  currentVersion: 1.7.0
 --- !u!1 &1729993407
 GameObject:
   m_ObjectHideFlags: 0
@@ -428,11 +401,18 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729993407}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1660057539 &9223372036854775807
+SceneRoots:
+  m_ObjectHideFlags: 0
+  m_Roots:
+  - {fileID: 511433240}
+  - {fileID: 1729993410}
+  - {fileID: 600298858}
