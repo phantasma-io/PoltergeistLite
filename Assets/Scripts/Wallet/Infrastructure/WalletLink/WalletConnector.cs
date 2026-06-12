@@ -816,8 +816,13 @@ namespace Poltergeist
             {
                 async Task AskPairingAsync()
                 {
+                    // This approval is the ONLY consent on the one-tap path: right after it the
+                    // deeplink endpoint pushes the connect result to the dApp (spec §17 step 3),
+                    // so the text must state the full grant - account visibility + requests.
+                    // Transactions still get their own confirmation, and the endpoint only
+                    // pushes a session when the pairing meta carries a dApp name.
                     var name = string.IsNullOrEmpty(pairing.DappName) ? pairing.Topic : pairing.DappName;
-                    var consent = await PromptAsync($"Pair with dApp \"{name}\"?\n\nIt will be able to send requests to this wallet via deep links.");
+                    var consent = await PromptAsync($"Pair with dApp \"{name}\"?\n\nIt will see your account (address and balances) and will be able to send requests to this wallet via deep links. Transactions will still require your confirmation.");
                     AppFocus.Instance.EndFocus();
                     done(consent);
                 }
