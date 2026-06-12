@@ -14,6 +14,7 @@ namespace Poltergeist
     {
         public WalletConnector PhantasmaLink { get; private set; }
         public LinkDeeplinkEndpoint DeeplinkEndpoint { get; private set; }
+        public LinkRelayClient RelayClient { get; private set; }
         public static ConnectorManager Instance { get; private set; }
 
         private LinkServer server;
@@ -30,14 +31,25 @@ namespace Poltergeist
             var walletLinkV5 = new WalletLinkV5(PhantasmaLink, new PlayerPrefsLinkSessionStore());
             server = new LinkServer(PhantasmaLink, walletLinkV5);
 
+            // v5 relay client (spec §18): outbound WebSocket for pairings that carry a relay
+            // URL (cross-device QR, big payloads). Socket callbacks arrive on worker threads;
+            // all dispatcher/store work is marshalled to the UI thread (PlayerPrefs-backed
+            // stores are main-thread only).
+            var pairingStore = new PlayerPrefsLinkPairingStore();
+            RelayClient = new LinkRelayClient(walletLinkV5, pairingStore, new RelayWebSocketClient(), action => PostToUi(action));
+
             // v5 deeplink endpoint (spec §19): pairing + encrypted request URLs delivered by the
             // OS (Android intents / iOS universal links). Pairings persist via PlayerPrefs.
-            DeeplinkEndpoint = new LinkDeeplinkEndpoint(walletLinkV5, PhantasmaLink, new PlayerPrefsLinkPairingStore());
+            DeeplinkEndpoint = new LinkDeeplinkEndpoint(walletLinkV5, PhantasmaLink, pairingStore, RelayClient);
             Application.deepLinkActivated += OnDeepLink;
             if (!string.IsNullOrEmpty(Application.absoluteURL))
             {
                 OnDeepLink(Application.absoluteURL); // cold start via a deeplink
             }
+            // Re-join the relay topics of persisted pairings so an already-paired dApp can
+            // reach the wallet over the relay right after launch (topic mailboxes drain on
+            // subscribe, covering requests published while the wallet was down).
+            RelayClient.EnsureConnected();
 
             // redirect UI callbacks to Unity
             server.OnUI = action => PostToUi(action);
@@ -105,6 +117,7 @@ namespace Poltergeist
         void OnDestroy()
         {
             Application.deepLinkActivated -= OnDeepLink;
+            RelayClient?.Dispose();
             server?.Stop();
         }
 
