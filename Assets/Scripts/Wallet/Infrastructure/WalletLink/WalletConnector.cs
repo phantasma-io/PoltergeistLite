@@ -13,6 +13,7 @@ using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Protocol.Carbon;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core;
 using PhantasmaPhoenix.Unity.Core.Logging;
 using PhantasmaPhoenix.VM;
 using UnityEngine;
@@ -803,11 +804,284 @@ namespace Poltergeist
                     });
                     break;
 
+                case LinkTxFormat.Script:
+                    SignPrebuiltScriptTransaction(serializedTx, kind, broadcast: true, (signedTx, hash, error) =>
+                    {
+                        if (hash == Hash.Null)
+                        {
+                            done(LinkSendResult.Fail(MapWalletFailure(error), error));
+                            return;
+                        }
+                        done(LinkSendResult.Ok(hash));
+                    });
+                    break;
+
                 default:
-                    // "script" format is a follow-up; not advertised in the capability handshake.
-                    done(LinkSendResult.Fail(LinkFailure.InvalidTransaction, "Transaction format 'script' is not yet supported by this wallet"));
+                    done(LinkSendResult.Fail(LinkFailure.InvalidTransaction, $"Transaction format '{format}' is not supported by this wallet"));
                     break;
             }
+        }
+
+        void IWalletLinkV5Ops.SignTransaction(byte[] serializedTx, LinkTxFormat format, SignatureKind kind, ProofOfWork pow, Action<LinkSignTransactionResult> done)
+        {
+            switch (format)
+            {
+                case LinkTxFormat.Carbon:
+                    // Carbon witnesses are Ed25519-only in the current chain; refuse other kinds
+                    // with the structured failure instead of silently signing with the wrong key.
+                    if (kind != SignatureKind.Ed25519)
+                    {
+                        done(LinkSignTransactionResult.Fail(LinkFailure.UnsupportedSignatureKind, "signature kind unsupported"));
+                        return;
+                    }
+                    SignCarbonTransactionOnly(serializedTx, (signedTx, error) =>
+                    {
+                        if (signedTx == null)
+                        {
+                            done(LinkSignTransactionResult.Fail(MapWalletFailure(error), error));
+                            return;
+                        }
+                        done(LinkSignTransactionResult.Ok(signedTx));
+                    });
+                    break;
+
+                case LinkTxFormat.Script:
+                    SignPrebuiltScriptTransaction(serializedTx, kind, broadcast: false, (signedTx, _, error) =>
+                    {
+                        if (signedTx == null)
+                        {
+                            done(LinkSignTransactionResult.Fail(MapWalletFailure(error), error));
+                            return;
+                        }
+                        done(LinkSignTransactionResult.Ok(signedTx));
+                    });
+                    break;
+
+                default:
+                    done(LinkSignTransactionResult.Fail(LinkFailure.InvalidTransaction, $"Transaction format '{format}' is not supported by this wallet"));
+                    break;
+            }
+        }
+
+        void IWalletLinkV5Ops.SignMessage(byte[] message, string display, Action<LinkSignMessageResult> done)
+        {
+            var accountManager = AccountManager.Instance;
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                done(LinkSignMessageResult.Fail(LinkFailure.NotLoggedIn, "not logged in"));
+                return;
+            }
+            var account = accountManager.CurrentAccount;
+
+            RunOnUi(() =>
+            {
+                async Task AskSignMessageAsync()
+                {
+                    // Spec §8 display rule: show the message as UTF-8 when it decodes cleanly,
+                    // otherwise a digest + byte length; the dApp's display hint comes first.
+                    var preview = DescribeMessageForConsent(message);
+                    var shown = string.IsNullOrEmpty(display) ? preview : display + "\n\n" + preview;
+                    var consent = await PromptAsync($"The dApp asks you to sign a message. This is NOT a transaction and cannot move funds.\n\n{shown}");
+                    AppFocus.Instance.EndFocus();
+
+                    if (!consent)
+                    {
+                        done(LinkSignMessageResult.Fail(LinkFailure.UserRejected, "user rejected"));
+                        return;
+                    }
+
+                    // §8 construction: DOMAIN_TAG || random(32, CSPRNG) || message - the domain
+                    // tag makes the signature non-replayable as a transaction, the random comes
+                    // from a cryptographic RNG (the legacy SignData used 4 weak UnityRandom
+                    // bytes, which must never be reused). The signature is a RAW 64-byte
+                    // Ed25519 detached signature so any NaCl stack can verify it against the
+                    // account public key.
+                    var random = LinkSignMessage.GenerateRandom();
+                    var payload = LinkSignMessage.BuildPayload(message, random);
+                    var wif = account.GetWif(accountManager.CurrentPasswordHash);
+                    var keys = PhantasmaKeys.FromWIF(wif);
+                    var signature = Ed25519.Sign(payload, keys.PrivateKey);
+                    done(LinkSignMessageResult.Ok(signature, random));
+                }
+
+                AskSignMessageAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
+            });
+        }
+
+        /// <summary>Human preview of a to-be-signed message: clean UTF-8 verbatim, anything
+        /// binary as a digest + length (the user must never confirm invisible content).</summary>
+        private static string DescribeMessageForConsent(byte[] message)
+        {
+            var text = Encoding.UTF8.GetString(message);
+            var looksReadable = !text.Contains('\uFFFD') &&
+                text.All(ch => !char.IsControl(ch) || ch == '\n' || ch == '\r' || ch == '\t');
+            if (looksReadable && text.Length > 0)
+            {
+                return text;
+            }
+            return $"(binary message, {message.Length} bytes, SHA-256 {Base16.Encode(message.Sha256())})";
+        }
+
+        /// <summary>Carbon sign-only: parse, describe, ask consent, sign - but never broadcast
+        /// (the dApp submits the returned SignedTxMsg itself).</summary>
+        private void SignCarbonTransactionOnly(byte[] txBytes, Action<byte[], string> callback)
+        {
+            var accountManager = AccountManager.Instance;
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                callback(null, "not logged in");
+                return;
+            }
+            var nexus = accountManager.Settings.nexusName;
+            var account = accountManager.CurrentAccount;
+
+            RunOnUi(() =>
+            {
+                async Task HandleAsync()
+                {
+                    try
+                    {
+                        var txMsg = CarbonBlob.New<TxMsg>(txBytes);
+                        var (description, error) = await DescriptionUtils.GetCarbonDescriptionAsync(txMsg, accountManager.Settings.devMode, CancellationToken.None);
+                        if (description == null)
+                        {
+                            Log.Write("Error during description parsing.\nDetails: " + error);
+                        }
+
+                        var consent = await PromptAsync($"Allow dapp to SIGN a transaction WITHOUT sending it? The dapp will submit it itself.\n\nCurrent nexus: {nexus}, chain: main\n\n{description}");
+                        AppFocus.Instance.EndFocus();
+                        if (!consent)
+                        {
+                            callback(null, "user rejected");
+                            return;
+                        }
+
+                        var wif = account.GetWif(accountManager.CurrentPasswordHash);
+                        var keys = PhantasmaKeys.FromWIF(wif);
+                        callback(TxMsgSigner.Sign(txMsg, keys), "");
+                    }
+                    catch (Exception e)
+                    {
+                        PushMessage("WalletLink", $"Error during description parsing.\nContact the developers.\nDetails: {e.Message}", MessageKind.Error);
+                        callback(null, "description parsing error");
+                    }
+                }
+
+                HandleAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
+            });
+        }
+
+        /// <summary>
+        /// Shared v5 path for PREBUILT classic (script-format) transactions: parse, describe the
+        /// embedded script, ask consent, sign with the REQUESTED key kind (the legacy broadcast
+        /// path ignored the kind - v5 fixes that), then either return the signed bytes or
+        /// broadcast them via sendRawTransaction. `pow` from the request is intentionally NOT
+        /// applied here: mining mutates the payload of a transaction the dApp already built
+        /// (and the SDK's Transaction.Mine is currently disabled); proof-of-work on a prebuilt
+        /// tx is the BUILDER's responsibility.
+        /// </summary>
+        private void SignPrebuiltScriptTransaction(byte[] serializedTx, SignatureKind kind, bool broadcast, Action<byte[], Hash, string> callback)
+        {
+            var accountManager = AccountManager.Instance;
+            var state = accountManager.CurrentState;
+            if (state == null)
+            {
+                callback(null, Hash.Null, "not logged in");
+                return;
+            }
+
+            var tx = PhantasmaPhoenix.Protocol.Transaction.Unserialize(serializedTx);
+            if (tx == null)
+            {
+                callback(null, Hash.Null, "invalid transaction");
+                return;
+            }
+
+            var nexus = accountManager.Settings.nexusName;
+            var account = accountManager.CurrentAccount;
+
+            RunOnUi(() =>
+            {
+                async Task HandleAsync()
+                {
+                    try
+                    {
+                        var (description, error) = await DescriptionUtils.GetDescriptionAsync(tx.Script, accountManager.Settings.devMode, CancellationToken.None);
+                        if (description == null)
+                        {
+                            Log.Write("Error during description parsing.\nDetails: " + error);
+                        }
+
+                        var action = broadcast ? "send a transaction on your behalf" : "SIGN a transaction WITHOUT sending it (the dapp will submit it itself)";
+                        var consent = await PromptAsync($"Allow dapp to {action}?\n\nTransaction nexus: {tx.NexusName}, chain: {tx.ChainName} (wallet nexus: {nexus})\n\n{description}");
+                        AppFocus.Instance.EndFocus();
+                        if (!consent)
+                        {
+                            callback(null, Hash.Null, "user rejected");
+                            return;
+                        }
+
+                        var msg = tx.ToByteArray(false);
+                        var wif = account.GetWif(accountManager.CurrentPasswordHash);
+                        PhantasmaPhoenix.Cryptography.Signature signature;
+                        switch (kind)
+                        {
+                            case SignatureKind.Ed25519:
+                                signature = PhantasmaKeys.FromWIF(wif).Sign(msg);
+                                break;
+
+                            case SignatureKind.ECDSA:
+                                var ethKeys = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif);
+                                var signatureBytes = ECDsa.Sign(msg, ethKeys.PrivateKey, ECDsaCurve.Secp256k1);
+                                signature = new ECDsaSignature(signatureBytes, ECDsaCurve.Secp256k1);
+                                break;
+
+                            default:
+                                callback(null, Hash.Null, "signature kind unsupported");
+                                return;
+                        }
+                        tx.AddSignature(signature);
+                        var signedTx = tx.ToByteArray(true);
+
+                        if (!broadcast)
+                        {
+                            callback(signedTx, Hash.Null, "");
+                            return;
+                        }
+
+                        // Broadcast via the house async adapter over the coroutine API (the
+                        // same AsyncPhantasma.FromApi pattern every modern RPC call uses);
+                        // request failures surface as PhantasmaRequestException below.
+                        var (sentHash, _, _) = await AsyncPhantasma.FromApi(
+                            (Action<string, string, Hash> onSuccess, Action<EPHANTASMA_SDK_ERROR_TYPE, string> onError) =>
+                                accountManager.phantasmaApi.SendRawTransaction(
+                                    Base16.Encode(signedTx), tx.Hash, onSuccess, onError),
+                            CancellationToken.None);
+                        if (string.IsNullOrEmpty(sentHash))
+                        {
+                            callback(null, Hash.Null, "transaction was not broadcast");
+                            return;
+                        }
+                        callback(signedTx, Hash.Parse(sentHash), "");
+                    }
+                    catch (PhantasmaRequestException e)
+                    {
+                        // The tx was signed but the node refused/failed the broadcast; this is
+                        // an RPC failure, not a malformed transaction.
+                        PushMessage("WalletLink", $"Transaction broadcast failed.\nDetails: {e.Message}", MessageKind.Error);
+                        callback(null, Hash.Null, "transaction was not broadcast");
+                    }
+                    catch (Exception e)
+                    {
+                        PushMessage("WalletLink", $"Error during transaction handling.\nContact the developers.\nDetails: {e.Message}", MessageKind.Error);
+                        callback(null, Hash.Null, "description parsing error");
+                    }
+                }
+
+                HandleAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
+            });
         }
 
         void IWalletLinkV5Ops.ConfirmPairing(LinkPairingParams pairing, Action<bool> done)
@@ -852,6 +1126,8 @@ namespace Poltergeist
             if (error == "rejected" || error == "user rejected") return LinkFailure.UserRejected;
             if (error == "not logged in") return LinkFailure.NotLoggedIn;
             if (error == "description parsing error") return LinkFailure.InvalidTransaction;
+            if (error == "invalid transaction") return LinkFailure.InvalidTransaction;
+            if (error == "signature kind unsupported") return LinkFailure.UnsupportedSignatureKind;
             return LinkFailure.Internal;
         }
 
