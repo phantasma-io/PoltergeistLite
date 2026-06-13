@@ -2,6 +2,7 @@ bin/
 obj/
 Logs/
 Builds/
+build/
 .vs/
 Library/
 Temp/

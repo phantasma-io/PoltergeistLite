@@ -63,12 +63,12 @@ namespace Poltergeist.UiToolkit
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void Bootstrap()
         {
-            var existing = UnityEngine.Object.FindFirstObjectByType<WalletUiToolkitRoot>();
+            var existing = UnityEngine.Object.FindAnyObjectByType<WalletUiToolkitRoot>();
             if (existing != null)
             {
                 instance = existing;
                 DontDestroyOnLoad(existing.gameObject);
-                Log.Write($"{LogPrefix}Bootstrap skipped, root already exists (id={existing.GetInstanceID()}).");
+                Log.Write($"{LogPrefix}Bootstrap skipped, root already exists (id={existing.GetEntityId()}).");
                 return;
             }
 
@@ -82,7 +82,7 @@ namespace Poltergeist.UiToolkit
         {
             if (instance != null && instance != this)
             {
-                Log.Write($"{LogPrefix}Duplicate UITK root detected, destroying new instance (id={GetInstanceID()}, existing={instance.GetInstanceID()}).");
+                Log.Write($"{LogPrefix}Duplicate UITK root detected, destroying new instance (id={GetEntityId()}, existing={instance.GetEntityId()}).");
                 Destroy(gameObject);
                 return;
             }
@@ -350,7 +350,7 @@ namespace Poltergeist.UiToolkit
                 go.AddComponent<StandaloneInputModule>();
             }
 
-            Log.Write($"{LogPrefix}EventSystem created for UITK (id={es.GetInstanceID()}).");
+            Log.Write($"{LogPrefix}EventSystem created for UITK (id={es.GetEntityId()}).");
         }
 
         private void InitializeViews()

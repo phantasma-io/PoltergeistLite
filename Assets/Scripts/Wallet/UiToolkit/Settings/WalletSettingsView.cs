@@ -507,11 +507,8 @@ namespace Poltergeist.UiToolkit.Settings
             BuildTabsBar();
             tabContent.style.marginTop = 10;
             scroll.Add(tabContent);
-            if (EnableScrollDebugLog)
-            {
-                scroll.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-content-container-geometry", scrollView, root, scrollWrapper));
-                tabContent.RegisterCallback<GeometryChangedEvent>(_ => WalletUiCommon.LogScrollState("settings-form-geometry", scrollView, root, scrollWrapper));
-            }
+            scroll.contentContainer.RegisterCallback<GeometryChangedEvent>(_ => LogScrollState("content-container-geometry"));
+            tabContent.RegisterCallback<GeometryChangedEvent>(_ => LogScrollState("form-geometry"));
 
             actionsContainer = new VisualElement
             {

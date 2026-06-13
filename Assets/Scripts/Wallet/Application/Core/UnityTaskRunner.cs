@@ -47,7 +47,7 @@ namespace Poltergeist.Wallet
 
         private static UnityTaskRunner FindExistingInstance()
         {
-            return FindFirstObjectByType<UnityTaskRunner>();
+            return FindAnyObjectByType<UnityTaskRunner>();
         }
 
         private static void CaptureUnityContext()
