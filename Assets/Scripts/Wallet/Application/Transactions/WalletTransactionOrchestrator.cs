@@ -9,6 +9,7 @@ using PhantasmaPhoenix.Protocol;
 using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
 using PhantasmaPhoenix.VM;
 using PhantasmaPhoenix.RPC.Models;
+using PhantasmaPhoenix.Unity.Core.Logging;
 using Poltergeist;
 
 namespace Poltergeist.Wallet
@@ -42,8 +43,18 @@ namespace Poltergeist.Wallet
         {
             async void ExecuteAsync()
             {
-                var result = await SendTransactionDraftAsync(draft, refreshBalanceAfterConfirmation);
-                callback?.Invoke(result.hash, result.txResult, result.error);
+                try
+                {
+                    var result = await SendTransactionDraftAsync(draft, refreshBalanceAfterConfirmation);
+                    callback?.Invoke(result.hash, result.txResult, result.error);
+                }
+                catch (Exception ex)
+                {
+                    // Nothing above this awaits inside a guard, so a throw here would escape an
+                    // async void and crash the process; report it through the callback instead.
+                    Log.WriteWarning($"Transaction send failed: {ex}");
+                    callback?.Invoke(Hash.Null, null, ex.Message);
+                }
             }
 
             ExecuteAsync();
