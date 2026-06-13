@@ -95,16 +95,12 @@ public static class Tokens
     public static TokenResult GetToken(string symbol, PlatformKind platform)
     {
         return SupportedTokens.Where(x => x.Symbol.ToUpper() == symbol.ToUpper() &&
-            ((platform == PlatformKind.Phantasma) /*||
-            (platform != PlatformKind.Phantasma && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))*/))
+            platform == PlatformKind.Phantasma)
             .SingleOrDefault();
     }
     public static bool HasSwappableToken(string symbol, PlatformKind platform)
     {
         return false;
-        /*return SupportedTokens.Any(x => x.symbol.ToUpper() == symbol.ToUpper() &&
-            ((platform == PlatformKind.Phantasma && x.IsSwappable()) ||
-            (platform != PlatformKind.Phantasma && x.IsSwappable() && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))));*/
     }
     public static bool GetToken(string symbol, PlatformKind platform, out TokenResult token)
     {
@@ -123,8 +119,7 @@ public static class Tokens
     }
     public static TokenResult[] GetTokens(PlatformKind platform)
     {
-        return SupportedTokens.Where(x => platform == PlatformKind.Phantasma /*||
-            (platform != PlatformKind.Phantasma && x.external != null && x.external.Any(y => y.platform.ToUpper() == platform.ToString().ToUpper()))*/)
+        return SupportedTokens.Where(x => platform == PlatformKind.Phantasma)
             .ToArray();
     }
     public static TokenResult[] GetTokensForCoingecko()

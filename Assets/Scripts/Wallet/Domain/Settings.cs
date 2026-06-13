@@ -329,21 +329,6 @@ namespace Poltergeist
 
             switch (tag)
             {
-                /*case PhantasmaRPCTag:
-                    switch (nexusKind)
-                    {
-                        case NexusKind.Main_Net:
-                            return "auto";
-
-                        case NexusKind.Local_Net:
-                            return "http://localhost:7077/rpc";
-
-                        default:
-                            return "http://45.76.88.140:7076/rpc";
-                    }
-                    break;
-                    */
-
                 case PhantasmaRPCTag:
                     switch (nexusKind)
                     {

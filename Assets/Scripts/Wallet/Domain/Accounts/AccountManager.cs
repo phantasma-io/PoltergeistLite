@@ -1272,29 +1272,6 @@ The Phoenix team", "Notice");
         private void LoadNexus()
         {
             UpdateAPIs(true);
-
-            /*var tokenList = PlayerPrefs.GetString(TokenInfoTag, "");
-
-            if (!string.IsNullOrEmpty(tokenList))
-            {
-                var tokenBytes = Base16.Decode(tokenList);
-
-                var tokens = Serialization.Unserialize<Token[]>(tokenBytes);
-
-                return;
-            }
-
-            StartCoroutine(phantasmaApi.GetTokens(true, (tokens) =>
-            {
-                PrepareTokens(tokens);
-                var tokenBytes = Serialization.Serialize(tokens);
-                PlayerPrefs.SetString(TokenInfoTag, Base16.Encode(tokenBytes));
-                return;
-            },
-            (error, msg) =>
-            {
-                Status = "Failed to fetch token list...";
-            }));*/
         }
 
         private static BigInteger ParseTokenAmount(string amount, uint decimals)
