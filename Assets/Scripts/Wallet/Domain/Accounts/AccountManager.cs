@@ -776,6 +776,14 @@ namespace Poltergeist
                 Interlocked.Increment(ref rpcBenchmarkedPhantasma);
             }
         }
+        private void RotateRpcOnWebError(PhantasmaRequestException ex)
+        {
+            if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
+            {
+                ChangeFaultyRPCURL(PlatformKind.Phantasma);
+            }
+        }
+
         public void ChangeFaultyRPCURL(PlatformKind platformKind)
         {
             if (Settings.nexusKind != NexusKind.Main_Net ||
@@ -1351,10 +1359,7 @@ The Phoenix team", "Notice");
                             }
                             catch (PhantasmaRequestException ex)
                             {
-                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                {
-                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                                }
+                                RotateRpcOnWebError(ex);
 
                                 callback(Hash.Null, ex.Message);
                             }
@@ -1422,10 +1427,7 @@ The Phoenix team", "Notice");
                             }
                             catch (PhantasmaRequestException ex)
                             {
-                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                {
-                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                                }
+                                RotateRpcOnWebError(ex);
 
                                 callback(Hash.Null, ex.Message);
                             }
@@ -1470,10 +1472,7 @@ The Phoenix team", "Notice");
                             }
                             catch (PhantasmaRequestException ex)
                             {
-                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                {
-                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                                }
+                                RotateRpcOnWebError(ex);
                                 callback(null, ex.Message);
                             }
 
@@ -1511,10 +1510,7 @@ The Phoenix team", "Notice");
                 }
                 catch (PhantasmaRequestException ex)
                 {
-                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                    {
-                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                    }
+                    RotateRpcOnWebError(ex);
                     callback(null, ex.Message);
                 }
             }
@@ -1541,10 +1537,7 @@ The Phoenix team", "Notice");
                             }
                             catch (PhantasmaRequestException ex)
                             {
-                                if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                                {
-                                    ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                                }
+                                RotateRpcOnWebError(ex);
                                 callback(false, ex.Message);
                             }
                             break;
@@ -1867,10 +1860,7 @@ The Phoenix team", "Notice");
                         }
                         catch (PhantasmaRequestException ex)
                         {
-                            if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                            {
-                                ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                            }
+                            RotateRpcOnWebError(ex);
 
                             var msg = ex.Message;
                             if (checkCount <= maxChecks)
@@ -2139,10 +2129,7 @@ The Phoenix team", "Notice");
                 {
                     Log.WriteWarning($"RefreshBalances[PHA] {ex.ErrorType}: {ex.Message}");
 
-                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                    {
-                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                    }
+                    RotateRpcOnWebError(ex);
 
                     SetBalanceError(PlatformKind.Phantasma, $"Phantasma request failed: {ex.Message}", session);
                     ReportWalletBalance(PlatformKind.Phantasma, null, session);
@@ -2636,10 +2623,7 @@ The Phoenix team", "Notice");
                 }
                 catch (PhantasmaRequestException ex)
                 {
-                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                    {
-                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                    }
+                    RotateRpcOnWebError(ex);
                     Log.WriteWarning($"[History] RefreshHistory failed (SDK) {ex.ErrorType}: {ex.Message}");
                     ReportWalletHistory(PlatformKind.Phantasma, null, session);
                 }
@@ -2881,10 +2865,7 @@ The Phoenix team", "Notice");
                 }
                 catch (PhantasmaRequestException ex)
                 {
-                    if (ex.ErrorType == EPHANTASMA_SDK_ERROR_TYPE.WEB_REQUEST_ERROR)
-                    {
-                        ChangeFaultyRPCURL(PlatformKind.Phantasma);
-                    }
+                    RotateRpcOnWebError(ex);
                     callback(null);
                 }
             }
