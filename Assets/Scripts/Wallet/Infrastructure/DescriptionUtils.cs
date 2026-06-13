@@ -147,8 +147,6 @@ namespace Poltergeist
 
         public static async Task<(string Description, string Error)> GetDescriptionAsync(byte[] script, bool devMode, CancellationToken cancellationToken = default)
         {
-            Debug.Log("disam methods: " + string.Join(", ", methodTable.Keys));
-
             if (knownContracts == null)
             {
                 // Collecting known contract names

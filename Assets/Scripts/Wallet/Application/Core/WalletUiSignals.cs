@@ -20,14 +20,12 @@ namespace Poltergeist.Wallet
         {
             if (_subscribed)
             {
-                UnityEngine.Debug.Log("[Signals] Already subscribed"); //TODO Check if still needed once refactoring is over
                 return;
             }
 
             var accountManager = _accountProvider();
             if (accountManager == null)
             {
-                UnityEngine.Debug.LogWarning("[Signals] AccountManager not ready, skipping subscription"); //TODO Check if still needed once refactoring is over
                 return;
             }
 
@@ -38,7 +36,6 @@ namespace Poltergeist.Wallet
             accountManager.NftsRefreshStarted += (platform, symbol) => NftsRefreshStarted?.Invoke(platform, symbol);
             accountManager.HistoryRefreshStarted += platform => HistoryRefreshStarted?.Invoke(platform);
 
-            UnityEngine.Debug.Log("[Signals] Subscribed to AccountManager events"); //TODO Check if still needed once refactoring is over
             _subscribed = true;
         }
 

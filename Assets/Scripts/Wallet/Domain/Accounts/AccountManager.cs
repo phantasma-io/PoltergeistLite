@@ -1297,12 +1297,6 @@ The Phoenix team", "Notice");
             }));*/
         }
 
-        // Update is called once per frame
-        void Update()
-        {
-
-        }
-
         private static BigInteger ParseTokenAmount(string amount, uint decimals)
         {
             if (string.IsNullOrWhiteSpace(amount))
