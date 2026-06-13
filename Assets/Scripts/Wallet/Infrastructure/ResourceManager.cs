@@ -12,16 +12,12 @@ public class ResourceManager : MonoBehaviour
         Instance = this;
     }
 
-    public Texture WalletLogo { get; private set; }
-    public Texture Dropshadow { get; private set; }
     public Texture NftAudioPlaceholder { get; private set; }
     public Texture NftPhotoPlaceholder { get; private set; }
     public Texture NftVideoPlaceholder { get; private set; }
 
     void Start()
     {
-        WalletLogo = GetToken("soul", PlatformKind.Phantasma);
-        Dropshadow = Resources.Load<Texture>("Common/dropshadow");
         NftAudioPlaceholder = Resources.Load<Texture>("Common/nft_audio_placeholder");
         NftPhotoPlaceholder = Resources.Load<Texture>("Common/nft_photo_placeholder");
         NftVideoPlaceholder = Resources.Load<Texture>("Common/nft_video_placeholder");
