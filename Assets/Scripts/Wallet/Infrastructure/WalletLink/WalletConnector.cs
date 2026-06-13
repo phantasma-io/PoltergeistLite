@@ -1016,13 +1016,40 @@ namespace Poltergeist
 
                         var action = broadcast ? "send a transaction on your behalf" : "SIGN a transaction WITHOUT sending it (the dapp will submit it itself)";
                         var consent = await PromptAsync($"Allow dapp to {action}?\n\nTransaction nexus: {tx.NexusName}, chain: {tx.ChainName} (wallet nexus: {nexus})\n\n{description}");
-                        AppFocus.Instance.EndFocus();
                         if (!consent)
                         {
+                            AppFocus.Instance.EndFocus();
                             callback(null, Hash.Null, "user rejected");
                             return;
                         }
 
+                        // Wallet-side broadcast (Ed25519) goes through the wallet's native send
+                        // flow - the explicit Send dialog plus on-chain confirmation, like the
+                        // carbon and legacy send paths - instead of a silent direct broadcast.
+                        // Sign-only and the rare non-Ed25519 broadcast keep the inline path below.
+                        if (broadcast && kind == SignatureKind.Ed25519)
+                        {
+                            var sendUi = Ui;
+                            if (sendUi == null)
+                            {
+                                AppFocus.Instance.EndFocus();
+                                callback(null, Hash.Null, "UI bridge is unavailable.");
+                                return;
+                            }
+
+                            var draft = WalletTransactionDraft.ForSingleScript(description, tx.Script, tx.ChainName,
+                                accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None, tx.Payload);
+                            var (routedHash, _, routedError) = await sendUi.SendTransactionDraftAsync(draft);
+                            AppFocus.Instance.EndFocus();
+                            if (routedHash == Hash.Null && string.IsNullOrEmpty(routedError))
+                            {
+                                routedError = "transaction was not sent";
+                            }
+                            callback(null, routedHash, routedError);
+                            return;
+                        }
+
+                        AppFocus.Instance.EndFocus();
                         var msg = tx.ToByteArray(false);
                         var wif = account.GetWif(accountManager.CurrentPasswordHash);
                         PhantasmaPhoenix.Cryptography.Signature signature;
