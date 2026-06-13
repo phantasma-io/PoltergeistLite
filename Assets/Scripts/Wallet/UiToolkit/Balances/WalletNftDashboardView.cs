@@ -2324,7 +2324,7 @@ namespace Poltergeist.UiToolkit.Balances
             var trimmed = name.Trim();
             if (IsLikelyIdentifier(trimmed))
             {
-                return WalletUiCommon.AbbreviateMiddle(trimmed, 6, 6);
+                return WalletTextFormatter.AbbreviateMiddle(trimmed, 6, 6);
             }
 
             return AbbreviateLongWords(trimmed, WalletUiCommon.IsCompactWidth(root, CompactNftWidth));
@@ -2366,7 +2366,7 @@ namespace Poltergeist.UiToolkit.Balances
             {
                 if (parts[i].Length > 32)
                 {
-                    parts[i] = WalletUiCommon.AbbreviateMiddle(parts[i], 6, 6);
+                    parts[i] = WalletTextFormatter.AbbreviateMiddle(parts[i], 6, 6);
                 }
             }
 

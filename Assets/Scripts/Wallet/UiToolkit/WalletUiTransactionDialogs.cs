@@ -226,7 +226,7 @@ namespace Poltergeist.UiToolkit
         {
             if (confirmationLabel != null)
             {
-                confirmationLabel.text = $"Confirming transaction {WalletUiCommon.AbbreviateMiddle(hash.ToString())}...";
+                confirmationLabel.text = $"Confirming transaction {WalletTextFormatter.AbbreviateMiddle(hash.ToString())}...";
             }
 
             HideOtherPanels();
@@ -292,7 +292,7 @@ namespace Poltergeist.UiToolkit
         {
             if (confirmationLabel != null)
             {
-                confirmationLabel.text = $"Confirming transaction {WalletUiCommon.AbbreviateMiddle(confirmationHash.ToString())}... ({checkIndex})";
+                confirmationLabel.text = $"Confirming transaction {WalletTextFormatter.AbbreviateMiddle(confirmationHash.ToString())}... ({checkIndex})";
             }
         }
 

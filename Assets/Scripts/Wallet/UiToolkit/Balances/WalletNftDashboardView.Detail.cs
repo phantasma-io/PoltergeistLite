@@ -1101,7 +1101,7 @@ namespace Poltergeist.UiToolkit.Balances
                 truncated = true;
                 var head = Math.Max(8, monolithicMax / 2 - 2);
                 var tail = Math.Max(8, monolithicMax - head - 3);
-                var abbreviated = WalletUiCommon.AbbreviateMiddle(trimmed, head, tail);
+                var abbreviated = WalletTextFormatter.AbbreviateMiddle(trimmed, head, tail);
                 return $"{abbreviated} (len {trimmed.Length})";
             }
 

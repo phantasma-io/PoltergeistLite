@@ -516,7 +516,7 @@ namespace Poltergeist.UiToolkit.History
             var fullHash = hash?.userData as string ?? hash?.text ?? string.Empty;
             if (hash != null)
             {
-                hash.text = compact ? WalletUiCommon.AbbreviateMiddle(fullHash) : fullHash;
+                hash.text = compact ? WalletTextFormatter.AbbreviateMiddle(fullHash) : fullHash;
                 hash.style.whiteSpace = compact ? WhiteSpace.NoWrap : WhiteSpace.Normal;
                 hash.style.fontSize = compact ? 15 : 16;
             }

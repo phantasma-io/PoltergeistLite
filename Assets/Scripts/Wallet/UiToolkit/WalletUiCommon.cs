@@ -1729,11 +1729,6 @@ namespace Poltergeist.UiToolkit
             return false;
         }
 
-        internal static string AbbreviateMiddle(string value, int head = 4, int tail = 4)
-        {
-            return WalletTextFormatter.AbbreviateMiddle(value, head, tail);
-        }
-
         internal static string AbbreviateEnd(string value, int maxLength)
         {
             if (string.IsNullOrEmpty(value))
