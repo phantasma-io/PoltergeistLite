@@ -36,7 +36,11 @@ namespace Poltergeist
             // all dispatcher/store work is marshalled to the UI thread (PlayerPrefs-backed
             // stores are main-thread only).
             var pairingStore = new PlayerPrefsLinkPairingStore();
-            RelayClient = new LinkRelayClient(walletLinkV5, pairingStore, new RelayWebSocketClient(), action => PostToUi(action));
+            RelayClient = new LinkRelayClient(walletLinkV5, pairingStore, new RelayWebSocketClient(), action => PostToUi(action),
+                reconnectDelaysMs: null,
+                // The relay client absorbs connection failures by silent reconnection, so
+                // without this sink a dead relay link has no visible symptom in the wallet.
+                log: message => Log.Write("RelayClient: " + message));
 
             // v5 deeplink endpoint (spec §19): pairing + encrypted request URLs delivered by the
             // OS (Android intents / iOS universal links). Pairings persist via PlayerPrefs.
