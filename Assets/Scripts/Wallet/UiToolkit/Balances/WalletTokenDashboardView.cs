@@ -1447,21 +1447,6 @@ namespace Poltergeist.UiToolkit.Balances
             SetStatus(message);
         }
 
-        private string BuildFiatLine(string available, string staked)
-        {
-            if (string.IsNullOrWhiteSpace(available) && string.IsNullOrWhiteSpace(staked))
-            {
-                return string.Empty;
-            }
-
-            if (!string.IsNullOrWhiteSpace(available) && !string.IsNullOrWhiteSpace(staked))
-            {
-                return $"≈ {available} (liquid) + {staked} (staked)";
-            }
-
-            return $"≈ {(!string.IsNullOrWhiteSpace(available) ? available : staked)}";
-        }
-
         private string FormatSupply(string raw, uint decimals, string symbol)
         {
             if (string.IsNullOrWhiteSpace(raw))

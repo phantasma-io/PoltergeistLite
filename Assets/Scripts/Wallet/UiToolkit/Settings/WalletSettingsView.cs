@@ -1494,10 +1494,6 @@ namespace Poltergeist.UiToolkit.Settings
             copyPanel = WalletUiModalFactory.CreateCopyPanel(OnCopyPanelCopy, HideModal, WalletUiCommon.ApplyDefaultFont, out copyPanelTitle, out copyPanelCaption, out copyPanelValueField);
         }
 
-        private void ApplyResponsiveLayout()
-        {
-        }
-
         private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool showSecondary = true, string primaryText = "Confirm", bool isPassword = false, string initialValue = "", bool multiline = false)
         {
             var secondaryText = showSecondary ? "Cancel" : "Close";

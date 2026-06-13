@@ -266,13 +266,6 @@ namespace Poltergeist.UiToolkit.Accounts
             root.Add(content);
         }
 
-        private VisualElement BuildDivider(float height = 8)
-        {
-            return new VisualElement { style = { height = height } };
-        }
-
-        // TODO: remove once main actions are implemented; kept to avoid accidental reuse.
-
         private VisualElement CreateRow(Account account, int index)
         {
             var row = new VisualElement

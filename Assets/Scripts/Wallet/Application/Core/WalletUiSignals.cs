@@ -39,8 +39,6 @@ namespace Poltergeist.Wallet
             _subscribed = true;
         }
 
-        public bool IsSubscribed => _subscribed;
-
         public event Action<PlatformKind> BalancesRefreshStarted;
         public event Action<PlatformKind> BalancesUpdated;
         public event Action<PlatformKind, string> NftsUpdated;

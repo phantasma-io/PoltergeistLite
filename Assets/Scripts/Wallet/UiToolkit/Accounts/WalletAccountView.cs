@@ -841,32 +841,6 @@ namespace Poltergeist.UiToolkit.Accounts
             return (chain, messageResult.input, sigResult.input);
         }
 
-        private static string NormalizeChain(string input)
-        {
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                return null;
-            }
-
-            var value = input.Trim();
-            if (value.Equals("phantasma", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Phantasma";
-            }
-
-            if (value.Equals("ethereum", StringComparison.OrdinalIgnoreCase) || value.Equals("eth", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Ethereum";
-            }
-
-            if (value.Equals("neo legacy", StringComparison.OrdinalIgnoreCase) || value.Equals("neo", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Neo Legacy";
-            }
-
-            return null;
-        }
-
         private Task<string> ShowChainPickerAsync()
         {
             HideModal();

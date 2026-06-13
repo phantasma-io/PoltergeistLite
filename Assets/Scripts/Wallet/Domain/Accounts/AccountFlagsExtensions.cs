@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using PhantasmaPhoenix.RPC.Models;
 
 namespace Poltergeist
 {
@@ -16,49 +15,6 @@ namespace Poltergeist
                 }
             }
             return list;
-        }
-
-        public static PlatformKind GetTransferTargets(this PlatformKind kind, TokenResult token)
-        {
-            // if (!token.IsSwappable())
-            {
-                return kind;
-            }
-
-            /*PlatformKind targets;
-
-            switch (kind)
-            {
-                case PlatformKind.Phantasma:
-                    targets = PlatformKind.Phantasma;
-                    targets |= Tokens.HasSwappableToken(token.symbol, PlatformKind.Neo) ? PlatformKind.Neo : PlatformKind.None;
-                    targets |= Tokens.HasSwappableToken(token.symbol, PlatformKind.Ethereum) ? PlatformKind.Ethereum : PlatformKind.None;
-                    targets |= Tokens.HasSwappableToken(token.symbol, PlatformKind.BSC) ? PlatformKind.BSC : PlatformKind.None;
-                    return targets;
-
-                case PlatformKind.Neo:
-                    targets = PlatformKind.Neo;
-                    targets |= Tokens.HasSwappableToken(token.symbol, PlatformKind.Phantasma) ? PlatformKind.Phantasma : PlatformKind.None;
-                    return targets;
-
-                case PlatformKind.Ethereum:
-                    targets = PlatformKind.Ethereum;
-                    targets |= Tokens.HasSwappableToken(token.symbol, PlatformKind.Phantasma) ? PlatformKind.Phantasma : PlatformKind.None;
-                    return targets;
-
-                case PlatformKind.BSC:
-                    targets = PlatformKind.BSC;
-                    targets |= Tokens.HasSwappableToken(token.symbol, PlatformKind.Phantasma) ? PlatformKind.Phantasma : PlatformKind.None;
-                    return targets;
-
-                default:
-                    return PlatformKind.None;
-            }*/
-        }
-        public static bool ValidateTransferTarget(this PlatformKind kind, TokenResult token, PlatformKind targetKind)
-        {
-            var targets = kind.GetTransferTargets(token);
-            return targets.HasFlag(targetKind);
         }
     }
 }

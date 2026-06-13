@@ -208,37 +208,6 @@ public static class Tokens
         // this one token and retry instead of hard-failing.
         throw new TokenMappingException($"Cannot load token for carbon ID {carbonId}", carbonId);
     }
-    public static string GetTokenHash(string symbol, PlatformKind platform)
-    {
-        /*var token = GetToken(symbol, platform);
-        if (token != default(Token))
-        {
-            if (token.external == null)
-                return null;
-
-            var hash = token.external.Where(x => x.platform.ToUpper() == platform.ToString().ToUpper()).SingleOrDefault()?.hash;
-
-            if (hash != null && hash.StartsWith("0x"))
-                hash = hash.Substring(2);
-
-            return hash;
-        }*/
-
-        return null;
-    }
-    public static string GetTokenHash(TokenResult token, PlatformKind platform)
-    {
-        /*if (token != default(Token))
-        {
-            if (token.external == null)
-                return null;
-
-            return token.external.Where(x => x.platform.ToUpper() == platform.ToString().ToUpper()).SingleOrDefault()?.hash;
-        }*/
-
-        return null;
-    }
-
     public static void ToLog()
     {
         var tokens = "";

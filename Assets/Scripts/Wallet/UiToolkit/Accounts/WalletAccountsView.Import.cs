@@ -16,11 +16,6 @@ namespace Poltergeist.UiToolkit.Accounts
     /// </summary>
     public sealed partial class WalletAccountsView
     {
-        private void OnImportWallet()
-        {
-            ImportSingleWalletAsync(true, true).Forget(ex => Log.WriteWarning($"{LogPrefix}Import wallet flow failed: {ex}"));
-        }
-
         private async Task<bool> ImportSingleWalletAsync(bool openAfterImport, bool saveAccounts)
         {
             var importPrompt = await ShowModalAsync(
