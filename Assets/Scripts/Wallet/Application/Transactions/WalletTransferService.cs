@@ -147,7 +147,7 @@ namespace Poltergeist.Wallet
         private static string BuildDescription(string symbol, BigInteger amount, uint decimals, Address destination)
         {
             var precision = AccountManager.Instance?.Settings?.balanceDisplayPrecision ?? 4;
-            return $"Transfer {WalletAmountFormatter.Format(amount, decimals, precision)} {symbol}\nDestination: {destination}";
+            return $"Transfer {WalletAmountFormatter.Format(amount, decimals, precision)} {symbol}\nDestination: {WalletTextFormatter.AbbreviateMiddle(destination.Text, 6, 6)}";
         }
 
         private bool TryValidateTransferRequest(AccountManager accountManager, string symbol, BigInteger requestedAmount, string destinationText, out Address source, out Address destination, out BigInteger amount, out uint decimals, out BigInteger bigIntAmount, out BigInteger availableBalance, out string error)
