@@ -181,7 +181,7 @@ namespace Phantasma.Tests
 
                 if (useKeyClasses)
                 {
-                    switch(curve)
+                    switch (curve)
                     {
                         case ECDsaCurve.Secp256k1:
                             var phantasmaKeys = new PhantasmaKeys(PrivKey);
@@ -288,7 +288,7 @@ namespace Phantasma.Tests
                 signatureReference);
         }
 
-            [UnityTest]
+        [UnityTest]
         public IEnumerator ECDsaSecP256k1_Mixed()
         {
             for (int i = 0; i < 10; i++)
