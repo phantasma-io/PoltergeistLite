@@ -113,6 +113,10 @@ namespace Poltergeist.UiToolkit
         private VisualElement BuildSendProgressPanel()
         {
             var panel = WalletUiCommon.CreateModalPanel(540, 900);
+            // These two dialogs hang on the centered modal overlay, so a percentage width with a
+            // hard cap stays full-size on desktop (capped at 540) but shrinks to fit a phone screen.
+            panel.style.width = new Length(100, LengthUnit.Percent);
+            panel.style.maxWidth = 540;
             panel.style.display = DisplayStyle.None;
 
             var title = new Label("Preparing transaction")
@@ -169,6 +173,10 @@ namespace Poltergeist.UiToolkit
         private VisualElement BuildConfirmationPanel()
         {
             var panel = WalletUiCommon.CreateModalPanel(540, 900);
+            // These two dialogs hang on the centered modal overlay, so a percentage width with a
+            // hard cap stays full-size on desktop (capped at 540) but shrinks to fit a phone screen.
+            panel.style.width = new Length(100, LengthUnit.Percent);
+            panel.style.maxWidth = 540;
             panel.style.display = DisplayStyle.None;
 
             var title = new Label("Confirming transaction")
@@ -226,7 +234,7 @@ namespace Poltergeist.UiToolkit
         {
             if (confirmationLabel != null)
             {
-                confirmationLabel.text = $"Confirming transaction {WalletTextFormatter.AbbreviateMiddle(hash.ToString())}...";
+                confirmationLabel.text = $"Confirming transaction {WalletTextFormatter.AbbreviateMiddleForDisplay(hash.ToString())}...";
             }
 
             HideOtherPanels();
@@ -292,7 +300,7 @@ namespace Poltergeist.UiToolkit
         {
             if (confirmationLabel != null)
             {
-                confirmationLabel.text = $"Confirming transaction {WalletTextFormatter.AbbreviateMiddle(confirmationHash.ToString())}... ({checkIndex})";
+                confirmationLabel.text = $"Confirming transaction {WalletTextFormatter.AbbreviateMiddleForDisplay(confirmationHash.ToString())}... ({checkIndex})";
             }
         }
 

@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace Poltergeist.Wallet
 {
     /// <summary>
@@ -24,6 +26,16 @@ namespace Poltergeist.Wallet
             var prefix = value.Substring(0, head);
             var suffix = value.Substring(value.Length - tail, tail);
             return $"{prefix}...{suffix}";
+        }
+
+        /// <summary>
+        /// Like <see cref="AbbreviateMiddle"/>, but only shortens on small mobile screens; on desktop, where
+        /// there is room, the full value is returned. Use for display strings that should stay full on wide
+        /// screens and shrink to fit narrow ones.
+        /// </summary>
+        public static string AbbreviateMiddleForDisplay(string value, int head = 4, int tail = 4)
+        {
+            return Application.isMobilePlatform ? AbbreviateMiddle(value, head, tail) : (value ?? string.Empty);
         }
     }
 }

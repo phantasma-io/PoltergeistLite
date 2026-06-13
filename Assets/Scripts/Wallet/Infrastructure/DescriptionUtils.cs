@@ -145,6 +145,15 @@ namespace Poltergeist
             return tokenId.Substring(0, 5) + "..." + tokenId.Substring(tokenId.Length - 5);
         }
 
+        private static string ShortenAddress(string address)
+        {
+            // Full address on desktop where there is room; shorten only on small mobile screens.
+            if (!Application.isMobilePlatform || String.IsNullOrEmpty(address) || address.Length <= 15)
+                return address;
+
+            return address.Substring(0, 6) + "..." + address.Substring(address.Length - 6);
+        }
+
         public static async Task<(string Description, string Error)> GetDescriptionAsync(byte[] script, bool devMode, CancellationToken cancellationToken = default)
         {
             if (knownContracts == null)
@@ -264,7 +273,7 @@ namespace Poltergeist
                             var gasPrice = GetNumberArg(entry, 2);
                             var gasLimit = GetNumberArg(entry, 3);
 
-                            sb.AppendLine($"\u2605 AllowGas price: {gasPrice} limit: {gasLimit} from {from} to {to}.");
+                            sb.AppendLine($"\u2605 AllowGas price: {gasPrice} limit: {gasLimit} from {ShortenAddress(from)} to {ShortenAddress(to)}.");
 
                             break;
                         }
@@ -281,7 +290,7 @@ namespace Poltergeist
                                 address = GetStringArg(entry, 0);
                             }
 
-                            sb.AppendLine($"\u2605 SpendGas address {address}.");
+                            sb.AppendLine($"\u2605 SpendGas address {ShortenAddress(address)}.");
 
                             break;
                         }
@@ -348,7 +357,7 @@ namespace Poltergeist
 
                             var total = WalletAmountFormatter.Format(amount, token.Decimals);
 
-                            sb.AppendLine($"\u2605 Transfer {total} {symbol} from {src} to {dst}.");
+                            sb.AppendLine($"\u2605 Transfer {total} {symbol} from {ShortenAddress(src)} to {ShortenAddress(dst)}.");
                             break;
                         }
                     case "market.BuyToken":
@@ -727,7 +736,7 @@ namespace Poltergeist
 
         private static string FormatCarbonAddress(Bytes32 address)
         {
-            return Address.FromBytes(address.bytes).ToString();
+            return ShortenAddress(Address.FromBytes(address.bytes).ToString());
         }
 
         private static void ResolveTokenByCarbonId(ulong tokenId, out string symbol, out uint decimals)

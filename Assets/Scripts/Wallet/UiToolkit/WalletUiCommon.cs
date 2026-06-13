@@ -1763,6 +1763,8 @@ namespace Poltergeist.UiToolkit
                     backgroundColor = WalletUiTheme.Overlay,
                     justifyContent = Justify.Center,
                     alignItems = Align.Center,
+                    paddingLeft = 16,
+                    paddingRight = 16,
                     display = DisplayStyle.None
                 }
             };
