@@ -4,6 +4,9 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.Phantasma.PoltergeistWallet"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- Phantasma Link v5 cross-device QR pairing: scan the dApp pairing-URI QR. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application>
         <activity android:name="com.phantasma.poltergeistmodule.MainActivity"
                   android:theme="@style/UnityThemeSelector">

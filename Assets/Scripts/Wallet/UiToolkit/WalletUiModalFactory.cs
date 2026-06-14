@@ -271,5 +271,67 @@ namespace Poltergeist.UiToolkit
 
             return panel;
         }
+
+        public static VisualElement CreateQrScannerPanel(Action onCancel, Action<VisualElement> applyDefaultFont, out Image preview, out Label status)
+        {
+            var panel = WalletUiCommon.CreateModalPanel(460, 660);
+            panel.style.display = DisplayStyle.None;
+
+            var title = new Label("Scan dApp QR")
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    fontSize = 20,
+                    color = WalletUiTheme.TextPrimary,
+                    marginBottom = 10,
+                    unityTextAlign = TextAnchor.MiddleLeft
+                }
+            };
+            applyDefaultFont?.Invoke(title);
+            panel.Add(title);
+
+            preview = new Image
+            {
+                scaleMode = ScaleMode.ScaleToFit,
+                style =
+                {
+                    width = new Length(100, LengthUnit.Percent),
+                    height = 380,
+                    marginBottom = 12,
+                    backgroundColor = Color.black
+                }
+            };
+            panel.Add(preview);
+
+            status = new Label("Point the camera at the dApp QR code.")
+            {
+                style =
+                {
+                    color = WalletUiTheme.TextSecondary,
+                    fontSize = 15,
+                    unityTextAlign = TextAnchor.MiddleCenter,
+                    whiteSpace = WhiteSpace.Normal,
+                    marginBottom = 12
+                }
+            };
+            applyDefaultFont?.Invoke(status);
+            panel.Add(status);
+
+            var buttons = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    justifyContent = Justify.Center
+                }
+            };
+            var cancelBtn = WalletUiCommon.CreateSecondaryButton("Cancel", onCancel, 16, 36);
+            cancelBtn.style.minWidth = 110;
+            buttons.Add(cancelBtn);
+            panel.Add(buttons);
+
+            return panel;
+        }
     }
 }

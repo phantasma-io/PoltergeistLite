@@ -261,12 +261,14 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", () => OnSignMessageAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Sign message failed: {ex}")), 14, 32);
             var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", () => OnVerifySignatureAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify signature failed: {ex}")), 14, 32);
+            var scanBtn = WalletUiCommon.CreateSecondaryButton("Connect (Scan QR)", OpenQrScanner, 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
-            var actionCloud = WalletUiCommon.CreateButtonRow(8f, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn);
+            scanBtn.style.minWidth = 180;
+            var actionCloud = WalletUiCommon.CreateButtonRow(8f, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn, scanBtn);
             content.Add(actionCloud);
 
-            actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn });
+            actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn, scanBtn });
 
             var footer = WalletUiCommon.BuildWalletNavBar(out navBalances, out navHistory, out navAccount, out navExit, () => onShowBalances?.Invoke(), () => onShowHistory?.Invoke(), () => onShowAccount?.Invoke(), () => onExit?.Invoke());
             content.Add(footer);
@@ -927,6 +929,15 @@ namespace Poltergeist.UiToolkit.Accounts
 
             transactionDialogs = new WalletUiTransactionDialogs(modalHost, () => AccountManager.Instance, SetStatusText);
             transactionDialogs.RegisterBlockingPanels(null, chainPickerPanel, copyPanel, verificationPanel);
+        }
+
+        private void OpenQrScanner()
+        {
+            // Scan a dApp pairing QR (cross-device) and feed the URI to the same deeplink
+            // endpoint the OS uses; the scanner releases the camera when it closes.
+            var scannerView = new WalletUiQrScannerView(modalHost, ApplyDefaultFont, uri =>
+                ConnectorManager.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }));
+            scannerView.Open();
         }
 
         private Task<(PromptResult result, string input)> ShowModalAsync(string title, string caption, int minLength, int maxLength, bool allowEmpty = false, bool hasInput = true, bool multiline = false, bool isPassword = false)
