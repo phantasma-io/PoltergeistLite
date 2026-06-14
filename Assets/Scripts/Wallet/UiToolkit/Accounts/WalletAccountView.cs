@@ -1010,8 +1010,14 @@ namespace Poltergeist.UiToolkit.Accounts
         {
             // Scan a dApp pairing QR (cross-device) and feed the URI to the same deeplink
             // endpoint the OS uses; the scanner releases the camera when it closes.
-            var scannerView = new WalletUiQrScannerView(modalHost, ApplyDefaultFont, uri =>
-                ConnectorManager.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }));
+            var scannerView = new WalletUiQrScannerView(
+                modalHost,
+                ApplyDefaultFont,
+                "Scan dApp QR",
+                "Point the camera at the dApp QR code.",
+                "That QR is not a Phantasma pairing code. Keep scanning.",
+                text => WalletQrScanner.IsPairingUri(text) ? text.Trim() : null,
+                uri => ConnectorManager.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }));
             scannerView.Open();
         }
 

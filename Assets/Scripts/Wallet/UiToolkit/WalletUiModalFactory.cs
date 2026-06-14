@@ -272,7 +272,7 @@ namespace Poltergeist.UiToolkit
             return panel;
         }
 
-        public static VisualElement CreateQrScannerPanel(Action onCancel, Action<VisualElement> applyDefaultFont, out Image preview, out Label status)
+        public static VisualElement CreateQrScannerPanel(string titleText, string hintText, Action onCancel, Action<VisualElement> applyDefaultFont, out Image preview, out Label status)
         {
             var panel = WalletUiCommon.CreateModalPanel(460, 460);
             // Fit narrow (mobile) screens: responsive width capped on desktop so the dialog does
@@ -281,7 +281,7 @@ namespace Poltergeist.UiToolkit
             panel.style.maxWidth = 460;
             panel.style.display = DisplayStyle.None;
 
-            var title = new Label("Scan dApp QR")
+            var title = new Label(string.IsNullOrWhiteSpace(titleText) ? "Scan QR" : titleText)
             {
                 style =
                 {
@@ -331,7 +331,7 @@ namespace Poltergeist.UiToolkit
             previewBox.Add(preview);
             panel.Add(previewBox);
 
-            status = new Label("Point the camera at the dApp QR code.")
+            status = new Label(string.IsNullOrWhiteSpace(hintText) ? "Point the camera at the QR code." : hintText)
             {
                 style =
                 {

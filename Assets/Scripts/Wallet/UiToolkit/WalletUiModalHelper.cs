@@ -374,6 +374,11 @@ namespace Poltergeist.UiToolkit
             destinationField.style.minWidth = 0;
             inputRow.Add(destinationField);
 
+            var scanButton = WalletUiCommon.CreateSecondaryButton("QR", null, 14, 36);
+            scanButton.style.minWidth = 56;
+            scanButton.style.marginLeft = 8;
+            inputRow.Add(scanButton);
+
             var pasteButton = WalletUiCommon.CreateSecondaryButton("Paste", null, 14, 36);
             pasteButton.style.minWidth = 90;
             pasteButton.style.marginLeft = 8;
@@ -499,6 +504,45 @@ namespace Poltergeist.UiToolkit
                 }
 
                 ApplySelection(clipboard);
+            }
+
+            // Scan a recipient address QR (e.g. another wallet's account QR) and drop it into the field.
+            // The scanner borrows the shared modal slot, so re-show this dialog when it returns a hit.
+            void OpenAddressScanner()
+            {
+                var scanner = new WalletUiQrScannerView(
+                    host,
+                    WalletUiCommon.ApplyDefaultFont,
+                    "Scan address QR",
+                    "Point the camera at a wallet address QR.",
+                    "That QR is not a valid address. Keep scanning.",
+                    DecodeAddressFromQr,
+                    scanned =>
+                    {
+                        host.ShowPanel(panel);
+                        pasteSchedule?.Pause();
+                        pasteSchedule = panel.schedule.Execute(RefreshPasteState).Every(500);
+                        ApplySelection(scanned);
+                    });
+                scanner.Open();
+            }
+
+            static string DecodeAddressFromQr(string text)
+            {
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return null;
+                }
+
+                var trimmed = text.Trim();
+                // Account QR encodes "<platform>://<address>"; accept that or a bare address.
+                var schemeIndex = trimmed.IndexOf("://", StringComparison.Ordinal);
+                if (schemeIndex >= 0)
+                {
+                    trimmed = trimmed.Substring(schemeIndex + 3).Trim();
+                }
+
+                return Address.IsValidAddress(trimmed) ? trimmed : null;
             }
 
             void Complete(PromptResult result, string value)
@@ -684,6 +728,7 @@ namespace Poltergeist.UiToolkit
             }).StartingIn(40);
 
             WalletUiCommon.RegisterModalKeyHandlers(panel, Confirm, Cancel);
+            scanButton.clicked += OpenAddressScanner;
             host.ShowPanel(panel, onBeforeShow);
             return tcs.Task;
         }

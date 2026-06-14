@@ -18,7 +18,11 @@ namespace Poltergeist.UiToolkit
 
         private readonly WalletUiModalHost modalHost;
         private readonly Action<VisualElement> applyDefaultFont;
-        private readonly Action<string> onPairingUri;
+        private readonly string title;
+        private readonly string hint;
+        private readonly string rejectMessage;
+        private readonly Func<string, string> tryAccept;
+        private readonly Action<string> onAccepted;
         private readonly WalletQrScanner scanner = new WalletQrScanner();
 
         private VisualElement panel;
@@ -29,18 +33,29 @@ namespace Poltergeist.UiToolkit
         private bool closed;
         private bool orientationApplied;
 
-        public WalletUiQrScannerView(WalletUiModalHost modalHost, Action<VisualElement> applyDefaultFont, Action<string> onPairingUri)
+        public WalletUiQrScannerView(
+            WalletUiModalHost modalHost,
+            Action<VisualElement> applyDefaultFont,
+            string title,
+            string hint,
+            string rejectMessage,
+            Func<string, string> tryAccept,
+            Action<string> onAccepted)
         {
             this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
             this.applyDefaultFont = applyDefaultFont ?? (_ => { });
-            this.onPairingUri = onPairingUri ?? (_ => { });
+            this.title = title;
+            this.hint = hint;
+            this.rejectMessage = string.IsNullOrWhiteSpace(rejectMessage) ? "That QR was not recognised. Keep scanning." : rejectMessage;
+            this.tryAccept = tryAccept ?? throw new ArgumentNullException(nameof(tryAccept));
+            this.onAccepted = onAccepted ?? (_ => { });
         }
 
         public void Open()
         {
             closed = false;
             orientationApplied = false;
-            panel = WalletUiModalFactory.CreateQrScannerPanel(Close, applyDefaultFont, out preview, out status);
+            panel = WalletUiModalFactory.CreateQrScannerPanel(title, hint, Close, applyDefaultFont, out preview, out status);
             // Releasing the camera on detach covers closes that do not go through Cancel
             // (navigation away, HideAll). CloseInternal is idempotent.
             panel.RegisterCallback<DetachFromPanelEvent>(_ => CloseInternal());
@@ -151,16 +166,16 @@ namespace Poltergeist.UiToolkit
                 return;
             }
 
-            if (!WalletQrScanner.IsPairingUri(text))
+            var accepted = tryAccept(text);
+            if (string.IsNullOrEmpty(accepted))
             {
-                SetStatus("That QR is not a Phantasma pairing code. Keep scanning.");
+                SetStatus(rejectMessage);
                 return;
             }
 
-            var uri = text.Trim();
-            Log.Write($"{LogPrefix}pairing QR decoded");
+            Log.Write($"{LogPrefix}QR accepted");
             CloseInternal();
-            onPairingUri(uri);
+            onAccepted(accepted);
         }
 
         private void SetStatus(string message)
