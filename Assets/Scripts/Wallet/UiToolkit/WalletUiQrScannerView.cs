@@ -27,6 +27,7 @@ namespace Poltergeist.UiToolkit
         private IVisualElementScheduledItem scanLoop;
         private WebCamTexture camera;
         private bool closed;
+        private bool orientationApplied;
 
         public WalletUiQrScannerView(WalletUiModalHost modalHost, Action<VisualElement> applyDefaultFont, Action<string> onPairingUri)
         {
@@ -38,6 +39,7 @@ namespace Poltergeist.UiToolkit
         public void Open()
         {
             closed = false;
+            orientationApplied = false;
             panel = WalletUiModalFactory.CreateQrScannerPanel(Close, applyDefaultFont, out preview, out status);
             // Releasing the camera on detach covers closes that do not go through Cancel
             // (navigation away, HideAll). CloseInternal is idempotent.
@@ -105,11 +107,32 @@ namespace Poltergeist.UiToolkit
             scanLoop = panel.schedule.Execute(ScanTick).Every(ScanIntervalMs);
         }
 
+        // Back-camera frames arrive pre-rotated (portrait Android reports 90). Rotate the preview
+        // by the reported angle to bring it upright - the + sign was confirmed on-device. No mirror:
+        // the back camera is not mirrored. Display-only; QR decode is orientation-invariant.
+        private void ApplyPreviewOrientation()
+        {
+            if (preview == null || camera == null)
+            {
+                return;
+            }
+
+            preview.style.rotate = new Rotate(new Angle(camera.videoRotationAngle, AngleUnit.Degree));
+            preview.style.scale = new Scale(Vector3.one);
+            preview.style.visibility = Visibility.Visible;
+        }
+
         private void ScanTick()
         {
             if (closed || camera == null || !camera.isPlaying || camera.width <= 16 || !camera.didUpdateThisFrame)
             {
                 return;
+            }
+
+            if (!orientationApplied)
+            {
+                ApplyPreviewOrientation();
+                orientationApplied = true;
             }
 
             Color32[] pixels;

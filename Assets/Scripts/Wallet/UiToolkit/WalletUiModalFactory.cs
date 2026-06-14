@@ -274,7 +274,11 @@ namespace Poltergeist.UiToolkit
 
         public static VisualElement CreateQrScannerPanel(Action onCancel, Action<VisualElement> applyDefaultFont, out Image preview, out Label status)
         {
-            var panel = WalletUiCommon.CreateModalPanel(460, 660);
+            var panel = WalletUiCommon.CreateModalPanel(460, 460);
+            // Fit narrow (mobile) screens: responsive width capped on desktop so the dialog does
+            // not run past the screen edge.
+            panel.style.width = new Length(100, LengthUnit.Percent);
+            panel.style.maxWidth = 460;
             panel.style.display = DisplayStyle.None;
 
             var title = new Label("Scan dApp QR")
@@ -291,18 +295,41 @@ namespace Poltergeist.UiToolkit
             applyDefaultFont?.Invoke(title);
             panel.Add(title);
 
+            // The live preview is rotated to correct the camera orientation. A fixed-size box with
+            // clipped overflow keeps the rotated feed within its bounds so it cannot paint over the
+            // title or the buttons.
+            var previewBox = new VisualElement
+            {
+                style =
+                {
+                    width = new Length(100, LengthUnit.Percent),
+                    maxWidth = 300,
+                    height = 300,
+                    alignSelf = Align.Center,
+                    marginBottom = 12,
+                    overflow = Overflow.Hidden,
+                    backgroundColor = Color.black,
+                    borderTopLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderTopRightRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomLeftRadius = WalletUiTheme.RadiusMedium,
+                    borderBottomRightRadius = WalletUiTheme.RadiusMedium
+                }
+            };
             preview = new Image
             {
                 scaleMode = ScaleMode.ScaleToFit,
                 style =
                 {
                     width = new Length(100, LengthUnit.Percent),
-                    height = 380,
-                    marginBottom = 12,
-                    backgroundColor = Color.black
+                    height = new Length(100, LengthUnit.Percent),
+                    backgroundColor = Color.black,
+                    // Stay hidden until the orientation is applied so the user never sees the
+                    // preview snap from raw to corrected (the box shows black until then).
+                    visibility = Visibility.Hidden
                 }
             };
-            panel.Add(preview);
+            previewBox.Add(preview);
+            panel.Add(previewBox);
 
             status = new Label("Point the camera at the dApp QR code.")
             {
