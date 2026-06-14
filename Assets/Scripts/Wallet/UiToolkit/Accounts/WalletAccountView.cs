@@ -65,6 +65,9 @@ namespace Poltergeist.UiToolkit.Accounts
         private TaskCompletionSource<string> chainPickerTcs;
         private SubHeaderElements subHeader;
         private List<Button> actionButtons = new List<Button>();
+        private VisualElement actionRowHost;
+        private Button[] actionCloudButtons;
+        private bool actionRowResolved;
 
         public WalletAccountView(VisualElement host, WalletApplicationContext context, WalletUiModalHost modalHost, IWalletAuthUi sharedAuthUi, Action onShowBalances, Action onShowHistory, Action onShowAccount, Action onShowSettings, Action onExit)
         {
@@ -261,12 +264,18 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", () => OnSignMessageAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Sign message failed: {ex}")), 14, 32);
             var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", () => OnVerifySignatureAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify signature failed: {ex}")), 14, 32);
-            var scanBtn = WalletUiCommon.CreateSecondaryButton("Connect (Scan QR)", OpenQrScanner, 14, 32);
+            var scanBtn = WalletUiCommon.CreateSecondaryButton("Connect (QR)", OpenQrScanner, 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
-            scanBtn.style.minWidth = 180;
-            var actionCloud = WalletUiCommon.CreateButtonRow(8f, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn, scanBtn);
-            content.Add(actionCloud);
+            scanBtn.style.minWidth = 150;
+            actionCloudButtons = new[] { migrateButton, setNameButton, proofBtn, signBtn, verifyBtn, scanBtn };
+            // Wide layouts keep all actions on one centered row. A narrow (mobile) layout wraps that
+            // row into an uneven staircase, so once the real width is known we rebuild the narrow case
+            // as an even 2-column grid. The desktop row is left exactly as before.
+            actionRowHost = new VisualElement { style = { flexDirection = FlexDirection.Column } };
+            actionRowHost.Add(WalletUiCommon.CreateButtonRow(8f, actionCloudButtons));
+            actionRowHost.RegisterCallback<GeometryChangedEvent>(OnActionRowGeometry);
+            content.Add(actionRowHost);
 
             actionButtons.AddRange(new[] { ethExplorerBtn, bscExplorerBtn, neoExplorerBtn, exportWifBtn, exportHexBtn, migrateButton, setNameButton, proofBtn, signBtn, verifyBtn, scanBtn });
 
@@ -275,6 +284,72 @@ namespace Poltergeist.UiToolkit.Accounts
 
             root.Add(content);
             BuildModal(root);
+        }
+
+        // The action row is built flat (one centered row) for wide layouts. The first time we learn
+        // the real width, a narrow layout is rebuilt as an even 2-column grid so the buttons line up
+        // as columns instead of a centered staircase. Resolved once; desktop keeps the flat row.
+        private void OnActionRowGeometry(GeometryChangedEvent evt)
+        {
+            if (actionRowResolved)
+            {
+                return;
+            }
+
+            var width = evt.newRect.width;
+            if (width <= 1f)
+            {
+                return;
+            }
+
+            actionRowResolved = true;
+            if (width < 640f)
+            {
+                BuildCompactActionGrid();
+            }
+        }
+
+        private void BuildCompactActionGrid()
+        {
+            if (actionRowHost == null || actionCloudButtons == null)
+            {
+                return;
+            }
+
+            actionRowHost.Clear();
+            var grid = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    flexWrap = Wrap.Wrap,
+                    justifyContent = Justify.Center,
+                    alignSelf = Align.Center,
+                    width = new Length(100, LengthUnit.Percent)
+                }
+            };
+            ApplyDefaultFont(grid);
+
+            foreach (var btn in actionCloudButtons)
+            {
+                if (btn == null)
+                {
+                    continue;
+                }
+
+                // Equal flexible columns: two per row, every button the same width - no staircase.
+                btn.style.minWidth = 0;
+                btn.style.flexGrow = 1;
+                btn.style.flexShrink = 1;
+                btn.style.flexBasis = new Length(42, LengthUnit.Percent);
+                btn.style.marginLeft = 4;
+                btn.style.marginRight = 4;
+                btn.style.marginTop = 4;
+                btn.style.marginBottom = 4;
+                grid.Add(btn);
+            }
+
+            actionRowHost.Add(grid);
         }
 
         private void UpdateLabels(string accountName, string address, NexusKind nexusKind, string nexusName = null)
