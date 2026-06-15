@@ -855,9 +855,9 @@ namespace Poltergeist.UiToolkit.Balances
                 : $"{entry.Symbol} • {token.Name}";
             tokenSubtitleLabel.text = string.Empty;
 
-            if (ResourceManager.Instance != null)
+            if (TextureProvider.Instance != null)
             {
-                var iconTexture = ResourceManager.Instance.GetToken(entry.Symbol, platform) as Texture2D;
+                var iconTexture = TextureProvider.Instance.GetTokenIcon(entry.Symbol, platform) as Texture2D;
                 tokenIcon.image = iconTexture;
                 tokenIcon.style.display = iconTexture != null ? DisplayStyle.Flex : DisplayStyle.None;
             }

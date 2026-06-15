@@ -445,7 +445,7 @@ namespace Poltergeist.UiToolkit.Balances
             var isSoulMaster = WalletUiCommon.IsSoulMaster(accountManager);
             var isSoulToken = string.Equals(entry.Symbol, DomainSettings.StakingTokenSymbol, StringComparison.OrdinalIgnoreCase);
 
-            var iconTexture = ResourceManager.Instance?.GetToken(entry.Symbol, platform) as Texture2D;
+            var iconTexture = TextureProvider.Instance?.GetTokenIcon(entry.Symbol, platform) as Texture2D;
             if (iconTexture != null)
             {
                 var icon = new Image

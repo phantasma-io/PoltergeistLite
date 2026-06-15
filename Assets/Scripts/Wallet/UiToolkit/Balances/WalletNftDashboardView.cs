@@ -979,9 +979,9 @@ namespace Poltergeist.UiToolkit.Balances
 
             UpdateSupply(symbol);
 
-            if (ResourceManager.Instance != null)
+            if (TextureProvider.Instance != null)
             {
-                var iconTexture = ResourceManager.Instance.GetToken(symbol, AccountManager.Instance?.CurrentPlatform ?? PlatformKind.None) as Texture2D;
+                var iconTexture = TextureProvider.Instance.GetTokenIcon(symbol, AccountManager.Instance?.CurrentPlatform ?? PlatformKind.None) as Texture2D;
                 tokenIcon.image = iconTexture;
                 tokenIcon.style.display = iconTexture != null ? DisplayStyle.Flex : DisplayStyle.None;
             }
@@ -1620,11 +1620,11 @@ namespace Poltergeist.UiToolkit.Balances
             switch (kind)
             {
                 case NftMediaKind.Video:
-                    return ResourceManager.Instance?.NftVideoPlaceholder;
+                    return TextureProvider.Instance?.NftVideoPlaceholder;
                 case NftMediaKind.Audio:
-                    return ResourceManager.Instance?.NftAudioPlaceholder;
+                    return TextureProvider.Instance?.NftAudioPlaceholder;
                 default:
-                    return ResourceManager.Instance?.NftPhotoPlaceholder;
+                    return TextureProvider.Instance?.NftPhotoPlaceholder;
             }
         }
 
@@ -2268,7 +2268,7 @@ namespace Poltergeist.UiToolkit.Balances
             }
             if (detailImage != null)
             {
-                detailImage.image = ResourceManager.Instance?.NftPhotoPlaceholder;
+                detailImage.image = TextureProvider.Instance?.NftPhotoPlaceholder;
             }
             ShowListMode();
         }

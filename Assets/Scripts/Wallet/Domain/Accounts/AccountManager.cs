@@ -1183,9 +1183,9 @@ The Phoenix team", "Notice");
                     Tokens.Init(tokens);
                 }
 
-                if (ResourceManager.Instance != null)
+                if (TextureProvider.Instance != null)
                 {
-                    ResourceManager.Instance.UnloadTokens();
+                    TextureProvider.Instance.UnloadTokens();
                 }
 
             }
