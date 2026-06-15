@@ -353,7 +353,7 @@ namespace Poltergeist
                         async Task AskForSignatureAsync()
                         {
                             var consent = await PromptAsync($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}");
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
 
                             if (!consent)
                             {
@@ -425,7 +425,7 @@ namespace Poltergeist
                 async Task AskForSignatureAsync()
                 {
                     var consent = await PromptAsync($"The dapp wants to sign the following transaction with your {platform} keys. Accept?\n{description}");
-                    AppFocus.Instance.EndFocus();
+                    WindowActivator.Instance.Restore();
 
                     if (!consent)
                     {
@@ -516,12 +516,12 @@ namespace Poltergeist
                         {
                             var draft = WalletTransactionDraft.ForSingleScript(description, script, chain, accountManager.Settings.feePrice, accountManager.Settings.feeLimit, pow, payload);
                             var (hash, _, sendError) = await SendDraftAsync(draft);
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
                             callback(hash, sendError);
                         }
                         else
                         {
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
                             callback(Hash.Null, "user rejected");
                         }
                     }
@@ -573,14 +573,14 @@ namespace Poltergeist
                         {
                             var draft = WalletTransactionDraft.ForCarbon(description, txMsg, DomainSettings.RootChainName, accountManager.Settings.feePrice, accountManager.Settings.feeLimit);
                             var (hash, txResult, sendError) = await SendDraftAsync(draft);
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
 
                             callback(hash, sendError);
                             ShowTxResult(hash, txResult, sendError, $"The transaction has successfully completed, but it may take up to 30 seconds until the change is reflected in your wallet balance\n");
                         }
                         else
                         {
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
                             callback(Hash.Null, "user rejected");
                         }
                     }
@@ -622,7 +622,7 @@ namespace Poltergeist
                 async Task AskForDataSignatureAsync()
                 {
                     var consent = await PromptAsync($"The dapp wants to sign the following data with your {platform} keys. Accept?\n{description}");
-                    AppFocus.Instance.EndFocus();
+                    WindowActivator.Instance.Restore();
 
                     if (!consent)
                     {
@@ -716,7 +716,7 @@ namespace Poltergeist
                 async Task AskAuthorizationAsync()
                 {
                     var result = await PromptAsync($"Give access to dApp \"{dapp}\" to your \"{state.name}\" account?");
-                    AppFocus.Instance.EndFocus();
+                    WindowActivator.Instance.Restore();
 
                     if (result)
                     {
@@ -883,7 +883,7 @@ namespace Poltergeist
                     var preview = DescribeMessageForConsent(message);
                     var shown = string.IsNullOrEmpty(display) ? preview : display + "\n\n" + preview;
                     var consent = await PromptAsync($"The dApp asks you to sign a message. This is NOT a transaction and cannot move funds.\n\n{shown}");
-                    AppFocus.Instance.EndFocus();
+                    WindowActivator.Instance.Restore();
 
                     if (!consent)
                     {
@@ -951,7 +951,7 @@ namespace Poltergeist
                         }
 
                         var consent = await PromptAsync($"Allow dapp to SIGN a transaction WITHOUT sending it? The dapp will submit it itself.\n\nCurrent nexus: {nexus}, chain: main\n\n{description}");
-                        AppFocus.Instance.EndFocus();
+                        WindowActivator.Instance.Restore();
                         if (!consent)
                         {
                             callback(null, "user rejected");
@@ -1018,7 +1018,7 @@ namespace Poltergeist
                         var consent = await PromptAsync($"Allow dapp to {action}?\n\nTransaction nexus: {tx.NexusName}, chain: {tx.ChainName} (wallet nexus: {nexus})\n\n{description}");
                         if (!consent)
                         {
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
                             callback(null, Hash.Null, "user rejected");
                             return;
                         }
@@ -1032,7 +1032,7 @@ namespace Poltergeist
                             var sendUi = Ui;
                             if (sendUi == null)
                             {
-                                AppFocus.Instance.EndFocus();
+                                WindowActivator.Instance.Restore();
                                 callback(null, Hash.Null, "UI bridge is unavailable.");
                                 return;
                             }
@@ -1040,7 +1040,7 @@ namespace Poltergeist
                             var draft = WalletTransactionDraft.ForSingleScript(description, tx.Script, tx.ChainName,
                                 accountManager.Settings.feePrice, accountManager.Settings.feeLimit, ProofOfWork.None, tx.Payload);
                             var (routedHash, _, routedError) = await sendUi.SendTransactionDraftAsync(draft);
-                            AppFocus.Instance.EndFocus();
+                            WindowActivator.Instance.Restore();
                             if (routedHash == Hash.Null && string.IsNullOrEmpty(routedError))
                             {
                                 routedError = "transaction was not sent";
@@ -1049,7 +1049,7 @@ namespace Poltergeist
                             return;
                         }
 
-                        AppFocus.Instance.EndFocus();
+                        WindowActivator.Instance.Restore();
                         var msg = tx.ToByteArray(false);
                         var wif = account.GetWif(accountManager.CurrentPasswordHash);
                         PhantasmaPhoenix.Cryptography.Signature signature;
@@ -1124,7 +1124,7 @@ namespace Poltergeist
                     // pushes a session when the pairing meta carries a dApp name.
                     var name = string.IsNullOrEmpty(pairing.DappName) ? pairing.Topic : pairing.DappName;
                     var consent = await PromptAsync($"Pair with dApp \"{name}\"?\n\nIt will see your account (address and balances) and will be able to send requests to this wallet via deep links. Transactions will still require your confirmation.");
-                    AppFocus.Instance.EndFocus();
+                    WindowActivator.Instance.Restore();
                     done(consent);
                 }
 

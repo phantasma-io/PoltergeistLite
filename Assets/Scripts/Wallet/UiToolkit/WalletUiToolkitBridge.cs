@@ -47,7 +47,7 @@ namespace Poltergeist.UiToolkit
 
         public async Task<bool> ConfirmAsync(string title, string text, string confirmLabel = "Yes", string cancelLabel = "No")
         {
-            AppFocus.Instance?.StartFocus();
+            WindowActivator.Instance?.Activate();
             var result = await WalletUiModalHelper.ShowConfirmAsync(
                 modalHost,
                 string.IsNullOrWhiteSpace(title) ? "Confirmation" : title,
