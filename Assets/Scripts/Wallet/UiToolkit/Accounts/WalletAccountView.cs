@@ -1017,7 +1017,7 @@ namespace Poltergeist.UiToolkit.Accounts
                 "Point the camera at the dApp QR code.",
                 "That QR is not a Phantasma pairing code. Keep scanning.",
                 text => WalletQrScanner.IsPairingUri(text) ? text.Trim() : null,
-                uri => ConnectorManager.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }));
+                uri => LinkConnectorHost.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }));
             scannerView.Open();
         }
 

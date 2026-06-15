@@ -1659,7 +1659,7 @@ The Phoenix team", "Notice");
             // revoke all dapps connected to this account via Phantasma Link
             if (_states.ContainsKey(PlatformKind.Phantasma))
             {
-                var link = ConnectorManager.Instance.PhantasmaLink;
+                var link = LinkConnectorHost.Instance.PhantasmaLink;
 
                 var state = _states[PlatformKind.Phantasma];
                 foreach (var entry in state.dappTokens)
