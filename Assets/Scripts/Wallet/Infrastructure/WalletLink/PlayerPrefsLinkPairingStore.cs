@@ -8,7 +8,7 @@ using UnityEngine;
 namespace Poltergeist
 {
     /// <summary>
-    /// Durable Phantasma Link v5 pairing storage (spec §17/§19) over PlayerPrefs, so paired
+    /// Durable Phantasma Link v5 pairing storage (spec §15/§17) over PlayerPrefs, so paired
     /// dApps keep their deeplink channel across wallet restarts. Same model as
     /// <see cref="PlayerPrefsLinkSessionStore"/>: all calls arrive on the Unity main thread.
     /// </summary>

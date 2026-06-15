@@ -1118,7 +1118,7 @@ namespace Poltergeist
                 async Task AskPairingAsync()
                 {
                     // This approval is the ONLY consent on the one-tap path: right after it the
-                    // deeplink endpoint pushes the connect result to the dApp (spec §17 step 3),
+                    // deeplink endpoint pushes the connect result to the dApp (spec §15 step 3),
                     // so the text must state the full grant - account visibility + requests.
                     // Transactions still get their own confirmation, and the endpoint only
                     // pushes a session when the pairing meta carries a dApp name.

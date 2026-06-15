@@ -31,7 +31,7 @@ namespace Poltergeist
             var walletLinkV5 = new WalletLinkV5(PhantasmaLink, new PlayerPrefsLinkSessionStore());
             server = new LinkServer(PhantasmaLink, walletLinkV5);
 
-            // v5 relay client (spec §18): outbound WebSocket for pairings that carry a relay
+            // v5 relay client (spec §16): outbound WebSocket for pairings that carry a relay
             // URL (cross-device QR, big payloads). Socket callbacks arrive on worker threads;
             // all dispatcher/store work is marshalled to the UI thread (PlayerPrefs-backed
             // stores are main-thread only).
@@ -42,7 +42,7 @@ namespace Poltergeist
                 // without this sink a dead relay link has no visible symptom in the wallet.
                 log: message => Log.Write("RelayClient: " + message));
 
-            // v5 deeplink endpoint (spec §19): pairing + encrypted request URLs delivered by the
+            // v5 deeplink endpoint (spec §17): pairing + encrypted request URLs delivered by the
             // OS (Android intents / iOS universal links). Pairings persist via PlayerPrefs.
             DeeplinkEndpoint = new LinkDeeplinkEndpoint(walletLinkV5, PhantasmaLink, pairingStore, RelayClient);
             Application.deepLinkActivated += OnDeepLink;
