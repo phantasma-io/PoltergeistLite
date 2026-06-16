@@ -1239,29 +1239,18 @@ The Phoenix team", "Notice");
 
         public void RefreshTokenPrices()
         {
-            bool needRefresh = false;
-
-            if (CurrentTokenCurrency != Settings.currency)
+            // Refresh when the display currency changed or the cached prices are at least 5 minutes
+            // old; otherwise the previous fetch still stands.
+            var currencyChanged = CurrentTokenCurrency != Settings.currency;
+            var pricesStale = DateTime.UtcNow - _lastPriceUpdate >= TimeSpan.FromMinutes(5);
+            if (!currencyChanged && !pricesStale)
             {
-                needRefresh = true;
-            }
-            else
-            {
-                var diff = DateTime.UtcNow - _lastPriceUpdate;
-                if (diff.TotalMinutes >= 5)
-                {
-                    needRefresh = true;
-                }
+                return;
             }
 
-
-            if (needRefresh)
-            {
-                CurrentTokenCurrency = Settings.currency;
-                _lastPriceUpdate = DateTime.UtcNow;
-
-                FetchTokenPricesAsync(Tokens.GetTokensForCoingecko(), CurrentTokenCurrency, CancellationToken.None).Forget(LogTaskException);
-            }
+            CurrentTokenCurrency = Settings.currency;
+            _lastPriceUpdate = DateTime.UtcNow;
+            FetchTokenPricesAsync(Tokens.GetTokensForCoingecko(), CurrentTokenCurrency, CancellationToken.None).Forget(LogTaskException);
         }
 
         public void UpdateAPIs(bool possibleNexusChange = false)
