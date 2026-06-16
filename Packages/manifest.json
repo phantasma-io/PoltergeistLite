@@ -1,9 +1,8 @@
 {
   "dependencies": {
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
-    "com.phantasmaphoenix.core": "https://github.com/phantasma-io/phantasma-sdk-unity.git?path=PhantasmaPhoenix.Unity.Core#2706c004fe1cf9f3919724c6522990ae803584d8",
+    "com.phantasmaphoenix.core": "https://github.com/phantasma-io/phantasma-sdk-unity.git?path=PhantasmaPhoenix.Unity.Core#d8f527fbf0605d665c1aa4fdf33111d5c7d9d5d4",
     "com.unity.ide.visualstudio": "2.0.27",
-    "com.unity.multiplayer.center": "1.0.1",
     "com.unity.sdk.linux-x86_64": "1.1.0",
     "com.unity.test-framework": "1.6.0",
     "com.unity.toolchain.linux-x86_64-linux": "1.1.0",
