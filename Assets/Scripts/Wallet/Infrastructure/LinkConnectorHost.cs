@@ -47,8 +47,11 @@ namespace Poltergeist
             RelayClient = CreateRelayClient(walletLinkV5, pairingStore);
 
             // v5 deeplink endpoint (spec §17): pairing + encrypted request URLs delivered by the
-            // OS (Android intents / iOS universal links). Pairings persist via PlayerPrefs.
-            DeeplinkEndpoint = new LinkDeeplinkEndpoint(walletLinkV5, PhantasmaLink, pairingStore, RelayClient);
+            // OS (Android intents / iOS universal links). Pairings persist via PlayerPrefs. The log
+            // sink mirrors the relay client's so the deeplink path is traceable in a user's
+            // Player.log (it logs metadata only - never the pairing key or sealed ciphertext).
+            DeeplinkEndpoint = new LinkDeeplinkEndpoint(walletLinkV5, PhantasmaLink, pairingStore, RelayClient,
+                log: message => Log.Write("Deeplink: " + message));
             Application.deepLinkActivated += OnDeepLink;
             if (!string.IsNullOrEmpty(Application.absoluteURL))
             {

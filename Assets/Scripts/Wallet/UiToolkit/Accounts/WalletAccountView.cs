@@ -1018,7 +1018,12 @@ namespace Poltergeist.UiToolkit.Accounts
                 "Scan the dApp's QR code, or paste its pairing link from the clipboard.",
                 "That QR is not a Phantasma pairing code. Keep scanning.",
                 text => WalletQrScanner.IsPairingUri(text) ? text.Trim() : null,
-                uri => LinkConnectorHost.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }),
+                // A same-device sym pairing returns its sessionEstablished through the deeplink
+                // callback (openUrl), so this MUST open the response URL - the old no-op dropped it
+                // and left the dApp hanging. A cross-device relay pairing answers over the relay, so
+                // this callback is simply never invoked there (mirrors OnDeepLink's openUrl).
+                uri => LinkConnectorHost.Instance?.DeeplinkEndpoint?.TryHandle(
+                    uri, responseUrl => Application.OpenURL(responseUrl)),
                 enableClipboardPaste: true);
             scannerView.Open();
         }
