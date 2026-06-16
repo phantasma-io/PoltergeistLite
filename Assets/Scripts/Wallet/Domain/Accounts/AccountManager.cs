@@ -2710,6 +2710,17 @@ The Phoenix team", "Notice");
             return Accounts.Any(account => account.name.Equals(name, StringComparison.OrdinalIgnoreCase));
         }
 
+        // Derive every public chain address this wallet exposes from one WIF, in a single place so
+        // the add and replace paths cannot drift apart.
+        private static void AssignAddressesFromWif(ref Account account, string wif)
+        {
+            account.phaAddress = PhantasmaKeys.FromWIF(wif).Address.ToString();
+            account.neoAddress = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif).Address.ToString();
+
+            var ethAddress = PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address;
+            account.ethAddress = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil().ConvertToChecksumAddress(ethAddress);
+        }
+
         public int AddWallet(string name, string wif, string password, bool legacySeed)
         {
             if (string.IsNullOrEmpty(name) || name.Length < 3)
@@ -2730,15 +2741,7 @@ The Phoenix team", "Notice");
             var account = new Account() { name = name, platforms = AccountManager.MergeAvailablePlatforms(), misc = "" };
 
             // Initializing public addresses.
-            var phaKeys = PhantasmaKeys.FromWIF(wif);
-            account.phaAddress = phaKeys.Address.ToString();
-
-            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
-            account.neoAddress = neoKeys.Address.ToString();
-            account.neoAddress = neoKeys.AddressN3.ToString();
-
-            var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
-            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address);
+            AssignAddressesFromWif(ref account, wif);
 
             if (!String.IsNullOrEmpty(password))
             {
@@ -2803,14 +2806,7 @@ The Phoenix team", "Notice");
 
             // Initializing new public addresses.
             wif = account.GetWif(passwordHash); // Recreating to be sure all is good.
-            var phaKeys = PhantasmaKeys.FromWIF(wif);
-            account.phaAddress = phaKeys.Address.ToString();
-
-            var neoKeys = PhantasmaPhoenix.InteropChains.Legacy.Neo2.NeoKeys.FromWIF(wif);
-            account.neoAddress = neoKeys.Address.ToString();
-
-            var ethereumAddressUtil = new PhantasmaPhoenix.InteropChains.Legacy.Ethereum.Util.AddressUtil();
-            account.ethAddress = ethereumAddressUtil.ConvertToChecksumAddress(PhantasmaPhoenix.InteropChains.Legacy.Ethereum.EthereumKey.FromWIF(wif).Address);
+            AssignAddressesFromWif(ref account, wif);
 
             Accounts[currentIndex] = account;
 
