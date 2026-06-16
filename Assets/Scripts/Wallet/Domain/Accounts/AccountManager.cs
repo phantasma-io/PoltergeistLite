@@ -2704,6 +2704,12 @@ The Phoenix team", "Notice");
             return $"https://neo2.neotube.io/address/{address}";
         }
 
+        // Single source of the case-insensitive duplicate-name rule shared by add and rename.
+        private bool IsNameTaken(string name)
+        {
+            return Accounts.Any(account => account.name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        }
+
         public int AddWallet(string name, string wif, string password, bool legacySeed)
         {
             if (string.IsNullOrEmpty(name) || name.Length < 3)
@@ -2716,12 +2722,9 @@ The Phoenix team", "Notice");
                 throw new Exception("Name is too long.");
             }
 
-            for (int i = 0; i < Accounts.Count(); i++)
+            if (IsNameTaken(name))
             {
-                if (Accounts[i].name.Equals(name, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new Exception("An account with this name already exists.");
-                }
+                throw new Exception("An account with this name already exists.");
             }
 
             var account = new Account() { name = name, platforms = AccountManager.MergeAvailablePlatforms(), misc = "" };
@@ -2826,17 +2829,14 @@ The Phoenix team", "Notice");
 
         public bool RenameAccount(string newName)
         {
-            foreach (var account in Accounts)
+            if (IsNameTaken(newName))
             {
-                if (account.name.Equals(newName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
+                return true;
             }
 
-            var account2 = Accounts[CurrentIndex];
-            account2.name = newName;
-            Accounts[CurrentIndex] = account2;
+            var account = Accounts[CurrentIndex];
+            account.name = newName;
+            Accounts[CurrentIndex] = account;
             SaveAccounts();
             return true;
         }
@@ -2884,30 +2884,22 @@ The Phoenix team", "Notice");
                 return null;
             }
 
-            if (index == _selectedAccountIndex)
+            // For the active account the live per-platform state holds the authoritative address
+            // (it can differ from the stored field after an in-session refresh); otherwise read it
+            // straight off the stored account.
+            if (index == _selectedAccountIndex && _states.TryGetValue(platform, out var state))
             {
-                if (_states.ContainsKey(platform))
-                {
-                    return _states[platform].address;
-                }
+                return state.address;
             }
 
-            switch (platform)
+            var account = Accounts[index];
+            return platform switch
             {
-                case PlatformKind.Phantasma:
-                    return Accounts[index].phaAddress;
-
-                case PlatformKind.Neo:
-                    return Accounts[index].neoAddress;
-
-                case PlatformKind.Ethereum:
-                    return Accounts[index].ethAddress;
-
-                case PlatformKind.BSC:
-                    return Accounts[index].ethAddress;
-            }
-
-            return null;
+                PlatformKind.Phantasma => account.phaAddress,
+                PlatformKind.Neo => account.neoAddress,
+                PlatformKind.Ethereum or PlatformKind.BSC => account.ethAddress,
+                _ => null,
+            };
         }
 
         public void ResetNftsSorting()
