@@ -66,18 +66,18 @@ namespace Poltergeist
             if (!String.IsNullOrEmpty(password))
             {
                 account.passwordProtected = true;
-                account.passwordIterations = PasswordIterations;
+                account.passwordIterations = WalletCrypto.PasswordIterations;
 
                 // Encrypting WIF.
-                GetPasswordHash(password, account.passwordIterations, out string salt, out string passwordHash);
+                WalletCrypto.GetPasswordHash(password, account.passwordIterations, out string salt, out string passwordHash);
                 account.password = "";
                 account.salt = salt;
 
-                account.WIF = EncryptString(wif, passwordHash, out string iv);
+                account.WIF = WalletCrypto.EncryptString(wif, passwordHash, out string iv);
                 account.iv = iv;
 
                 // Decrypting to ensure there are no exceptions.
-                DecryptString(account.WIF, passwordHash, account.iv);
+                WalletCrypto.DecryptString(account.WIF, passwordHash, account.iv);
             }
             else
             {
@@ -119,7 +119,7 @@ namespace Poltergeist
             }
             else
             {
-                account.WIF = EncryptString(wif, passwordHash, out string iv);
+                account.WIF = WalletCrypto.EncryptString(wif, passwordHash, out string iv);
                 account.iv = iv;
             }
             account.misc = ""; // Migration does not guarantee that new account have current seed, but that's all that we can do with it.

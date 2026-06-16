@@ -119,8 +119,8 @@ namespace Poltergeist.Wallet
 
             try
             {
-                AccountManager.GetPasswordHashBySalt(password, accountManager.CurrentAccount.passwordIterations, accountManager.CurrentAccount.salt, out string passwordHash);
-                var wif = AccountManager.DecryptString(accountManager.CurrentAccount.WIF, passwordHash, accountManager.CurrentAccount.iv);
+                WalletCrypto.GetPasswordHashBySalt(password, accountManager.CurrentAccount.passwordIterations, accountManager.CurrentAccount.salt, out string passwordHash);
+                var wif = WalletCrypto.DecryptString(accountManager.CurrentAccount.WIF, passwordHash, accountManager.CurrentAccount.iv);
 
                 if (PhantasmaKeys.FromWIF(wif).Address.ToString() == accountManager.CurrentAccount.phaAddress)
                 {

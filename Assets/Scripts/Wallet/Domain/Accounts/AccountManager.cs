@@ -257,9 +257,6 @@ namespace Poltergeist
         }
         private List<RpcBenchmarkData> rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
 
-        public static readonly int PasswordIterations = 100000;
-        private static readonly int PasswordSaltByteSize = 64;
-        private static readonly int PasswordHashByteSize = 32;
         public bool accountBalanceNotLoaded = true;
         public bool accountHistoryNotLoaded = true;
 

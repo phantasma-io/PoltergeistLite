@@ -433,13 +433,13 @@ namespace Poltergeist.UiToolkit.Accounts
             if (!string.IsNullOrEmpty(protectPrompt.input))
             {
                 accountsExport.passwordProtected = true;
-                accountsExport.passwordIterations = AccountManager.PasswordIterations;
+                accountsExport.passwordIterations = WalletCrypto.PasswordIterations;
                 var bytes = Serialization.Serialize(targets.ToArray());
-                AccountManager.GetPasswordHash(protectPrompt.input, accountsExport.passwordIterations, out accountsExport.salt, out var passwordHash);
-                accountsExport.accounts = AccountManager.EncryptString(Convert.ToBase64String(bytes), passwordHash, out accountsExport.iv);
+                WalletCrypto.GetPasswordHash(protectPrompt.input, accountsExport.passwordIterations, out accountsExport.salt, out var passwordHash);
+                accountsExport.accounts = WalletCrypto.EncryptString(Convert.ToBase64String(bytes), passwordHash, out accountsExport.iv);
 
                 // Validate immediately to fail fast on incorrect params.
-                AccountManager.DecryptString(accountsExport.accounts, passwordHash, accountsExport.iv);
+                WalletCrypto.DecryptString(accountsExport.accounts, passwordHash, accountsExport.iv);
             }
             else
             {
@@ -578,8 +578,8 @@ namespace Poltergeist.UiToolkit.Accounts
 
                 try
                 {
-                    AccountManager.GetPasswordHashBySalt(passPrompt.input, accountsExport.passwordIterations, accountsExport.salt, out var passwordHash);
-                    accountsExport.accounts = AccountManager.DecryptString(accountsExport.accounts, passwordHash, accountsExport.iv);
+                    WalletCrypto.GetPasswordHashBySalt(passPrompt.input, accountsExport.passwordIterations, accountsExport.salt, out var passwordHash);
+                    accountsExport.accounts = WalletCrypto.DecryptString(accountsExport.accounts, passwordHash, accountsExport.iv);
                 }
                 catch (Exception e)
                 {

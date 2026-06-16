@@ -29,7 +29,7 @@ namespace Poltergeist
 
         public string GetWif(string passwordHash)
         {
-            return String.IsNullOrEmpty(passwordHash) ? WIF : AccountManager.DecryptString(WIF, passwordHash, iv);
+            return String.IsNullOrEmpty(passwordHash) ? WIF : WalletCrypto.DecryptString(WIF, passwordHash, iv);
         }
 
         public void SerializeData(BinaryWriter writer)

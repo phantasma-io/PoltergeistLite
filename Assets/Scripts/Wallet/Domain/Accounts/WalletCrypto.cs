@@ -1,41 +1,29 @@
-using System.Collections.Generic;
-using UnityEngine;
 using System;
-using System.IO;
-using System.Linq;
 using PhantasmaPhoenix.Cryptography;
-using PhantasmaPhoenix.Protocol;
-using PhantasmaPhoenix.Core;
-using PhantasmaPhoenix.VM;
-using Poltergeist.Wallet;
-using PhantasmaPhoenix.Core.Extensions;
-using Newtonsoft.Json.Linq;
-using PhantasmaPhoenix.RPC.Models;
-using PhantasmaPhoenix.Unity.Core;
-using PhantasmaPhoenix.NFT;
-using PhantasmaPhoenix.NFT.Extensions;
-using PhantasmaPhoenix.Protocol.Carbon.Blockchain;
-using PhantasmaPhoenix.Unity.Core.Logging;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Globalization;
-using System.Numerics;
 
 namespace Poltergeist
 {
-    public partial class AccountManager
+    // Password hashing and WIF encryption for wallet accounts. Pure and stateless, so it lives
+    // outside AccountManager and can be reasoned about (and tested) on its own.
+    public static class WalletCrypto
     {
+        public static readonly int PasswordIterations = 100000;
+        private static readonly int PasswordSaltByteSize = 64;
+        private static readonly int PasswordHashByteSize = 32;
+
         public static void GetPasswordHash(string password, int passwordIterations, out string salt, out string passwordHash)
         {
             BouncyCastleHashing hashing = new BouncyCastleHashing();
             salt = Convert.ToBase64String(hashing.CreateSalt(PasswordSaltByteSize));
             passwordHash = hashing.PBKDF2_SHA256_GetHash(password, salt, passwordIterations, PasswordHashByteSize);
         }
+
         public static void GetPasswordHashBySalt(string password, int passwordIterations, string salt, out string passwordHash)
         {
             BouncyCastleHashing hashing = new BouncyCastleHashing();
             passwordHash = hashing.PBKDF2_SHA256_GetHash(password, salt, passwordIterations, PasswordHashByteSize);
         }
+
         public static string EncryptString(string stringToEncrypt, string key, out string iv)
         {
             var ivBytes = new byte[16];
@@ -62,6 +50,7 @@ namespace Poltergeist
             iv = Convert.ToBase64String(ivBytes);
             return Convert.ToBase64String(outputBytes);
         }
+
         public static string DecryptString(string stringToDecrypt, string key, string iv)
         {
             //Set up
@@ -84,6 +73,5 @@ namespace Poltergeist
 
             return System.Text.Encoding.UTF8.GetString(result);
         }
-
     }
 }
