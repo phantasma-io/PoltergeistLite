@@ -2146,16 +2146,16 @@ The Phoenix team", "Notice");
 
         public void BlankState()
         {
-            var platforms = CurrentAccount.platforms.Split();
-
+            // Drop any cached per-platform state and recreate an empty, anonymous one (no balances,
+            // no flags) for every platform the current account supports, ahead of a fresh load.
             _states.Clear();
-            foreach (var platform in platforms)
+            foreach (var platform in CurrentAccount.platforms.Split())
             {
                 _states[platform] = new AccountState()
                 {
                     platform = platform,
                     address = GetAddress(CurrentIndex, platform),
-                    balances = new Balance[0],
+                    balances = Array.Empty<Balance>(),
                     flags = AccountFlags.None,
                     name = ValidationUtils.ANONYMOUS_NAME,
                 };
