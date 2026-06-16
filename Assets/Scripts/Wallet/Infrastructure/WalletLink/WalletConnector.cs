@@ -693,6 +693,28 @@ namespace Poltergeist
 
         protected override void Authorize(string dapp, string token, int version, Action<bool, string> callback)
         {
+            // Legacy connect: once the user consents, record the token in the per-account dappTokens
+            // map (the legacy revocation ledger); the base HandleAuthorize then mirrors it into
+            // _connections. v5 connect shares ONLY the consent prompt below - it never writes
+            // dappTokens, because a v5 dapp lives in the v5 session store and a stray dappTokens
+            // entry would be one that legacy Revoke cannot resolve (the original logout crash).
+            RequestDappConsent(dapp, version, (granted, error) =>
+            {
+                if (granted)
+                {
+                    AccountManager.Instance.CurrentState?.RegisterDappToken(dapp, token);
+                }
+                callback(granted, error);
+            });
+        }
+
+        // Shared, version-checked dApp consent prompt ("give dApp X access to account Y?"). This is
+        // the ONLY piece the legacy and v5 connect paths share. It deliberately knows nothing about
+        // session tokens or the legacy dappTokens ledger: the caller decides what to persist on a
+        // grant (legacy writes dappTokens; v5 lets the dispatcher own the session), so no legacy
+        // concept leaks into the clean v5 surface.
+        private void RequestDappConsent(string dapp, int version, Action<bool, string> callback)
+        {
             var accountManager = AccountManager.Instance;
 
             if (version > WalletConnector.LinkProtocol)
@@ -717,18 +739,11 @@ namespace Poltergeist
                 {
                     var result = await PromptAsync($"Give access to dApp \"{dapp}\" to your \"{state.name}\" account?");
                     WindowActivator.Instance.Restore();
-
-                    if (result)
-                    {
-                        state.RegisterDappToken(dapp, token);
-                    }
-
                     callback(result, result ? null : "rejected");
                 }
 
                 AskAuthorizationAsync().Forget(ex => Log.WriteWarning(ex.ToString()));
             });
-
         }
 
         #region IWalletLinkV5Ops
@@ -741,11 +756,12 @@ namespace Poltergeist
 
         WalletStatus IWalletLinkV5Ops.Status => Status;
 
-        void IWalletLinkV5Ops.Connect(string dappName, string sessionToken, Action<LinkConnectResult> done)
+        void IWalletLinkV5Ops.Connect(string dappName, Action<LinkConnectResult> done)
         {
-            // The internal ops still speak the legacy contract version (they guard on it and shape
-            // the account export by it); the v5 protocol version was already validated upstream.
-            Authorize(dappName, sessionToken, LinkProtocol, (authorized, authError) =>
+            // Reuse ONLY the shared consent prompt; the v5 session id is owned by the dispatcher, so
+            // this path writes NO legacy dappTokens. The internal consent still speaks the legacy
+            // contract version (it guards on it); the v5 protocol version was validated upstream.
+            RequestDappConsent(dappName, LinkProtocol, (authorized, authError) =>
             {
                 if (!authorized)
                 {
