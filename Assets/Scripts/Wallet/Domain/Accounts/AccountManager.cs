@@ -1666,6 +1666,10 @@ The Phoenix team", "Notice");
                 {
                     link.Revoke(entry.Key, entry.Value);
                 }
+
+                // Revoke v5 Link sessions bound to this account so a logged-out account's
+                // dApp sessions cannot resume.
+                LinkConnectorHost.Instance?.RevokeAccountSessions(state.address);
             }
 
             _states.Clear();

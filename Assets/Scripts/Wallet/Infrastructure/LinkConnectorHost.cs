@@ -22,6 +22,7 @@ namespace Poltergeist
         public static LinkConnectorHost Instance { get; private set; }
 
         private LinkServer server;
+        private ILinkSessionStore _sessionStore;
 
         private void Start()
         {
@@ -38,7 +39,8 @@ namespace Poltergeist
             // /phantasma. WalletConnector implements the clean IWalletLinkV5Ops for the v5
             // dispatcher while remaining a WalletLink for the legacy one; both reuse the same
             // internal wallet logic. Sessions persist via PlayerPrefs (spec §7 resume).
-            var walletLinkV5 = new WalletLinkV5(PhantasmaLink, new PlayerPrefsLinkSessionStore());
+            _sessionStore = new PlayerPrefsLinkSessionStore();
+            var walletLinkV5 = new WalletLinkV5(PhantasmaLink, _sessionStore);
             server = new LinkServer(PhantasmaLink, walletLinkV5);
 
             var pairingStore = new PlayerPrefsLinkPairingStore();
@@ -138,6 +140,30 @@ namespace Poltergeist
             if (Instance == this)
             {
                 Instance = null;
+            }
+        }
+
+        // Revokes the v5 Link sessions authorized for the given account address, so that after the
+        // account is logged out a previously paired dApp cannot resume its session.
+        public void RevokeAccountSessions(string address)
+        {
+            if (_sessionStore == null || string.IsNullOrEmpty(address))
+            {
+                return;
+            }
+
+            foreach (var session in _sessionStore.List())
+            {
+                if (session.Address != address)
+                {
+                    continue;
+                }
+
+                // Full revoke (spec §7): tear down the relay pairing (best-effort notify the dApp
+                // with pha_sessionDeleted, unsubscribe the topic, forget the pairing), then drop
+                // the session record.
+                RelayClient?.RevokeSession(session.Id);
+                _sessionStore.Remove(session.Id);
             }
         }
 
