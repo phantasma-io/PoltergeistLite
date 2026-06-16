@@ -25,76 +25,17 @@ namespace Poltergeist
 {
     public partial class AccountManager
     {
+        // Token fiat prices and the active display currency live in TokenPriceCache; these forward
+        // to it so AccountManager's pricing API stays unchanged.
+        private TokenPriceCache _priceCache;
+
+        public string CurrentTokenCurrency => _priceCache.CurrentTokenCurrency;
+        public IEnumerable<string> Currencies => _priceCache.Currencies;
+
         public string GetTokenWorth(string symbol, BigInteger amount, uint decimals)
-        {
-            bool hasLocalCurrency = !string.IsNullOrEmpty(CurrentTokenCurrency) && _currencyMap.ContainsKey(CurrentTokenCurrency);
-            if (!_tokenPrices.ContainsKey(symbol) || !hasLocalCurrency)
-            {
-                return null;
-            }
+            => _priceCache.GetTokenWorth(symbol, amount, decimals);
 
-            // First try the exact conversion. If the token uses an extreme decimals value (for example 64), the
-            // exact decimal path can reject it because decimal cannot represent the intermediate 10^decimals scale.
-            // In that case we degrade to a bounded approximation that is sufficient for a short fiat estimate.
-            if (!WalletAmountFormatter.TryToDecimal(amount, decimals, out var decimalAmount) &&
-                !WalletAmountFormatter.TryToApproxDecimal(amount, decimals, 18, out decimalAmount))
-            {
-                return null;
-            }
-
-            var price = _tokenPrices[symbol] * decimalAmount;
-            var ch = _currencyMap[CurrentTokenCurrency];
-            return $"{WalletAmountFormatter.Format(price, MoneyFormatType.Short)} {ch}";
-        }
-
-        private async Task FetchTokenPricesAsync(IEnumerable<TokenResult> tokens, string currency, CancellationToken cancellationToken)
-        {
-            var separator = "%2C";
-            var url = "https://api.coingecko.com/api/v3/simple/price?ids=" + string.Join(separator, tokens.Where(x => Tokens.HasCGSymbol(x)).Select(x => Tokens.GetCGSymbol(x)).Distinct().ToList()) + "&vs_currencies=" + currency;
-            try
-            {
-                var response = await WebClientAsync.GetAsync<Dictionary<string, Dictionary<string, decimal>>>(
-                    url,
-                    WebClient.DefaultTimeout,
-                    NetworkRetryPolicy.Retries,
-                    NetworkRetryPolicy.RetryDelay,
-                    cancellationToken);
-                foreach (var token in tokens)
-                {
-                    var cgSymbol = Tokens.GetCGSymbol(token);
-                    var node = response.Where(x => x.Key.ToUpperInvariant() == cgSymbol.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
-                    if (node != default)
-                    {
-                        var price = node.Where(x => x.Key.ToUpperInvariant() == currency.ToUpperInvariant()).Select(x => x.Value).FirstOrDefault();
-
-                        SetTokenPrice(token.Symbol, price);
-                    }
-                    else
-                    {
-                        Log.Write($"Cannot get price for '{cgSymbol}'.");
-                    }
-                }
-
-                // GOATI token price is pegged to 0.1$.
-                SetTokenPrice("GOATI", Convert.ToDecimal(0.1));
-
-                // Prices updated: refresh balances so fiat values appear without manual actions.
-                if (HasSelection)
-                {
-                    RefreshBalances(false);
-                }
-            }
-            catch (Exception e)
-            {
-                Log.WriteWarning(e.ToString());
-            }
-        }
-
-        private void SetTokenPrice(string symbol, decimal price)
-        {
-            Log.Write($"Got price for {symbol} => {price}");
-            _tokenPrices[symbol] = price;
-        }
+        public void RefreshTokenPrices() => _priceCache.Refresh();
 
         private async Task<TokenResult[]> GetTokensAsync(CancellationToken cancellationToken)
         {
@@ -114,7 +55,7 @@ namespace Poltergeist
                         continue;
                     }
 
-                    CurrentTokenCurrency = "";
+                    _priceCache.ResetCurrency();
                     Settings.settingRequireReconfiguration = true;
                     Status = "ok"; // We are launching with uninitialized tokens,
                                    // to allow user to edit settings.
@@ -208,7 +149,7 @@ namespace Poltergeist
 
             }
 
-            CurrentTokenCurrency = "";
+            _priceCache.ResetCurrency();
 
             Status = "ok";
             tokensReinitInProgress = false;
@@ -255,21 +196,6 @@ namespace Poltergeist
             }
         }
 
-        public void RefreshTokenPrices()
-        {
-            // Refresh when the display currency changed or the cached prices are at least 5 minutes
-            // old; otherwise the previous fetch still stands.
-            var currencyChanged = CurrentTokenCurrency != Settings.currency;
-            var pricesStale = DateTime.UtcNow - _lastPriceUpdate >= TimeSpan.FromMinutes(5);
-            if (!currencyChanged && !pricesStale)
-            {
-                return;
-            }
-
-            CurrentTokenCurrency = Settings.currency;
-            _lastPriceUpdate = DateTime.UtcNow;
-            FetchTokenPricesAsync(Tokens.GetTokensForCoingecko(), CurrentTokenCurrency, CancellationToken.None).Forget(LogTaskException);
-        }
 
         public void UpdateAPIs(bool possibleNexusChange = false)
         {

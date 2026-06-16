@@ -37,8 +37,6 @@ namespace Poltergeist
         public List<Account> Accounts { get; private set; }
         public bool AccountsAreReadyToBeUsed = false;
 
-        private Dictionary<string, decimal> _tokenPrices = new Dictionary<string, decimal>();
-        public string CurrentTokenCurrency { get; private set; }
 
         // Keep selection unset until the user explicitly opens a wallet to avoid auto-opening arbitrary accounts on startup.
         private int _selectedAccountIndex = -1;
@@ -187,12 +185,9 @@ namespace Poltergeist
             return platforms;
         }
 
-        private Dictionary<string, string> _currencyMap = new Dictionary<string, string>();
-        public IEnumerable<string> Currencies => _currencyMap.Keys;
 
         public static readonly int SoulMasterStakeAmount = 50000;
 
-        private DateTime _lastPriceUpdate = DateTime.MinValue;
         private bool tokensReinitInProgress;
         private bool refreshBalancesAfterTokenReload;
         private bool refreshBalancesAfterTokenReloadForce;
@@ -203,6 +198,7 @@ namespace Poltergeist
         {
             Instance = this;
             _hiddenWallets = new HiddenWalletStore(() => Accounts);
+            _priceCache = new TokenPriceCache(() => Settings.currency, () => { if (HasSelection) RefreshBalances(false); });
             Settings = WalletRuntime.GetSettings();
 
             // Let Carbon description parsing lazily pull in a single token by carbon id when it
@@ -212,13 +208,6 @@ namespace Poltergeist
 
             Status = "Initializing wallet...";
 
-            _currencyMap["AUD"] = "A$";
-            _currencyMap["CAD"] = "C$";
-            _currencyMap["EUR"] = "€";
-            _currencyMap["GBP"] = "\u00A3";
-            _currencyMap["RUB"] = "\u20BD";
-            _currencyMap["USD"] = "$";
-            _currencyMap["JPY"] = "¥";
 
             var platforms = new List<PlatformKind>();
             platforms.Add(PlatformKind.Phantasma);
