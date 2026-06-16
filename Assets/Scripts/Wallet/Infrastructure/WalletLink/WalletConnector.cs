@@ -193,6 +193,8 @@ namespace Poltergeist
 
         protected override void GetAccount(string platform, int version, Action<Account, string> callback)
         {
+            // RequestPlatform validates the platform and, as a side effect, already makes it the
+            // wallet's current platform; None means it is unparsable or not enabled on this account.
             var targetPlatform = RequestPlatform(platform);
             if (targetPlatform == PlatformKind.None)
             {
@@ -200,62 +202,55 @@ namespace Poltergeist
                 return;
             }
 
-            var accountManager = AccountManager.Instance;
-
-            if (accountManager.CurrentPlatform != targetPlatform)
-            {
-                accountManager.CurrentPlatform = targetPlatform;
-                PushMessage("Phantasma Link", $"Changed current platform to: {targetPlatform}", MessageKind.Default);
-            }
-
-            var account = accountManager.CurrentAccount;
-
-            var state = accountManager.CurrentState;
-
+            var state = AccountManager.Instance.CurrentState;
             if (state == null)
             {
-                callback(new Account(), "not logged in, devs should implement this case!");
+                callback(new Account(), "not logged in");
                 return;
             }
 
-            IEnumerable<Balance> balances;
+            var account = AccountManager.Instance.CurrentAccount;
 
-            if (version >= 3)
+            // Balances stay null until the first refresh; normalize to empty so the projection
+            // below is null-safe on every protocol version (previously only the legacy branch
+            // guarded this, so a v3+ query on a freshly opened account could throw).
+            if (state.balances == null)
             {
-                balances = state.balances.Select(x => new Balance()
-                {
-                    symbol = x.Symbol,
-                    value = x.Available.ToString(),
-                    decimals = x.Decimals,
-                    ids = x.Ids
-                });
+                state.balances = Array.Empty<Poltergeist.Balance>();
             }
-            else
+
+            // Protocol 3 added per-token NFT ids; older dapps do not expect that field, so emit it
+            // only from v3 on and otherwise keep the original scalar-only balance shape.
+            var includeIds = version >= 3;
+            var balances = state.balances.Select(token =>
             {
-                if (state.balances == null)
+                var balance = new Balance()
                 {
-                    state.balances = new Poltergeist.Balance[0];
+                    symbol = token.Symbol,
+                    value = token.Available.ToString(),
+                    decimals = token.Decimals
+                };
+
+                if (includeIds)
+                {
+                    balance.ids = token.Ids;
                 }
 
-                balances = state.balances.Select(x => new Balance()
-                {
-                    symbol = x.Symbol,
-                    value = x.Available.ToString(),
-                    decimals = x.Decimals
-                });
-            }
+                return balance;
+            }).ToArray();
 
             var accountExport = new Account()
             {
                 name = account.name,
                 alias = account.name,
                 address = AccountManager.Instance.MainState.address,
-                balances = balances.ToArray(),
+                balances = balances,
                 avatar = state.avatarData,
                 platform = platform,
                 external = targetPlatform != PlatformKind.Phantasma ? state.address : ""
             };
 
+            // Protocol 3 reports the Neo identity from the dedicated N3 address field.
             if (version == 3 && targetPlatform == PlatformKind.Neo)
             {
                 accountExport.external = account.neoAddressN3;
