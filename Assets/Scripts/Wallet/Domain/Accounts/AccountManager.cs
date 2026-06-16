@@ -199,6 +199,7 @@ namespace Poltergeist
             Instance = this;
             _hiddenWallets = new HiddenWalletStore(() => Accounts);
             _priceCache = new TokenPriceCache(() => Settings.currency, () => { if (HasSelection) RefreshBalances(false); });
+            _rpcHealth = new RpcHealth(() => Settings, () => UpdateAPIs());
             Settings = WalletRuntime.GetSettings();
 
             // Let Carbon description parsing lazily pull in a single token by carbon id when it
@@ -224,25 +225,6 @@ namespace Poltergeist
         public const string WalletVersionTag = "wallet.list.version";
         public const string WalletTag = "wallet.list";
 
-        public bool ReportGetPeersFailure = false;
-        public bool ReportAllRpcsUnavailabe = false;
-        private int rpcNumberPhantasma; // Total number of Phantasma RPCs, received from getpeers.json.
-        private int rpcBenchmarkedPhantasma; // Number of Phantasma RPCs which speed already measured.
-        public int rpcAvailablePhantasma = 0;
-        private class RpcBenchmarkData
-        {
-            public string Url;
-            public bool ConnectionError;
-            public TimeSpan ResponseTime;
-
-            public RpcBenchmarkData(string url, bool connectionError, TimeSpan responseTime)
-            {
-                Url = url;
-                ConnectionError = connectionError;
-                ResponseTime = responseTime;
-            }
-        }
-        private List<RpcBenchmarkData> rpcResponseTimesPhantasma = new List<RpcBenchmarkData>();
 
         public bool accountBalanceNotLoaded = true;
         public bool accountHistoryNotLoaded = true;
