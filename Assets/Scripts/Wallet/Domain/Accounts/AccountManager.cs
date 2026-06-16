@@ -31,14 +31,11 @@ namespace Poltergeist
         public static readonly int MinAccountNameLength = 3;
         public static readonly int MaxAccountNameLength = 16;
         public string WalletIdentifier => "PGL" + UnityEngine.Application.version;
-        public const string HiddenWalletsTag = "wallet.hidden.phantasma";
 
         public Settings Settings { get; private set; }
 
         public List<Account> Accounts { get; private set; }
         public bool AccountsAreReadyToBeUsed = false;
-        private readonly HashSet<string> hiddenPhantasmaAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        public IReadOnlyCollection<string> HiddenPhantasmaAddresses => hiddenPhantasmaAddresses;
 
         private Dictionary<string, decimal> _tokenPrices = new Dictionary<string, decimal>();
         public string CurrentTokenCurrency { get; private set; }
@@ -205,6 +202,7 @@ namespace Poltergeist
         private void Awake()
         {
             Instance = this;
+            _hiddenWallets = new HiddenWalletStore(() => Accounts);
             Settings = WalletRuntime.GetSettings();
 
             // Let Carbon description parsing lazily pull in a single token by carbon id when it
