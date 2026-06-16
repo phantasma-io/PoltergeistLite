@@ -23,12 +23,15 @@ namespace Poltergeist.UiToolkit
         private readonly string rejectMessage;
         private readonly Func<string, string> tryAccept;
         private readonly Action<string> onAccepted;
+        private readonly bool enableClipboardPaste;
         private readonly WalletQrScanner scanner = new WalletQrScanner();
 
         private VisualElement panel;
         private Image preview;
         private Label status;
+        private Button pasteButton;
         private IVisualElementScheduledItem scanLoop;
+        private IVisualElementScheduledItem pasteLoop;
         private WebCamTexture camera;
         private bool closed;
         private bool orientationApplied;
@@ -40,7 +43,8 @@ namespace Poltergeist.UiToolkit
             string hint,
             string rejectMessage,
             Func<string, string> tryAccept,
-            Action<string> onAccepted)
+            Action<string> onAccepted,
+            bool enableClipboardPaste = false)
         {
             this.modalHost = modalHost ?? throw new ArgumentNullException(nameof(modalHost));
             this.applyDefaultFont = applyDefaultFont ?? (_ => { });
@@ -49,18 +53,28 @@ namespace Poltergeist.UiToolkit
             this.rejectMessage = string.IsNullOrWhiteSpace(rejectMessage) ? "That QR was not recognised. Keep scanning." : rejectMessage;
             this.tryAccept = tryAccept ?? throw new ArgumentNullException(nameof(tryAccept));
             this.onAccepted = onAccepted ?? (_ => { });
+            // When true, a clipboard Paste button is shown that accepts whatever tryAccept accepts and
+            // acts like a scanned code. Callers that already have their own paste UI leave it false.
+            this.enableClipboardPaste = enableClipboardPaste;
         }
 
         public void Open()
         {
             closed = false;
             orientationApplied = false;
-            panel = WalletUiModalFactory.CreateQrScannerPanel(title, hint, Close, applyDefaultFont, out preview, out status);
+            panel = WalletUiModalFactory.CreateQrScannerPanel(title, hint, Close, applyDefaultFont, enableClipboardPaste, out preview, out status, out pasteButton);
             // Releasing the camera on detach covers closes that do not go through Cancel
             // (navigation away, HideAll). CloseInternal is idempotent.
             panel.RegisterCallback<DetachFromPanelEvent>(_ => CloseInternal());
             modalHost.ShowPanel(panel);
             RequestCameraThenStart();
+            // Clipboard is the camera-free pairing path (desktop has no camera): poll it so the Paste
+            // button auto-enables the moment a valid pairing link is on the clipboard. Pairing-only.
+            if (enableClipboardPaste)
+            {
+                RefreshPasteState();
+                pasteLoop = panel.schedule.Execute(RefreshPasteState).Every(500);
+            }
         }
 
         private void RequestCameraThenStart()
@@ -178,6 +192,52 @@ namespace Poltergeist.UiToolkit
             onAccepted(accepted);
         }
 
+        // Clipboard pairing path (camera-free, primarily for desktop). Keep Paste enabled and
+        // clickable ONLY while the clipboard holds something the endpoint accepts, so a click can
+        // never forward garbage; an accepted paste then behaves exactly like a scanned QR.
+        private void RefreshPasteState()
+        {
+            if (closed || pasteButton == null)
+            {
+                return;
+            }
+
+            // Generic: enable only when the clipboard holds something THIS scanner would accept,
+            // using the SAME tryAccept predicate as the camera path. The view stays content-agnostic
+            // (the caller decides what is acceptable); it knows nothing about pairing or addresses.
+            var clipboard = (GUIUtility.systemCopyBuffer ?? string.Empty).Trim();
+            var isAcceptable = !string.IsNullOrEmpty(tryAccept(clipboard));
+            WalletUiCommon.SetButtonEnabledVisual(pasteButton, isAcceptable, WalletUiTheme.TextPrimary, WalletUiTheme.TextMuted);
+            // Re-wire on every tick so the handler is attached exactly when (and only when) the
+            // clipboard is acceptable; the unconditional removal first keeps it from stacking.
+            pasteButton.clicked -= PasteFromClipboard;
+            if (isAcceptable)
+            {
+                pasteButton.clicked += PasteFromClipboard;
+            }
+        }
+
+        private void PasteFromClipboard()
+        {
+            if (closed)
+            {
+                return;
+            }
+
+            var clipboard = (GUIUtility.systemCopyBuffer ?? string.Empty).Trim();
+            var accepted = tryAccept(clipboard);
+            if (string.IsNullOrEmpty(accepted))
+            {
+                // Clipboard changed between the poll tick and the click: do nothing rather than
+                // forward a non-pairing string.
+                return;
+            }
+
+            Log.Write($"{LogPrefix}clipboard pairing link accepted");
+            CloseInternal();
+            onAccepted(accepted);
+        }
+
         private void SetStatus(string message)
         {
             if (status != null)
@@ -201,6 +261,9 @@ namespace Poltergeist.UiToolkit
 
             scanLoop?.Pause();
             scanLoop = null;
+
+            pasteLoop?.Pause();
+            pasteLoop = null;
 
             if (camera != null)
             {

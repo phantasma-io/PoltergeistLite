@@ -272,7 +272,7 @@ namespace Poltergeist.UiToolkit
             return panel;
         }
 
-        public static VisualElement CreateQrScannerPanel(string titleText, string hintText, Action onCancel, Action<VisualElement> applyDefaultFont, out Image preview, out Label status)
+        public static VisualElement CreateQrScannerPanel(string titleText, string hintText, Action onCancel, Action<VisualElement> applyDefaultFont, bool withPasteButton, out Image preview, out Label status, out Button pasteButton)
         {
             var panel = WalletUiCommon.CreateModalPanel(460, 460);
             // Fit narrow (mobile) screens: responsive width capped on desktop so the dialog does
@@ -353,6 +353,18 @@ namespace Poltergeist.UiToolkit
                     justifyContent = Justify.Center
                 }
             };
+            // Optional Paste button, LEFT of Cancel, shown only when the caller asks for it. Created
+            // disabled and handler-less - the scanner view enables it and wires the click ONLY while
+            // the clipboard holds content that scanner accepts. Callers with their own paste UI omit it.
+            pasteButton = null;
+            if (withPasteButton)
+            {
+                pasteButton = WalletUiCommon.CreateSecondaryButton("Paste", null, 16, 36);
+                pasteButton.style.minWidth = 110;
+                pasteButton.style.marginRight = 8;
+                buttons.Add(pasteButton);
+            }
+
             var cancelBtn = WalletUiCommon.CreateSecondaryButton("Cancel", onCancel, 16, 36);
             cancelBtn.style.minWidth = 110;
             buttons.Add(cancelBtn);

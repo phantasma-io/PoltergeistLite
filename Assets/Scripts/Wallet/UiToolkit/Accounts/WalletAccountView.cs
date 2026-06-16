@@ -264,7 +264,7 @@ namespace Poltergeist.UiToolkit.Accounts
 
             var signBtn = WalletUiCommon.CreateSecondaryButton("Sign Message", () => OnSignMessageAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Sign message failed: {ex}")), 14, 32);
             var verifyBtn = WalletUiCommon.CreateSecondaryButton("Verify Signature", () => OnVerifySignatureAsync().Forget(ex => Log.WriteWarning($"{LogPrefix}Verify signature failed: {ex}")), 14, 32);
-            var scanBtn = WalletUiCommon.CreateSecondaryButton("Connect (QR)", OpenQrScanner, 14, 32);
+            var scanBtn = WalletUiCommon.CreateSecondaryButton("Connect dApp", OpenQrScanner, 14, 32);
             signBtn.style.minWidth = 160;
             verifyBtn.style.minWidth = 170;
             scanBtn.style.minWidth = 150;
@@ -1008,16 +1008,18 @@ namespace Poltergeist.UiToolkit.Accounts
 
         private void OpenQrScanner()
         {
-            // Scan a dApp pairing QR (cross-device) and feed the URI to the same deeplink
-            // endpoint the OS uses; the scanner releases the camera when it closes.
+            // Connect to a dApp by scanning its pairing QR (cross-device) OR pasting its pairing link
+            // from the clipboard (camera-free, for desktop); both feed the URI to the same deeplink
+            // endpoint the OS uses. The scanner releases the camera when it closes.
             var scannerView = new WalletUiQrScannerView(
                 modalHost,
                 ApplyDefaultFont,
-                "Scan dApp QR",
-                "Point the camera at the dApp QR code.",
+                "Connect to dApp",
+                "Scan the dApp's QR code, or paste its pairing link from the clipboard.",
                 "That QR is not a Phantasma pairing code. Keep scanning.",
                 text => WalletQrScanner.IsPairingUri(text) ? text.Trim() : null,
-                uri => LinkConnectorHost.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }));
+                uri => LinkConnectorHost.Instance?.DeeplinkEndpoint?.TryHandle(uri, _ => { }),
+                enableClipboardPaste: true);
             scannerView.Open();
         }
 
