@@ -1011,6 +1011,14 @@ namespace Poltergeist
             }
 
             var nexus = accountManager.Settings.nexusName;
+            // Fail fast on a nexus mismatch: the wallet only signs/broadcasts on its OWN nexus, so a
+            // prebuilt transaction targeting a different nexus must be rejected outright, never
+            // silently re-wrapped onto this wallet's nexus.
+            if (!string.Equals(tx.NexusName, nexus, StringComparison.Ordinal))
+            {
+                callback(null, Hash.Null, $"nexus mismatch: transaction nexus '{tx.NexusName}' does not match wallet nexus '{nexus}'");
+                return;
+            }
             var account = accountManager.CurrentAccount;
 
             RunOnUi(() =>
@@ -1166,6 +1174,7 @@ namespace Poltergeist
             if (error == "description parsing error") return LinkFailure.InvalidTransaction;
             if (error == "invalid transaction") return LinkFailure.InvalidTransaction;
             if (error == "signature kind unsupported") return LinkFailure.UnsupportedSignatureKind;
+            if (error.StartsWith("nexus mismatch", StringComparison.Ordinal)) return LinkFailure.NexusMismatch;
             return LinkFailure.Internal;
         }
 
